@@ -1,0 +1,279 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<HTML
+><HEAD
+><TITLE
+>11.參數傳遞</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.76b+
+"><LINK
+REL="HOME"
+TITLE="Shell 設計入門"
+HREF="book1.html"><LINK
+REL="PREVIOUS"
+TITLE="10.算術運算"
+HREF="c860.html"><LINK
+REL="NEXT"
+TITLE="12.程式條件控制 if 語法結構"
+HREF="c940.html"></HEAD
+><BODY
+CLASS="CHAPTER"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Shell 設計入門: </TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="c860.html"
+ACCESSKEY="P"
+>&#60;&#60;&#60; Previous</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="c940.html"
+ACCESSKEY="N"
+>Next &#62;&#62;&#62;</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="CHAPTER"
+><H1
+><A
+NAME="CH11">11.參數傳遞</H1
+><P
+>Bash shell 提供位置參數來擔任參數的傳遞工作。</P
+><P
+>例：./pa.sh A B C D E F G H I</P
+><P
+>其中 A B C D E F G H I 為欲傳入 pa.sh 這支 script 的 9 個參數，此時，用 $0 來代表 script 本身的檔案名稱，$1 代表第一個參數，也就是 A，$2 代表第一個參數，也就是 B，其它依此類推。</P
+><P
+>$# 代表參數的總數，也就是 9。</P
+><P
+>$* 代表所有的參數，也就是 A B C D E F G H I</P
+><P
+>$@ 代表所有的參數，也就是 A B C D E F G H I</P
+><P
+>$* 和 $@ 稍有不同："$*" 代表 "A B C D E F G H I"，"$@" 代表 "A" "B" "C" "D" "E" "F" "G" "H" "I"</P
+><P
+>shift 用來移動參數的位置，每執行一次，則所有的參數往左移一位，此時 $1 為 B，$2 為 C，......</P
+><P
+>set 用來重新設定位置參數，比如：set a b c d，表示重新設定 $1 為 a, $2 為 b, $3 為 c, $4 為 d</P
+><P
+>pa.sh
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+>#! /bin/sh
+echo "\$1 = $1"
+echo "\$2 = $2"
+echo "\$3 = $3"
+echo "\$4 = $4"
+echo "\$5 = $5"
+echo "\$6 = $6"
+echo "\$7 = $7"
+echo "\$8 = $8"
+echo "\$9 = $9"</PRE
+></TD
+></TR
+></TABLE
+></P
+><P
+>要特別注意的是：位置參數只有 $1 ~ $9 等九個，沒有 $10。$10是代表 $1 和 0 的組合，也就是說：若 $1 為 A，則 $10 為 A0 之意，例如以下 script 所示：</P
+><P
+>pa2.sh
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+>#! /bin/sh
+echo "\$10 = $10"
+
+
+./pa2.sh A
+結果:
+$10 = A0</PRE
+></TD
+></TR
+></TABLE
+></P
+><P
+>第五章曾提過自動安裝 script，現在我們再加以改良：</P
+><P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+>#! /bin/sh
+# 使用法: ./install-app.sh Apache版本 PHP版本 MySQL安裝路徑
+
+if [ $# -ne 0 -a $# -ne 3 ]; then
+   echo "使用法: ./install-app.sh Apache版本 PHP版本 MySQL安裝路徑"
+   echo "或"
+   echo "./install-app.sh"
+   exit
+fi
+
+# 設定版本編號及 MySQL 安裝路徑
+
+if [ -n $1 ]; then
+     ApacheVersion="$1"
+else
+     ApacheVersion="1.3.26"
+fi
+
+if [ -n $2 ]; then
+     PHPVersion="$2"
+else
+     PHPVersion="4.1.2"
+fi
+
+if [ -n $3 ]; then
+     MYSQLHOME="$3"
+else
+     MYSQLHOME="/home/mysql"
+fi
+
+# 解壓
+tar xvzf apache_$ApacheVersion.tar.gz &#38;&#38;
+tar xvzf php-$PHPVersion.tar.gz &#38;&#38;
+
+# 設定 Apache
+echo "Configure apache ...." &#38;&#38;
+cd apache_$ApacheVersion &#38;&#38;
+./configure --prefix=/usr/local/apache &#38;&#38;
+
+# 設定/編譯/安裝 PHP
+cd .. &#38;&#38;
+cd php-$PHPVersion &#38;&#38;
+./configure \
+          --with-apache=../apache_$ApacheVersion \
+          --with-mysql=$MYSQLHOME &#38;&#38;
+make &#38;&#38;
+make install &#38;&#38;
+cd .. &#38;&#38;
+
+# 設定/編譯/安裝 Apache
+cd apache_$ApacheVersion &#38;&#38;
+./configure \
+          --prefix=/usr/local/apache \
+          --activate-module=src/modules/php4/libphp4.a &#38;&#38;
+make &#38;&#38;
+make install &#38;&#38;
+
+# 拷貝 php.ini 到 /usr/local/lib
+cd ../php-$PHPVersion &#38;&#38;
+cp -f php.ini-dist /usr/local/lib/php.ini
+
+echo
+echo "Done!"
+echo</PRE
+></TD
+></TR
+></TABLE
+></P
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="c860.html"
+ACCESSKEY="P"
+>&#60;&#60;&#60; Previous</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="book1.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="c940.html"
+ACCESSKEY="N"
+>Next &#62;&#62;&#62;</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>10.算術運算</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>12.程式條件控制 if 語法結構</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

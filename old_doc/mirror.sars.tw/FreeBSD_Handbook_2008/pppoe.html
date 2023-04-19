@@ -1,0 +1,224 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>使用 PPP over Ethernet (PPPoE)</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.79" />
+<link rel="HOME" title="FreeBSD 使用手冊" href="index.html" />
+<link rel="UP" title="PPP and SLIP" href="ppp-and-slip.html" />
+<link rel="PREVIOUS" title="Troubleshooting PPP Connections"
+href="ppp-troubleshoot.html" />
+<link rel="NEXT" title="Using PPP over ATM (PPPoA)" href="pppoa.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD 使用手冊</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="ppp-troubleshoot.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 25 PPP and SLIP</td>
+<td width="10%" align="right" valign="bottom"><a href="pppoa.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="PPPOE" name="PPPOE">25.5 使用 PPP over Ethernet (PPPoE)</a></h1>
+
+<i class="AUTHORGROUP"><span class="CONTRIB">Contributed (from
+http://node.to/freebsd/how-tos/how-to-freebsd-pppoe.html) by</span> Jim Mock.</i> 
+
+<p>This section describes how to set up PPP over Ethernet (<acronym
+class="ACRONYM">PPPoE</acronym>).</p>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN32430" name="AEN32430">25.5.1 設定 Kernel</a></h2>
+
+<p>No kernel configuration is necessary for PPPoE any longer. If the necessary netgraph
+support is not built into the kernel, it will be dynamically loaded by <b
+class="APPLICATION">ppp</b>.</p>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN32434" name="AEN32434">25.5.2 設定 <tt
+class="FILENAME">ppp.conf</tt></a></h2>
+
+<p><tt class="FILENAME">ppp.conf</tt> 的範例如下:</p>
+
+<pre class="PROGRAMLISTING">
+default:
+  set log Phase tun command # you can add more detailed logging if you wish
+  set ifaddr 10.0.0.1/0 10.0.0.2/0
+
+name_of_service_provider:
+  set device PPPoE:<tt
+class="REPLACEABLE"><i>xl1</i></tt> # 將 xl1 取代為您目前的 Ethernet 裝置
+  set authname YOURLOGINNAME
+  set authkey YOURPASSWORD
+  set dial
+  set login
+  add default HISADDR
+</pre>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN32441" name="AEN32441">25.5.3 執行 <b
+class="APPLICATION">ppp</b></a></h2>
+
+<p>使用 <tt class="USERNAME">root</tt> 執行下列指令:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">ppp -ddial name_of_service_provider</kbd>
+</pre>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN32449" name="AEN32449">25.5.4 於開機啟動 <b
+class="APPLICATION">ppp</b></a></h2>
+
+<p>新增以下參數至 <tt class="FILENAME">/etc/rc.conf</tt> 檔案:</p>
+
+<pre class="PROGRAMLISTING">
+ppp_enable="YES"
+ppp_mode="ddial"
+ppp_nat="YES"   # 若您欲啟動 NAT 於區網域路 , 否則填 NO
+ppp_profile="name_of_service_provider"
+</pre>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN32455" name="AEN32455">25.5.5 Using a PPPoE Service
+Tag</a></h2>
+
+<p>Sometimes it will be necessary to use a service tag to establish your connection.
+Service tags are used to distinguish between different PPPoE servers attached to a given
+network.</p>
+
+<p>You should have been given any required service tag information in the documentation
+provided by your ISP. If you cannot locate it there, ask your ISP's tech support
+personnel.</p>
+
+<p>As a last resort, you could try the method suggested by the <a
+href="http://www.roaringpenguin.com/pppoe/" target="_top">Roaring Penguin PPPoE</a>
+program which can be found in the <a href="ports.html">Ports Collection</a>. Bear in mind
+however, this may de-program your modem and render it useless, so think twice before
+doing it. Simply install the program shipped with the modem by your provider. Then,
+access the <span class="GUIMENU">System</span> menu from the program. The name of your
+profile should be listed there. It is usually <span class="emphasis"><b
+class="EMPHASIS">ISP</b></span>.</p>
+
+<p>The profile name (service tag) will be used in the PPPoE configuration entry in <tt
+class="FILENAME">ppp.conf</tt> as the provider part of the <tt class="COMMAND">set
+device</tt> command (see the <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=ppp&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">ppp</span>(8)</span></a> manual page for
+full details). It should look like this:</p>
+
+<pre class="PROGRAMLISTING">
+set device PPPoE:<tt class="REPLACEABLE"><i>xl1</i></tt>:<tt
+class="REPLACEABLE"><i>ISP</i></tt>
+</pre>
+
+<p>Do not forget to change <tt class="REPLACEABLE"><i>xl1</i></tt> to the proper device
+for your Ethernet card.</p>
+
+<p>Do not forget to change <tt class="REPLACEABLE"><i>ISP</i></tt> to the profile you
+have just found above.</p>
+
+<p>For additional information, see:</p>
+
+<ul>
+<li>
+<p><a href="http://renaud.waldura.com/doc/freebsd/pppoe/" target="_top">Cheaper Broadband
+with FreeBSD on DSL</a> by Renaud Waldura.</p>
+</li>
+
+<li>
+<p><a href="http://www.ruhr.de/home/nathan/FreeBSD/tdsl-freebsd.html"
+target="_top">Nutzung von T-DSL und T-Online mit FreeBSD</a> by Udo Erdelhoff (in
+German).</p>
+</li>
+</ul>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="PPP-3COM" name="PPP-3COM">25.5.6 PPPoE with a <span
+class="TRADEMARK">3Com</span>&reg; <span class="TRADEMARK">HomeConnect</span>&reg; ADSL
+Modem Dual Link</a></h2>
+
+<p>This modem does not follow <a href="http://www.faqs.org/rfcs/rfc2516.html"
+target="_top">RFC 2516</a> (<span class="emphasis"><b class="EMPHASIS">A Method for
+transmitting PPP over Ethernet (PPPoE)</b></span>, written by L. Mamakos, K. Lidl, J.
+Evarts, D. Carrel, D. Simone, and R. Wheeler). Instead, different packet type codes have
+been used for the Ethernet frames. Please complain to <a href="http://www.3com.com/"
+target="_top">3Com</a> if you think it should comply with the PPPoE specification.</p>
+
+<p>In order to make FreeBSD capable of communicating with this device, a sysctl must be
+set. This can be done automatically at boot time by updating <tt
+class="FILENAME">/etc/sysctl.conf</tt>:</p>
+
+<pre class="PROGRAMLISTING">
+net.graph.nonstandard_pppoe=1
+</pre>
+
+<p>or can be done immediately with the command:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">sysctl net.graph.nonstandard_pppoe=1</kbd>
+</pre>
+
+<p>Unfortunately, because this is a system-wide setting, it is not possible to talk to a
+normal PPPoE client or server and a <span class="TRADEMARK">3Com</span>&reg; <span
+class="TRADEMARK">HomeConnect</span>&reg; ADSL Modem at the same time.</p>
+</div>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="ppp-troubleshoot.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="pppoa.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">Troubleshooting <acronym
+class="ACRONYM">PPP</acronym> Connections</td>
+<td width="34%" align="center" valign="top"><a href="ppp-and-slip.html"
+accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">Using <b class="APPLICATION">PPP</b> over ATM
+(PPPoA)</td>
+</tr>
+</table>
+</div>
+
+<p align="center"><small>本文及其他文件，可由此下載：<a
+href="ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/">ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/</a>。</small></p>
+
+<p align="center"><small>若有 FreeBSD 方面疑問，請先閱讀 <a
+href="http://www.FreeBSD.org/docs.html">FreeBSD 相關文件</a>，如不能解決的話，再洽詢
+&#60;<a href="mailto:questions@FreeBSD.org">questions@FreeBSD.org</a>&#62;。<br />
+關於本文件的問題，請洽詢 &#60;<a
+href="mailto:doc@FreeBSD.org">doc@FreeBSD.org</a>&#62;。</small></p>
+</body>
+</html>
+

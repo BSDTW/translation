@@ -1,0 +1,130 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>procmail</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.7" />
+<link rel="HOME" title="FreeBSD Chinese HOWTO" href="index.html" />
+<link rel="UP" title="其它軟體的中文相關問題" href="other.html" />
+<link rel="PREVIOUS" title="其它軟體的中文相關問題" href="other.html" />
+<link rel="NEXT" title="vim - VI 的進階編輯器" href="vim.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD Chinese HOWTO</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="other.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 19. 其它軟體的中文相關問題</td>
+<td width="10%" align="right" valign="bottom"><a href="vim.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="PROCMAIL" name="PROCMAIL">19.2. procmail</a></h1>
+
+<p><b class="APPLICATION">procmail</b> 是一個電子郵件過濾器 (mail filter)。它可
+將到的信件在存入您的信箱前先做處理，例如將信件分類等。不過這 裡要教您的是如何利用 <b
+class="APPLICATION">procmail</b> 來將被編碼的中文信
+件解碼成純文字，以及在不同編碼的信件轉換為您常用的編碼。</p>
+
+<p>在您的 home 目錄下建立 <tt class="FILENAME">.procmailrc</tt> 檔案，內容如下：</p>
+
+<pre class="PROGRAMLISTING">
+# 在用 procmail 處理前先將信件儲存下來，以免發生意外
+# 您可以設定那些信件不必備份，例如由 MAILER-DAEMON 來的退信
+:0 c
+* !^From.*MAILER-DAEMON
+mail/procmail-backup
+
+# 將以 quoted-printable 或 base64 編碼的信件解碼
+:0
+* ^Content-Type: *text/plain
+{
+    :0 fbw
+    * ^Content-Transfer-Encoding: *quoted-printable
+    | mimencode -u -q
+
+        :0 Afhw
+        | formail -I "Content-Transfer-Encoding: 8bit" \
+                  -I "X-Mimed-Autoconverted: quoted-printable to 8bit by procmail"
+
+    :0 fbw
+    * ^Content-Transfer-Encoding: *base64
+    | mimencode -u -b
+
+        :0 Afhw
+        | formail -I "Content-Transfer-Encoding: 8bit" \
+                  -I "X-Mimed-Autoconverted: base64 to 8bit by procmail"
+}
+
+# 這裡判斷信件是否為 GB 編碼，若是則轉為 BIG5 編碼
+# 如果您要由 BIG5 轉為 GB 碼，要將例子中所有的 big5
+# 及 gb2312 互換，並將 hc -m b2g 改為 hc -m g2b
+
+:0
+* ^Content-Type:.*text/plain;.*charset=gb2312
+{
+    :0 fw
+    | hc -m b2g -t /usr/local/lib/chinese/hc.tab
+
+        :0 Afhw
+        | formail -I "Content-Type: text/plain; charset=big5" \
+                  -I "X-Charset-Autoconverted: gb2312 to big5 by procmail"
+}
+
+# 將信件存回信箱
+:0:
+${ORGMAIL}
+</pre>
+
+<p>這個例子中，配合了 mimencode，formail 將信件解碼，並用 <a href="hc.html">hc</a> 將 GB
+編碼的信件轉為 BIG5 編碼。所以您還必須安裝這些工具。</p>
+
+<p>最後再將更改您的 <tt class="FILENAME">.forward</tt> 檔就可以了</p>
+
+<pre class="PROGRAMLISTING">
+"|IFS=' ' &amp;&amp; exec /usr/bin/procmail -f- ~/.procmailrc ||exit 75 name"
+</pre>
+
+<p>注意：其中最後的 name 要改為您自己的簽入名稱(login name)。</p>
+
+<p>WWW: <a href="http://www.procmail.org/" target="_top">http://www.procmail.org/</a></p>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="other.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="vim.html" accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">其它軟體的中文相關問題</td>
+<td width="34%" align="center" valign="top"><a href="other.html"
+accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">vim - VI 的進階編輯器</td>
+</tr>
+</table>
+</div>
+</body>
+</html>
+

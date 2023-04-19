@@ -1,0 +1,266 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>重新調配、編譯 kernel</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.79" />
+<link rel="HOME" title="FreeBSD 使用手冊" href="index.html" />
+<link rel="UP" title="設定 FreeBSD Kernel" href="kernelconfig.html" />
+<link rel="PREVIOUS" title="探測系統硬體" href="kernelconfig-devices.html" />
+<link rel="NEXT" title="kernel 設定檔解說" href="kernelconfig-config.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD 使用手冊</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="kernelconfig-devices.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 8 設定 FreeBSD Kernel</td>
+<td width="10%" align="right" valign="bottom"><a href="kernelconfig-config.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="KERNELCONFIG-BUILDING" name="KERNELCONFIG-BUILDING">8.4
+重新調配、編譯 kernel</a></h1>
+
+<p>首先對 kernel 相關目錄作快速介紹。 這裡所提到的所有目錄都在 <tt
+class="FILENAME">/usr/src/sys</tt> 內， 也可以用 <tt class="FILENAME">/sys</tt> 這個
+symbolic link 來連到這。 這裡的許多子目錄分別擺放 kernel 的各組成部分，但對打造 kernel
+影響最重要的目錄是 <tt class="FILENAME"><tt
+class="REPLACEABLE"><i>arch</i></tt>/conf</tt>， 這裡是可以針對需求來修改自訂 kernel
+相關設定。 此外，還有在編譯 kernel 過程中會暫時擺放的 <tt class="FILENAME">compile</tt>
+目錄。 剛講到的 <tt class="REPLACEABLE"><i>arch</i></tt> 可以是右列架構之一： <tt
+class="FILENAME">i386</tt>、<tt class="FILENAME">alpha</tt>、 <tt
+class="FILENAME">amd64</tt>、<tt class="FILENAME">ia64</tt>、 <tt
+class="FILENAME">powerpc</tt>、<tt class="FILENAME">sparc64</tt>、 <tt
+class="FILENAME">pc98</tt>(在日本較流行的另一種 PC 硬體架構)。
+在各特定硬體架構目錄的東西，只搭配相對應的硬體架構而已。
+而其餘的原始碼則是與硬體架構無關，可以在所有 FreeBSD 可裝的平台上共用。
+整體目錄架構都是有邏輯可循，像是各項有支援的硬體設備、檔案系統，
+以及相關選項通常都會擺在它們自己的子目錄內。</p>
+
+<p>本章所用到的例子，都是你使用 i386 架構的機器。
+請依實際情況，對相關目錄作調整即可。</p>
+
+<div class="NOTE">
+<blockquote class="NOTE">
+<p><b>Note:</b> 若您系統上 <span class="emphasis"><b class="EMPHASIS">沒裝</b></span> <tt
+class="FILENAME">/usr/src/sys</tt> 目錄， 也就是說沒裝 kernel source code
+的話，那麼最簡單安裝方式就是以 <tt class="USERNAME">root</tt> 權限來執行 <tt
+class="COMMAND">sysinstall</tt>， 接著請選 <span
+class="GUIMENUITEM">Configure</span>，然後選 <span
+class="GUIMENUITEM">Distributions</span> 接著為 <span class="GUIMENUITEM">src</span> 再選
+<span class="GUIMENUITEM">base</span> 最後選 <span class="GUIMENUITEM">sys</span>。
+若不喜歡用 <b class="APPLICATION">sysinstall</b> 而且手邊有 “正式的” FreeBSD
+光碟可以用的話， 那麼也可以用以下指令來安裝：</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">mount /cdrom</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">mkdir -p /usr/src/sys</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">ln -s /usr/src/sys /sys</kbd>
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">cat /cdrom/src/ssys.[a-d]* | tar -xzvf -</kbd>
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">cat /cdrom/src/sbase.[a-d]* | tar -xzvf -</kbd>
+</pre>
+</blockquote>
+</div>
+
+<p>接下來，切換到 <tt class="FILENAME"><tt class="REPLACEABLE"><i>arch</i></tt>/conf</tt>
+目錄， 複製 <tt class="FILENAME">GENERIC</tt> 設定檔為你想稱呼的新 kernel 名稱。
+例如：</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">cd /usr/src/sys/<tt
+class="REPLACEABLE"><i>i386</i></tt>/conf</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">cp GENERIC MYKERNEL</kbd>
+</pre>
+
+<p>通常，命名方式都是大寫。如果你負責維護許多不同硬體架構的 FreeBSD
+機器的話，那麼照該機器名稱(hostname)來命名會是比較明智。 上面例子中之所以命名為 <tt
+class="FILENAME">MYKERNEL</tt> 就是因為這緣故。</p>
+
+<div class="TIP">
+<blockquote class="TIP">
+<p><b>Tip:</b> 建議不要把改過的 kernel 設定檔直接放在 <tt
+class="FILENAME">/usr/src</tt>。 因為若編譯遇到其他問題時， 直接砍掉 <tt
+class="FILENAME">/usr/src</tt> 再重練， 可能會是比較乾脆的選擇之一。
+一旦真的砍了之後，你可能幾秒之後才會醒悟到： 你同時也砍掉自己改的 kernel 設定檔。
+此外，也不要直接修改 <tt class="FILENAME">GENERIC</tt>，因為下次你 <a
+href="cutting-edge.html">更新 source tree</a>時，
+它會被新版覆蓋，而相關修改也將隨之而逝。</p>
+
+<p>你也可考慮把 kernel 設定檔改放到其他地方，然後再到 <tt class="FILENAME"><tt
+class="REPLACEABLE"><i>i386</i></tt></tt> 目錄內建個指向它的 symbolic link。</p>
+
+<p>舉例：</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">cd /usr/src/sys/<tt
+class="REPLACEABLE"><i>i386</i></tt>/conf</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">mkdir /root/kernels</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">cp GENERIC /root/kernels/<tt
+class="REPLACEABLE"><i>MYKERNEL</i></tt></kbd>   
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">ln -s /root/kernels/<tt
+class="REPLACEABLE"><i>MYKERNEL</i></tt></kbd>
+</pre>
+</blockquote>
+</div>
+
+<p>現在，就開始用自己喜歡的編輯器來修改 <tt class="FILENAME">MYKERNEL</tt>。 若才剛裝好
+FreeBSD 而已，唯一可用的編輯器很可能是 <b class="APPLICATION">vi</b>
+了，由於它的用法很多種，礙於篇幅將不詳細介紹， 你可在 <a
+href="bibliography.html">參考書目</a> 內找到相關書籍。 不過，FreeBSD
+也提供另一個更好用的編輯器，它叫做 <b
+class="APPLICATION">ee</b>，對新手而言，這可能是蠻好的選擇。
+你可以任意修改檔案內的相關註解以說明相關設定為何， 或者其他想改的 <tt
+class="FILENAME">GENERIC</tt> 設定內容。</p>
+
+<p>若你有在 <span class="TRADEMARK">SunOS</span>&#8482; 或者其他種 BSD 作業系統下進行編譯
+kernel 的經驗， 那麼應該已經很熟悉本篇所介紹的大部分步驟。 換句話說，若您之前用的是 DOS
+這類作業系統，那麼 <tt class="FILENAME">GENERIC</tt>
+設定檔的內容就可能比較難懂些，沒關係， 我們將在下面的 <a
+href="kernelconfig-config.html">kernel 設定</a> 會循序漸進地介紹。</p>
+
+<div class="NOTE">
+<blockquote class="NOTE">
+<p><b>Note:</b> 若有從 FreeBSD 計劃去 <a href="cutting-edge.html">更新你的 source
+tree</a> 的話， 則切記在進行任何升級之前，務必要察看 <tt
+class="FILENAME">/usr/src/UPDATING</tt>。
+這檔會介紹在更新過程中的重大議題或要注意的事項。 由於 <tt
+class="FILENAME">/usr/src/UPDATING</tt> 是對應於你機器上目前的 FreeBSD source code
+版本，因此會提供比本手冊更新的內容。</p>
+</blockquote>
+</div>
+
+<p>現在開始來編譯 kernel 吧。</p>
+
+<div class="PROCEDURE">
+<p><b>編譯 Kernel</b></p>
+
+<ol type="1">
+<li class="STEP">
+<p>請切換至 <tt class="FILENAME">/usr/src</tt> 目錄：</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">cd /usr/src</kbd>
+</pre>
+</li>
+
+<li class="STEP">
+<p>編譯 kernel：</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">make buildkernel KERNCONF=<tt
+class="REPLACEABLE"><i>MYKERNEL</i></tt></kbd>
+</pre>
+</li>
+
+<li class="STEP">
+<p>安裝新 kernel：</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">make installkernel KERNCONF=<tt
+class="REPLACEABLE"><i>MYKERNEL</i></tt></kbd>
+</pre>
+</li>
+</ol>
+</div>
+
+<div class="NOTE">
+<blockquote class="NOTE">
+<p><b>Note:</b> 要有完整的 FreeBSD source tree 才能編譯 kernel。</p>
+</blockquote>
+</div>
+
+<div class="TIP">
+<blockquote class="TIP">
+<p><b>Tip:</b> 預設情況下，在編譯自訂 kernel 時，<span class="emphasis"><b
+class="EMPHASIS">全部的</b></span> kernel modules 也會一起重編。 若要快速升級 kernel，
+或是只想重編所需的 kernel module，那麼在編譯 kernel 前要先改一下 <tt
+class="FILENAME">/etc/make.conf</tt>，比如：</p>
+
+<pre class="PROGRAMLISTING">
+MODULES_OVERRIDE = linux acpi sound/sound sound/driver/ds1 ntfs
+</pre>
+
+<p>上面該設定值為所希望重編的 kernel module 列表。</p>
+
+<pre class="PROGRAMLISTING">
+WITHOUT_MODULES = linux acpi sound/sound sound/driver/ds1 ntfs
+</pre>
+
+<p>而上面這設定值則為不要編入的 kernel module 列表。 若想更瞭解其他 kernel
+編譯的相關變數，請參閱 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=make.conf&amp;sektion=5"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">make.conf</span>(5)</span></a>
+說明。</p>
+</blockquote>
+</div>
+
+<p>新的 kernel 會複製到 <tt class="FILENAME">/boot/kernel</tt> 目錄內的 <tt
+class="FILENAME">/boot/kernel/kernel</tt>，而舊的則移至 <tt
+class="FILENAME">/boot/kernel.old/kernel</tt>。 現在呢，先關機，然後就會以新 kernel
+重開機 若有問題的話，本章後面會介紹一些<a
+href="kernelconfig-trouble.html">疑難雜症</a>來協助你。 若新 kernel 無法開機的話，請參閱
+<a href="kernelconfig-trouble.html#KERNELCONFIG-NOBOOT">這裡</a> 以恢復系統運作。</p>
+
+<div class="NOTE">
+<blockquote class="NOTE">
+<p><b>Note:</b> 至於開機過程的其他相關檔案、設定，比如 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=loader&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">loader</span>(8)</span></a>
+及其設定，則放在 <tt class="FILENAME">/boot</tt>。 Third party 或自訂的 kernel modules
+則會放在 <tt class="FILENAME">/boot/kernel</tt>，不過， 應注意要保持 kernel module 與
+kernel 是否有同步， 這點很重要，否則會導致不穩或出問題。</p>
+</blockquote>
+</div>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="kernelconfig-devices.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="kernelconfig-config.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">探測系統硬體</td>
+<td width="34%" align="center" valign="top"><a href="kernelconfig.html"
+accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">kernel 設定檔解說</td>
+</tr>
+</table>
+</div>
+
+<p align="center"><small>本文及其他文件，可由此下載：<a
+href="ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/">ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/</a>。</small></p>
+
+<p align="center"><small>若有 FreeBSD 方面疑問，請先閱讀 <a
+href="http://www.FreeBSD.org/docs.html">FreeBSD 相關文件</a>，如不能解決的話，再洽詢
+&#60;<a href="mailto:questions@FreeBSD.org">questions@FreeBSD.org</a>&#62;。<br />
+關於本文件的問題，請洽詢 &#60;<a
+href="mailto:doc@FreeBSD.org">doc@FreeBSD.org</a>&#62;。</small></p>
+</body>
+</html>
+

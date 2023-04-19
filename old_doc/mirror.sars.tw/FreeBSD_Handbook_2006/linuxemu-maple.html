@@ -1,0 +1,231 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>Installing Maple</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.79" />
+<link rel="HOME" title="FreeBSD 使用手冊" href="index.html" />
+<link rel="UP" title="Linux Binary Compatibility" href="linuxemu.html" />
+<link rel="PREVIOUS" title="Installing Mathematica" href="linuxemu-mathematica.html" />
+<link rel="NEXT" title="Installing MATLAB" href="linuxemu-matlab.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD 使用手冊</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="linuxemu-mathematica.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 10 Linux Binary Compatibility</td>
+<td width="10%" align="right" valign="bottom"><a href="linuxemu-matlab.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="LINUXEMU-MAPLE" name="LINUXEMU-MAPLE">10.4 Installing <span
+class="TRADEMARK">Maple</span>&#8482;</a></h1>
+
+<i class="AUTHORGROUP"><span class="CONTRIB">Contributed by</span> Aaron Kaplan.</i> <i
+class="AUTHORGROUP"><span class="CONTRIB">Thanks to</span> Robert Getschmann.</i> 
+
+<p><b class="APPLICATION"><span class="TRADEMARK">Maple</span>&#8482;</b> is a commercial
+mathematics program similar to <b class="APPLICATION"><span
+class="TRADEMARK">Mathematica</span>&reg;</b>. You must purchase this software from <a
+href="http://www.maplesoft.com/" target="_top">http://www.maplesoft.com/</a> and then
+register there for a license file. To install this software on FreeBSD, please follow
+these simple steps.</p>
+
+<div class="PROCEDURE">
+<ol type="1">
+<li class="STEP">
+<p>Execute the <tt class="FILENAME">INSTALL</tt> shell script from the product
+distribution. Choose the “RedHat” option when prompted by the installation program. A
+typical installation directory might be <tt class="FILENAME">/usr/local/maple</tt>.</p>
+</li>
+
+<li class="STEP">
+<p>If you have not done so, order a license for <b class="APPLICATION"><span
+class="TRADEMARK">Maple</span></b> from Maple Waterloo Software (<a
+href="http://register.maplesoft.com/" target="_top">http://register.maplesoft.com/</a>)
+and copy it to <tt class="FILENAME">/usr/local/maple/license/license.dat</tt>.</p>
+</li>
+
+<li class="STEP">
+<p>Install the <b class="APPLICATION">FLEXlm</b> license manager by running the <tt
+class="FILENAME">INSTALL_LIC</tt> install shell script that comes with <b
+class="APPLICATION"><span class="TRADEMARK">Maple</span></b>. Specify the primary
+hostname for your machine for the license server.</p>
+</li>
+
+<li class="STEP">
+<p>Patch the <tt class="FILENAME">/usr/local/maple/bin/maple.system.type</tt> file with
+the following:</p>
+
+<pre class="PROGRAMLISTING">
+   ----- snip ------------------
+*** maple.system.type.orig      Sun Jul  8 16:35:33 2001
+--- maple.system.type   Sun Jul  8 16:35:51 2001
+***************
+*** 72,77 ****
+--- 72,78 ----
+          # the IBM RS/6000 AIX case
+          MAPLE_BIN="bin.IBM_RISC_UNIX"
+          ;;
++     "FreeBSD"|\
+      "Linux")
+          # the Linux/x86 case
+        # We have two Linux implementations, one for Red Hat and
+   ----- snip end of patch -----
+</pre>
+
+<p>Please note that after the <tt class="LITERAL">"FreeBSD"|\</tt> no other whitespace
+should be present.</p>
+
+<p>This patch instructs <b class="APPLICATION"><span class="TRADEMARK">Maple</span></b>
+to recognize “FreeBSD” as a type of Linux system. The <tt
+class="FILENAME">bin/maple</tt> shell script calls the <tt
+class="FILENAME">bin/maple.system.type</tt> shell script which in turn calls <tt
+class="COMMAND">uname -a</tt> to find out the operating system name. Depending on the OS
+name it will find out which binaries to use.</p>
+</li>
+
+<li class="STEP">
+<p>Start the license server.</p>
+
+<p>The following script, installed as <tt
+class="FILENAME">/usr/local/etc/rc.d/lmgrd.sh</tt> is a convenient way to start up <tt
+class="COMMAND">lmgrd</tt>:</p>
+
+<pre class="PROGRAMLISTING">
+   ----- snip ------------
+
+#! /bin/sh
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin:/usr/X11R6/bin
+PATH=${PATH}:/usr/local/maple/bin:/usr/local/maple/FLEXlm/UNIX/LINUX
+export PATH
+
+LICENSE_FILE=/usr/local/maple/license/license.dat
+LOG=/var/log/lmgrd.log
+
+case "$1" in
+start)
+    lmgrd -c ${LICENSE_FILE} 2&gt;&gt; ${LOG} 1&gt;&#38;2
+    echo -n " lmgrd"
+    ;;
+stop)
+    lmgrd -c ${LICENSE_FILE} -x lmdown 2&gt;&gt; ${LOG} 1&gt;&#38;2
+    ;;
+*)
+    echo "Usage: `basename $0` {start|stop}" 1&gt;&#38;2
+    exit 64
+    ;;
+esac
+
+exit 0
+   ----- snip ------------
+</pre>
+</li>
+
+<li class="STEP">
+<p>Test-start <b class="APPLICATION"><span class="TRADEMARK">Maple</span></b>:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">%</samp> <kbd class="USERINPUT">cd /usr/local/maple/bin</kbd>
+<samp class="PROMPT">%</samp> <kbd class="USERINPUT">./xmaple</kbd>
+</pre>
+
+<p>You should be up and running. Make sure to write Maplesoft to let them know you would
+like a native FreeBSD version!</p>
+</li>
+</ol>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN13572" name="AEN13572">10.4.1 Common Pitfalls</a></h2>
+
+<ul>
+<li>
+<p>The <b class="APPLICATION">FLEXlm</b> license manager can be a difficult tool to work
+with. Additional documentation on the subject can be found at <a
+href="http://www.globetrotter.com/" target="_top">http://www.globetrotter.com/</a>.</p>
+</li>
+
+<li>
+<p><tt class="COMMAND">lmgrd</tt> is known to be very picky about the license file and to
+core dump if there are any problems. A correct license file should look like this:</p>
+
+<pre class="PROGRAMLISTING">
+# =======================================================
+# License File for UNIX Installations ("Pointer File")
+# =======================================================
+SERVER chillig ANY
+#USE_SERVER
+VENDOR maplelmg
+
+FEATURE Maple maplelmg 2000.0831 permanent 1 XXXXXXXXXXXX \
+         PLATFORMS=i86_r ISSUER="Waterloo Maple Inc." \
+         ISSUED=11-may-2000 NOTICE=" Technische Universitat Wien" \
+         SN=XXXXXXXXX
+</pre>
+
+<div class="NOTE">
+<blockquote class="NOTE">
+<p><b>Note:</b> Serial number and key 'X''ed out. <tt class="HOSTID">chillig</tt> is a
+hostname.</p>
+</blockquote>
+</div>
+
+<p>Editing the license file works as long as you do not touch the “FEATURE” line (which
+is protected by the license key).</p>
+</li>
+</ul>
+</div>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="linuxemu-mathematica.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="linuxemu-matlab.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">Installing <span
+class="TRADEMARK">Mathematica</span>&reg;</td>
+<td width="34%" align="center" valign="top"><a href="linuxemu.html"
+accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">Installing <span
+class="TRADEMARK">MATLAB</span>&reg;</td>
+</tr>
+</table>
+</div>
+
+<p align="center"><small>This, and other documents, can be downloaded from <a
+href="ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/">ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/</a>.</small></p>
+
+<p align="center"><small>For questions about FreeBSD, read the <a
+href="http://www.FreeBSD.org/docs.html">documentation</a> before contacting &#60;<a
+href="mailto:questions@FreeBSD.org">questions@FreeBSD.org</a>&#62;.<br />
+For questions about this documentation, e-mail &#60;<a
+href="mailto:doc@FreeBSD.org">doc@FreeBSD.org</a>&#62;.</small></p>
+</body>
+</html>
+

@@ -1,0 +1,1072 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>Chapter 11. Cocoa Events</title>
+    <link rel="stylesheet" type="text/css" href="docbook-xsl-mymods.css" />
+    <meta name="generator" content="DocBook XSL Stylesheets V1.76.0" />
+    <link rel="home" href="index.html" />
+    <link rel="up" href="pt03.html" />
+    <link rel="prev" href="ch10.html" />
+    <link rel="next" href="ch12.html" />
+  </head>
+  <body>
+    <div class="mattnotice">
+      <p>As a courtesy, this is a <b>full free</b> rendering of my book, <i>Programming iOS 6</i>, by Matt Neuburg. Copyright 2013 Matt Neuburg. Please note that this book has now been completely superseded by two more recent books, <a href="http://shop.oreilly.com/product/0636920032465.do">iOS 7 Fundamentals</a> and <a href="http://shop.oreilly.com/product/0636920031017.do">Programming iOS 7</a>. If my work has been of help to you, please <b>consider purchasing</b> one or both of them. Thank you!
+	</p>
+    </div>
+    <div class="navfooter">
+      <table width="100%" summary="Navigation footer">
+        <tr>
+          <td width="40%" align="left"><a accesskey="p" href="ch10.html">Prev</a> </td>
+          <td width="20%" align="center">
+            <a accesskey="u" href="pt03.html">Up</a>
+          </td>
+          <td width="40%" align="right"> <a accesskey="n" href="ch12.html">Next</a></td>
+        </tr>
+        <tr>
+          <td width="40%" align="left" valign="top">Chapter 10. Cocoa Classes </td>
+          <td width="20%" align="center">
+            <a accesskey="h" href="index.html">Table of Contents</a>
+          </td>
+          <td width="40%" align="right" valign="top"> Chapter 12. Accessors and Memory Management</td>
+        </tr>
+      </table>
+    </div>
+    <div class="chapter">
+      <div class="titlepage">
+        <div>
+          <div>
+            <h2 class="title"><a id="chap_id11"></a>Chapter 11. Cocoa Events</h2>
+          </div>
+        </div>
+      </div>
+      <p>None of your code runs until Cocoa calls it. The art of Cocoa programming consists largely of knowing when and why Cocoa will call your code. If you know this, you can put your code in the correct place, with the correct method name, so that your code runs at the correct moment, and your app behaves the way you intend.<a id="idm441654814080" class="indexterm"></a></p>
+      <p>In <a class="xref" href="ch07.html">Chapter 7</a>, for example, we wrote a method to be called when the user taps a certain button in our interface, and we also arranged things so that that method <span class="emphasis"><em>would</em></span> be called when the user taps that button:</p>
+      <pre class="screen">- (void) buttonPressed: (id) sender {
+    // ... react to the button being pressed
+}</pre>
+      <p>This architecture typifies the underpinnings of a Cocoa program. Your code itself is like a panel of buttons, waiting for Cocoa to press one. If something happens that Cocoa feels your code needs to know about and respond to, it presses the right button — if the right button is there. You organize your code with Cocoa’s behavior in mind. Cocoa makes certain promises about how and when it will dispatch messages to your code. These are Cocoa’s <span class="emphasis"><em>events</em></span>. You know what these events are, and you arrange for your code to be ready when Cocoa delivers them.</p>
+      <p>Thus, to program for Cocoa, you must, in a sense, surrender control. Your code never gets to run just whenever it feels like it. It can run <span class="emphasis"><em>only</em></span> in response to some kind of event. Something happens, such as the user making a gesture on the screen, or some specific stage arriving in the lifetime of your app, and Cocoa dispatches an event to your code — if your code is prepared to receive it. So you don’t write just any old code you want to and put it in any old place. You use the framework, by letting the framework use you. You submit to Cocoa’s rules and promises and expectations, so that your code will be called at the right time and in the right way.</p>
+      <p>The specific events that you can receive are listed in the documentation. The overall architecture of how and when events are dispatched and the ways in which your code arranges to receive them is the subject of this chapter.</p>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_reasons_for_events"></a>Reasons for Events</h2>
+            </div>
+          </div>
+        </div>
+        <p>Broadly speaking, the reasons you might receive an event may be divided informally into four categories. These categories are not official; I made them up. Often it isn’t completely clear which of these categories an event fits into; an event may well appear to fit two categories. But they are still generally useful for visualizing how and why Cocoa interacts with your code:</p>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+User events
+</span>
+            </dt>
+            <dd>
+The user does something interactive, and an event is triggered directly. Obvious examples are events that you get when the user taps or swipes the screen, or types a key on the keyboard.
+</dd>
+            <dt>
+              <span class="term">
+Lifetime events
+</span>
+            </dt>
+            <dd>
+These are events notifying you of the arrival of a stage in the life of the app, such as the fact that the app is starting up or is about to go into the background, or of a component of the app, such as the fact that a UIViewController’s view has just loaded or is about to be removed from the screen.
+</dd>
+            <dt>
+              <span class="term">
+Functional events
+</span>
+            </dt>
+            <dd>
+Cocoa is about to do something, and turns to you in case you want to supply additional functionality. I would put into this category things like UIView’s <code class="literal">drawRect:</code> (your chance to have a view draw itself) and UILabel’s <code class="literal">drawTextInRect:</code> (your chance to modify the look of a label), with which we experimented in <a class="xref" href="ch10.html">Chapter 10</a>.
+</dd>
+            <dt>
+              <span class="term">
+Query events
+</span>
+            </dt>
+            <dd>
+Cocoa turns to you to ask a question; its behavior will depend upon your answer. For example, the way data appears in a table (a UITableView) is that whenever Cocoa needs a cell for a row of the table, it turns to you and asks for the cell.
+</dd>
+          </dl>
+        </div>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_subclassing_2"></a>Subclassing</h2>
+            </div>
+          </div>
+        </div>
+        <p>A built-in Cocoa class may define methods that Cocoa itself will call and that you are invited (or required) to override in a subclass, so that your custom behavior, and not (merely) the default behavior, will take place.<a id="idm441654793456" class="indexterm"></a></p>
+        <p>An example I gave in <a class="xref" href="ch10.html">Chapter 10</a> was UIView’s <code class="literal">drawRect:</code>. This is what I call a functional event. By overriding <code class="literal">drawRect:</code> in a UIView subclass, you dictate the full procedure by which a view draws itself. You don’t know exactly when this method will be called, and you don’t care; when it is, you draw, and this guarantees that the view will always appear the way you want it to. (You never call <code class="literal">drawRect:</code> yourself; if some underlying condition has changed and you want the view to be redrawn, you call <code class="literal">setNeedsDisplay</code> and let Cocoa call <code class="literal">drawRect:</code> in response.)</p>
+        <p>Built-in UIView subclasses may have other functional event methods you’ll want to customize through subclassing. Typically this will be in order to change the way the view is drawn, without taking command of the entire drawing procedure yourself. In <a class="xref" href="ch10.html">Chapter 10</a> I gave an example involving UILabel and its <code class="literal">drawTextInRect:</code>. Another example is UISlider, which lets you customize the position and size of the slider’s “thumb” by overriding <code class="literal">thumbRectForBounds:trackRect:value:</code> (<a class="xref" href="ch25.html">Chapter 25</a>).</p>
+        <p>UIViewController (<a class="xref" href="ch19.html">Chapter 19</a>) is a good example of a class meant for subclassing. Of the methods listed in the UIViewController class documentation, just about all are methods you might have reason to override. If you create a UIViewController subclass in Xcode, you’ll see that the template already includes a few methods to get you started; these are all method overrides. For example, <code class="literal">viewDidLoad</code> is called to let you know that your view controller’s view has loaded, so you can perform initializations; it’s an obvious example of a lifetime event.</p>
+        <p>A UIViewController method like <code class="literal">supportedInterfaceOrientations</code> is what I call a query event. Your job is to return a bitmask telling Cocoa what orientations your view can appear in at this moment — whenever that may be. You don’t know exactly when this method will be called, and you don’t care; you trust Cocoa to call it at the appropriate moments, so that if the user rotates the device, your app will or won’t be rotated to compensate, depending on what value you return.</p>
+        <p>When looking for events that you can receive through subclassing, be sure to look upward though the inheritance hierarchy.<a id="idm441654778320" class="indexterm"></a>
+<a id="idm441654777168" class="indexterm"></a> For example, if you’re wondering how to be notified when your custom UILabel subclass is embedded into another view, you won’t find the answer in the UILabel class documentation; a UILabel receives the appropriate event by virtue of being a UIView. In the UIView class documentation, you’ll learn that you can override <code class="literal">didMoveToSuperview</code> to be informed when this happens.</p>
+        <p>Even further up the inheritance hierarchy, you’ll find things like NSObject’s <code class="literal">initialize</code> class method. Before any class is sent its first class message (including instantiation), it is sent the <code class="literal">initialize</code> message. Thus, <code class="literal">initialize</code> can be overridden in order to run code extremely early in a class’s lifetime (before it even has an instance). Your project’s application delegate class (such as AppDelegate in our Empty Window project) is instantiated very early in the app’s lifetime, so its <code class="literal">initialize</code> can be a good place to perform very early app initializations, such as setting default values for any user preferences. When implementing <code class="literal">initialize</code>, we must test, as a matter of course, whether <code class="literal">self</code> really is the class in question (and this is one of the few situations in which we will compare two classes directly against one another); otherwise there is a chance that <code class="literal">initialize</code> will be called again (and our code will run again) if a subclass of this class is used:</p>
+        <pre class="screen">// MyClass.m:
++ (void)initialize {
+    if (self == [MyClass class]) {
+        // do stuff
+    }
+}</pre>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_notifications"></a>Notifications</h2>
+            </div>
+          </div>
+        </div>
+        <p>Cocoa provides your app with a single instance of <a id="idm441654766352" class="indexterm"></a>NSNotificationCenter, informally called the <span class="emphasis"><em>notification center</em></span>, and available as <code class="literal">[NSNotificationCenter defaultCenter]</code>.<a id="idm441654764416" class="indexterm"></a> This instance is the basis of a mechanism for sending messages called <span class="emphasis"><em>notifications</em></span>. A notification includes an instance of <a id="idm441654762864" class="indexterm"></a>NSNotification (a <span class="emphasis"><em>notification object</em></span>). The idea is that any object can be registered with the notification center to receive certain notifications. Another object can hand the notification center a notification object to send out (this is called <span class="emphasis"><em>posting</em></span> the notification). The notification center will then send that notification object, in a notification, to all objects that are registered to receive it.<a id="idm441654760864" class="indexterm"></a></p>
+        <p>The notification mechanism is often described as a dispatching or broadcasting mechanism, and with good reason. It lets an object send a message without knowing or caring what object or how many objects receive it. This relieves your app’s architecture from the formal responsibility of somehow hooking up instances just so a message can pass from one to the other (which can sometimes be quite tricky or onerous, as discussed in <a class="xref" href="ch13.html">Chapter 13</a>). When objects are conceptually “distant” from one another, notifications can be a fairly lightweight way of permitting one to message the other.</p>
+        <p>An NSNotification object has three pieces of information associated with it, which can be retrieved by instance methods:</p>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+<code class="literal">name</code>
+</span>
+            </dt>
+            <dd>
+An NSString which specifies the notification’s meaning.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">object</code>
+</span>
+            </dt>
+            <dd>
+An instance associated with the notification; typically, the instance that posted it.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">userInfo</code>
+</span>
+            </dt>
+            <dd>
+Not every notification has a <code class="literal">userInfo</code>; it is an NSDictionary, and can contain additional information associated with the notification. What information this NSDictionary will contain, and under what keys, depends on the particular notification; you have to consult the documentation. For example, the documentation tells us that UIApplication’s <code class="literal">UIApplicationDidChangeStatusBarFrameNotification</code> includes a <code class="literal">userInfo</code> dictionary with a key <code class="literal">UIApplicationStatusBarFrameUserInfoKey</code> whose value is the status bar’s frame. When you post a notification yourself, you can put anything you like into the <code class="literal">userInfo</code> for the notification’s recipient(s) to retrieve.
+</dd>
+          </dl>
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_receiving_a_built_in_notification"></a>Receiving a Built-In Notification</h3>
+              </div>
+            </div>
+          </div>
+          <p>Cocoa itself posts notifications through the notification center, and your code can register to receive them. You’ll find a separate Notifications section in the documentation for a class that provides them.</p>
+          <p>To register for a notification, you send one of two messages to the notification center. One is <code class="literal">addObserver:selector:name:object:</code>. The parameters are as follows:<a id="idm441654743024" class="indexterm"></a>
+<a id="idm441654741728" class="indexterm"></a></p>
+          <div class="variablelist">
+            <dl>
+              <dt>
+                <span class="term">
+<code class="literal">addObserver:</code>
+</span>
+              </dt>
+              <dd>
+The instance to which the notification is to be sent. This will typically be <code class="literal">self</code>; it isn’t usual for one instance to register a different instance as the receiver of a notification.
+</dd>
+              <dt>
+                <span class="term">
+<code class="literal">selector:</code>
+</span>
+              </dt>
+              <dd>
+The message to be sent to the observer instance when the notification occurs. The designated method should return <code class="literal">void</code> and should take one parameter, which will be the NSNotification object (so the parameter should be typed as <code class="literal">NSNotification*</code> or <code class="literal">id</code>). Don’t forget to implement this method! If the notification center sends a notification by sending the message specified as the <code class="literal">selector:</code> here, and there is no method implemented to receive this message, your app will crash. Failing to specify the <code class="literal">selector:</code> accurately is a common beginner mistake (and the compiler doesn’t save you from yourself).
+</dd>
+              <dt>
+                <span class="term">
+<code class="literal">name:</code>
+</span>
+              </dt>
+              <dd>
+The NSString <code class="literal">name</code> of the notification you’d like to receive. If this parameter is nil, you’re asking to receive <span class="emphasis"><em>all</em></span> notifications sent by the object designated in the <code class="literal">object:</code> parameter. A built-in Cocoa notification’s name is usually a constant.<a id="idm441654727216" class="indexterm"></a> As I explained in <a class="xref" href="ch01.html">Chapter 1</a>, this is helpful, because if you flub the name of a constant, the compiler will complain, whereas if you enter the name of the notification directly as an NSString literal and you get it wrong, the compiler won’t complain but you will mysteriously fail to get any notifications (because no notification has the name you actually entered) — a very difficult sort of mistake to track down.
+</dd>
+              <dt>
+                <span class="term">
+<code class="literal">object:</code>
+</span>
+              </dt>
+              <dd>
+The <code class="literal">object</code> of the notification you’re interested in, which will usually be the object that posted it. If this is nil, you’re asking to receive <span class="emphasis"><em>all</em></span> notifications with the name designated in the <code class="literal">name</code> parameter. (If both the <code class="literal">name:</code> and <code class="literal">object:</code> parameters are nil, you’re asking to receive all notifications!)
+</dd>
+            </dl>
+          </div>
+          <p>For example, in one of my apps I need to respond, by changing my interface, if the device’s music player starts playing a different song. The API for the device’s built-in music player belongs to the MPMusicPlayerController class (<a class="xref" href="ch29.html">Chapter 29</a>); this class provides a notification to tell me when the built-in music player changes its playing state, listed under Notifications in the MPMusicPlayerController’s class documentation as <code class="literal">MPMusicPlayerControllerNowPlayingItemDidChangeNotification</code>.</p>
+          <p>It turns out, looking at the documentation, that this notification won’t be posted at all unless I call MPMusicPlayerController’s <code class="literal">beginGeneratingPlaybackNotifications</code> instance method. This architecture is not uncommon; Cocoa saves itself some time and effort by not sending out certain notifications unless they are switched on, as it were. So my first job is to get an instance of MPMusicPlayerController and call this method:</p>
+          <pre class="screen">MPMusicPlayerController* mp = [MPMusicPlayerController iPodMusicPlayer];
+[mp beginGeneratingPlaybackNotifications];</pre>
+          <p>Now I register myself to receive the desired playback notification:</p>
+          <pre class="screen">[[NSNotificationCenter defaultCenter] addObserver:self
+      selector:@selector(nowPlayingItemChanged:)
+          name:MPMusicPlayerControllerNowPlayingItemDidChangeNotification
+        object:nil];</pre>
+          <p>So now, whenever an <code class="literal">MPMusicPlayerControllerNowPlayingItemDidChangeNotification</code> is posted, my <code class="literal">nowPlayingItemChanged:</code> method will be called:</p>
+          <pre class="screen">- (void) nowPlayingItemChanged: (NSNotification*) n {
+    MPMusicPlayerController* mp = [MPMusicPlayerController iPodMusicPlayer];
+    self-&gt;_nowPlayingItem = mp.nowPlayingItem;
+    // ... and so on ...
+}</pre>
+          <p>The other way to register to receive a notification is by calling <code class="literal">addObserverForName:object:queue:usingBlock:</code>. Its <code class="literal">name:</code> and <code class="literal">object:</code> parameters are just like those of <code class="literal">addObserver:selector:name:object:</code>, but it doesn’t specify an observer and it doesn’t specify a selector. Instead, you provide a block — the actual code to be executed when the notification fires. There is no need to specify an observer, and there is no <code class="literal">userInfo:</code> parameter, because you’re providing a block: the code that will be called is this block, right here, and there can be no difficulty providing the block’s code with whatever values it needs. (This method also returns a value, whose purpose I’ll explain in a moment.)</p>
+          <p>This way of registering for a notification has some tremendous advantages. For <code class="literal">addObserver:selector:name:object:</code> to work properly, you must get the selector right and make sure you implement the corresponding method. With a block, there is no selector and there is no separate method; everything happens right there in the block, like this:</p>
+          <pre class="screen">MPMusicPlayerController* mp = [MPMusicPlayerController iPodMusicPlayer];
+[mp beginGeneratingPlaybackNotifications];
+id ob = [[NSNotificationCenter defaultCenter]
+ addObserverForName:MPMusicPlayerControllerNowPlayingItemDidChangeNotification
+ object:nil queue:nil usingBlock:^(NSNotification *n) {
+         self-&gt;_nowPlayingItem = mp.nowPlayingItem;
+         // ... and so on ...
+     }
+ }];</pre>
+          <p>Consider how maintainable and understandable that code is. Heavy use of <code class="literal">addObserver:selector:name:object:</code> means that your code ends up peppered with methods that exist solely in order to be called by the notification center. But there is nothing about these methods that tells you what they are for — you will probably want to use explicit comments in order to remind yourself — and the methods are separate from the registration call, all of which makes your code very method-heavy and confusing. With a block, on the other hand, the whole purpose of the registration is crystal-clear, because the block accompanies it. And notice how, in the block, I don’t have to redefine <code class="literal">mp</code> as I did in the separate method <code class="literal">nowPlayingItemChanged:</code>; it is still in scope from where it was defined a couple of lines earlier. Blocks are so convenient!</p>
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_unregistering"></a>Unregistering</h3>
+              </div>
+            </div>
+          </div>
+          <p>It is up to you, for every object that you register as a recipient of notifications, to unregister that object before it goes out of existence. If you fail to do this, and if the object does go out of existence, and if a notification for which that object is registered is posted, the notification center will attempt to send the appropriate message to that object, which is now missing in action. The result will be a crash at best, and chaos at worst.<a id="idm441654697136" class="indexterm"></a>
+<a id="idm441654695888" class="indexterm"></a></p>
+          <p>To unregister an object as a recipient of notifications, send the notification center the <code class="literal">removeObserver:</code> message. (Alternatively, you can unregister an object for just a specific set of notifications with <code class="literal">removeObserver:name:object:</code>.) The object passed as the <code class="literal">observer:</code> argument is the object that is no longer to receive notifications. What object that is depends on how you registered in the first place:</p>
+          <div class="variablelist">
+            <dl>
+              <dt>
+                <span class="term">
+You called <code class="literal">addObserver:...</code>
+</span>
+              </dt>
+              <dd>
+You supplied an observer originally; that is the observer you must now unregister.
+</dd>
+              <dt>
+                <span class="term">
+You called <code class="literal">addObserverForName:...</code>
+</span>
+              </dt>
+              <dd>
+The call returned an observer token object, which you captured as an <code class="literal">id</code> variable (its real class and nature are no concern of yours); that is the observer you must now unregister.
+</dd>
+            </dl>
+          </div>
+          <p>The trick is finding the right moment to do this. The fallback solution is the registered instance’s <code class="literal">dealloc</code> method, this being the last lifetime event an instance is sent before it goes out of existence. If you’re using ARC and <code class="literal">addObserverForName:...</code>, there are memory management implications that I’ll talk about in <a class="xref" href="ch12.html">Chapter 12</a>.</p>
+          <p>Keep it simple, because complicated logic for registering and unregistering for notifications can be difficult to debug, especially as NSNotificationCenter provides no kind of introspection: you cannot ask an NSNotificationCenter what objects are registered with it as notification recipients. I once had a devil of a time understanding why one of my instances was not receiving a notification for which it was registered. Caveman debugging didn’t help. Eventually I realized that some code I’d forgotten about was unregistering my instance.</p>
+          <p>If you’re calling <code class="literal">addObserverForName:...</code> multiple times from the same class, you’re going to end up receiving from the notification center multiple observer tokens, which you need to preserve so that you can unregister by handing them back to the notification center. If your plan is to unregister everything at once, one way to handle this situation is through an instance variable that is a mutable collection. So, for example, I might have an NSMutableSet instance variable called <code class="literal">_observers</code>. Early on, I initialize it to an empty set:</p>
+          <pre class="screen">self-&gt;_observers = [NSMutableSet set];</pre>
+          <p>Each time I register for a notification using a block, I capture the result and add it to the set:</p>
+          <pre class="screen">id ob = [[NSNotificationCenter defaultCenter]
+    addObserverForName:@"whatever" object:nil queue:nil
+    usingBlock:^(NSNotification *note) {
+        // ... whatever ...
+    }];
+[self-&gt;_observers addObject:ob];</pre>
+          <p>Ultimately, I unregister by enumerating the set:</p>
+          <pre class="screen">for (id ob in self-&gt;_observers)
+    [[NSNotificationCenter defaultCenter] removeObserver:ob];</pre>
+          <p>The tedium of doing all that is a price worth paying in order to take advantage of blocks when using notifications.</p>
+          <div class="note" style="margin-left: 0; margin-right: 10%;">
+            <h3 class="title">Note</h3>
+            <p>I am skipping over some other aspects of notifications that you probably won’t need to know about. Read Apple’s <span class="emphasis"><em>Notification Programming Topics for Cocoa</em></span> if you want the gory details.</p>
+          </div>
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_nstimer"></a>NSTimer</h3>
+              </div>
+            </div>
+          </div>
+          <p>A timer (NSTimer) is not,<a id="idm441654672608" class="indexterm"></a> strictly speaking, a notification; but it behaves very similarly.<a id="idm441654671536" class="indexterm"></a> It is an object that gives off a signal (<span class="emphasis"><em>fires</em></span>) after the lapse of a certain time interval. The signal is a message to one of your instances. Thus you can arrange to be notified when a certain time has elapsed. The timing is not perfectly accurate, but it’s pretty good.</p>
+          <p>Timer management is not exactly tricky, but it is a little unusual. A timer that is actively watching the clock is said to be <span class="emphasis"><em>scheduled</em></span>. A timer may fire once, or it may be a <span class="emphasis"><em>repeating</em></span> timer. To make a timer go out of existence, it must be <span class="emphasis"><em>invalidated</em></span>. A timer that is set to fire once is invalidated automatically after it fires; a repeating timer repeats until <span class="emphasis"><em>you</em></span> invalidate it by sending it the <code class="literal">invalidate</code> message. An invalidated timer should be regarded as off-limits: you cannot revive it or use it for anything further, and you should probably not send any messages to it.</p>
+          <p>The straightforward way to create a timer is with the NSTimer class method <code class="literal">scheduledTimerWithTimeInterval:target:selector:userInfo:repeats:</code>. This creates the timer and schedules it, so that it begins watching the clock immediately. The target and selector determine what message will be sent to what object when the timer fires; the method in question should take one parameter, which will be a reference to the timer. The <code class="literal">userInfo</code> is just like the <code class="literal">userInfo</code> of a notification.</p>
+          <p>For example, one of my apps is a game with a score; I want to penalize the user, by diminishing the score, for every ten seconds after each move that elapses without the user making a further move. So each time the user makes a move, I create a repeating timer whose time interval is ten seconds (and I also invalidate any existing timer); in the method that the timer calls, I diminish the score.</p>
+          <p>Timers have some memory management implications that I’ll discuss in <a class="xref" href="ch12.html">Chapter 12</a>.</p>
+        </div>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_delegation"></a>Delegation</h2>
+            </div>
+          </div>
+        </div>
+        <p><span class="emphasis"><em>Delegation</em></span> is an object-oriented design pattern, a relationship between two objects, in which the first object’s behavior is customized or assisted by the second.<a id="idm441654659488" class="indexterm"></a> The second object is the first object’s <span class="emphasis"><em>delegate</em></span>.<a id="idm441654657936" class="indexterm"></a> No subclassing is involved, and indeed the first object is agnostic about the second object’s class.</p>
+        <p>As implemented by Cocoa, here’s how delegation works. A built-in Cocoa class has an instance variable, usually called <code class="literal">delegate</code> (it will certainly have <code class="literal">delegate</code> in its name). For some instance of that Cocoa class, you set the value of this instance variable to an instance of one of <span class="emphasis"><em>your</em></span> classes. At certain moments in its activity, the Cocoa class promises to turn to its delegate for instructions by sending it a certain message: if the Cocoa instance finds that its delegate is not nil, and that its delegate is prepared to receive that message (see <a class="xref" href="ch10.html">Chapter 10</a> on <code class="literal">respondsToSelector:</code>), the Cocoa instance sends the message to the delegate.</p>
+        <p>Recall the discussion of protocols from <a class="xref" href="ch10.html">Chapter 10</a>. Delegation is one of Cocoa’s main uses of protocols. In the old days, delegate methods were listed in the Cocoa class’s documentation, and their method signatures were made known to the compiler through an informal protocol (a category on NSObject). Now, though, a class’s delegate methods are usually listed in a genuine protocol with its own documentation.<a id="idm441654651584" class="indexterm"></a>
+<a id="idm441654649440" class="indexterm"></a> There are over 70 Cocoa delegate protocols, showing how heavily Cocoa relies on delegation. Most delegate methods are optional, but in a few cases you’ll discover some that are required.</p>
+        <p>To customize a Cocoa instance’s behavior through delegation, you start with one of your classes, which, if necessary, declares conformance to the relevant delegate protocol. When the app runs, you set the Cocoa instance’s <code class="literal">delegate</code> ivar (or whatever its name is) to an instance of your class. You might do this in code, usually through a property; you might do it in a nib, by connecting an instance’s <code class="literal">delegate</code> outlet (or whatever it’s called) to an appropriate instance that is to serve as delegate. Your delegate class will probably do other things besides serving as this instance’s delegate. Indeed, one of the nice things about delegation is that it leaves you free to slot delegate code into your class architecture however you like. For example, if a view has a controller (a UIViewController), it will often make sense for the controller to serve also as the delegate of that view, and even of its subviews.</p>
+        <p>Here’s a simple example, involving UIAlertView. If a UIAlertView has no delegate, then when its Cancel button is tapped, the alert view is dismissed. But if you want to <span class="emphasis"><em>do</em></span> something in response to the alert view being dismissed, you need to give it a delegate so that you can receive an event telling you that the alert view <span class="emphasis"><em>was</em></span> dismissed. It’s so common to give a UIAlertView a delegate that its designated initializer allows you to supply one; typically, the delegate will be the instance that summoned the alert view in the first place:</p>
+        <pre class="screen">- (void) gameWon {
+    UIAlertView* av =
+        [[UIAlertView alloc] initWithTitle:@"Congratulations!"
+                                   message:@"You won the game. Another game?"
+                                  delegate:self
+                         cancelButtonTitle:@"No, thanks."
+                         otherButtonTitles:@"Sure!", nil];
+    [av show];
+}
+
+- (void) alertView:(UIAlertView*) av
+        didDismissWithButtonIndex: (NSInteger) ix {
+    if (ix == 1) { // user said "Sure!"
+        [self newGame];
+    }
+}</pre>
+        <p>The delegation mechanism is the last piece of the puzzle needed to explain the built-in bootstrapping procedure of a minimal app like our Empty Window project. Recall, from <a class="xref" href="ch06.html">Chapter 6</a>, that the fourth argument to <code class="literal">UIApplicationMain</code> is the string name of the class of the shared application instance’s delegate. So, having instantiated the class of the shared application (usually UIApplication), <code class="literal">UIApplicationMain</code> instantiates the class nominated in its fourth argument — in this case, AppDelegate; there is now, therefore, before much of anything has happened, an AppDelegate instance. Moreover, <code class="literal">UIApplicationMain</code> sets the shared application’s <code class="literal">delegate</code> property to this AppDelegate instance. UIApplication’s delegate is typed as <code class="literal">id &lt;UIApplicationDelegate&gt;</code> — and, by golly, AppDelegate is declared as conforming to the UIApplicationDelegate protocol.</p>
+        <p>This, as we saw in <a class="xref" href="ch10.html">Chapter 10</a>, causes the shared application instance to bombard this AppDelegate instance with <code class="literal">respondsToSelector:</code> messages, to find out exactly which UIApplicationDelegate methods AppDelegate actually implements. One such method that it does implement is <code class="literal">application:didFinishLaunchingWithOptions:</code>. So the UIApplication instance now actually sends <code class="literal">application:didFinishLaunchingWithOptions:</code> to its delegate, the AppDelegate instance. That is why, in some earlier examples, we put code into the implementation of that method: this is code that is guaranteed, thanks to the UIApplication’s contract with its delegate, to run very early in the app’s lifetime. We know the <code class="literal">application:didFinishLaunchingWithOptions:</code> message will be sent, we know <span class="emphasis"><em>when</em></span> it will be sent (early in our app’s lifetime), and we know to <span class="emphasis"><em>whom</em></span> it will be sent (the application’s delegate object); so we’ve put appropriate code there, waiting to be called. Moreover, there is already boilerplate code in the project template’s implementation of this method that does some very important things, such as making our app’s window and showing it:</p>
+        <pre class="screen">self.window = [[UIWindow alloc] initWithFrame:[[UIScreen mainScreen] bounds]];
+[self.window makeKeyAndVisible];</pre>
+        <div class="note" style="margin-left: 0; margin-right: 10%;">
+          <h3 class="title">Note</h3>
+          <p>The UIApplication delegate methods are also provided as notifications.<a id="idm441654629216" class="indexterm"></a> This lets an instance other than the app delegate hear conveniently about application lifetime events, by registering for them. A few other classes provide duplicate events similarly; for example, UITableView’s delegate method <code class="literal">tableView:didSelectRowAtIndexPath:</code> is matched by a notification <code class="literal">UITableViewSelectionDidChangeNotification</code>.</p>
+        </div>
+        <p>By convention, many Cocoa delegate method names contain the modal verbs <code class="literal">should</code>, <code class="literal">will</code>, or <code class="literal">did</code>. A <code class="literal">will</code> message is sent to the delegate just before something happens; a <code class="literal">did</code> message is sent to the delegate just after something happens. A <code class="literal">should</code> method is special: it returns a BOOL, and you are expected to respond with YES to permit something or NO to prevent it.<a id="idm441654621632" class="indexterm"></a> The documentation tells you what the default response is; you don’t have to implement a <code class="literal">should</code> method if the default response is always acceptable.</p>
+        <p>In many cases, a property will control the overall behavior; the delegate message lets you pick and choose the behavior based on circumstances at runtime. For example, whether the user can tap the status bar to make a scroll view scroll quickly to the top is governed by the scroll view’s <code class="literal">scrollsToTop</code> property; but even if this property’s value is YES, you can prevent this behavior for a particular tap by returning NO from the delegate’s <code class="literal">scrollViewShouldScrollToTop:</code>.</p>
+        <p>When you’re searching the documentation for how you can be notified of a certain event, be sure to consult the corresponding delegate protocol, if there is one.<a id="idm441654616432" class="indexterm"></a>
+<a id="idm441654615184" class="indexterm"></a> (And don’t forget to consult the class’s superclasses to see if one of <span class="emphasis"><em>them</em></span> has a corresponding delegate protocol.) You’d like to know when the user taps in a UITextField to start editing it? You won’t find anything relevant in the UITextField class documentation; what you’re after is <code class="literal">textFieldDidBeginEditing:</code> in the UITextFieldDelegate protocol. You want to respond when the user rearranges items on your tab bar? Look in UITabBarControllerDelegate. You want to know how to make a UITextView zoomable (through the user making a pinch gesture)? A UITextView is a UIScrollView; a scroll view is not zoomable unless its delegate returns a view from <code class="literal">viewForZoomingInScrollView:</code>, documented under UIScrollViewDelegate.</p>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_data_sources"></a>Data Sources</h2>
+            </div>
+          </div>
+        </div>
+        <p>A <span class="emphasis"><em>data source</em></span> is like a delegate, except that its methods supply the data for another object to display.<a id="idm441654609600" class="indexterm"></a> The chief Cocoa classes with data sources are UITableView, UICollectionView, UIPickerView, and UIPageViewController. In each case, the data source must formally conform to a protocol with required methods.</p>
+        <p>It comes as a surprise to some beginners that a data source is necessary at all. Why isn’t a table’s data just part of the table? Or why isn’t there at least some fixed data structure that contains the data? The reason is that such policies would violate generality. Use of a data source separates the object that displays the data from the object that manages the data, and leaves the latter free to store and obtain that data however it likes (see on model–view–controller in <a class="xref" href="ch13.html">Chapter 13</a>). The only requirement is that the data source must be able to supply information quickly, because it will be asked for it in real time when the data needs displaying.</p>
+        <p>Another surprise is that the data source is different from the delegate. But this again is only for generality; it’s an option, not a requirement. There is no reason why the data source and the delegate should not be the same object, and most of the time they probably will be.</p>
+        <p>In this simple example, we implement a <a id="idm441654604320" class="indexterm"></a>UIPickerView that allows the user to select by name a day of the week (the Gregorian week, using English day names). The first two methods are UIPickerView data source methods; the third method is a UIPickerView delegate method:</p>
+        <pre class="screen">- (NSInteger) numberOfComponentsInPickerView: (UIPickerView*) pickerView {
+    return 1;
+}
+
+- (NSInteger) pickerView: (UIPickerView*) pickerView
+        numberOfRowsInComponent: (NSInteger) component {
+    return 7;
+}
+
+- (NSString*) pickerView:(UIPickerView*)pickerView
+             titleForRow:(NSInteger)row
+            forComponent:(NSInteger)component {
+    NSArray* arr = @[@"Sunday",
+                    @"Monday",
+                    @"Tuesday",
+                    @"Wednesday",
+                    @"Thursday",
+                    @"Friday",
+                    @"Saturday"];
+    return arr[row];
+}</pre>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_actions"></a>Actions</h2>
+            </div>
+          </div>
+        </div>
+        <p>Recall the discussion of actions in <a class="xref" href="ch07.html">Chapter 7</a>. An <span class="emphasis"><em>action</em></span> is a message emitted by an instance of a UIControl subclass (a <span class="emphasis"><em>control</em></span>) reporting a significant user event taking place in that control.<a id="idm441654598832" class="indexterm"></a> The UIControl subclasses (<a class="xref" href="ch25.html">Chapter 25</a>) are all simple interface objects that the user can interact with directly, like a button (UIButton), a switch (<span class="keep-together">UISwitch</span>), a segmented control (UISegmentedControl), a slider (UISlider), or a text field (UITextField).<a id="idm441654596288" class="indexterm"></a></p>
+        <p>The significant user events (<span class="emphasis"><em>control events</em></span>) are listed under UIControlEvents in the Constants section of the UIControl class documentation.<a id="idm441654594464" class="indexterm"></a> See <a class="xref" href="ch25.html">Chapter 25</a> for a list of which controls implement which control events.</p>
+        <p>The way you hear about a control event is through an action message. A control maintains an internal <a id="idm441654592256" class="indexterm"></a>dispatch table: for each control event, there is some number of target–action pairs, of which the <span class="emphasis"><em>action</em></span> is a selector (the name of a method) and the <span class="emphasis"><em>target</em></span> is the object to which that message is to be sent.<a id="idm441654590304" class="indexterm"></a><a id="idm441654589392" class="indexterm"></a> When a control event occurs, the control consults its dispatch table, finds all the target–action pairs associated with that control event, and sends each action message to the corresponding target. This architecture is reminiscent of a notification (<a class="xref" href="ch11.html#FIGtargetaction">Figure 11.1</a>).</p>
+        <div class="figure">
+          <a id="FIGtargetaction"></a>
+          <div class="figure-contents">
+            <div class="mediaobject">
+              <img src="figs/pios_1101.png" alt="figs/pios_1101.png" />
+            </div>
+          </div>
+          <p class="title">Figure 11.1. The target–action architecture</p>
+        </div>
+        <br class="figure-break" />
+        <p>There are two ways to manipulate a control’s action dispatch table: you can configure an action connection in a nib (as explained in <a class="xref" href="ch07.html">Chapter 7</a>), or you can use code. To use code, you send the control the message <code class="literal">addTarget:action:forControlEvents:</code>, where the <code class="literal">target:</code> is an object, the <code class="literal">action:</code> is a selector, and the <code class="literal">controlEvents:</code> are designated by a bitmask (see <a class="xref" href="ch01.html">Chapter 1</a> if you’ve forgotten how to construct a bitmask). Unlike a notification center, a control also has methods for introspecting the dispatch table (<a class="xref" href="ch25.html">Chapter 25</a>).</p>
+        <p>Recall the example from <a class="xref" href="ch07.html">Chapter 7</a> (where <code class="literal">b</code> is a reference to a UIButton):</p>
+        <pre class="screen">[b addTarget:self action:@selector(buttonPressed:)
+        forControlEvents:UIControlEventTouchUpInside];</pre>
+        <p>After that, whenever the user taps in the button, our <code class="literal">buttonPressed:</code> method will be called. It might, again as in <a class="xref" href="ch07.html">Chapter 7</a>, look like this:</p>
+        <pre class="screen">- (void) buttonPressed: (id) sender {
+    UIAlertView* av = [[UIAlertView alloc] initWithTitle:@"Howdy!"
+                                                 message:@"You tapped me."
+                                                delegate:nil
+                                       cancelButtonTitle:@"Cool"
+                                       otherButtonTitles:nil];
+    [av show];
+}</pre>
+        <p>The signature for the action selector can be in any of three forms.<a id="idm441654572272" class="indexterm"></a> The fullest form takes two parameters:</p>
+        <div class="itemizedlist">
+          <ul class="itemizedlist" type="disc">
+            <li class="listitem">
+The control, usually typed as <code class="literal">id</code>.
+</li>
+            <li class="listitem">
+The UIEvent that generated the control event.
+</li>
+          </ul>
+        </div>
+        <p>A shorter form (the most commonly used form) omits the second parameter; a still shorter form omits both parameters.</p>
+        <div class="note" style="margin-left: 0; margin-right: 10%;">
+          <h3 class="title">Mac OS X Programmer Alert</h3>
+          <p>If you’re an experienced Mac OS X Cocoa developer, you’ll note that there are some major differences between the Mac OS X implementation of actions and the iOS implementation. In Mac OS X, a control has just one action; in iOS, a control may respond to multiple control events. In Mac OS X, an action has just one target; in iOS, a single event can trigger multiple action messages to multiple targets. In Mac OS X, an action message selector comes in just one form; in iOS, there are three possible forms.</p>
+        </div>
+        <p>What is the UIEvent, and what is it for? Well, a <span class="emphasis"><em>touch event</em></span> is generated whenever the user does something with a finger (sets it down on the screen, moves it, raises it from the screen). UIEvents are the lowest-level objects charged with communication of touch events to your app. A UIEvent is basically a timestamp (a double) along with a collection (NSSet) of touch events (UITouch). The action mechanism deliberately shields you from the complexities of touch events, but by electing to receive the UIEvent, you can still deal with those complexities if you want to. (See <a class="xref" href="ch18.html">Chapter 18</a> for full details.)</p>
+        <p>Curiously, none of the action selector parameters provide any way to learn <span class="emphasis"><em>which</em></span> control event triggered the current action selector call! Thus, for example, to distinguish a Touch Up Inside control event from a Touch Up Outside control event, their corresponding target–action pairs must specify two different action handlers; if you dispatch them to the same action handler, that handler cannot discover which control event occurred.</p>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_the_responder_chain"></a>The Responder Chain</h2>
+            </div>
+          </div>
+        </div>
+        <p>A <span class="emphasis"><em>responder</em></span> is an object that knows how to receive UIEvents directly (see the previous section).<a id="idm441654561264" class="indexterm"></a> It knows this because it is an instance of <a id="idm441654560224" class="indexterm"></a>UIResponder or a UIResponder subclass. If you examine the Cocoa class hierarchy, you’ll find that just about any class that has anything to do with display on the screen is a responder. A UIView is a responder. A UIWindow is a responder. A UIViewController is a responder. Even a UIApplication is a responder. In iOS 5 and later, the app delegate is a responder.<a id="idm441654558304" class="indexterm"></a><a id="idm441654557472" class="indexterm"></a></p>
+        <p>If you look in the documentation for the UIResponder class, you’ll find that it implements four low-level methods for receiving touch-related UIEvents: <code class="literal">touchesBegan:withEvent:</code>, <code class="literal">touchesMoved:withEvent:</code>, <code class="literal">touchesEnded:withEvent:</code> and <code class="literal">touchesCancelled:withEvent:</code>. These are called to notify a responder of a touch event. No matter how your code ultimately hears about a user-related touch event — indeed, even if your code <span class="emphasis"><em>never</em></span> hears about a touch event (because Cocoa reacted in some automatic way to the touch, without your code’s intervention) — the touch was initially communicated to a responder through one of these methods.</p>
+        <p>The mechanism for this communication starts by deciding which responder the user touched. The UIView methods <code class="literal">hitTest:withEvent:</code> and <code class="literal">pointInside:withEvent:</code> are called until the correct view (the <span class="emphasis"><em>hit-test view</em></span>) is located. Then UIApplication’s <code class="literal">sendEvent:</code> method is called, which calls UIWindow’s <code class="literal">sendEvent:</code>, which calls the correct method of the hit-test view (a responder). I’ll cover all this again in full detail in <a class="xref" href="ch18.html">Chapter 18</a>.</p>
+        <p>The responders in your app participate in a <span class="emphasis"><em>responder chain</em></span>, which essentially links them up through the view hierarchy.<a id="idm441654546896" class="indexterm"></a> A UIView can sit inside another UIView, its <span class="emphasis"><em>superview</em></span>, and so on until we reach the app’s UIWindow (a UIView that has no superview). The responder chain, from bottom to top, looks like this:</p>
+        <div class="orderedlist">
+          <ol class="orderedlist" type="1">
+            <li class="listitem">
+The UIView that we start with (here, the hit-test view).
+</li>
+            <li class="listitem">
+The UIViewController that controls that UIView, if there is one.
+</li>
+            <li class="listitem">
+The UIView’s superview, and then <span class="emphasis"><em>its</em></span> UIViewController if there is one. Repeat this step, moving up the superview hierarchy one superview at a time, until we reach…
+</li>
+            <li class="listitem">
+The UIWindow.
+</li>
+            <li class="listitem">
+The UIApplication.
+</li>
+            <li class="listitem">
+The UIApplication’s delegate.
+</li>
+          </ol>
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_deferring_responsibility"></a>Deferring Responsibility</h3>
+              </div>
+            </div>
+          </div>
+          <p>The responder chain can be used to let a responder defer responsibility for handling a touch event. If a responder receives a touch event and can’t handle it, the event can be passed up the responder chain to look for a responder that <span class="emphasis"><em>can</em></span> handle it. This can happen in two main ways: (1) the responder doesn’t implement the relevant method; (2) the responder implements the relevant method to call <code class="literal">super</code>.</p>
+          <p>For example, a plain vanilla UIView has no native implementation of the touch event methods. Thus, by default, even if a UIView is the hit-test view, the touch event effectively falls through the UIView and travels up the responder chain, looking for someone to respond to it. If this UIView is an instance of your own subclass, you might implement the touch event methods in that subclass to catch touch events in the UIView itself; but if the UIView is controlled by a UIViewController, you have already subclassed UIViewController, and that subclass is probably where the interface behavior logic for this UIView is already situated, so you might well prefer to implement the touch event methods there instead. You are thus taking advantage of the responder chain to defer responsibility for handling touch events from the UIView to its UIViewController, in a natural and completely automatic way.</p>
+          <p>Again, I’ll come back to this in <a class="xref" href="ch18.html">Chapter 18</a>; don’t worry about it for now. I’m actually telling you about the responder chain chiefly in order to discuss nil-targeted actions, which is the subject of the next section.</p>
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_nil_targeted_actions"></a>Nil-Targeted Actions</h3>
+              </div>
+            </div>
+          </div>
+          <p>A <span class="emphasis"><em>nil-targeted action</em></span> is a target–action pair in which the target is nil.<a id="idm441654530032" class="indexterm"></a> There is no designated target object, so the following rule is used: starting with the hit-test view (the view with which the user is interacting), Cocoa looks up the responder chain for an object that can respond to the action message.</p>
+          <p>Suppose, for example, we have a UIButton inside a UIView. And suppose we run this code early in the button’s lifetime, where <code class="literal">b</code> is the button:</p>
+          <pre class="screen">[b addTarget:nil action:@selector(doButton:)
+       forControlEvents:UIControlEventTouchUpInside];</pre>
+          <p>That’s a nil-targeted action. So what happens when the user taps the button? First, Cocoa looks in the UIButton itself to see whether it responds to <code class="literal">doButton:</code>. If not, then it looks in the UIView that is its superview. And so on, up the responder chain. If a responder is found that handles <code class="literal">doButton:</code>, the action message is sent to that object; otherwise, the message goes unhandled.</p>
+          <p>Thus, suppose the UIView containing the UIButton is an instance of your own UIView subclass. Let’s call it MyView. If MyView implements <code class="literal">doButton:</code>, then when the user taps the button, it is MyView’s <code class="literal">doButton:</code> that will be called.</p>
+          <p>To create a nil-targeted action in a nib, you form a connection to the First Responder proxy object (in the dock).<a id="idm441654521872" class="indexterm"></a>
+<a id="idm441654520560" class="indexterm"></a> This is what the First Responder proxy object is for! The First Responder isn’t a real object with a known class, so before you can connect an action to it, you have to define the action message within the First Responder proxy object, like this:</p>
+          <div class="orderedlist">
+            <ol class="orderedlist" type="1">
+              <li class="listitem">
+Select the First Responder proxy in the nib, and switch to the Attributes inspector.
+</li>
+              <li class="listitem">
+You’ll see a table (probably empty) of user-defined nil-targeted First Responder actions. Click the Plus button and give the new action a signature; it must take a single parameter (so that its name will end with a colon).
+</li>
+              <li class="listitem">
+Now you can Control-drag from a control, such as a UIButton, to the First Responder proxy to specify a nil-targeted action with the signature you specified.
+</li>
+            </ol>
+          </div>
+          <div class="sidebar">
+            <div class="titlepage">
+              <div>
+                <div>
+                  <p class="title">The Term “First Responder”</p>
+                </div>
+              </div>
+            </div>
+            <p>Cocoa uses the term <span class="emphasis"><em>first responder</em></span> in a confusing way.<a id="idm441654512896" class="indexterm"></a> An arbitrary responder object can be assigned formal first responder status (by sending it <code class="literal">becomeFirstResponder</code>, provided that this responder returns YES from <code class="literal">canBecomeFirstResponder</code>). But this does not make the object first responder for purposes of handling nil-targeted actions! Cocoa’s hunt for a responder that can handle a nil-targeted action still starts with the control that the user is interacting with (the hit-test view) and goes up the responder chain from there.</p>
+            <p>Typical legitimate uses of <code class="literal">becomeFirstResponder</code> are:</p>
+            <div class="itemizedlist">
+              <ul class="itemizedlist" type="disc">
+                <li class="listitem">
+To put a UITextField into editing mode, as if the user had tapped in it (<a class="xref" href="ch23.html">Chapter 23</a>).
+</li>
+                <li class="listitem">
+To specify the object that should initially be sent remote events (<a class="xref" href="ch27.html">Chapter 27</a>).
+</li>
+                <li class="listitem">
+To designate an object that is to present a menu (<a class="xref" href="ch39.html">Chapter 39</a>).
+</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_swamped_by_events"></a>Swamped by Events</h2>
+            </div>
+          </div>
+        </div>
+        <p>Your code runs only because Cocoa sends an event and you had previously set up a method ready to receive it. Cocoa has the potential to send lots of events, telling you what the user has done, informing you of each stage in the lifetime of your app and its objects, asking for your input on how to proceed. To receive the events that you need to hear about, your code is peppered with methods that are <span class="emphasis"><em>entry points</em></span> — methods that you have written with just the right name and in just the right class so that they can be called by Cocoa through events. In fact, it is easy to imagine that in many cases your code for a class will consist almost entirely of entry points.<a id="idm441654500496" class="indexterm"></a><a id="idm441654499616" class="indexterm"></a></p>
+        <p>That fact is one of your primary challenges as an iOS programmer. You know what you want to do, but you have to divide it up and allocate it according to when Cocoa is going to call into your code. Before you’ve written a single line of your own code, the skeleton structure of a class is likely to have been largely mapped out for you by the need to be prepared to receive the events that Cocoa is going to want to send you.</p>
+        <p>Suppose, for example, that your iPhone app contains a screen that effectively consists entirely of a table view. (This is in fact an extremely probable scenario.) You’re most like to have a corresponding UITableViewController subclass; UITableViewController is a built-in UIViewController subclass, plus you’ll probably use this same class as the table view’s data source and delegate. In this single class, then, you’re likely to want to implement <span class="emphasis"><em>at a minimum</em></span> the following methods:</p>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+<code class="literal">initWithCoder:</code> or <code class="literal">initWithNibName:bundle:</code>
+</span>
+            </dt>
+            <dd>
+UIViewController lifetime method, where you perform custom instance initializations.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">viewDidLoad:</code>
+</span>
+            </dt>
+            <dd>
+UIViewController lifetime method, where you perform view-related initializations.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">viewWillAppear:</code>
+</span>
+            </dt>
+            <dd>
+UIViewController lifetime method, where you set up states that need to apply only while your view is onscreen. For example, if you’re going to register for a notification or set up a timer, this is a likely place to do it.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">viewDidDisappear:</code>
+</span>
+            </dt>
+            <dd>
+UIViewController lifetime method, where you reverse what you did in <code class="literal">viewWillAppear:</code>. For example, this would be a likely place to unregister for a notification or invalidate a repeating timer that you set up in <code class="literal">viewWillAppear:</code>.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">supportedInterfaceOrientations</code>
+</span>
+            </dt>
+            <dd>
+UIViewController query method, where you specify what device orientations are allowed for this view.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">numberOfSectionsInTableView:</code>
+<br /></span>
+              <span class="term">
+<code class="literal">tableView:numberOfRowsInSection:</code>
+<br /></span>
+              <span class="term">
+<code class="literal">tableView:cellForRowAtIndexPath:</code>
+</span>
+            </dt>
+            <dd>
+UITableView data source query methods, where you specify the contents of the table.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">tableView:didSelectRowAtIndexPath:</code>
+</span>
+            </dt>
+            <dd>
+UITableView delegate user action method, where you respond when the user taps a row of the table.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">dealloc</code>
+</span>
+            </dt>
+            <dd>
+NSObject lifetime method, where you perform end-of-life cleanup. (If you’re not using ARC, you will have memory management tasks to perform here.)
+</dd>
+          </dl>
+        </div>
+        <p>Suppose, further, that you did in fact use <code class="literal">viewWillAppear:</code> to register for a notification and to set up a timer. Then that notification has a selector (unless you used a block), and the timer has a selector; you must therefore also implement the methods described by those selectors.</p>
+        <p>We already have, then, about a dozen methods whose presence is effectively a matter of boilerplate. These are not <span class="emphasis"><em>your</em></span> methods; <span class="emphasis"><em>you</em></span> are never going to call them. They are <span class="emphasis"><em>Cocoa’s</em></span> methods, which you have placed here so that each can be called at the appropriate moment in the life story of your app.</p>
+        <p>(Don’t try to learn any of those method names now! I’ll talk in detail about these matters in <a class="xref" href="ch19.html">Chapter 19</a> and <a class="xref" href="ch21.html">Chapter 21</a>. At the moment I’m just showing you that a major portion of the structure of this class is likely to be dictated to you by the event-driven nature of a Cocoa app.)</p>
+        <p>The logic of a program laid out in this fashion is by no means easy to understand! I’m not criticizing Cocoa here — indeed, it’s hard to imagine how else an application framework could work — but, purely as an objective matter of fact, the result is that a Cocoa program, even your own program, even <span class="emphasis"><em>while you’re developing it</em></span>, is hard to read, because it consists of numerous disconnected entry points, each with its own meaning, each called at its own set moment which is not in any way obvious from looking at the program. To understand what our hypothetical class does, you have to know <span class="emphasis"><em>already</em></span> such things as when <code class="literal">viewWillAppear:</code> is called and how it is typically used; otherwise, you don’t even know where to look to find the program’s logic and behavior, let alone how to interpret what you see when you do look there. And this difficulty is greatly compounded when you try to read someone else’s code (this is one reason why, as I mentioned in <a class="xref" href="ch08.html">Chapter 8</a>, sample code is not all that helpful to a beginner).</p>
+        <p>Looking at the code of an iOS program — even your own code — your eyes can easily glaze over at the sight of all these methods called automatically by Cocoa under various circumstances. To be sure, experience will teach you about such things as the overridden UIViewController methods and the table view delegate and data source methods. On the other hand, no amount of experience will tell you that a certain method is called as a button’s action or through a notification. Comments really help, and I strongly advise you, as you develop any iOS app, to comment every method, quite heavily if need be, saying what that method does and under what circumstances you expect it to be called — especially if it is an entry point, where it is Cocoa itself that will do the calling.</p>
+        <p>Perhaps the most common kind of mistake in writing a Cocoa app is not that there’s a bug in your code itself, but that you’ve put the code in the wrong place. Your code isn’t running, or it’s running at the wrong time, or the pieces are running in the wrong order. I see questions about this sort of thing all the time on the various online user forums (these are all actual examples that appeared over the course of just two days):</p>
+        <div class="itemizedlist">
+          <ul class="itemizedlist" type="disc">
+            <li class="listitem">
+“There’s a delay between the time when my view appears and when my button takes on its correct title.” That’s because you put the code that sets the button’s title in <code class="literal">viewDidAppear:</code>. That’s <span class="emphasis"><em>too late</em></span>; your code needs to run earlier, perhaps in <code class="literal">viewWillAppear:</code>.
+</li>
+            <li class="listitem">
+“My subviews are positioned in code and they’re turning out all wrong.” That’s because you put the code that positions your subviews in <code class="literal">viewDidLoad</code>. That’s <span class="emphasis"><em>too early</em></span>; your code needs to run later, when your view’s dimensions have been determined.
+</li>
+            <li class="listitem">
+“My view is rotating even though my view controller’s <code class="literal">supportedInterfaceOrientations</code> says not to.” That’s because you implemented <code class="literal">supportedInterfaceOrientations</code> in the <span class="emphasis"><em>wrong class</em></span>; it needs to be implemented in the UINavigationController that contains your view controller.
+</li>
+            <li class="listitem">
+“I set up an action connection for Value Changed on a text field, but my code isn’t being called when the user edits.” That’s because you connected the <span class="emphasis"><em>wrong action</em></span>; a text field emits Editing Changed, not Value Changed.
+</li>
+          </ul>
+        </div>
+        <p>Adding to your challenges is that fact that you can’t really know precisely when an entry point will be called. The documentation may give you a general sense, but in most cases it doesn’t guarantee anything about <span class="emphasis"><em>precisely</em></span> when events will arrive and in what order. What you think is going to happen, and even what the documentation leads you to believe is going to happen, might not be quite what really does happen. Your own code can trigger unintended events. The documentation might not make it clear just when a notification will be sent. There could even be a bug in Cocoa such that events are called in a way that seems to contradict the documentation. And you have no access to the Cocoa source code, so you can’t work out the underlying details. Therefore I also recommend that as you develop your app, you instrument your code heavily with caveman debugging (NSLog; see <a class="xref" href="ch09.html">Chapter 9</a>). As you test your code, keep an eye on the console output and check whether the messages make sense. You may be surprised at what you discover.</p>
+        <p>For example, in one app that I was developing, I suddenly found that in a UIViewController subclass, <code class="literal">viewDidLoad</code> was being called twice as the app started up, which should be impossible. Fortunately, my code was heavily instrumented with NSLog calls, or I would never have discovered this problem. Adding even more NSLog calls, I found that <code class="literal">viewDidLoad</code> was being called while I was still in the middle of executing <code class="literal">awakeFromNib</code>, which should <span class="emphasis"><em>really</em></span> be impossible. The reason turned out to be my own mistake: I was referring to my class’s <code class="literal">view</code> property during <code class="literal">awakeFromNib</code>, which was causing <code class="literal">viewDidLoad</code> to be called. The problem went away when I corrected my mistake.</p>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_delayed_performance"></a>Delayed Performance</h2>
+            </div>
+          </div>
+        </div>
+        <p>Some of your code tells Cocoa what to do. But Cocoa is a black box, so what Cocoa actually will do, and precisely when it will do it, is out of your control. Your code was executed in response to some event; but your code in turn may trigger a new event or chain of events. Sometimes this causes bad things to happen: there might be a crash, or Cocoa might appear not to have done what you said to do. One of the chief causes of these difficulties is the chain of triggered events itself. Sometimes you just need to step outside that chain for a moment and wait for everything to settle down before proceeding.</p>
+        <p>The technique for doing this is called <span class="emphasis"><em>delayed performance</em></span>.<a id="idm441654442400" class="indexterm"></a> You tell Cocoa to do something not right this moment, but in a little while, when things have settled down. Your purpose might be a matter of simple timing, such as when you want to do something different depending whether the user taps twice in quick succession or only once; basically, when the user first taps, you respond using delayed performance, to give the user time to tap again if two taps are intended (<a class="xref" href="ch18.html">Chapter 18</a>). Or perhaps you need only a very short delay, possibly even as short as zero seconds, just to let Cocoa finish doing something, such as laying out interface. Technically, you’re allowing the current run loop to finish, completing and unwinding the entire current method call stack, before proceeding further with your own code.</p>
+        <p>You’re likely to be using delayed performance a lot more than you might expect. With experience, you’ll develop a kind of sixth sense for when delayed performance might be the solution to your difficulties. There are three chief implementations of delayed performance that I use in my own code:</p>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+<code class="literal">performSelector:withObject:afterDelay:</code>
+</span>
+            </dt>
+            <dd>
+I mentioned this NSObject method at the end of <a class="xref" href="ch10.html">Chapter 10</a>. It limits you as to the signature of the selector — it must take one parameter or none — so you might have to restructure your own code slightly.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">dispatch_after</code>
+</span>
+            </dt>
+            <dd>
+I mentioned this in <a class="xref" href="ch03.html">Chapter 3</a>. It takes a block, not a selector, which can result in more direct and readable code.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">dispatch_async</code>
+</span>
+            </dt>
+            <dd>
+Often, the delay you’re after doesn’t need to be more than zero. What you’re trying to do is postpone the next step until the consequences of the previous step have worked themselves out. So it suffices to wait until nothing is happening. You can do this with a call to <code class="literal">dispatch_async</code> onto the same queue where everything is happening now, namely the main queue (<code class="literal">dispatch_get_main_queue</code>, <a class="xref" href="ch38.html">Chapter 38</a>).
+</dd>
+          </dl>
+        </div>
+        <p>In all three cases, what you propose to do will be done later on; you’re deliberately breaking out of your own code’s line-by-line sequence of execution. So a delayed performance call will be the last call in its method (or block), and cannot return any value.</p>
+        <p>In this example from one of my own apps, the user has tapped a row of a table, and my code responds by creating and showing a new view controller:</p>
+        <pre class="screen">- (void) tableView:(UITableView *)tableView
+        didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
+    TracksViewController *t =
+        [[TracksViewController alloc]
+         initWithMediaItemCollection:(self.albums)[indexPath.row]];
+    [self.navigationController pushViewController:t animated:YES];
+}</pre>
+        <p>Unfortunately, the innocent-looking call to my TracksViewController method <code class="literal">initWithMediaItemCollection:</code> can take a moment to complete, so the app comes to a stop with the table row highlighted — very briefly, but just long enough to startle the user. To cover this delay with a sense of activity, I’ve rigged my UITableViewCell subclass to show a spinning activity indicator when it’s selected:</p>
+        <pre class="screen">- (void)setSelected:(BOOL)selected animated:(BOOL)animated {
+    if (selected) {
+        [self.activityIndicator startAnimating]; // appear and spin
+    } else {
+        [self.activityIndicator stopAnimating]; // disappear
+    }
+    [super setSelected:selected animated:animated];
+}</pre>
+        <p>However, the spinning activity indicator never appears and never spins. The reason is that the events are stumbling over one another here. UITableViewCell’s <code class="literal">setSelected:animated:</code> isn’t called until the UITableView delegate method <code class="literal">tableView:didSelectRowAtIndexPath:</code> has finished. But the delay we’re trying to paper over is <span class="emphasis"><em>during</em></span> <code class="literal">tableView:didSelectRowAtIndexPath:</code>; the whole problem is that it <span class="emphasis"><em>doesn’t</em></span> finish fast enough. Delayed performance to the rescue! I’ll rewrite <code class="literal">tableView:didSelectRowAtIndexPath:</code> so that it finishes immediately — thus triggering <code class="literal">setSelected:animated:</code> immediately and causing the activity indicator to appear and spin — and call <code class="literal">initWithMediaItemCollection:</code> later on, when the interface has ironed itself out:</p>
+        <pre class="screen">- (void) tableView:(UITableView *)tableView
+        didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
+    // tiny delay to allow spinner to start spinning
+    double delayInSeconds = 0.1;
+    dispatch_time_t popTime =
+        dispatch_time(DISPATCH_TIME_NOW, delayInSeconds * NSEC_PER_SEC);
+    dispatch_after(popTime, dispatch_get_main_queue(), ^(void){
+        TracksViewController *t =
+            [[TracksViewController alloc]
+             initWithMediaItemCollection:(self.albums)[indexPath.row]];
+        [self.navigationController pushViewController:t animated:YES];
+    });
+}</pre>
+        <p>Here’s an example that I came across on the Internet, involving a crash. The developer has a table view each of whose rows contains a text field. If the user deletes everything in one of those text fields, the table row containing it should be deleted. The code is an implementation of one of the text field’s delegate methods:</p>
+        <pre class="screen">- (void)textFieldEditingDidEnd:(UITextField *)textField {
+    NSIndexPath *indexPath = // Index path of the row in the table view
+    if ([textField.text length] == 0) {
+        // Delete the cell from the table view
+        [self.tableView deleteRowsAtIndexPaths:@[indexPath]
+            withRowAnimation:UITableViewRowAnimationAutomatic];
+    }
+}</pre>
+        <p>This was crashing. My suggestion — which worked — was to call <code class="literal">deleteRowsAtIndexPaths:withRowAnimation:</code> using delayed performance. The reason is that, as things stand, we are trying to delete the row containing the text field while the text field is still busy reporting to its delegate that editing is ending. With delayed performance, we allow Cocoa’s call to this delegate method to finish, and <span class="emphasis"><em>then</em></span> we delete the row.</p>
+        <p>There will be many more examples of delayed performance later in this book.</p>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_application_lifetime_events"></a>Application Lifetime Events</h2>
+            </div>
+          </div>
+        </div>
+        <p>As I explained in <a class="xref" href="ch06.html">Chapter 6</a>, your app’s one and only application object (a UIApplication instance, or on rare occasions a UIApplication subclass instance) is created for you as the shared application object by <code class="literal">UIApplicationMain</code>, along with its delegate; in the Xcode project templates, this is an instance of the AppDelegate class. As I’ve discussed earlier in this chapter, the application immediately starts reporting lifetime events through method calls to its delegate; subsequently, your other instances can also register to receive these same events as notifications.<a id="idm441654405712" class="indexterm"></a> I can’t think of a better place in this book to describe these events, so I’m going to do so here and now.</p>
+        <p>What application lifetime events you can receive depends on whether or not your app participates in <span class="emphasis"><em>multitasking</em></span>. In the old days, before iOS 4, there was no <a id="idm441654403856" class="indexterm"></a>multitasking. If the user pressed the Home button while running your app, your app was terminated. The next time the user launched your app by tapping its icon, your app launched from scratch. Even under iOS 4 and later, your app can opt out of multitasking and behave like a pre–iOS 4 app, if you set the “Application does not run in background” key (<code class="literal">UIApplicationExitsOnSuspend</code>) in your <span class="emphasis"><em>Info.plist</em></span>. For some apps, such as certain games, this might be a reasonable thing to do.</p>
+        <p>The suite of basic application lifetime events received by the app delegate in a nonmultitasking app is pretty simple:</p>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+<code class="literal">application:didFinishLaunchingWithOptions:</code>
+</span>
+            </dt>
+            <dd>
+The app has started up. This, as we have already seen, is the earliest opportunity for your code to configure the interface by creating and showing the app’s window, and it’s fair to assume that every app you ever write will do exactly that. If you don’t show your app’s interface, the user won’t see anything! (In an app with a main storyboard, however, the storyboard loading mechanism creates the window for you.) Of course you can and will perform other early initializations here.
+</dd>
+          </dl>
+        </div>
+        <div class="note" style="margin-left: 0; margin-right: 10%;">
+          <h3 class="title">Note</h3>
+          <p>Starting in iOS 6, there’s a new event, <code class="literal">application:willFinishLaunchingWithOptions:</code>, that arrives even earlier than <code class="literal">application:didFinishLaunchingWithOptions:</code>. Its purpose is to allow your app to participate in the new mechanism for saving and restoring state. Since view controllers are the primary basis of this mechanism, I’ll discuss it in <a class="xref" href="ch19.html">Chapter 19</a>.</p>
+        </div>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+<code class="literal">applicationDidBecomeActive:</code>
+</span>
+            </dt>
+            <dd>
+The app has started up; received after <code class="literal">application:didFinishLaunchingWithOptions:</code>. Also received after the end of the situation that caused the app delegate to receive <code class="literal">applicationWillResignActive:</code>.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">applicationWillResignActive:</code>
+</span>
+            </dt>
+            <dd>
+Something has blocked the app’s interface. The most common cause is that the screen has been locked. An alert dialog from outside your app, or an incoming phone call whose interface takes over the screen, could also cause this event. When this situation ends, the app delegate will receive <code class="literal">applicationDidBecomeActive:</code>.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">applicationWillTerminate:</code>
+</span>
+            </dt>
+            <dd>
+The app is about to quit. This is your last signal to preserve state (typically, by storing information with NSUserDefaults) and perform other final cleanup tasks.
+</dd>
+          </dl>
+        </div>
+        <p>If your app participates in multitasking, as it almost certainly will, <code class="literal">applicationWillTerminate:</code> is virtually a dead letter. The <a id="idm441654383872" class="indexterm"></a>Home button doesn’t terminate your app; it backgrounds and suspends it.<a id="idm441654385856" class="indexterm"></a><a id="idm441654382096" class="indexterm"></a> This means that your app is essentially freeze-dried in the background; its process still exists, but it isn’t actively running, and it isn’t getting any events — though notifications can be stored by the system for later delivery if your app comes to the front once again. Your app is terminated, not because the user switches away from it, but because the system has killed it while it was suspended (for example, because it needed to reclaim the memory your suspended app was using). Thus you’ll probably <span class="emphasis"><em>never</em></span> get <code class="literal">applicationWillTerminate:</code>, because when your app is terminated by the system, it was already suspended and incapable of receiving events.</p>
+        <div class="note" style="margin-left: 0; margin-right: 10%;">
+          <h3 class="title">Note</h3>
+          <p>Under highly specialized circumstances (discussed, for instance, in <a class="xref" href="ch27.html">Chapter 27</a> and <a class="xref" href="ch35.html">Chapter 35</a>), your app can be backgrounded without being suspended. Nevertheless, throughout this section I’ll speak as if backgrounding and suspension are one and the same.</p>
+        </div>
+        <p>In the multitasking world, you have to worry about what will happen when the app is suspended and when it returns from being suspended (<code class="literal">applicationDidEnterBackground:</code> and <code class="literal">applicationWillEnterForeground:</code>, and their corresponding notifications), and the notion of the application becoming inactive or active also takes on increased importance (<code class="literal">applicationWillResignActive:</code> and <code class="literal">applicationDidBecomeActive:</code>, and their notifications). These notifications all take on a wide range of meaning — indeed, in my opinion, the information your app is given is unfortunately too coarse-grained — so they are best understood by examining some typical scenarios:</p>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+The app launches freshly
+</span>
+            </dt>
+            <dd>
+              <p class="simpara">
+Your app delegate receives these messages (just as in the premultitasking world):
+</p>
+              <div class="itemizedlist">
+                <ul class="itemizedlist" type="disc">
+                  <li class="listitem">
+<code class="literal">application:didFinishLaunchingWithOptions:</code>
+</li>
+                  <li class="listitem">
+<code class="literal">applicationDidBecomeActive:</code>
+</li>
+                </ul>
+              </div>
+            </dd>
+            <dt>
+              <span class="term">
+The user clicks the Home button
+</span>
+            </dt>
+            <dd>
+              <p class="simpara">
+If your app is frontmost, it is suspended, and your app delegate receives these messages:
+</p>
+              <div class="itemizedlist">
+                <ul class="itemizedlist" type="disc">
+                  <li class="listitem">
+<code class="literal">applicationWillResignActive:</code>
+</li>
+                  <li class="listitem">
+<code class="literal">applicationDidEnterBackground:</code>
+</li>
+                </ul>
+              </div>
+            </dd>
+            <dt>
+              <span class="term">
+The user summons your suspended app to the front
+</span>
+            </dt>
+            <dd>
+              <p class="simpara">
+Your app delegate receives these messages:
+</p>
+              <div class="itemizedlist">
+                <ul class="itemizedlist" type="disc">
+                  <li class="listitem">
+<code class="literal">applicationWillEnterForeground:</code>
+</li>
+                  <li class="listitem">
+<code class="literal">applicationDidBecomeActive:</code>
+</li>
+                </ul>
+              </div>
+            </dd>
+          </dl>
+        </div>
+        <div class="note" style="margin-left: 0; margin-right: 10%;">
+          <h3 class="title">Note</h3>
+          <p>If the user summons your suspended app to the front indirectly, another delegate message may be sent between these two calls. For example, if the user asks another app to hand a file off to your app (<a class="xref" href="ch36.html">Chapter 36</a>), your app receives <code class="literal">application:handleOpenURL:</code> between <code class="literal">applicationWillEnterForeground:</code> and <code class="literal">applicationDidBecomeActive:</code>. If the user taps a local notification alert belonging to your app (<a class="xref" href="ch26.html">Chapter 26</a>), your app receives <code class="literal">application:didReceiveLocalNotification:</code> between <code class="literal">applicationWillEnterForeground:</code> and <code class="literal">applicationDidBecomeActive:</code>.</p>
+        </div>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+The user double-clicks the Home button
+</span>
+            </dt>
+            <dd>
+              <p class="simpara">
+The user can now work in the app switcher. If your app is frontmost, your app delegate receives this message:
+</p>
+              <div class="itemizedlist">
+                <ul class="itemizedlist" type="disc">
+                  <li class="listitem">
+<code class="literal">applicationWillResignActive:</code>
+</li>
+                </ul>
+              </div>
+            </dd>
+            <dt>
+              <span class="term">
+The user, in the app switcher, taps on your app’s window
+</span>
+            </dt>
+            <dd>
+              <p class="simpara">
+Your app delegate receives this message:
+</p>
+              <div class="itemizedlist">
+                <ul class="itemizedlist" type="disc">
+                  <li class="listitem">
+<code class="literal">applicationDidBecomeActive:</code>
+</li>
+                </ul>
+              </div>
+            </dd>
+            <dt>
+              <span class="term">
+The user, in the app switcher, chooses another app
+</span>
+            </dt>
+            <dd>
+              <p class="simpara">
+If your app is frontmost, your app delegate receives this message:
+</p>
+              <div class="itemizedlist">
+                <ul class="itemizedlist" type="disc">
+                  <li class="listitem">
+<code class="literal">applicationDidEnterBackground:</code>
+</li>
+                </ul>
+              </div>
+            </dd>
+            <dt>
+              <span class="term">
+A local notification alert (<a class="xref" href="ch26.html">Chapter 26</a>) from another app appears
+</span>
+            </dt>
+            <dd>
+              <p class="simpara">
+If your app is frontmost, your app delegate receives this message:
+</p>
+              <div class="itemizedlist">
+                <ul class="itemizedlist" type="disc">
+                  <li class="listitem">
+<code class="literal">applicationWillResignActive:</code>
+</li>
+                </ul>
+              </div>
+            </dd>
+            <dt>
+              <span class="term">
+From a local notification alert, the user launches the other app
+</span>
+            </dt>
+            <dd>
+              <p class="simpara">
+Your app delegate receives these messages:
+</p>
+              <div class="itemizedlist">
+                <ul class="itemizedlist" type="disc">
+                  <li class="listitem">
+<code class="literal">applicationDidBecomeActive:</code>
+</li>
+                  <li class="listitem">
+<code class="literal">applicationWillResignActive:</code>
+</li>
+                  <li class="listitem">
+<code class="literal">applicationDidEnterBackground:</code>
+</li>
+                </ul>
+              </div>
+            </dd>
+            <dt>
+              <span class="term">
+The screen is locked
+</span>
+            </dt>
+            <dd>
+              <p class="simpara">
+If your app is frontmost,<a id="idm441654329568" class="indexterm"></a> your app delegate receives these messages:
+</p>
+              <div class="itemizedlist">
+                <ul class="itemizedlist" type="disc">
+                  <li class="listitem">
+<code class="literal">applicationWillResignActive:</code>
+</li>
+                  <li class="listitem">
+<code class="literal">applicationDidEnterBackground:</code>
+</li>
+                </ul>
+              </div>
+            </dd>
+            <dt>
+              <span class="term">
+The screen is unlocked
+</span>
+            </dt>
+            <dd>
+              <p class="simpara">
+If your app is frontmost, your app delegate receives these messages:
+</p>
+              <div class="itemizedlist">
+                <ul class="itemizedlist" type="disc">
+                  <li class="listitem">
+<code class="literal">applicationWillEnterForeground:</code>
+</li>
+                  <li class="listitem">
+<code class="literal">applicationDidBecomeActive:</code>
+</li>
+                </ul>
+              </div>
+            </dd>
+          </dl>
+        </div>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+The user holds the screen-lock button down
+</span>
+            </dt>
+            <dd>
+              <p class="simpara">
+The device offers to shut itself down. If your app is frontmost, your app delegate receives this message:
+</p>
+              <div class="itemizedlist">
+                <ul class="itemizedlist" type="disc">
+                  <li class="listitem">
+<code class="literal">applicationWillResignActive:</code>
+</li>
+                </ul>
+              </div>
+            </dd>
+            <dt>
+              <span class="term">
+The user, as the device offers to shut itself down, cancels
+</span>
+            </dt>
+            <dd>
+              <p class="simpara">
+If your app is frontmost, your app delegate receives this message:
+</p>
+              <div class="itemizedlist">
+                <ul class="itemizedlist" type="disc">
+                  <li class="listitem">
+<code class="literal">applicationDidBecomeActive:</code>
+</li>
+                </ul>
+              </div>
+            </dd>
+            <dt>
+              <span class="term">
+The user, as the device offers to shut itself down, accepts
+</span>
+            </dt>
+            <dd>
+              <p class="simpara">
+If your app is frontmost, your app delegate receives these messages:
+</p>
+              <div class="itemizedlist">
+                <ul class="itemizedlist" type="disc">
+                  <li class="listitem">
+<code class="literal">applicationDidEnterBackground:</code>
+</li>
+                  <li class="listitem">
+<code class="literal">applicationWillTerminate:</code> (probably the only way a normal app will receive this message in a multitasking world)
+</li>
+                </ul>
+              </div>
+            </dd>
+          </dl>
+        </div>
+        <p>You can see what I mean when I say that this repertory of events is rather coarse-grained. <code class="literal">applicationWillResignActive:</code>, for example, could mean that the user is summoning the app switcher, or that another application’s local notification alert has appeared in front of your app, or that the user is locking the screen, or that the user has single-clicked the Home button to leave your app altogether, or that a phone call has arrived while your app was frontmost. But you can’t distinguish <span class="emphasis"><em>which</em></span> of these things is happening.</p>
+        <p>Of all the tasks with which you’ll concern yourself over your app’s lifetime, probably the most important is saving state.<a id="idm441654305680" class="indexterm"></a><a id="idm441654302928" class="indexterm"></a> If the user has done or specified things that the app needs to preserve, it must do so before it is terminated. Since a multitasking app is probably never going to be notified by <code class="literal">applicationWillTerminate:</code>, you’ll need to find an appropriate earlier moment. Unless your app is killed by the system outright, before the user’s eyes, for committing some crime (such as hogging the main thread for too long at a stretch), you’ll surely receive <code class="literal">applicationDidEnterBackground:</code> before being terminated, and indeed this might well be the last event your app ever receives; so it is clearly the default signal that you should save state. (You are given a little time to do this before your app is actually suspended; <a class="xref" href="ch38.html">Chapter 38</a> discusses what to do if you think a little time might not be enough.)</p>
+        <p>In iOS 6, as I’ve already mentioned, there’s a new mechanism for helping you save state. It’s quite possible that your app, if it adopts this new mechanism, won’t need to save state in <code class="literal">applicationDidEnterBackground:</code> after all. (See <a class="xref" href="ch19.html">Chapter 19</a>.) On the other hand, you still might want to respond to <code class="literal">applicationDidEnterBackground:</code> by saving information that doesn’t qualify as state. For instance, your app stands a better chance of not being terminated while suspended, the less memory resources it uses; you might therefore take <code class="literal">applicationDidEnterBackground:</code> as a signal to release whatever large memory resources you can, perhaps writing them out to disk and recovering them when your app receives <code class="literal">applicationWillEnterForeground:</code>. (In addition, while running in the foreground, your app will be sent the delegate message <code class="literal">applicationDidReceiveMemoryWarning:</code> to inform you of a low memory situation. I’ll return to this topic in <a class="xref" href="ch19.html">Chapter 19</a> as well.)<a id="idm441654293088" class="indexterm"></a></p>
+      </div>
+    </div>
+    <div class="navfooter">
+      <table width="100%" summary="Navigation footer">
+        <tr>
+          <td width="40%" align="left"><a accesskey="p" href="ch10.html">Prev</a> </td>
+          <td width="20%" align="center">
+            <a accesskey="u" href="pt03.html">Up</a>
+          </td>
+          <td width="40%" align="right"> <a accesskey="n" href="ch12.html">Next</a></td>
+        </tr>
+        <tr>
+          <td width="40%" align="left" valign="top">Chapter 10. Cocoa Classes </td>
+          <td width="20%" align="center">
+            <a accesskey="h" href="index.html">Table of Contents</a>
+          </td>
+          <td width="40%" align="right" valign="top"> Chapter 12. Accessors and Memory Management</td>
+        </tr>
+      </table>
+    </div>
+  </body>
+</html>

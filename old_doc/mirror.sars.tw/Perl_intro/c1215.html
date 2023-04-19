@@ -1,0 +1,356 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<HTML
+><HEAD
+><TITLE
+>19. 套件自動更新</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="網路管理語言 Perl 入門與實作"
+HREF="book1.html"><LINK
+REL="PREVIOUS"
+TITLE="18. 網虫偵測"
+HREF="c1207.html"><LINK
+REL="NEXT"
+TITLE="20. 讀取 DBF 檔"
+HREF="c1221.html"></HEAD
+><BODY
+CLASS="CHAPTER"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>網路管理語言 Perl 入門與實作: </TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="c1207.html"
+ACCESSKEY="P"
+>&#60;&#60;&#60; Previous</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="c1221.html"
+ACCESSKEY="N"
+>Next &#62;&#62;&#62;</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="CHAPTER"
+><H1
+><A
+NAME="CHJ"
+></A
+>19. 套件自動更新</H1
+><P
+>使 RPM 檔可以定期更新</P
+><P
+>urh73.pl</P
+><P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+>#! /usr/bin/perl
+#---------------------------------------------------------------
+# 說明:
+#
+# 這支程式, 用來幫助 RedHat 7.3 的主機, 由台南縣教網中心 FTP 站台
+# (ftp.tnc.edu.tw)
+# 自動下載 RPM 檔, 且自動做更新的動作. 可減少各校網管人員的負擔.
+# 您只要每周做一次, 即可將您的主機 update 到最新的狀態(up-to-date)
+# 本程式主要幫您做環境佈置; 而自動下載及更新的功能, 則借用 autoupdate.
+#
+# *** 注意: 您必須是 RedHat 7.3 的主機, 才適合使用這個套件. ***
+#
+# 不過, 本人無法保證它一定會百分之百運作正常;
+# 使用前您應該自己對 *執行時可能承擔的風險* 先考慮清楚!
+# 若有任何損失, 本人概不負責.
+#
+# 使用前, 您應先將詳讀 README 這個檔案.
+#
+#---------------------------------------------------------------
+# 版權宣告:
+# Copyright (c) 2002 by OLS3(ols3@www.tnc.edu.tw) 07/02/2002
+# 本程式為 GPL 軟體.
+# 發佈這一程式的目的是希望它有用，但沒有任何擔保。
+# 甚至沒有適合特定目的而隱含的擔保。
+# 更詳細的情況請參考 GNU 通用公共許可證。
+# 當您修改和重新發佈本軟體時，請保留版權宣告的文字部份。
+#
+# $Id: chapJ.sgml,v 1.1.1.1 2003/08/14 00:26:12 ols3 Exp $
+#---------------------------------------------------------------
+
+use strict;
+use File::Copy;
+
+system("clear");
+the_title();
+
+my $prefix_update_dir=check();
+
+install_require_rpm('Perl-RPM-0.40-5.6.1.i386.rpm');
+install_require_rpm('autoupdate-4.3.3-1.noarch.rpm');
+
+mk_require_dir($prefix_update_dir);
+
+print "\nInstall OK! \nNow, you can exec the program: *** 'autodld' ***\n";
+print "\n*** OR *** set crontab as follow:\n\n";
+print "#-----------------------------------#\n\n";
+my $week=int(rand 6)+1;
+my $hour=int(rand 6)+1;
+print "crontab -u root -e\n\n";
+print "0 $hour * * $week /usr/sbin/autodld\n\n"; 
+print "#-----------------------------------#\n\n";
+print "The auotupdate directory is $prefix_update_dir/autoupdate\n";
+print "After you run the autodld, you can check it.\nAnd remove all the *.rpm in the directory.\n";
+print "Good Luck to you!\n\nOLS3 (ols3\@www.tnc.edu.tw)\n\nhttp://teacher.mdjh.tnc.edu.tw/~ols3/\n\n";
+
+
+#-----------------------------------------------------------------
+
+sub the_title {
+print &#60;&#60;HHH;
+/*--------------------------------------------*/
+/* autoURPM v1.0.1 2002 (GPL) written by OLS3 */
+/* (reuse of autoupdate)                      */
+/*--------------------------------------------*/
+
+Checking the version of your RPM .....
+
+Mmmmmmmmmm...........................
+
+HHH
+
+}
+
+sub check {
+  redir_temp_open();
+  my ($max, $max_mount)=check_psize();
+  redir_temp_close();
+  if ($max &#60; 418700) {
+    print "Note!!!! All your HD partitions are less than 418MB.\n";
+    print "This will get some truble...\n";
+    print "Do you still want to do it ? (y/n)\n";
+    my $answer=&#60;&#62;;
+    chomp $answer;
+    if (lc($answer) ne 'y') {die "Stop Now....\n Stop OK!\n"};
+  }
+  return $max_mount;
+}
+
+sub redir_temp_open {
+  open SAVEOUT, "&#62;&#38;STDOUT";
+  open SAVEERR, "&#62;&#38;STDERR";
+  open STDOUT, "&#62; check.tmp" or die;
+  open STDERR, "&#62;&#38;STDOUT" or die "Can't dup stdout";
+  select STDERR; $|=1; select STDOUT; $|=1;
+}
+
+sub redir_temp_close {
+  close STDOUT; close STDERR;
+  open STDOUT, "&#62;&#38;SAVEOUT";
+  open STDERR, "&#62;&#38;SAVEERR";
+}
+
+sub mk_require_dir {
+  my $prefix=shift;
+  if (-e '/var/spool/autoupdate') { 
+	unlink  '/var/spool/autoupdate'; 
+	rmdir  '/var/spool/autoupdate';
+  }
+  if (-e "$prefix/autoupdate") {
+	unlink "$prefix/autoupdate/autoprovides.db"; 
+	unlink "$prefix/autoupdate/*.rpm";
+	rmdir "$prefix/autoupdate";
+  }
+  mkdir "$prefix/autoupdate", 0777;
+  open(FHD, "&#62; /etc/autoupdate.d/redhat.dld") || die;
+  print FHD &#60;&#60;HERE;
+Host=ftp.tnc.edu.tw
+DldAll=1
+FTPRetry=2
+FTPWait=10
+DldRecursive=0
+Passive=1
+Dir=/Sysop/redhat/updates/7.3/en/os//
+
+HERE
+
+  close(FHD);
+  open(FHD, "&#62; /etc/autoupdate.d/autoupdate.conf") || die;
+  print FHD &#60;&#60;HERE2;
+# /etc/autoupdate.d/autoupdate.conf
+Verbose=1
+Quiet=0
+Warnings=1
+RPMNameWarnings=1
+DoUpdate=1
+DoInstall=0
+DoKernel=0
+DoInitRD=1
+DoBoot=1
+DoDld=1
+DoMerge=0
+DoPurge=0
+CleanUp=1
+CleanUpKernel=1
+#BootManager=lilo
+BootAddAsNew=0
+KernelExt=smp,enterprise,bigmem,debug,BOOT
+Repackage=0
+#QueryHeaders=1
+#QueryDatabase=1
+CheckSig=0
+CheckGPG=0
+Resolve=1
+DldUseDB=1
+BestMatch=1
+RemoveBad=1
+Recursive=0
+UseLWP=0
+#LWPProtocols=http,https
+DoLog=1
+#LogFile=
+#PostUpdateScript=/sbin/SuSEconfig
+#PostDldScript=
+DefaultUser=anonymous
+DefaultPass=`echo autoupdate@`hostname -f``
+DistVersion=`/etc/autoupdate.d/distversion.sh`
+ShellEscapes=0
+UpdateDir=$prefix/autoupdate
+RPMDir=
+DldMatch=0
+MergeMatch=0
+#Exclude=^k_
+#Include=
+
+HERE2
+
+  close(FHD);
+  copy('autoprovides-redhat-7.3.db', "$prefix/autoupdate/autoprovides.db");
+
+  system('/bin/ln', '-sf', "$prefix/autoupdate", '/var/spool/autoupdate');
+}
+
+sub install_require_rpm {
+  my $rpm_file=shift;
+  if (-e $rpm_file) {
+    system('/bin/rpm', '-Uvh', "$rpm_file");
+  } else {
+    die "$rpm_file ????? existed\n";
+  }
+}
+
+sub check_psize {
+  system('/bin/df');
+  open(FHD, "check.tmp") || die;
+  my @all=&#60;FHD&#62;;
+  close(FHD);
+  my $max=0; my $max_mount='';
+  foreach my $line (@all) {
+    my ($pt, $n1, $n1, $size, $n2, $mount, $n3)=split(/\s+/, $line);
+    if (($size*1)&#62;$max) { $max=$size; $max_mount=$mount; }
+  }
+  return ($max,$max_mount);
+}&#13;</PRE
+></TD
+></TR
+></TABLE
+></P
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="c1207.html"
+ACCESSKEY="P"
+>&#60;&#60;&#60; Previous</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="book1.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="c1221.html"
+ACCESSKEY="N"
+>Next &#62;&#62;&#62;</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>18. 網虫偵測</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>20. 讀取 DBF 檔</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

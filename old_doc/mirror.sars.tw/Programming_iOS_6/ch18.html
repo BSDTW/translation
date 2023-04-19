@@ -1,0 +1,1275 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>Chapter 18. Touches</title>
+    <link rel="stylesheet" type="text/css" href="docbook-xsl-mymods.css" />
+    <meta name="generator" content="DocBook XSL Stylesheets V1.76.0" />
+    <link rel="home" href="index.html" />
+    <link rel="up" href="pt04.html" />
+    <link rel="prev" href="ch17.html" />
+    <link rel="next" href="pt05.html" />
+  </head>
+  <body>
+    <div class="mattnotice">
+      <p>As a courtesy, this is a <b>full free</b> rendering of my book, <i>Programming iOS 6</i>, by Matt Neuburg. Copyright 2013 Matt Neuburg. Please note that this book has now been completely superseded by two more recent books, <a href="http://shop.oreilly.com/product/0636920032465.do">iOS 7 Fundamentals</a> and <a href="http://shop.oreilly.com/product/0636920031017.do">Programming iOS 7</a>. If my work has been of help to you, please <b>consider purchasing</b> one or both of them. Thank you!
+	</p>
+    </div>
+    <div class="navfooter">
+      <table width="100%" summary="Navigation footer">
+        <tr>
+          <td width="40%" align="left"><a accesskey="p" href="ch17.html">Prev</a> </td>
+          <td width="20%" align="center">
+            <a accesskey="u" href="pt04.html">Up</a>
+          </td>
+          <td width="40%" align="right"> <a accesskey="n" href="pt05.html">Next</a></td>
+        </tr>
+        <tr>
+          <td width="40%" align="left" valign="top">Chapter 17. Animation </td>
+          <td width="20%" align="center">
+            <a accesskey="h" href="index.html">Table of Contents</a>
+          </td>
+          <td width="40%" align="right" valign="top"> Part V. Interface</td>
+        </tr>
+      </table>
+    </div>
+    <div class="chapter">
+      <div class="titlepage">
+        <div>
+          <div>
+            <h2 class="title"><a id="chap_id18"></a>Chapter 18. Touches</h2>
+          </div>
+        </div>
+      </div>
+      <div class="epigraph">
+        <p>[Winifred the Woebegone illustrates hit-testing:] Hey nonny nonny, is it you? — Hey nonny nonny nonny no! — Hey nonny nonny, is it <span class="roman">you?</span> — Hey nonny nonny nonny <span class="roman">no!</span></p>
+        <div class="attribution">
+          <span>—<span class="attribution">Marshall Barer, <em class="citetitle">Once Upon a Mattress</em></span></span>
+        </div>
+      </div>
+      <p>A <span class="emphasis"><em>touch</em></span> is an instance of the user putting a finger on the screen. The system and the hardware, working together, know <span class="emphasis"><em>when</em></span> a finger contacts the screen and <span class="emphasis"><em>where</em></span> it is. Fingers are fat, but the system and the hardware cleverly reduce the finger’s location to a single appropriate point.
+<a id="idxtouches" class="indexterm"></a></p>
+      <p>A UIView, by virtue of being a UIResponder, is the visible locus of touches. There are other UIResponder subclasses, but none of them is visible on the screen. What the user sees are views; what the user is touching are views. (The user may also see layers, but a layer is not a UIResponder and is not involved with touches. I’ll talk later about how to make it seem as if the user can touch a layer.)</p>
+      <p>It would make sense, therefore, if every touch were reported directly to the view in which it occurred. However, what the system “sees” is not particular views but an app as a whole. So a touch is represented as an object (a UITouch instance) which is bundled up in an envelope (a UIEvent) which the system delivers to your app. It is then up to your app to deliver the envelope to an appropriate UIView. In the vast majority of cases, this will happen automatically the way you expect, and you will respond to a touch by way of the view in which the touch occurred.<a id="idm441649075344" class="indexterm"></a>
+<a id="idm441649074304" class="indexterm"></a></p>
+      <p>In fact, usually you won’t concern yourself with UIEvents and UITouches at all. Most built-in interface views deal with these low-level touch reports themselves, and notify your code at a higher level. When a UIButton emits an action message to report a control event such as Touch Up Inside (<a class="xref" href="ch11.html">Chapter 11</a>), it has already performed a reduction of a complex sequence of touches (“the user put a finger down inside me and then, possibly with some dragging hither and yon, raised it when it was still reasonably close to me”). A UITextField reports touches on the keyboard as changes in its own text. A UITableView reports that the user selected a cell. A UIScrollView, when dragged, reports that it scrolled; when pinched outward, it reports that it zoomed.</p>
+      <p>Nevertheless, it is useful to know how to respond to touches directly, so that you can implement your own touchable views, and so that you understand what Cocoa’s built-in views are actually doing. This chapter discusses touch detection and response by views (and other UIResponders) at their lowest level, along with a slightly higher-level mechanism, gesture recognizers, that categorizes touches into gesture types for you; then it deconstructs the touch-delivery architecture by which touches are reported to your views in the first place.</p>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_touch_events_and_views"></a>Touch Events and Views</h2>
+            </div>
+          </div>
+        </div>
+        <p>Imagine a screen that the user is not touching at all: the screen is “finger-free.” Now the user touches the screen with one or more fingers. From that moment to the time the screen is once again finger-free, all touches and finger movements together constitute what Apple calls a single <span class="emphasis"><em>multitouch sequence</em></span>.<a id="idm441649068112" class="indexterm"></a></p>
+        <p>The system reports to your app, during a given multitouch sequence, every change in finger configuration, so that your app can figure out what the user is doing. Every such report is a UIEvent. In fact, every report having to do with the same multitouch sequence is <span class="emphasis"><em>the same UIEvent instance</em></span>, arriving repeatedly, each time there’s a change in finger configuration.</p>
+        <p>Every UIEvent reporting a change in the user’s finger configuration contains one or more UITouch objects. Each UITouch object corresponds to a single finger; conversely, every finger touching the screen is represented in the UIEvent by a UITouch object. Once a certain UITouch instance has been created to represent a finger that has touched the screen, <span class="emphasis"><em>the same UITouch instance</em></span> is used to represent that finger throughout this multitouch sequence until the finger leaves the screen.</p>
+        <p>Now, it might sound as if the system has to bombard the app with huge numbers of reports constantly during a multitouch sequence. But that’s not really true. The system needs to report only <span class="emphasis"><em>changes</em></span> in the finger configuration. For a given UITouch object (representing, remember, a specific finger), only four things can happen. These are called <span class="emphasis"><em>touch phases</em></span>, and are described by a UITouch instance’s <code class="literal">phase</code> property:<a id="idm441649062176" class="indexterm"></a><a id="idm441649061280" class="indexterm"></a></p>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+<code class="literal">UITouchPhaseBegan</code>
+</span>
+            </dt>
+            <dd>
+The finger touched the screen for the first time; this UITouch instance has just been created. This is always the first phase, and arrives only once.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">UITouchPhaseMoved</code>
+</span>
+            </dt>
+            <dd>
+The finger moved upon the screen.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">UITouchPhaseStationary</code>
+</span>
+            </dt>
+            <dd>
+The finger remained on the screen without moving. Why is it necessary to report this? Well, remember, once a UITouch instance has been created, it must be present every time the UIEvent arrives. So if the UIEvent arrives because something <span class="emphasis"><em>else</em></span> happened (e.g., a new finger touched the screen), we must report what <span class="emphasis"><em>this</em></span> finger has been doing, even if it has been doing nothing.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">UITouchPhaseEnded</code>
+</span>
+            </dt>
+            <dd>
+The finger left the screen. Like <code class="literal">UITouchPhaseBegan</code>, this phase arrives only once. The UITouch instance will now be destroyed and will no longer appear in UIEvents for this multitouch sequence.
+</dd>
+          </dl>
+        </div>
+        <p>Those four phases are sufficient to describe everything that a finger can do. Actually, there is one more possible phase:</p>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+<code class="literal">UITouchPhaseCancelled</code>
+</span>
+            </dt>
+            <dd>
+The system has aborted this multitouch sequence because something interrupted it.
+</dd>
+          </dl>
+        </div>
+        <p>What might interrupt a multitouch sequence? There are many possibilities. Perhaps the user clicked the Home button or the screen lock button in the middle of the sequence. A local notification alert may have appeared (<a class="xref" href="ch26.html">Chapter 26</a>); on an actual iPhone, a call might have come in. (As we shall see, a gesture recognizer recognizing its gesture may also trigger touch cancellation.) The point is, if you’re dealing with touches yourself, you cannot afford to ignore touch cancellation; they are your opportunity to get things into a coherent state when the sequence is interrupted.</p>
+        <p>When a UITouch first appears (<code class="literal">UITouchPhaseBegan</code>), your app works out which UIView it is associated with. (I’ll give full details, later in this chapter, as to how it does that.) This view is then set as the touch’s <code class="literal">view</code> property; from then on, this UITouch is <span class="emphasis"><em>always</em></span> associated with this view. In other words, <span class="emphasis"><em>a touch’s view is that touch’s view forever</em></span> (until that finger leaves the screen).</p>
+        <p>The same UIEvent containing the same UITouches can be sent to multiple views; after all, these are programmatic objects, not real-world envelopes containing actual fingers. Accordingly, a UIEvent is distributed to <span class="emphasis"><em>all the views of all the UITouches it contains</em></span>. Conversely, if a view is sent a UIEvent, it’s because that UIEvent contains at least one UITouch whose <code class="literal">view</code> is this view.</p>
+        <p>If every UITouch in a UIEvent associated with a certain UIView has the phase <code class="literal">UITouchPhaseStationary</code>, that UIEvent is <span class="emphasis"><em>not</em></span> sent to that UIView. There’s no point, because as far as that view is concerned, nothing happened.</p>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_receiving_touches"></a>Receiving Touches</h2>
+            </div>
+          </div>
+        </div>
+        <p>A UIResponder, and therefore a UIView, has four methods corresponding to the four UITouch phases that require UIEvent delivery. A UIEvent is delivered to a view by calling one or more of these four methods (the <span class="emphasis"><em><code class="literal">touches...</code> methods</em></span>):<a id="idm441649018176" class="indexterm"></a></p>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+<code class="literal">touchesBegan:withEvent:</code>
+</span>
+            </dt>
+            <dd>
+A finger touched the screen, creating a UITouch.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">touchesMoved:withEvent:</code>
+</span>
+            </dt>
+            <dd>
+A finger previously reported to this view with <code class="literal">touchesBegan:withEvent:</code> has moved.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">touchesEnded:withEvent:</code>
+</span>
+            </dt>
+            <dd>
+A finger previously reported to this view with <code class="literal">touchesBegan:withEvent:</code> has left the screen.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">touchesCancelled:withEvent:</code>
+</span>
+            </dt>
+            <dd>
+We are bailing out on a finger previously reported to this view with <code class="literal">touchesBegan:withEvent:</code>.
+</dd>
+          </dl>
+        </div>
+        <p>The parameters of these methods are:</p>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+The relevant touches
+</span>
+            </dt>
+            <dd>
+These are the event’s touches whose phase corresponds to the name of the method and (normally) whose view is this view. They arrive as an NSSet (<a class="xref" href="ch10.html">Chapter 10</a>). If you know for a fact that there is only one touch in the set, or that any touch in the set will do, you can retrieve it with <code class="literal">anyObject</code> (an NSSet doesn’t implement <code class="literal">lastObject</code> because a set is unordered).
+</dd>
+            <dt>
+              <span class="term">
+The event
+</span>
+            </dt>
+            <dd>
+This is the UIEvent instance. It contains its touches as an NSSet, which you can retrieve with the <code class="literal">allTouches</code> message. This means <span class="emphasis"><em>all</em></span> the event’s touches, including but not necessarily limited to those in the first parameter; there might be touches in a different phase or intended for some other view. You can call <code class="literal">touchesForView:</code> or <code class="literal">touchesForWindow:</code> to ask for the set of touches associated with a particular view or window.
+</dd>
+          </dl>
+        </div>
+        <p>A UITouch has some useful methods and properties:<a id="idm441648995712" class="indexterm"></a></p>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+<code class="literal">locationInView:</code>, <code class="literal">previousLocationInView:</code>
+</span>
+            </dt>
+            <dd>
+The current and previous location of this touch with respect to the coordinate system of a given view. The view you’ll be interested in will often be <code class="literal">self</code> or <code class="literal">self.superview</code>; supply nil to get the location with respect to the window. The previous location will be of interest only if the phase is <code class="literal">UITouchPhaseMoved</code>.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">timestamp</code>
+</span>
+            </dt>
+            <dd>
+When the touch last changed. A touch is timestamped when it is created (<code class="literal">UITouchPhaseBegan</code>) and each time it moves (<code class="literal">UITouchPhaseMoved</code>).
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">tapCount</code>
+</span>
+            </dt>
+            <dd>
+If two touches are in roughly the same place in quick succession, and the first one is brief, the second one may be characterized as a repeat of the first. They are different touch objects, but the second will be assigned a <code class="literal">tapCount</code> one larger than the previous one. The default is <code class="literal">1</code>, so if (for example) a touch’s <code class="literal">tapCount</code> is <code class="literal">3</code>, then this is the third tap in quick succession in roughly the same spot.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">view</code>
+</span>
+            </dt>
+            <dd>
+The view with which this touch is associated.
+</dd>
+          </dl>
+        </div>
+        <p>Here are some additional UIEvent properties:</p>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+<code class="literal">type</code>
+</span>
+            </dt>
+            <dd>
+This will be <code class="literal">UIEventTypeTouches</code>. There are other event types, but you’re not going to receive any of them this way.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">timestamp</code>
+</span>
+            </dt>
+            <dd>
+When the event occurred.
+</dd>
+          </dl>
+        </div>
+        <p>So, when we say that a certain view <span class="emphasis"><em>is receiving a touch</em></span>, that is a shorthand expression meaning that it is being sent a UIEvent containing this UITouch, over and over, by calling one of its <code class="literal">touches...</code> methods, corresponding to the phase this touch is in, from the time the touch is created until the time it is destroyed.</p>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_restricting_touches"></a>Restricting Touches</h2>
+            </div>
+          </div>
+        </div>
+        <p>Touch events can be turned off entirely at the application level with UIApplication’s <code class="literal">beginIgnoringInteractionEvents</code>. It is quite common to do this during animations and other lengthy operations during which responding to a touch could cause undesirable results. This call should be balanced by <code class="literal">endIgnoringInteractionEvents</code>. Pairs can be nested, in which case interactivity won’t be restored until the outermost <code class="literal">endIgnoringInteractionEvents</code> has been reached.<a id="idm441648966096" class="indexterm"></a>
+<a id="idm441648964784" class="indexterm"></a><a id="idm441648963872" class="indexterm"></a></p>
+        <p>A number of UIView properties also restrict the delivery of touches to particular views:</p>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+<code class="literal">userInteractionEnabled</code>
+</span>
+            </dt>
+            <dd>
+If set to NO, this view (along with its subviews) is excluded from receiving touches. Touches on this view or one of its subviews “fall through” to a view behind it.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">alpha</code>
+</span>
+            </dt>
+            <dd>
+If set to <code class="literal">0.0</code> (or extremely close to it), this view (along with its subviews) is excluded from receiving touches. Touches on this view or one of its subviews “fall through” to a view behind it.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">hidden</code>
+</span>
+            </dt>
+            <dd>
+If set to YES, this view (along with its subviews) is excluded from receiving touches. This makes sense, since from the user’s standpoint, the view and its subviews are not even present.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">multipleTouchEnabled</code>
+</span>
+            </dt>
+            <dd>
+If set to NO, this view never receives more than one touch simultaneously; once it receives a touch, it doesn’t receive any other touches until that first touch has ended.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">exclusiveTouch</code>
+</span>
+            </dt>
+            <dd>
+This is the only one of these properties that can’t be set in the nib. An <code class="literal">exclusiveTouch</code> view receives a touch only if no other views in the same window have touches associated with them; once an <code class="literal">exclusiveTouch</code> view has received a touch, then while that touch exists no other view in the same window receives any touches.
+</dd>
+          </dl>
+        </div>
+        <div class="note" style="margin-left: 0; margin-right: 10%;">
+          <h3 class="title">Note</h3>
+          <p>A UIWindow ignores <code class="literal">multipleTouchEnabled</code>; it always receives multiple touches. Moreover, a UIWindow’s behavior with respect to <code class="literal">exclusiveTouch</code> is unreliable, presumably because it is not itself a view in the window. In general this should not be an issue, since you’ll always have a root view covering the window anyway.</p>
+        </div>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_interpreting_touches"></a>Interpreting Touches</h2>
+            </div>
+          </div>
+        </div>
+        <p>Thanks to the existence of gesture recognizers (discussed later in this chapter), in most cases you won’t have to interpret touches at all; you’ll let a gesture recognizer do most of that work. Even so, it is beneficial to be conversant with the nature of touch interpretation; this will help you interact with a gesture recognizer, write your own gesture recognizer, or subclass an existing one. Furthermore, not every touch sequence can be codified through a gesture recognizer; sometimes, directly interpreting touches is the best approach.</p>
+        <p>To figure out what’s going on as touches are received by a view, your code must essentially function as a kind of state machine. You’ll receive various <code class="literal">touches...</code> method calls, and your response will partly depend upon what happened previously, so you’ll have to record somehow, such as in instance variables, the information that you’ll need in order to decide what to do when the next <code class="literal">touches...</code> method is called. Such an architecture can make writing and maintaining touch-analysis code quite tricky. Moreover, although you can distinguish a particular UITouch or UIEvent object over time by keeping a reference to it, you mustn’t retain that reference; it doesn’t belong to you.</p>
+        <p>To illustrate the business of interpreting touches, we’ll start with a view that can be dragged with the user’s finger. For simplicity, I’ll assume that this view receives only a single touch at a time. (This assumption is easy to enforce by setting the view’s <code class="literal">multipleTouchEnabled</code> to NO, which is the default.)<a id="idm441648939600" class="indexterm"></a>
+<a id="idm441648938352" class="indexterm"></a></p>
+        <p>The trick to making a view follow the user’s finger is to realize that a view is positioned by its <code class="literal">center</code>, which is in superview coordinates, but the user’s finger might not be at the center of the view. So at every stage of the drag we must change the view’s center by the change in the user’s finger position in superview coordinates:</p>
+        <pre class="screen">- (void) touchesMoved:(NSSet *)touches withEvent:(UIEvent *)event {
+    CGPoint loc =
+        [[touches anyObject] locationInView: self.superview];
+    CGPoint oldP =
+        [[touches anyObject] previousLocationInView: self.superview];
+    CGFloat deltaX = loc.x - oldP.x;
+    CGFloat deltaY = loc.y - oldP.y;
+    CGPoint c = self.center;
+    c.x += deltaX;
+    c.y += deltaY;
+    self.center = c;
+}</pre>
+        <p>Next, let’s add a restriction that the view can be dragged only vertically or horizontally. All we have to do is hold one coordinate steady; but which coordinate? Everything seems to depend on what the user does initially. So we’ll do a one-time test the first time we receive <code class="literal">touchesMoved:withEvent:</code>. Now we’re maintaining two state variables, <code class="literal">_decided</code> and <code class="literal">_horiz</code>:</p>
+        <pre class="screen">- (void) touchesBegan:(NSSet *)touches withEvent:(UIEvent *)event {
+    self-&gt;_decided = NO;
+}
+
+- (void) touchesMoved:(NSSet *)touches withEvent:(UIEvent *)event {
+    if (!self-&gt;_decided) {
+        self-&gt;_decided = YES;
+        CGPoint then = [[touches anyObject] previousLocationInView: self];
+        CGPoint now = [[touches anyObject] locationInView: self];
+        CGFloat deltaX = fabs(then.x - now.x);
+        CGFloat deltaY = fabs(then.y - now.y);
+        self-&gt;_horiz = (deltaX &gt;= deltaY);
+    }
+    CGPoint loc =
+        [[touches anyObject] locationInView: self.superview];
+    CGPoint oldP =
+        [[touches anyObject] previousLocationInView: self.superview];
+    CGFloat deltaX = loc.x - oldP.x;
+    CGFloat deltaY = loc.y - oldP.y;
+    CGPoint c = self.center;
+    if (self-&gt;_horiz)
+        c.x += deltaX;
+    else
+        c.y += deltaY;
+    self.center = c;
+}</pre>
+        <p>Look at how things are trending. We are maintaining state variables, which we are managing across multiple methods, and we are subdividing a <code class="literal">touches...</code> method implementation into tests depending on the state of our state machine. Our state machine is very simple, involving just two state variables, but already our code is becoming difficult to read and to maintain. Things only become more messy as we try to make our view’s behavior more sophisticated.</p>
+        <p>Another area in which manual touch handling can rapidly prove overwhelming is when it comes to distinguishing between different gestures that the user is to be permitted to perform on a view.<a id="idm441648927424" class="indexterm"></a> Imagine, for example, a view that distinguishes between a finger tapping briefly and a finger remaining down for a longer time. We can’t know how long a tap is until it’s over, so one approach might be to wait until then before deciding:</p>
+        <pre class="screen">- (void) touchesBegan:(NSSet *)touches withEvent:(UIEvent *)event {
+    self-&gt;_time = [[touches anyObject] timestamp];
+}
+
+- (void) touchesEnded:(NSSet *)touches withEvent:(UIEvent *)event {
+    NSTimeInterval diff = event.timestamp - self-&gt;_time;
+    if (diff &lt; 0.4)
+        NSLog(@"short");
+    else
+        NSLog(@"long");
+}</pre>
+        <p>On the other hand, one might argue that if a tap hasn’t ended after some set time (here, 0.4 seconds), we know that it is long, and so we could begin responding to it without waiting for it to end. The problem is that we don’t automatically get an event after 0.4 seconds. So we’ll create one, using delayed performance:</p>
+        <pre class="screen">- (void) touchesBegan:(NSSet *)touches withEvent:(UIEvent *)event {
+    self-&gt;_time = [[touches anyObject] timestamp];
+    [self performSelector:@selector(touchWasLong)
+               withObject:nil afterDelay:0.4];
+}
+
+- (void) touchesEnded:(NSSet *)touches withEvent:(UIEvent *)event {
+    NSTimeInterval diff = event.timestamp - self-&gt;_time;
+    if (diff &lt; 0.4)
+        NSLog(@"short");
+}
+
+- (void) touchWasLong {
+    NSLog(@"long");
+}</pre>
+        <p>But there’s a bug. If the tap is short, we report that it was short, but we <span class="emphasis"><em>also</em></span> report that it was long. That’s because the delayed call to <code class="literal">touchWasLong</code> arrives anyway. We could use some sort of boolean flag to tell us when to ignore that call, but there’s a better way: NSObject has a class method that lets us cancel any pending delayed performance calls. So:<a id="idm441648920592" class="indexterm"></a><a id="idm441648919728" class="indexterm"></a></p>
+        <pre class="screen">- (void) touchesBegan:(NSSet *)touches withEvent:(UIEvent *)event {
+    self-&gt;_time = [[touches anyObject] timestamp];
+    [self performSelector:@selector(touchWasLong)
+               withObject:nil afterDelay:0.4];
+}
+
+- (void) touchesEnded:(NSSet *)touches withEvent:(UIEvent *)event {
+    NSTimeInterval diff = event.timestamp - self-&gt;_time;
+    if (diff &lt; 0.4) {
+        NSLog(@"short");
+        [NSObject cancelPreviousPerformRequestsWithTarget:self
+                                     selector:@selector(touchWasLong)
+                                       object:nil];
+    }
+}
+
+- (void) touchWasLong {
+    NSLog(@"long");
+}</pre>
+        <p>Here’s another use of the same technique. We’ll distinguish between a single tap and a double tap. The UITouch <code class="literal">tapCount</code> property already makes this distinction, but that, by itself, is not enough to help us react differently to the two. What we must do, having received a tap whose <code class="literal">tapCount</code> is <code class="literal">1</code>, is to delay responding to it long enough to give a second tap a chance to arrive. This is unfortunate, because it means that if the user intends a single tap, some time will elapse before anything happens in response to it; however, there’s nothing we can easily do about that.<a id="idm441648914400" class="indexterm"></a><a id="idm441648912976" class="indexterm"></a><a id="idm441648912080" class="indexterm"></a></p>
+        <p>Distributing our various tasks correctly is a bit tricky. We <span class="emphasis"><em>know</em></span> when we have a double tap as early as <code class="literal">touchesBegan:withEvent:</code>, so that’s when we cancel our delayed response to a single tap, but we <span class="emphasis"><em>respond</em></span> to the double tap in <code class="literal">touchesEnded:withEvent:</code>. We don’t start our delayed response to a single tap until <code class="literal">touchesEnded:withEvent:</code>, because what matters is the time between the taps as a whole, not between the starts of the taps. This code is adapted from Apple’s own example:</p>
+        <pre class="screen">- (void) touchesBegan:(NSSet *)touches withEvent:(UIEvent *)event {
+    int ct = [[touches anyObject] tapCount];
+    if (ct == 2) {
+        [NSObject cancelPreviousPerformRequestsWithTarget:self
+                                                 selector:@selector(singleTap)
+                                                   object:nil];
+    }
+}
+
+- (void) touchesEnded:(NSSet *)touches withEvent:(UIEvent *)event {
+    int ct = [[touches anyObject] tapCount];
+    if (ct == 1)
+        [self performSelector:@selector(singleTap)
+                   withObject:nil afterDelay:0.3];
+    if (ct == 2)
+        NSLog(@"double tap");
+}
+
+- (void) singleTap {
+    NSLog(@"single tap");
+}</pre>
+        <p>Now let’s consider combining our detection for a single or double tap with our earlier code for dragging a view horizontally or vertically. This is to be a view that can detect four kinds of gesture: a single tap, a double tap, a horizontal drag, and a vertical drag. We must include the code for all possibilities and make sure they don’t interfere with each other. The result is rather horrifying, a forced join between two already complicated sets of code, along with an additional pair of state variables to track the decision between the tap gestures on the one hand and the drag gestures on the other:</p>
+        <pre class="screen">- (void) touchesBegan:(NSSet *)touches withEvent:(UIEvent *)event {
+    // be undecided
+    self-&gt;_decidedTapOrDrag = NO;
+    // prepare for a tap
+    int ct = [[touches anyObject] tapCount];
+    if (ct == 2) {
+        [NSObject cancelPreviousPerformRequestsWithTarget:self
+                                                 selector:@selector(singleTap)
+                                                   object:nil];
+        self-&gt;_decidedTapOrDrag = YES;
+        self-&gt;_drag = NO;
+        return;
+    }
+    // prepare for a drag
+    self-&gt;_decidedDirection = NO;
+}
+
+- (void) touchesMoved:(NSSet *)touches withEvent:(UIEvent *)event {
+    if (self-&gt;_decidedTapOrDrag &amp;&amp; !self-&gt;_drag)
+        return;
+    self-&gt;_decidedTapOrDrag = YES;
+    self-&gt;_drag = YES;
+    if (!self-&gt;_decidedDirection) {
+        self-&gt;_decidedDirection = YES;
+        CGPoint then = [[touches anyObject] previousLocationInView: self];
+        CGPoint now = [[touches anyObject] locationInView: self];
+        CGFloat deltaX = fabs(then.x - now.x);
+        CGFloat deltaY = fabs(then.y - now.y);
+        self-&gt;_horiz = (deltaX &gt;= deltaY);
+    }
+    CGPoint loc =
+        [[touches anyObject] locationInView: self.superview];
+    CGPoint oldP =
+        [[touches anyObject] previousLocationInView: self.superview];
+    CGFloat deltaX = loc.x - oldP.x;
+    CGFloat deltaY = loc.y - oldP.y;
+    CGPoint c = self.center;
+    if (self-&gt;_horiz)
+        c.x += deltaX;
+    else
+        c.y += deltaY;
+    self.center = c;
+}
+
+- (void) touchesEnded:(NSSet *)touches withEvent:(UIEvent *)event {
+    if (!self-&gt;_decidedTapOrDrag || !self-&gt;_drag) {
+        // end for a tap
+        int ct = [[touches anyObject] tapCount];
+        if (ct == 1)
+            [self performSelector:@selector(singleTap) withObject:nil
+                       afterDelay:0.3];
+        if (ct == 2)
+            NSLog(@"double tap");
+        return;
+    }
+}
+
+- (void) singleTap {
+    NSLog(@"single tap");
+}</pre>
+        <p>That code seems to work, but it’s hard to say whether it covers all possibilities coherently; it’s barely legible and the logic borders on the mysterious. This is the kind of situation for which gesture recognizers were devised.</p>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_gesture_recognizers"></a>Gesture Recognizers</h2>
+            </div>
+          </div>
+        </div>
+        <p>Writing and maintaining a state machine that interprets touches across a combination of three or four <code class="literal">touches...</code> methods is hard enough when a view confines itself to expecting only one kind of gesture, such as dragging. It becomes even more involved when a view wants to accept and respond differently to different kinds of gesture. Furthermore, many types of gesture are conventional and standard; it seems insane to require developers to implement independently the elements that constitute what is, in effect, a universal vocabulary.</p>
+        <p>The solution is gesture recognizers, which standardize common gestures and allow the code for different gestures to be separated and encapsulated into different objects.
+<a id="idxgesturerecognizers" class="indexterm"></a></p>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_gesture_recognizer_classes"></a>Gesture Recognizer Classes</h3>
+              </div>
+            </div>
+          </div>
+          <p>A <span class="emphasis"><em>gesture recognizer</em></span> (a subclass of UIGestureRecognizer) is an object attached to a UIView, which has for this purpose methods <code class="literal">addGestureRecognizer:</code> and <code class="literal">removeGestureRecognizer:</code>, and a <code class="literal">gestureRecognizers</code> property. A UIGestureRecognizer implements the four <code class="literal">touches...</code> handlers, but it is not a responder (a UIResponder), so it does not participate in the responder chain.
+<a id="idm441648894560" class="indexterm"></a></p>
+          <p>If a new touch is going to be delivered to a view, it is also associated with and delivered to that view’s gesture recognizers if it has any, and that view’s superview’s gesture recognizers if it has any, and so on up the view hierarchy. Thus, the place of a gesture recognizer in the view hierarchy matters, even though it isn’t part of the responder chain.</p>
+          <p>UITouch and UIEvent provide complementary ways of learning how touches and gesture recognizers are associated. UITouch’s <code class="literal">gestureRecognizers</code> lists the gesture recognizers that are currently handling this touch. UIEvent’s <code class="literal">touchesForGestureRecognizer:</code> lists the touches that are currently being handled by a particular gesture recognizer.</p>
+          <p>Each gesture recognizer maintains its own state as touch events arrive, building up evidence as to what kind of gesture this is. When one of them decides that it has recognized its own type of gesture, it emits either a single message (to indicate, for example, that a finger has tapped) or a series of messages (to indicate, for example, that a finger is moving); the distinction here is between a <span class="emphasis"><em>discrete</em></span> and a <span class="emphasis"><em>continuous</em></span> gesture. What message a gesture recognizer emits, and to what object it sends it, is set through a target–action <a id="idm441648888336" class="indexterm"></a>dispatch table attached to the gesture recognizer; a gesture recognizer is rather like a UIControl (<a class="xref" href="ch11.html">Chapter 11</a>) in this regard. Indeed, one might say that a gesture recognizer simplifies the touch handling of <span class="emphasis"><em>any</em></span> view to be like that of a control. The difference is that one control may report several different control events, whereas each gesture recognizer reports only one gesture type, with different gestures being reported by different gesture recognizers. This architecture implies that it is unnecessary to subclass UIView merely in order to implement touch analysis.<a id="idm441648886176" class="indexterm"></a>
+<a id="idm441648884848" class="indexterm"></a><a id="idm441648883920" class="indexterm"></a>
+<a id="idm441648882576" class="indexterm"></a></p>
+          <p>UIGestureRecognizer itself is abstract, providing methods and properties to its subclasses. Among these are:</p>
+          <div class="variablelist">
+            <dl>
+              <dt>
+                <span class="term">
+<code class="literal">initWithTarget:action:</code>
+</span>
+              </dt>
+              <dd>
+                <p class="simpara">
+The designated initializer. Each message emitted by a UIGestureRecognizer is simply a matter of sending the action message to the target. Further target–action pairs may be added with <code class="literal">addTarget:action:</code> and removed with <code class="literal">removeTarget:action:</code>.
+</p>
+                <p class="simpara">Two forms of selector are possible: either there is no parameter, or there is a single parameter which will be the gesture recognizer. Most commonly, you’ll use the second form, so that the target can identify and query the gesture recognizer; moreover, using the second form also gives the target a reference to the view, because the gesture recognizer provides a reference to its view as the <code class="literal">view</code> property.</p>
+              </dd>
+              <dt>
+                <span class="term">
+<code class="literal">locationOfTouch:inView:</code>
+</span>
+              </dt>
+              <dd>
+The touch is specified by an index number. The <code class="literal">numberOfTouches</code> property provides a count of current touches; the touches themselves are inaccessible from outside the gesture recognizer.
+</dd>
+              <dt>
+                <span class="term">
+<code class="literal">enabled</code>
+</span>
+              </dt>
+              <dd>
+A convenient way to turn a gesture recognizer off without having to remove it from its view.
+</dd>
+              <dt>
+                <span class="term">
+<code class="literal">state</code>, <code class="literal">view</code>
+</span>
+              </dt>
+              <dd>
+I’ll discuss state later on. The view is the view to which this gesture recognizer is attached.
+</dd>
+            </dl>
+          </div>
+          <p>Built-in UIGestureRecognizer subclasses are provided for six common gesture types: tap, pinch, pan (drag), swipe, rotate, and long press. These embody properties and methods likely to be needed for each type of gesture, either in order to configure the gesture recognizer beforehand or in order to query it as to the state of an ongoing gesture:<a id="idm441648866480" class="indexterm"></a></p>
+          <div class="variablelist">
+            <dl>
+              <dt>
+                <span class="term">
+UITapGestureRecognizer (discrete)
+</span>
+              </dt>
+              <dd>
+Configuration: <code class="literal">numberOfTapsRequired</code>, <code class="literal">numberOfTouchesRequired</code> (“touches” means simultaneous fingers).
+</dd>
+              <dt>
+                <span class="term">
+UIPinchGestureRecognizer (continuous)
+</span>
+              </dt>
+              <dd>
+State: <code class="literal">scale</code>, <code class="literal">velocity</code>.
+</dd>
+              <dt>
+                <span class="term">
+UIRotationGestureRecognizer (continuous)
+</span>
+              </dt>
+              <dd>
+State: <code class="literal">rotation</code>, <code class="literal">velocity</code>.
+</dd>
+              <dt>
+                <span class="term">
+UISwipeGestureRecognizer (discrete)
+</span>
+              </dt>
+              <dd>
+Configuration: <code class="literal">direction</code> (meaning permitted directions, a bitmask), <code class="literal">numberOfTouchesRequired</code>.
+</dd>
+              <dt>
+                <span class="term">
+UIPanGestureRecognizer (continuous)
+</span>
+              </dt>
+              <dd>
+                <p class="simpara">
+Configuration: <code class="literal">minimumNumberOfTouches</code>, <code class="literal">maximumNumberOfTouches</code>.
+</p>
+                <p class="simpara">State: <code class="literal">translationInView:</code>, <code class="literal">setTranslation:inView:</code>, and <code class="literal">velocityInView:</code>; the coordinate system of the specified view is used, so to follow a finger you’ll use the superview of the view being dragged, just as we did in the examples earlier.</p>
+              </dd>
+              <dt>
+                <span class="term">
+UILongPressGestureRecognizer (continuous)
+</span>
+              </dt>
+              <dd>
+Configuration: <code class="literal">numberOfTapsRequired</code>, <code class="literal">numberOfTouchesRequired</code>, <code class="literal">minimumPressDuration</code>, <code class="literal">allowableMovement</code>. The <code class="literal">numberOfTapsRequired</code> is the count of taps <span class="emphasis"><em>before</em></span> the tap that stays down; so it can be 0 (the default). The <code class="literal">allowableMovement</code> setting lets you compensate for the fact that the user’s finger is unlikely to remain steady during an extended press; thus we need to provide some limit before deciding that this gesture is, say, a drag, and not a long press after all. On the other hand, once the long press is recognized, the finger is permitted to drag.
+</dd>
+            </dl>
+          </div>
+          <p>UIGestureRecognizer also provides a <code class="literal">locationInView:</code> method. This is a single point, even if there are multiple touches. The subclasses implement this variously. For example, for UIPanGestureRecognizer, the location is where the touch is if there’s a single touch, but it’s a sort of midpoint (“centroid”) if there are multiple touches.</p>
+          <p>We already know enough to implement, using a gesture recognizer, a view that responds to a single tap, or a view that responds to a double tap. We don’t yet know quite enough to implement a view that lets itself be dragged around, or a view that can respond to more than one gesture; we’ll come to that. Meanwhile, here’s code that implements a view that responds to a single tap:</p>
+          <pre class="screen">UITapGestureRecognizer* t = [[UITapGestureRecognizer alloc]
+                            initWithTarget:self
+                            action:@selector(singleTap)];
+[v addGestureRecognizer:t];
+// ...
+- (void) singleTap {
+    NSLog(@"single");
+}</pre>
+          <p>And here’s code that implements a view that responds to a double tap:</p>
+          <pre class="screen">UITapGestureRecognizer* t = [[UITapGestureRecognizer alloc]
+                             initWithTarget:self
+                             action:@selector(doubleTap)];
+t.numberOfTapsRequired = 2;
+[v addGestureRecognizer:t];
+// ...
+- (void) doubleTap {
+    NSLog(@"double");
+}</pre>
+          <p>For a continuous gesture like dragging, we need to know both when the gesture is in progress and when the gesture ends. This brings us to the subject of a gesture recognizer’s state.</p>
+          <p>A gesture recognizer implements a notion of <span class="emphasis"><em>states</em></span> (the <code class="literal">state</code> property); it passes through these states in a definite progression. The gesture recognizer remains in the Possible state until it can make a decision one way or the other as to whether this is in fact the correct gesture. The documentation neatly lays out the possible progressions:</p>
+          <div class="variablelist">
+            <dl>
+              <dt>
+                <span class="term">
+Wrong gesture
+</span>
+              </dt>
+              <dd>
+Possible → Failed. No action message is sent.
+</dd>
+              <dt>
+                <span class="term">
+Discrete gesture (like a tap), recognized
+</span>
+              </dt>
+              <dd>
+Possible → Ended. One action message is sent, when the state changes to Ended.
+</dd>
+              <dt>
+                <span class="term">
+Continuous gesture (like a drag), recognized
+</span>
+              </dt>
+              <dd>
+Possible → Began → Changed (repeatedly) → Ended. Action messages are sent once for Began, as many times as necessary for Changed, and once for Ended.
+</dd>
+              <dt>
+                <span class="term">
+Continuous gesture, recognized but later cancelled
+</span>
+              </dt>
+              <dd>
+Possible → Began → Changed (repeatedly) → Cancelled. Action messages are sent once for Began, as many times as necessary for Changed, and once for Cancelled.
+</dd>
+            </dl>
+          </div>
+          <p>The actual state names are <code class="literal">UIGestureRecognizerStatePossible</code> and so forth. The name <code class="literal">UIGestureRecognizerStateRecognized</code> is actually a synonym for the Ended state; I find this unnecessary and confusing and I’ll ignore it in my discussion.</p>
+          <p>We now know enough to implement, using a gesture recognizer, a view that lets itself be dragged around in any direction by a single finger. Our maintenance of state is greatly simplified, because a UIPanGestureRecognizer maintains a delta (translation) for us. This delta, available using <code class="literal">translationInView:</code>, is reckoned from the touch’s initial position. So we need to store our center only once:<a id="idm441648820896" class="indexterm"></a>
+<a id="idm441648819616" class="indexterm"></a></p>
+          <pre class="screen">UIPanGestureRecognizer* p =
+    [[UIPanGestureRecognizer alloc] initWithTarget:self
+                                            action:@selector(dragging:)];
+[v addGestureRecognizer:p];
+// ...
+- (void) dragging: (UIPanGestureRecognizer*) p {
+    UIView* vv = p.view;
+    if (p.state == UIGestureRecognizerStateBegan)
+        self-&gt;_origC = vv.center;
+    CGPoint delta = [p translationInView: vv.superview];
+    CGPoint c = self-&gt;_origC;
+    c.x += delta.x; c.y += delta.y;
+    vv.center = c;
+}</pre>
+          <p>Actually, it’s possible to write that code without maintaining any state at all, because we are allowed to reset the UIPanGestureRecognizer’s delta, using <code class="literal">setTranslation:inView:</code>. So:</p>
+          <pre class="screen">- (void) dragging: (UIPanGestureRecognizer*) p {
+    UIView* vv = p.view;
+    if (p.state == UIGestureRecognizerStateBegan ||
+            p.state == UIGestureRecognizerStateChanged) {
+        CGPoint delta = [p translationInView: vv.superview];
+        CGPoint c = vv.center;
+        c.x += delta.x; c.y += delta.y;
+        vv.center = c;
+        [p setTranslation: CGPointZero inView: vv.superview];
+    }
+}</pre>
+          <p>A gesture recognizer also works, as I’ve already mentioned, if it is attached to the superview (or further up the hierarchy) of the view in which the user gestures. For example, if a tap gesture recognizer is attached to the window’s root view, the user can tap on any other view, and the tap will be recognized; the other view’s mere presence does not “block” the root view’s gesture recognizer from recognizing the gesture, even if it is a UIControl that responds autonomously to touches.</p>
+          <p>This behavior comes as a surprise to beginners, but it makes sense, because if it were not the case, certain gestures would be impossible. Imagine, for example, a pair of views on each of which the user can tap individually, but which the user can also touch simultaneously (one finger on each view) and rotate together around their mutual centroid. Neither view can detect the rotation <span class="emphasis"><em>qua</em></span> rotation, because neither view receives both touches; only the superview can detect it, so the fact that the views themselves respond to touches must not prevent the superview’s gesture recognizer from operating.</p>
+          <p>Suppose, then, that your window’s root view has a UITapGestureRecognizer attached to it (perhaps because you want to be able to recognize taps on the background), but there is also a UIButton within it. How is that gesture recognizer to ignore a tap on the button? A UIView instance method introduced in iOS 6 solves the problem: <code class="literal">gestureRecognizerShouldBegin:</code>. Its parameter is a gesture recognizer belonging to this view or to a view further up the view hierarchy. That gesture recognizer has recognized its gesture as taking place in this view; but by returning NO, the view can tell the gesture recognizer to bow out and do nothing, not sending any action messages, and permitting this view to respond to the touch as if the gesture recognizer weren’t there.<a id="idm441648810352" class="indexterm"></a>
+<a id="idm441648808256" class="indexterm"></a></p>
+          <p>Thus, for example, a UIButton could return NO for a single tap UITapGestureRecognizer; a single tap on the button would then trigger the button’s action message, not the gesture recognizer’s action message. And in fact a UIButton, by default, <span class="emphasis"><em>does</em></span> return NO for a single tap UITapGestureRecognizer whose view is not the UIButton itself. (If the gesture recognizer is for some gesture other than a tap, then the problem never arises, because a tap on the button won’t cause the gesture recognizer to recognize in the first place.) Other built-in controls may also implement <code class="literal">gestureRecognizerShouldBegin:</code> in such a way as to prevent accidental interaction with a gesture recognizer; the documentation says that a UISlider implements it in such a way that a UISwipeGestureRecognizer won’t prevent the user from sliding the “thumb,” and there may be other cases that aren’t documented explicitly. Naturally, you can take advantage of this feature in your own UIView subclasses.</p>
+          <div class="warning" style="margin-left: 0; margin-right: 10%;">
+            <h3 class="title">Warning</h3>
+            <p>Remember that this automatic behavior of built-in controls is new in iOS 6. If you write code intended to be backwards-compatible to iOS 5 or before, beware of unexpected interactions between gesture recognizers and controls.</p>
+          </div>
+          <p>Another way of resolving possible conflicts between a control and a gesture recognizer is through the gesture recognizer’s delegate, which I’ll discuss later in this chapter.</p>
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_multiple_gesture_recognizers"></a>Multiple Gesture Recognizers</h3>
+              </div>
+            </div>
+          </div>
+          <p>The question naturally arises of what happens when multiple gesture recognizers are in play. This isn’t a matter merely of multiple recognizers attached to a single view, because, as I have just said, if a view is touched, not only its own gesture recognizers but any gesture recognizers attached to views further up the view hierarchy are also in play, simultaneously. I like to think of a view as surrounded by a swarm of gesture recognizers — its own and those of its superview (and so on). In reality, it is a touch that has a swarm of gesture recognizers; that’s why a UITouch has a <code class="literal">gestureRecognizers</code> property, in the plural.<a id="idm441648800464" class="indexterm"></a>
+<a id="idm441648799152" class="indexterm"></a></p>
+          <p>In general, once a gesture recognizer succeeds in recognizing its gesture, any <span class="emphasis"><em>other</em></span> gesture recognizers associated with its touches are <span class="emphasis"><em>forced into the Failed state</em></span>, and whatever touches were associated with those gesture recognizers are no longer sent to them; in effect, the first gesture recognizer in a swarm that recognizes its gesture owns the gesture, and those touches, from then on.</p>
+          <p>In many cases, this behavior alone will correctly eliminate conflicts. For example, we can add <span class="emphasis"><em>both</em></span> our UITapGestureRecognizer for a single tap <span class="emphasis"><em>and</em></span> our UIPanGestureRecognizer to a view and everything will just work.</p>
+          <p>What happens if we also add the UITapGestureRecognizer for a double tap? Dragging works, and single tap works; double tap works too, but without preventing the single tap from working. So, on a double tap, both the single tap action handler and the double tap action handler are called.</p>
+          <p>If that isn’t what we want, we don’t have to use delayed performance, as we did earlier. Instead, we can create a <span class="emphasis"><em>dependency</em></span> between one gesture recognizer and another, telling the first to suspend judgement until the second has decided whether this is its gesture,<a id="idm441648793280" class="indexterm"></a><a id="idm441648792512" class="indexterm"></a><a id="idm441648791600" class="indexterm"></a> by sending the first the <code class="literal">requireGestureRecognizerToFail:</code> message. This message doesn’t mean “force this other recognizer to fail”; it means, “you can’t succeed until this other recognizer fails.”</p>
+          <p>So our view is now configured as follows:</p>
+          <pre class="screen">UITapGestureRecognizer* t2 = [[UITapGestureRecognizer alloc]
+                              initWithTarget:self
+                              action:@selector(doubleTap)];
+t2.numberOfTapsRequired = 2;
+[v addGestureRecognizer:t2];
+
+UITapGestureRecognizer* t1 = [[UITapGestureRecognizer alloc]
+                              initWithTarget:self
+                              action:@selector(singleTap)];
+[t1 requireGestureRecognizerToFail:t2];
+[v addGestureRecognizer:t1];
+
+UIPanGestureRecognizer* p = [[UIPanGestureRecognizer alloc]
+                             initWithTarget:self
+                             action:@selector(dragging:)];
+[v addGestureRecognizer:p];</pre>
+          <div class="note" style="margin-left: 0; margin-right: 10%;">
+            <h3 class="title">Note</h3>
+            <p>Apple would prefer, if you’re going to have a view respond both to single tap and double tap, that you <span class="emphasis"><em>not</em></span> make the former wait upon the latter (because this delays your response after the single tap). Rather, they would like you to arrange things so that it doesn’t matter that you respond to a single tap that is the first tap of a double tap. This isn’t always feasible, of course; Apple’s own Mobile Safari is a clear counterexample.</p>
+          </div>
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_subclassing_gesture_recognizers"></a>Subclassing Gesture Recognizers</h3>
+              </div>
+            </div>
+          </div>
+          <p>To subclass a built-in gesture recognizer subclass, you must do the following things:<a id="idm441648784976" class="indexterm"></a><a id="idm441648784112" class="indexterm"></a>
+<a id="idm441648782800" class="indexterm"></a></p>
+          <div class="itemizedlist">
+            <ul class="itemizedlist" type="disc">
+              <li class="listitem">
+At the start of the implementation file, import <code class="literal">&lt;UIKit/UIGestureRecognizerSubclass.h&gt;</code>. This file contains a category on UIGestureRecognizer that allows you to set the gesture recognizer’s state (which is otherwise read-only), along with declarations for the methods you may need to override.
+</li>
+              <li class="listitem">
+Override any <code class="literal">touches...</code> methods you need to (as if the gesture recognizer were a UIResponder); you will almost certainly call <code class="literal">super</code> so as to take advantage of the built-in behavior. In overriding a <code class="literal">touches...</code> method, you need to think like a gesture recognizer. As these methods are called, a gesture recognizer is setting its state; you must interact with that process.
+</li>
+            </ul>
+          </div>
+          <p>To illustrate, we will subclass UIPanGestureRecognizer so as to implement a view that can be moved only horizontally or vertically. Our strategy will be to make <span class="emphasis"><em>two</em></span> UIPanGestureRecognizer subclasses — one that allows only horizontal movement, and another that allows only vertical movement. They will make their recognition decisions in a mutually exclusive manner, so we can attach an instance of each to our view. This separates the decision-making logic in a gorgeously encapsulated object-oriented manner — a far cry from the spaghetti code we wrote earlier to do this same task.</p>
+          <p>I will show only the code for the horizontal drag gesture recognizer, because the vertical recognizer is symmetrically identical. We maintain just one instance variable, <code class="literal">_origLoc</code>, which we will use once to determine whether the user’s initial movement is horizontal. We override <code class="literal">touchesBegan:withEvent:</code> to set our instance variable with the first touch’s location:</p>
+          <pre class="screen">- (void) touchesBegan:(NSSet *)touches withEvent:(UIEvent *)event {
+    self-&gt;_origLoc = [[touches anyObject] locationInView:self.view.superview];
+    [super touchesBegan: touches withEvent: event];
+}</pre>
+          <p>We then override <code class="literal">touchesMoved:withEvent:</code>; all the recognition logic is here. This method will be called for the first time with the state still at Possible. At that moment, we look to see if the user’s movement is more horizontal than vertical. If it isn’t, we set the state to Failed. But if it is, we just step back and let the superclass do its thing:</p>
+          <pre class="screen">- (void) touchesMoved:(NSSet *)touches withEvent:(UIEvent *)event {
+    if (self.state == UIGestureRecognizerStatePossible) {
+        CGPoint loc = [[touches anyObject] locationInView:self.view.superview];
+        CGFloat deltaX = fabs(loc.x - self-&gt;_origLoc.x);
+        CGFloat deltaY = fabs(loc.y - self-&gt;_origLoc.y);
+        if (deltaY &gt;= deltaX)
+            self.state = UIGestureRecognizerStateFailed;
+    }
+    [super touchesMoved: touches withEvent:event];
+}</pre>
+          <p>We now have a view that moves only if the user’s initial gesture is horizontal. But that isn’t the entirety of what we want; we want a view that, itself, moves horizontally only. To implement this, we’ll simply lie to our client about where the user’s finger is, by overriding <code class="literal">translationInView:</code>:</p>
+          <pre class="screen">- (CGPoint)translationInView:(UIView *)v {
+    CGPoint proposedTranslation = [super translationInView:v];
+    proposedTranslation.y = 0;
+    return proposedTranslation;
+}</pre>
+          <p>That example was simple, because we subclassed a fully functional built-in UIGestureRecognizer subclass. If you were to write your own UIGestureRecognizer subclass entirely from scratch, there would be more work to do:</p>
+          <div class="itemizedlist">
+            <ul class="itemizedlist" type="disc">
+              <li class="listitem">
+You should definitely implement all four <code class="literal">touches...</code> handlers. Their job, at a minimum, is to advance the gesture recognizer through the canonical progression of its states. When the first touch arrives at a gesture recognizer, its state will be Possible; you never explicitly set the recognizer’s state to Possible yourself. As soon as you know this can’t be our gesture, you set the state to Failed (Apple says that a gesture recognizer should “fail early, fail often”). If the gesture gets past all the failure tests, you set the state instead either to Ended (for a discrete gesture) or to Began (for a continuous gesture); if Began, then you might set it to Changed, and ultimately you must set it to Ended. Action messages will be sent automatically at the appropriate moments.
+</li>
+              <li class="listitem">
+You should probably implement <code class="literal">reset</code>. This is called after you reach the end of the progression of states to notify you that the gesture recognizer’s state is about to be set back to Possible; it is your chance to return your state machine to its starting configuration (resetting instance variables, for example).
+</li>
+            </ul>
+          </div>
+          <p>Keep in mind that your gesture recognizer might stop receiving touches without notice. Just because it gets a <code class="literal">touchesBegan:withEvent:</code> call for a particular touch doesn’t mean it will ever get <code class="literal">touchesEnded:withEvent:</code> for that touch. If your gesture recognizer fails to recognize its gesture, either because it declares failure or because it is still in the Possible state when another gesture recognizer recognizes, it won’t get any more <code class="literal">touches...</code> calls for any of the touches that were being sent to it. This is why <code class="literal">reset</code> is so important; it’s the one reliable signal that it’s time to clean up and get ready to receive the beginning of another possible gesture.</p>
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_gesture_recognizer_delegate"></a>Gesture Recognizer Delegate</h3>
+              </div>
+            </div>
+          </div>
+          <p>A gesture recognizer can have a delegate, which can perform two types of task:<a id="idm441648756272" class="indexterm"></a>
+<a id="idm441648754928" class="indexterm"></a></p>
+          <div class="variablelist">
+            <dl>
+              <dt>
+                <span class="term">
+Block a gesture recognizer’s operation
+</span>
+              </dt>
+              <dd>
+                <p class="simpara">
+<code class="literal">gestureRecognizerShouldBegin:</code> is sent to the delegate before the gesture recognizer passes out of the Possible state; return NO to force the gesture recognizer to proceed to the Failed state. (This happens <span class="emphasis"><em>after</em></span> <code class="literal">gestureRecognizerShouldBegin:</code> has been sent to the view in which the touch took place. That view must not have returned NO, or we wouldn’t have reached this stage.)
+</p>
+                <p class="simpara"><code class="literal">gestureRecognizer:shouldReceiveTouch:</code> is sent to the delegate before a touch is sent to the gesture recognizer’s <code class="literal">touchesBegan:...</code> method; return NO to prevent that touch from ever being sent to the gesture recognizer.</p>
+              </dd>
+              <dt>
+                <span class="term">
+Mediate simultaneous gesture recognition
+</span>
+              </dt>
+              <dd>
+When a gesture recognizer is about to declare that it recognizes its gesture, <code class="literal">gestureRecognizer:shouldRecognizeSimultaneouslyWithGestureRecognizer:</code> is sent to the delegate of that gesture recognizer, if this declaration would force the failure of another gesture recognizer, and to the delegate of a gesture recognizer whose failure would be forced. Return YES to prevent that failure, thus allowing both gesture recognizers to operate simultaneously. For example, a view could respond to both a two-fingered pinch and a two-fingered pan, the one applying a scale transform, the other changing the view’s center.
+</dd>
+            </dl>
+          </div>
+          <p>As an example, we will use delegate messages to combine a UILongPressGestureRecognizer and a UIPanGestureRecognizer, as follows: the user must perform a tap-and-a-half (tap and hold) to “get the view’s attention,” which we will indicate by a pulsing animation on the view; then (and only then) the user can drag the view.</p>
+          <p>In keeping with encapsulation, the UILongPressGestureRecognizer’s handler will take care of starting and stopping the animation, and the UIPanGestureRecognizer’s handler will take care of the drag in the familiar manner:</p>
+          <pre class="screen">- (void) longPress: (UILongPressGestureRecognizer*) lp {
+    if (lp.state == UIGestureRecognizerStateBegan) {
+        CABasicAnimation* anim =
+            [CABasicAnimation animationWithKeyPath: @"transform"];
+        anim.toValue =
+            [NSValue valueWithCATransform3D:
+                CATransform3DMakeScale(1.1, 1.1, 1)];
+        anim.fromValue =
+            [NSValue valueWithCATransform3D:CATransform3DIdentity];
+        anim.repeatCount = HUGE_VALF;
+        anim.autoreverses = YES;
+        [lp.view.layer addAnimation:anim forKey:nil];
+    }
+    if (lp.state == UIGestureRecognizerStateEnded ||
+        lp.state == UIGestureRecognizerStateCancelled) {
+        [lp.view.layer removeAllAnimations];
+    }
+}
+
+- (void) panning: (UIPanGestureRecognizer*) p {
+    UIView* vv = p.view;
+    if (p.state == UIGestureRecognizerStateBegan)
+        self-&gt;_origC = vv.center;
+    CGPoint delta = [p translationInView: vv.superview];
+    CGPoint c = self-&gt;_origC;
+    c.x += delta.x; c.y += delta.y;
+    vv.center = c;
+}</pre>
+          <p>As we created our gesture recognizers, we kept a reference to the UILongPressGestureRecognizer (<code class="literal">longPresser</code>), and we made ourself the UIPanGestureRecognizer’s delegate. So we will receive delegate messages. If the UIPanGestureRecognizer tries to declare success while the UILongPressGestureRecognizer’s state is Failed or still at Possible, we prevent it. If the UILongPressGestureRecognizer succeeds, we permit the UIPanGestureRecognizer to operate as well:</p>
+          <pre class="screen">- (BOOL) gestureRecognizerShouldBegin: (UIGestureRecognizer*) g {
+    if (self.longPresser.state == UIGestureRecognizerStatePossible ||
+        self.longPresser.state == UIGestureRecognizerStateFailed)
+        return NO;
+    return YES;
+}</pre>
+          <pre class="screen">- (BOOL)gestureRecognizer: (UIGestureRecognizer*) g1
+        shouldRecognizeSimultaneouslyWithGestureRecognizer:
+            (UIGestureRecognizer*) g2 {
+    return YES;
+}</pre>
+          <p>The result is that the view can be dragged only if it is pulsing; in effect, what we’ve done is to compensate, using delegate methods, for the fact that UIGestureRecognizer has no <code class="literal">requireGestureRecognizerToSucceed:</code> method.</p>
+          <p>You might object that that example is a bit artificial, because a UILongPressGestureRecognizer can implement draggability all on its own. Its Changed state indicates a drag; it lacks the convenient <code class="literal">translationInView:</code> method, but we know how to work around that. So here, for completeness, is the same behavior implemented using a single gesture recognizer and a single handler; although this is doable, I find the previous implementation more elegant and readable:</p>
+          <pre class="screen">- (void) longPress: (UILongPressGestureRecognizer*) lp {
+    UIView* vv = lp.view;
+    if (lp.state == UIGestureRecognizerStateBegan) {
+        CABasicAnimation* anim =
+            [CABasicAnimation animationWithKeyPath: @"transform"];
+        anim.toValue =
+            [NSValue valueWithCATransform3D:
+                CATransform3DMakeScale(1.1, 1.1, 1)];
+        anim.fromValue =
+            [NSValue valueWithCATransform3D:CATransform3DIdentity];
+        anim.repeatCount = HUGE_VALF;
+        anim.autoreverses = YES;
+        [vv.layer addAnimation:anim forKey:nil];
+        self-&gt;_origOffset =
+            CGPointMake(CGRectGetMidX(vv.bounds) - [lp locationInView:vv].x,
+            CGRectGetMidY(vv.bounds) - [lp locationInView:vv].y);
+    }
+    if (lp.state == UIGestureRecognizerStateChanged) {
+        CGPoint c = [lp locationInView: vv.superview];
+        c.x += self-&gt;_origOffset.x;
+        c.y += self-&gt;_origOffset.y;
+        vv.center = c;
+    }
+    if (lp.state == UIGestureRecognizerStateEnded ||
+        lp.state == UIGestureRecognizerStateCancelled) {
+        [vv.layer removeAllAnimations];
+    }
+}</pre>
+          <p>If you are subclassing a gesture recognizer class, you can incorporate delegate-like behavior into the subclass. By overriding <code class="literal">canPreventGestureRecognizer:</code> and <code class="literal">canBePreventedByGestureRecognizer:</code>, you can mediate simultaneous gesture recognition at the class level. The built-in gesture recognizer subclasses already do this; that is why, for example, a single tap UITapGestureRecognizer does not, by recognizing its gesture, cause the failure of a double tap UITapGestureRecognizer.</p>
+          <p>You can also, in a gesture recognizer subclass, send <code class="literal">ignoreTouch:forEvent:</code> directly to a gesture recognizer (typically, to <code class="literal">self</code>). This has the same effect as the delegate method <code class="literal">gestureRecognizer:shouldReceiveTouch:</code> returning NO, blocking delivery of that touch to the gesture recognizer for as long as it exists. For example, if you’re in the middle of an already recognized gesture and a new touch arrives, you might well elect to ignore it.</p>
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_gesture_recognizers_in_the_nib"></a>Gesture Recognizers in the Nib</h3>
+              </div>
+            </div>
+          </div>
+          <p>Instead of instantiating a gesture recognizer in code, you can create and configure it in a nib or storyboard.<a id="idm441648728624" class="indexterm"></a>
+<a id="idm441648727312" class="indexterm"></a> (I’m a bit hazy on what version of Xcode introduced this feature; I first noticed it in Xcode 4.5.) Drag a gesture recognizer from the Object library into the canvas. It becomes a top-level nib object. You can configure the gesture recognizer’s properties in the Attributes inspector. Control-drag from a view object (meaning an object whose class is UIView or any UIView subclass) to a gesture recognizer to make that gesture recognizer belong to that view; the view’s <code class="literal">gestureRecognizers</code> property is an array, so its <code class="literal">gestureRecognizers</code> outlet is an outlet collection (see <a class="xref" href="ch07.html">Chapter 7</a>) and you can add more than one gesture recognizer to a view in the nib.</p>
+          <p>A gesture recognizer’s target–action pair can be configured in the nib as well. This works just like configuring a target–action pair for a control (<a class="xref" href="ch07.html">Chapter 7</a>). As a hint to Xcode, the action method’s signature should return <code class="literal">IBAction</code>, and it should take a single parameter, which will be a reference to the gesture recognizer. You can then drag from the gesture recognizer, or from its Sent Actions “selector” listing in the Connections inspector, to that method in code in an assistant pane — or, if this method is in a known object’s class, such as the File’s Owner, you can drag directly to that object within the nib. (However, although a gesture recognizer has a full-fledged target–action dispatch table, only one target–action pair can be configured in the nib. This seems like a bug; after all, control configuration is not restricted in this way.)</p>
+          <p>A gesture recognizer in the nib also has a <code class="literal">delegate</code> outlet, which can be hooked to any object.</p>
+          <p>A view retains its gesture recognizers, so there will usually be no need for memory management on a gesture recognizer in the nib. It’s a full-fledged nib object, so you can make an outlet to it; you would do this, for instance, if you needed to send a <code class="literal">requireGestureRecognizerToFail:</code> message to a gesture recognizer early in its lifetime, as we did previously in order to mediate between a single tap recognizer and a double tap recognizer.</p>
+        </div>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_touch_delivery"></a>Touch Delivery</h2>
+            </div>
+          </div>
+        </div>
+        <p>Let’s now return to the very beginning of the touch reporting process, when the system sends the app a UIEvent containing touches, and tease apart in full detail the entire procedure by which a touch is delivered to views and gesture recognizers:<a id="idm441648715872" class="indexterm"></a>
+<a id="idm441648714576" class="indexterm"></a></p>
+        <div class="orderedlist">
+          <ol class="orderedlist" type="1">
+            <li class="listitem">
+Whenever a new touch appears, the application calls the UIView instance method <code class="literal">hitTest:withEvent:</code> on the window, which returns the view (called, appropriately, the <span class="emphasis"><em>hit-test view</em></span>) that will be permanently associated with this touch. This method uses the UIView instance method <code class="literal">pointInside:withEvent:</code> along with <code class="literal">hitTest:withEvent:</code> recursively down the view hierarchy to find the frontmost view containing the touch’s location and capable of receiving a touch. The logic of how a view’s <code class="literal">userInteractionEnabled</code>, <code class="literal">hidden</code>, and <code class="literal">alpha</code> affect its touchability is implemented at this stage.
+</li>
+            <li class="listitem">
+              <p class="simpara">
+Each time the touch situation changes, the application calls its own <code class="literal">sendEvent:</code>, which in turn calls the window’s <code class="literal">sendEvent:</code>. The window delivers each of an event’s touches by calling the appropriate <code class="literal">touches...</code> method(s), as follows:
+</p>
+              <div class="orderedlist">
+                <ol class="orderedlist" type="a">
+                  <li class="listitem">
+As a touch first appears, it is initially delivered to the hit-test view’s swarm of gesture recognizers. It is then also delivered to that view. The logic of withholding touches in obedience to <code class="literal">multipleTouchEnabled</code> and <code class="literal">exclusiveTouch</code> is also implemented at this stage. For example, additional touches won’t be delivered to a view if that view currently has a touch and has <code class="literal">multipleTouchEnabled</code> set to NO.
+</li>
+                  <li class="listitem">
+                    <p class="simpara">
+If a gesture is recognized by a gesture recognizer, then for any touch associated with this gesture recognizer:
+</p>
+                    <div class="orderedlist">
+                      <ol class="orderedlist" type="i">
+                        <li class="listitem">
+<code class="literal">touchesCancelled:forEvent:</code> is sent to the touch’s view, and the touch is no longer delivered to its view.
+</li>
+                        <li class="listitem">
+If that touch was associated with any other gesture recognizer, that gesture recognizer is forced to fail.
+</li>
+                      </ol>
+                    </div>
+                  </li>
+                  <li class="listitem">
+If a gesture recognizer fails, either because it declares failure or because it is forced to fail, its touches are no longer delivered to it, but (except as already specified) they continue to be delivered to their view.
+</li>
+                  <li class="listitem">
+If a touch would be delivered to a view, but that view does not respond to the appropriate <code class="literal">touches...</code> method, a responder further up the responder chain (<a class="xref" href="ch11.html">Chapter 11</a>) is sought that does respond to it, and the touch is delivered there.
+</li>
+                </ol>
+              </div>
+            </li>
+          </ol>
+        </div>
+        <p>The rest of this chapter elaborates on each stage of this standard procedure, nearly every bit of which can be customized to some extent.</p>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_hit_testing"></a>Hit-Testing</h3>
+              </div>
+            </div>
+          </div>
+          <p><span class="emphasis"><em>Hit-testing</em></span> is the determination of what view the user touched. View hit-testing uses the UIView instance method <code class="literal">hitTest:withEvent:</code>, which returns either a view (the hit-test view) or nil. The idea is to find the frontmost view containing the touch point. This method uses an elegant recursive algorithm, as follows:<a id="idm441648687808" class="indexterm"></a>
+<a id="idm441648686512" class="indexterm"></a></p>
+          <div class="orderedlist">
+            <ol class="orderedlist" type="1">
+              <li class="listitem">
+A view’s <code class="literal">hitTest:withEvent:</code> first calls the same method on its own subviews, if it has any, because a subview is considered to be in front of its superview. The subviews are queried in reverse order, because that’s front-to-back order (<a class="xref" href="ch14.html">Chapter 14</a>): thus, if two sibling views overlap, the one in front reports the hit first.
+</li>
+              <li class="listitem">
+If, as a view hit-tests its subviews, any of those subviews responds by returning a view, it stops querying its subviews and immediately returns the view that was returned to it. Thus, the very first view to declare itself the hit-test view immediately percolates all the way to the top of the call chain and <span class="emphasis"><em>is</em></span> the hit-test view.
+</li>
+              <li class="listitem">
+                <p class="simpara">
+If, on the other hand, a view has no subviews, or if all of its subviews return nil (indicating that neither they nor their subviews was hit), then the view calls <code class="literal">pointInside:withEvent:</code> on itself. If this call reveals that the touch was inside this view, the view returns itself, declaring itself the hit-test view; otherwise it returns nil.
+</p>
+                <p class="simpara">No problem arises if a view has a transform, because <code class="literal">pointInside:withEvent:</code> takes the transform into account. That’s why a rotated button continues to work correctly.</p>
+              </li>
+            </ol>
+          </div>
+          <p>It is also up to <code class="literal">hitTest:withEvent:</code> to implement the logic of touch restrictions exclusive to a view. If a view’s <code class="literal">userInteractionEnabled</code> is NO, or its <code class="literal">hidden</code> is YES, or its <code class="literal">alpha</code> is close to <code class="literal">0.0</code>, it returns nil without hit-testing any of its subviews and without calling <code class="literal">pointInside:withEvent:</code>. Thus these restrictions do not, of themselves, exclude a view from being hit-tested; on the contrary, they operate precisely by modifying a view’s hit-test result.</p>
+          <p>However, hit-testing knows nothing about <code class="literal">multipleTouchEnabled</code> (which involves multiple touches) or <code class="literal">exclusiveTouch</code> (which involves multiple views). The logic of obedience to these properties is implemented at a later stage of the story.</p>
+          <p>You can use hit-testing yourself at any moment where it might prove useful. In calling <code class="literal">hitTest:withEvent:</code>, supply a point <span class="emphasis"><em>in the coordinates of the view to which the message is sent</em></span>. The second parameter can be nil if you have no event.</p>
+          <p>For example, suppose we have a UIView with two UIImageView subviews. We want to detect a tap in either UIImageView, but we want to handle this at the level of the UIView. We can attach a UITapGestureRecognizer to the UIView, but how will we know which subview, if any, the tap was in?</p>
+          <p>Our first step must be to set <code class="literal">userInteractionEnabled</code> to YES for both UIImageViews. (This step is crucial; UIImageView is one of the few built-in view classes where this is NO by default, and a view whose <code class="literal">userInteractionEnabled</code> is NO won’t normally be the result of a call to <code class="literal">hitTest:withEvent:</code>.) Now, when our gesture recognizer’s action handler is called, the view can use hit-testing to determine where the tap was:</p>
+          <pre class="screen">CGPoint p = [g locationOfTouch:0 inView:self]; // g is the gesture recognizer
+UIView* v = [self hitTest:p withEvent:nil];</pre>
+          <p>You can also override <code class="literal">hitTest:withEvent:</code> in a view subclass, to alter its results during touch delivery, thus customizing the touch delivery mechanism. I call this <span class="emphasis"><em>hit-test munging</em></span>. Hit-test munging can be used selectively as a way of turning user interaction on or off in an area of the interface. In this way, some unusual effects can be produced.</p>
+          <p>For example, an important use of hit-test munging is to permit the touching of parts of subviews outside the bounds of their superview. If a view’s <code class="literal">clipsToBounds</code> is NO, a paradox arises: the user can <span class="emphasis"><em>see</em></span> the regions of its subviews that are outside its bounds, but the user can’t <span class="emphasis"><em>touch</em></span> them. This can be confusing and seems wrong. The solution is for the view to override <code class="literal">hitTest:withEvent:</code> as follows:</p>
+          <pre class="screen">-(UIView *)hitTest:(CGPoint)point withEvent:(UIEvent *)event {
+    UIView* result = [super hitTest:point withEvent:event];
+    if (result)
+        return result;
+    for (UIView* sub in [self.subviews reverseObjectEnumerator]) {
+        CGPoint pt = [self convertPoint:point toView:sub];
+        result = [sub hitTest:pt withEvent:event];
+        if (result)
+            return result;
+    }
+    return nil;
+}</pre>
+          <p>Here are some further possible uses of hit-test munging, just to stimulate your imagination:</p>
+          <div class="itemizedlist">
+            <ul class="itemizedlist" type="disc">
+              <li class="listitem">
+If a superview contains a UIButton but doesn’t return that UIButton from <code class="literal">hitTest:withEvent</code>:, that button can’t be tapped.
+</li>
+              <li class="listitem">
+You might override <code class="literal">hitTest:withEvent:</code> to return the result from <code class="literal">super</code> most of the time, but to return <code class="literal">self</code> under certain conditions, effectively making all subviews untouchable without making the superview itself untouchable (as setting its <code class="literal">userInteractionEnabled</code> to NO would do).
+</li>
+              <li class="listitem">
+A view whose <code class="literal">userInteractionEnabled</code> is NO can break the normal rules and return itself from hit-testing and can thus end up as the hit-test view.
+</li>
+            </ul>
+          </div>
+          <div class="section">
+            <div class="titlepage">
+              <div>
+                <div>
+                  <h4 class="title"><a id="_hit_testing_for_layers"></a>Hit-testing for layers</h4>
+                </div>
+              </div>
+            </div>
+            <p>There is also hit-testing for layers.<a id="idm441648648576" class="indexterm"></a>
+<a id="idm441648647328" class="indexterm"></a> It doesn’t happen automatically, as part of <code class="literal">sendEvent:</code> or anything else; it’s up to you. It’s just a convenient way of finding out which layer would receive a touch at a point, if layers received touches. To hit-test layers, call <code class="literal">hitTest:</code> on a layer, with a point <span class="emphasis"><em>in superlayer coordinates</em></span>.</p>
+            <p>Keep in mind, though, that layers do <span class="emphasis"><em>not</em></span> receive touches. A touch is reported to a view, not a layer. A layer, except insofar as it is a view’s underlying layer and gets touch reporting because of its view, is completely untouchable; from the point of view of touches and touch reporting, it’s as if the layer weren’t on the screen at all. No matter where a layer may appear to be, a touch falls right through the layer to whatever view is behind it.</p>
+            <p>In the case of the layer that is a view’s underlying layer, you don’t need hit-testing. It is the view’s drawing; where it appears is where the view is. So a touch in that layer is equivalent to a touch in its view. Indeed, one might say that this is what views are actually for: to provide layers with touchability.</p>
+            <p>The only layers on which you’d need special hit-testing, then, would presumably be layers that are not themselves any view’s underlying layer, because those are the only ones you don’t find out about by normal view hit-testing. However, all layers, including a layer that is its view’s underlying layer, are part of the layer hierarchy, and can participate in layer hit-testing. So the most comprehensive way to hit-test layers is to start with the topmost layer, the window’s layer. In this example, we subclass UIWindow and override its <code class="literal">hitTest:withEvent:</code> so as to get layer hit-testing every time there is view hit-testing:</p>
+            <pre class="screen">- (UIView*) hitTest:(CGPoint)point withEvent:(UIEvent *)event {
+    CALayer* lay = [self.layer hitTest:point];
+    // ... possibly do something with that information ...
+    return [super hitTest:point withEvent:event];
+}</pre>
+            <p>Because this is the window, the view hit-test point works as the layer hit-test point; window bounds are screen bounds (<a class="xref" href="ch14.html">Chapter 14</a>). But usually you’ll have to convert to superlayer coordinates. In this example, we return to the CompassView developed in <a class="xref" href="ch16.html">Chapter 16</a>, in which all the parts of the compass are layers; we want to know whether the user tapped on the arrow layer. For simplicity, we’ve given the CompassView a UITapGestureRecognizer, and this is its action handler, in the CompassView itself. We convert to our superview’s coordinates, because these are also our layer’s superlayer coordinates:</p>
+            <pre class="screen">// self is the CompassView
+CGPoint p = [t locationOfTouch: 0 inView: self.superview];
+CALayer* hitLayer = [self.layer hitTest:p];
+if (hitLayer == ((CompassLayer*)self.layer).arrow) // ...</pre>
+            <p>Layer hit-testing works by calling <code class="literal">containsPoint:</code>. However, <code class="literal">containsPoint:</code> takes a point in the layer’s coordinates, so to hand it a point that arrives through <code class="literal">hitTest:</code> you must first convert from superlayer coordinates:</p>
+            <pre class="screen">BOOL hit =
+    [lay containsPoint: [lay convertPoint:point fromLayer:lay.superlayer]];</pre>
+            <p>Layer hit-testing knows nothing of the restrictions on touch delivery; it just reports on every sublayer, even those whose view has <code class="literal">userInteractionEnabled</code> set to NO.</p>
+            <div class="warning" style="margin-left: 0; margin-right: 10%;">
+              <h3 class="title">Warning</h3>
+              <p>The documentation warns that <code class="literal">hitTest:</code> must not be called on a CATransformLayer.</p>
+            </div>
+          </div>
+          <div class="section">
+            <div class="titlepage">
+              <div>
+                <div>
+                  <h4 class="title"><a id="_hit_testing_for_drawings"></a>Hit-testing for drawings</h4>
+                </div>
+              </div>
+            </div>
+            <p>The preceding example (letting the user tap on the compass arrow) worked, but we might complain that it is reporting a hit on the arrow even if the hit misses the <span class="emphasis"><em>drawing</em></span> of the arrow. That’s true for view hit-testing as well. A hit is reported if we are within the view or layer as a whole; hit-testing knows nothing of drawing, transparent areas, and so forth.<a id="idm441648625728" class="indexterm"></a><a id="idm441648624832" class="indexterm"></a><a id="idm441648623936" class="indexterm"></a></p>
+            <p>If you know how the region is drawn and can reproduce the edge of that drawing as a CGPath, you can test whether a point is inside it with <code class="literal">CGPathContainsPoint</code>. So, for a layer, you could override <code class="literal">hitTest</code> along these lines:</p>
+            <pre class="screen">- (CALayer*) hitTest:(CGPoint)p {
+    CGPoint pt = [self convertPoint:p fromLayer:self.superlayer];
+    CGMutablePathRef path = CGPathCreateMutable();
+    // ... draw path here ...
+    CALayer* result = CGPathContainsPoint(path, nil, pt, true) ? self : nil;
+    CGPathRelease(path);
+    return result;
+}</pre>
+            <p>Alternatively, it might be the case that if a pixel of the drawing is transparent, it’s outside the drawn region, so that it suffices to detect whether the pixel tapped is transparent.<a id="idm441648620544" class="indexterm"></a><a id="idm441648617936" class="indexterm"></a> Unfortunately, there’s no way to ask a drawing (or a view, or a layer) for the color of a pixel; you have to make a bitmap and copy the drawing into it, and then ask the bitmap for the color of a pixel. If you can reproduce the content as an image, and all you care about is transparency, you can make a one-pixel alpha-only bitmap, draw the image in such a way that the pixel you want to test is the pixel drawn into the bitmap, and examine the transparency of the resulting pixel:</p>
+            <pre class="screen">// assume im is a UIImage, point is the CGPoint to test
+unsigned char pixel[1] = {0};
+CGContextRef context = CGBitmapContextCreate(pixel,
+                                             1, 1, 8, 1, nil,
+                                             kCGImageAlphaOnly);
+UIGraphicsPushContext(context);
+[im drawAtPoint:CGPointMake(-point.x, -point.y)];
+UIGraphicsPopContext();
+CGContextRelease(context);
+CGFloat alpha = pixel[0]/255.0;
+BOOL transparent = alpha &lt; 0.01;</pre>
+            <p>However, there can be complications; for example, there may not be a one-to-one relationship between the pixels of the underlying drawing and the points of the drawing as portrayed on the screen (because the drawing is stretched, for example). It’s a tricky problem, but in many cases, the CALayer method <code class="literal">renderInContext:</code> can be helpful here. This method allows you to copy a layer’s actual drawing into a context of your choice. If that context is, say, an image context created with <code class="literal">UIGraphicsBeginImageContextWithOptions</code>, you can now use the resulting image as <code class="literal">im</code> in the code above.</p>
+          </div>
+          <div class="section">
+            <div class="titlepage">
+              <div>
+                <div>
+                  <h4 class="title"><a id="_hit_testing_during_animation"></a>Hit-testing during animation</h4>
+                </div>
+              </div>
+            </div>
+            <p>If user interaction is allowed during an animation that moves a view from one place to another, then if the user taps on the animated view, the tap might mysteriously fail because the view in the model layer is elsewhere; conversely, the user might accidentally tap where the view actually is in the model layer, and the tap will hit the animated view even though it appears to be elsewhere. If the position of a view or layer is being animated and you want the user to be able to tap on it, therefore, you’ll need to hit-test the presentation layer (see <a class="xref" href="ch17.html">Chapter 17</a>).</p>
+            <p>In this simple example, we have a superview containing a subview. To allow the user to tap on the subview even when it is being animated, we implement hit-test munging in the superview:<a id="idm441648609136" class="indexterm"></a>
+<a id="idm441648607888" class="indexterm"></a></p>
+            <pre class="screen">- (UIView*) hitTest:(CGPoint)point withEvent:(UIEvent *)event {
+    // v is the animated subview
+    CALayer* lay = [v.layer presentationLayer];
+    CALayer* hitLayer = [lay hitTest: point];
+    if (hitLayer == lay)
+        return v;
+    UIView* hitView = [super hitTest:point withEvent:event];
+    if (hitView == v)
+        return self;
+    return hitView;
+}</pre>
+            <p>If the user taps outside the <a id="idm441648605248" class="indexterm"></a>presentation layer, we cannot simply call <code class="literal">super</code>, because the user might tap at the spot to which the subview has in reality already moved (behind the “animation movie”), in which case <code class="literal">super</code> will report that it hit the subview. So if <code class="literal">super</code> does report this, we return <code class="literal">self</code> (assuming that we are what’s behind the animated subview at its new location).</p>
+            <p>However, as Apple puts it in the WWDC 2011 videos, the animated view “swallows the touch.” For example, suppose the view in motion is a button. Although our hit-test munging makes it possible for the user to tap the button as it is being animated, and although the user sees the button highlight in response, the button’s action message is not sent in response to this highlighting if the animation is in-flight when the tap takes place. This behavior seems unfortunate, but it’s generally possible to work around it (for instance, with a gesture recognizer).</p>
+          </div>
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_initial_touch_event_delivery"></a>Initial Touch Event Delivery</h3>
+              </div>
+            </div>
+          </div>
+          <p>When the touch situation changes, an event containing all touches is handed to the UIApplication instance by calling its <code class="literal">sendEvent:</code>, and the UIApplication in turn hands it to the relevant UIWindow by calling <span class="emphasis"><em>its</em></span> <code class="literal">sendEvent:</code>. The UIWindow then performs the complicated logic of examining, for every touch, the hit-test view and its superviews and their gesture recognizers and deciding which of them should be sent a <code class="literal">touches...</code> message, and does so.</p>
+          <p>These are delicate and crucial maneuvers, and you wouldn’t want to lame your application by interfering with them. Nevertheless, you can override <code class="literal">sendEvent:</code> in a subclass, and there are situations where you might wish to do so. This is just about the <span class="emphasis"><em>only</em></span> case in which you might subclass UIApplication; if you do, remember to change the third argument in the call to <code class="literal">UIApplicationMain</code> in your <span class="emphasis"><em>main.m</em></span> file to the string name of your UIApplication subclass so that your subclass is used to generate the app’s singleton UIApplication instance. If you subclass UIWindow, remember to change the window’s class in the app delegate code that instantiates the window.<a id="idm441648591936" class="indexterm"></a>
+<a id="idm441648590736" class="indexterm"></a><a id="idm441648589824" class="indexterm"></a>
+<a id="idm441648588512" class="indexterm"></a></p>
+          <p>Now that gesture recognizers exist, it is unlikely that you will need to resort to such measures. A typical case, in the past, was that you needed to detect touches directed to an object of some built-in interface class in a way that subclassing it wouldn’t permit. For example, you want to know when the user swipes a UIWebView; you’re not allowed to subclass UIWebView, and in any case it eats the touch. The solution used to be to subclass UIWindow and override <code class="literal">sendEvent:</code>; you would then work out whether this was a swipe on the UIWebView and respond accordingly, or else call <code class="literal">super</code>. Now, however, you can attach a UISwipeGestureRecognizer to the UIWebView.</p>
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_gesture_recognizer_and_view"></a>Gesture Recognizer and View</h3>
+              </div>
+            </div>
+          </div>
+          <p>When a touch first appears and is delivered to a gesture recognizer, it is also delivered to its hit-test view, the same <code class="literal">touches...</code> method being called on both. This comes as a surprise to beginners, but it is the most reasonable approach, as it means that touch interpretation by a view isn’t jettisoned just because gesture recognizers are in the picture. Later on in the multitouch sequence, if all the gesture recognizers in a view’s swarm declare failure to recognize their gesture, that view’s internal touch interpretation just proceeds as if gesture recognizers had never been invented.<a id="idm441648582896" class="indexterm"></a>
+<a id="idm441648580752" class="indexterm"></a></p>
+          <p>However, if a gesture recognizer in a view’s swarm recognizes its gesture, that view is sent <code class="literal">touchesCancelled:withEvent:</code> for any touches that went to that gesture recognizer and were hit-tested to that view, and subsequently the view no longer receives those touches.</p>
+          <p>This behavior can be changed by setting a gesture recognizer’s <code class="literal">cancelsTouchesInView</code> property to NO. If this is the case for every gesture recognizer in a view’s swarm, the view will receive touch events more or less as if no gesture recognizers were in the picture. Making this change, however, alters delivery logic rather drastically; it seems unlikely that you’d want to do that.</p>
+          <p>If a gesture recognizer happens to be ignoring a touch (because it was told to do so by <code class="literal">ignoreTouch:forEvent:</code>), then <code class="literal">touchesCancelled:withEvent:</code> <span class="emphasis"><em>won’t</em></span> be sent to the view for that touch when the gesture recognizer recognizes its gesture. Thus, a gesture recognizer’s ignoring a touch is the same as simply letting it fall through to the view, as if the gesture recognizer weren’t there.</p>
+          <p>Gesture recognizers can also <span class="emphasis"><em>delay</em></span> the delivery of touches to a view, and by default they do. The UIGestureRecognizer property <code class="literal">delaysTouchesEnded</code> is YES by default, meaning that when a touch reaches <code class="literal">UITouchPhaseEnded</code> and the gesture recognizer’s <code class="literal">touchesEnded:withEvent:</code> is called, if the gesture recognizer is still allowing touches to be delivered to the view because its state is still Possible, it doesn’t deliver this touch until it has resolved the gesture. When it does, either it will recognize the gesture, in which case the view will have <code class="literal">touchesCancelled:withEvent:</code> called instead (as already explained), or it will declare failure and <span class="emphasis"><em>now</em></span> the view will have <code class="literal">touchesEnded:withEvent:</code> called.</p>
+          <p>The reason for this behavior is most obvious with a gesture where multiple taps are required. The first tap ends, but this is insufficient for the gesture recognizer to declare success or failure, so it withholds that touch from the view. In this way, the gesture recognizer gets the proper priority. In particular, if there is a second tap, the gesture recognizer should succeed and send <code class="literal">touchesCancelled:withEvent:</code> to the view — but it can’t do that if the view has already been sent <code class="literal">touchesEnded:withEvent:</code>.</p>
+          <p>It is also possible to delay the entire suite of <code class="literal">touches...</code> methods from being called on a view, by setting a gesture recognizer’s <code class="literal">delaysTouchesBegan</code> property to YES. Again, this delay would be until the gesture recognizer can resolve the gesture: either it will recognize it, in which case the view will have <code class="literal">touchesCancelled:withEvent:</code> called, or it will declare failure, in which case the view will receive <code class="literal">touchesBegan:withEvent:</code> plus any further <code class="literal">touches...</code> calls that were withheld — except that it will receive <span class="emphasis"><em>at most</em></span> one <code class="literal">touchesMoved:withEvent:</code> call, the last one, because if a lot of these were withheld, to queue them all up and send them all at once now would be simply insane.</p>
+          <p>It is unlikely that you’ll change a gesture recognizer’s <code class="literal">delaysTouchesBegan</code> property to YES, however. You might do so, for example, if you have an elaborate touch analysis within a view that simply cannot operate simultaneously with a gesture recognizer, but this is improbable, and the latency involved may look strange to your user.</p>
+          <p>When touches are delayed and then delivered, what’s delivered is the original touch with the original event, which still have their original timestamps. Because of the delay, these timestamps may differ significantly from now. For this reason (and many others), Apple warns that touch analysis that is concerned with timing should always look at the timestamp, not the clock.</p>
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_touch_exclusion_logic"></a>Touch Exclusion Logic</h3>
+              </div>
+            </div>
+          </div>
+          <p>It is up to the UIWindow’s <code class="literal">sendEvent:</code> to implement the logic of <code class="literal">multipleTouchEnabled</code> and <code class="literal">exclusiveTouch</code>.<a id="idm441648554720" class="indexterm"></a>
+<a id="idm441648553408" class="indexterm"></a><a id="idm441648552496" class="indexterm"></a></p>
+          <p>If a new touch is hit-tested to a view whose <code class="literal">multipleTouchEnabled</code> is NO and which already has an existing touch hit-tested to it, then <code class="literal">sendEvent:</code> never delivers the new touch to that view. However, that touch <span class="emphasis"><em>is</em></span> delivered to the view’s swarm of gesture recognizers.</p>
+          <p>Similarly, if there’s an <code class="literal">exclusiveTouch</code> view in the window, then <code class="literal">sendEvent:</code> must decide whether a particular touch should be delivered, as already described. If a touch is not delivered to a view because of <code class="literal">exclusiveTouch</code> restrictions, it is not delivered to its swarm of gesture recognizers either. (This behavior with regard to gesture recognizers has changed in a confusing and possibly buggy way from system to system, but I believe I’m describing it correctly for iOS 5 and later. The statement in Apple’s <span class="emphasis"><em>SimpleGestureRecognizers</em></span> sample code that “Recognizers ignore the exclusive touch setting for views” now appears to be false.)</p>
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_recognition"></a>Recognition</h3>
+              </div>
+            </div>
+          </div>
+          <p>When a gesture recognizer recognizes its gesture, everything changes. As we’ve already seen, the touches for this gesture recognizer are sent to their hit-test views as a <code class="literal">touchesCancelled:forEvent:</code> message, and then no longer arrive at those views (unless the gesture recognizer’s <code class="literal">cancelsTouchesInView</code> is NO). Moreover, all other gesture recognizers pending with regard to these touches are made to fail, and then are no longer sent the touches they were receiving either.</p>
+          <p>If the very same event would cause more than one gesture recognizer to recognize, there’s an algorithm for picking the one that will succeed and make the others fail: a gesture recognizer lower down the view hierarchy (closer to the hit-test view) prevails over one higher up the hierarchy, and a gesture recognizer more recently added to its view prevails over one less recently added.</p>
+          <p>There are various means for modifying this “first past the post, winner takes all” behavior. One is by telling a gesture recognizer, in effect, that being first isn’t good enough:</p>
+          <div class="itemizedlist">
+            <ul class="itemizedlist" type="disc">
+              <li class="listitem">
+<code class="literal">requireGestureRecognizerToFail:</code> institutes a dependency order, possibly causing the gesture recognizer to which it is sent to be put on hold when it tries to transition from the Possible state to the Began (continuous) or Ended (discrete) state; only if a certain other gesture recognizer fails is this one permitted to perform that transition. Apple says that in a dependency like this, the gesture recognizer that fails first is not sent <code class="literal">reset</code> (and won’t receive any touches) until the second finishes its state sequence and is sent <code class="literal">reset</code>, so that they resume recognizing together.
+</li>
+              <li class="listitem">
+The UIView method <code class="literal">gestureRecognizerShouldBegin:</code>, sent to the hit-test view, or the delegate method <code class="literal">gestureRecognizerShouldBegin:</code>, by returning NO, turns success into failure; at the moment when the gesture recognizer is about to declare that it recognizes its gesture, transitioning from the Possible state to the Began (continuous) or Ended (discrete) state, it is forced to fail instead.
+</li>
+            </ul>
+          </div>
+          <p>Another approach is to permit simultaneous recognition; a gesture recognizer succeeds, but some other gesture recognizer is <span class="emphasis"><em>not</em></span> forced to fail. There are two ways to achieve this:</p>
+          <div class="itemizedlist">
+            <ul class="itemizedlist" type="disc">
+              <li class="listitem">
+                <p class="simpara">
+A subclass can implement <code class="literal">canPreventGestureRecognizer:</code> or <code class="literal">canBePreventedByGestureRecognizer:</code> (or both). Here, “prevent” means “by succeeding, you force failure upon this other,” and “be prevented” means “by succeeding, this other forces failure upon you.”
+</p>
+                <p class="simpara">These two methods work together as follows. <code class="literal">canPreventGestureRecognizer:</code> is called first; if it returns NO, that’s the end of the story for that gesture recognizer, and <code class="literal">canPreventGestureRecognizer:</code> is called on the other gesture recognizer. But if <code class="literal">canPreventGestureRecognizer:</code> returns YES when it is first called, the other gesture recognizer is sent <code class="literal">canBePreventedByGestureRecognizer:</code>. If it returns YES, that’s the end of the story; if it returns NO, the process starts over the other way around, sending <code class="literal">canPreventGestureRecognizer:</code> to the second gesture recognizer, and so forth. In this way, conflicting answers are resolved without the device exploding: prevention is regarded as exceptional (even though it is in fact the norm) and will happen only if it is acquiesced to by everyone involved.</p>
+              </li>
+              <li class="listitem">
+The delegate method <code class="literal">gestureRecognizer:shouldRecognizeSimultaneouslyWithGestureRecognizer:</code> can return YES to permit one gesture recognizer to succeed without forcing the other to fail.
+</li>
+            </ul>
+          </div>
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_touches_and_the_responder_chain"></a>Touches and the Responder Chain</h3>
+              </div>
+            </div>
+          </div>
+          <p>A UIView is a responder, and participates in the <a id="idm441648521360" class="indexterm"></a>responder chain (<a class="xref" href="ch11.html">Chapter 11</a>). In particular, if a touch is to be delivered to a UIView (because, for example, it’s the hit-test view) and that view doesn’t implement the relevant <code class="literal">touches...</code> method, a walk up the responder chain is performed, looking for a responder that <span class="emphasis"><em>does</em></span> implement it; if such a responder is found, the touch is delivered to that responder. Moreover, the default implementation of the <code class="literal">touches...</code> methods — the behavior that you get if you call <code class="literal">super</code> — is to perform the same walk up the responder chain, starting with the next responder in the chain.<a id="idm441648516944" class="indexterm"></a>
+<a id="idm441648515648" class="indexterm"></a></p>
+          <p>The relationship between touch delivery and the responder chain can be useful, but you must be careful not to allow it to develop into an incoherency. For example, if <code class="literal">touchesBegan:withEvent:</code> is implemented in a superview but not in a subview, then a touch to the subview will result in the superview’s <code class="literal">touchesBegan:withEvent:</code> being called, with the first parameter (the touches) containing a touch whose <code class="literal">view</code> is the subview. But most UIView implementations of the <code class="literal">touches...</code> methods rely upon the assumption that the first parameter consists of all and only touches whose <code class="literal">view</code> is <code class="literal">self</code>; built-in UIView subclasses certainly assume this.</p>
+          <p>Again, if <code class="literal">touchesBegan:withEvent:</code> is implemented in both a superview and a subview, and you call <code class="literal">super</code> in the subview’s implementation, passing along the same arguments that came in, then the same touch delivered to the subview will trigger both the subview’s <code class="literal">touchesBegan:withEvent:</code> and the superview’s <code class="literal">touchesBegan:withEvent:</code> (and once again the first parameter to the superview’s <code class="literal">touchesBegan:withEvent:</code> will contain a touch whose <code class="literal">view</code> is the subview).</p>
+          <p>The solution is to behave rationally, as follows:</p>
+          <div class="itemizedlist">
+            <ul class="itemizedlist" type="disc">
+              <li class="listitem">
+If all the responders in the affected part of the responder chain are instances of your own subclass of UIView itself or of your own subclass of UIViewController, you will generally want to follow the simplest possible rule: implement <span class="emphasis"><em>all</em></span> the <code class="literal">touches...</code> events together in one class, so that touches arrive at an instance either because it was the hit-test view or because it is up the responder chain from the hit-test view, and do <span class="emphasis"><em>not</em></span> call <code class="literal">super</code> in any of them. In this way, “the buck stops here” — the touch handling for this object or for objects below it in the responder chain is bottlenecked into one well-defined place.
+</li>
+              <li class="listitem">
+If you subclass a built-in UIView subclass and you override its touch handling, you don’t have to override every single <code class="literal">touches...</code> event, but you <span class="emphasis"><em>do</em></span> need to call <code class="literal">super</code> so that the built-in touch handling can occur.
+</li>
+              <li class="listitem">
+                <p class="simpara">
+Don’t allow touches to arrive from lower down the responder chain at an instance of a built-in UIView subclass that implements built-in touch handling, because such a class is completely unprepared for the first parameter of a <code class="literal">touches...</code> method containing a touch not intended for itself. Judicious use of <code class="literal">userInteractionEnabled</code> or hit-test munging can be a big help here.
+</p>
+                <p class="simpara">I’m not saying, however, that you have to block all touches from percolating up the responder chain; it’s normal for unhandled touches to arrive at the UIWindow or UIApplication, for example, because these classes do not (by default) do any touch handling — so those touches will remain unhandled and will percolate right off the end of the responder chain, which is perfectly fine.</p>
+              </li>
+              <li class="listitem">
+Never call a <code class="literal">touches...</code> method directly (except to call <code class="literal">super</code>).
+</li>
+            </ul>
+          </div>
+          <div class="warning" style="margin-left: 0; margin-right: 10%;">
+            <h3 class="title">Warning</h3>
+            <p>Apple’s documentation has some discussion of a technique called <span class="emphasis"><em>event forwarding</em></span> where you <span class="emphasis"><em>do</em></span> call <code class="literal">touches...</code> methods directly. But you are far less likely to need this now that gesture recognizers exist, and it can be extremely tricky and even downright dangerous to implement, so I won’t give an example here, and I suggest that you not use it.
+<a id="idm441648488736" class="indexterm"></a><a id="idm441648487936" class="indexterm"></a><a id="idm441648486928" class="indexterm"></a></p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="navfooter">
+      <table width="100%" summary="Navigation footer">
+        <tr>
+          <td width="40%" align="left"><a accesskey="p" href="ch17.html">Prev</a> </td>
+          <td width="20%" align="center">
+            <a accesskey="u" href="pt04.html">Up</a>
+          </td>
+          <td width="40%" align="right"> <a accesskey="n" href="pt05.html">Next</a></td>
+        </tr>
+        <tr>
+          <td width="40%" align="left" valign="top">Chapter 17. Animation </td>
+          <td width="20%" align="center">
+            <a accesskey="h" href="index.html">Table of Contents</a>
+          </td>
+          <td width="40%" align="right" valign="top"> Part V. Interface</td>
+        </tr>
+      </table>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,200 @@
+<html>
+<hr>
+<title>chapter3 </title>
+<hr>
+<center>
+<h2> 3.範例</h2>
+</center>
+<p>
+<hr>
+<a name="3"><h1>3.範例</h1></a>
+&nbsp&nbsp 一般在實際使用編輯器的過程中 , 常需要執行替換文件中的字串、搬移、刪除、與搜尋資料行等等動作。當然 , 一般交談式編輯器(如 vi、emacs)都能做得到上述功能 , 但文件一旦有大量上述編輯需求時 , 則用它們編輯十分沒有效率。本章將用舉例的方式說明如何用 sed 自動執行這些編輯功能。此外 , 在本章範例中 , 均以下述方式描述文件的需求 :
+<h5>
+<pre>
+            將文件中...資料 , 執行...(動作)
+</pre>
+</h5>
+如此 , 目的是為了能將它們迅速的轉成編輯指令。其中 , " ...資料" 部份 , 轉成指令中的位址參數表示 ; "執行...動作" 部份 , 則轉成函數參數表示 。另外 , 當 "執行...動作" 要由數個函數參數表示時 , 則可利用 "{ "與 " }" 集合這些函數參數(註解[<a href="sed_footnote.html#8.9">9</a>]) , 其指令形式如下 :
+<h5>
+<pre>
+         位址參數{
+                 函數參數1
+                 函數參數2
+                 函數參數3
+                     .
+                     :
+                  }
+</pre>
+</h5>
+上述指令表示 , 將對符合位址參數的資料 , 依次執行函數參數1、函數參數2、函數參數3 ... 表示的動作。下面各節 , 分別舉例說明 sed 替換資料、移動、刪除資料、及搜尋資料的命令。
+<ul>
+<li><a href="#3.1">3.1 替換文件中的資料 </a></li>
+<li><a href="#3.2">3.2 搬動文件中的資料 </a></li>
+<li><a href="#3.3">3.3 刪除文件中的資料 </a></li>
+<li><a href="#3.4">3.4 搜尋文件中的資料 </a></li>
+</ul>
+<a name="3.1"><h2> 3.1 替換文件中的資料 </h2></a>
+&nbsp&nbsp Sed 可替換文件中的字串、資料行、甚至資料區。其中 , 表示替換字串的指令中的函數參數為 s(參照[<a href="sed_sec_4.html#4.1">section4.1</a>]); 表示替換資料行、或資料區的指令中的函數參數為 c(參照[<a href="sed_sec_4.html#4.5">section4.5</a>])。上述情況以下面三個例子說明。上述情況以下面三個例子說明。
+<ul>  
+<li> 例一. 將文件中含 "machine" 字串的資料行中的 "phi" 字串 , 替換成為 "beta" 字串。其命令列如下 :
+<br>
+         sed -e '/machine/s/phi/beta/g' input.dat(以後文件檔都以 input.dat 代表)
+<p>  
+<li> 例二. 將文件中第 5 行資料 , 替換成句子 "Those who in quarrels interpose, must often wipe a bloody nose."。其命令列如下
+<h5>
+<pre>
+sed -e '5c\
+Those must often wipe a bloody nose.
+' input.dat
+</pre> 
+</h5>
+<li> 例三. 將文件中 1 至 100 行的資料區 , 替換成如下兩行資料 :
+<h5>
+<pre>
+How are you?
+data be deleted!
+</pre> 
+</h5>
+則其命令列如下
+<h5>
+<pre>
+sed -e '1,100c\
+How are you?\
+data be deleted!
+' input.dat
+</pre> 
+</h5>
+</ul>
+<a name="3.2 "><h2>3.2 搬動文件中的資料 </h2></a>
+
+&nbsp&nbsp 使用者可用 sed 中的 hold space 暫存編輯中的資料、用函數參數 w(參照[<a href="sed_sec_4.html#4.9">section4.9</a>])將文件資料搬動到它檔內儲存、或用函數參數 r(參照[<a href="sed_sec_4.html#4.8">section4.8</a>])將它檔內容搬到文件內。Hold space 是 sed 用來暫存 pattern space 內資料的暫存器 , 當 sed 執行函數參數 h、H(參照[<a href="sed_sec_4.html#4.19">section4.19</a>])時 , 會將 pattern space 資料暫存到 hold space;當執行函數參數 x、g、G(參照[<a href="sed_sec_4.html#4.22">section4.22</a>])時 , 會將暫存的資料取到 pattern space 。下面舉三個例子說明。
+<ul>
+<li> 例一. 將文件中的前 100 資料 , 搬到文件中第 300 後輸出。其命令列如下 :<p>
+<h5>
+<pre>
+sed -f mov.scr 文件檔
+</pre>
+</h5>
+mov.scr 檔的內容為
+<h5>
+<pre>
+1,100{
+H
+d
+}
+300G
+</pre>
+</h5>
+其中 ,
+<h5>
+<pre> 
+1,100{
+H
+d
+}
+</pre>
+</h5>
+它表示將文件中的前 100 資料 , 先儲存(參照[<a href="sed_footnote.html#4.19">section4.19</a>])在 hold space 之後刪除 ;指令 300G (參照[<a href="sed_footnote.html#4.22">section4.22</a>]) 表示 , 將 hold space 內的資料 , 添加在文件中的第 300 資料後輸出。
+<li> 例二. 將文件中含 "phi" 字串的資料行 , 搬至 mach.inf 檔中儲存。其命令列如下 :
+<h5>
+<pre>
+sed -e '/phi/w mach.inf' 文件檔
+</pre>    
+</h5>
+<li> 例三. 將 mach.inf 檔內容 , 搬至文件中含 "beta" 字串的資料行。其命令列如下 :
+<h5>
+<pre>
+sed -e '/beta/r mach.inf' 文件檔
+</pre>    
+</h5>
+</ul>
+另外 , 由於 sed 是一 stream(參照[<a href="sed_sec_1.html#1.4">section1.4</a>])編輯器 , 故理論上輸出後的文件資料不可能再搬回來編輯。  
+<p>
+<a name="3.3 "><h2>3.3 刪除文件中的資料 </h2></a>
+
+&nbsp&nbsp 因為 sed 是一行編輯器 , 所以 sed 很容易刪除個別資料行或整個資料區。一般用函數參數 d(參照[<a href="sed_sec_4.html#4.2">section4.2</a>])或 D(參照[<a href="sed_sec_4.html#4.17">section4.17</a>]) 來表示。下面舉兩個例子說明。
+<ul>
+<li> 將文件內所有空白行全部刪除。其命令列為
+<h5>
+<pre>
+      sed -e '/^$/d' 文件檔
+</pre>
+</h5>
+regular expression(註解[<a href="sed_sec_5.html">附錄 A</a>]) , ^$ 表示空白行。 其中 , ^ 限制其後字串必須在行首; $ 限制其前字串必須在行尾。 
+<li> 將文件內連續的空白行 , 刪除它們成為一行。其命令列為
+<h5>
+<pre>
+   sed -e '/^$/{
+   N
+   /^$/D 
+   }' 文件檔
+</pre>
+</h5>
+其中 , 函數參數 N(參照[<a href="sed_sec_4.html#4.16">section4.16</a>])表示 , 將空白行的下一行資料添加至 pattern space 內。函數參數 /^$/D 表示 , 當添加的是空白行時 , 刪除第一行空白行 , 而且剩下的空白行則再重新執行指令一次。指令重新執行一次 , 刪除一行空白行 , 如此反覆直至空白行後添加的為非空白行為止 , 故連續的空白行最後只剩一空白行被輸出。
+</ul>
+<a name="3.4"><h2> 3.4 搜尋文件中的資料 </h2></a>
+&nbsp&nbsp Sed 可以執行類似 UNIX 命令 grep 的功能。理論上 , 可用 regular expression(參照[<a href="sed_sec_5.html">附錄 A</a>])。例如 , 將文件中含有 "gamma" 字串的資料行輸出。則其命令列如下:
+<h5>
+<pre>
+                 sed -n -e '/gamma/p' 文件檔
+</pre>
+</h5>
+&nbsp&nbsp 但是 , sed 是行編輯器 , 它的搜尋基本上是以一行為單位。因此 , 當一些字串因換行而被拆成兩部份時 , 一般的方法即不可行。此時 , 就必須以合併兩行的方式來搜尋這些資料。其情況如下面例子:
+<p>
+例. 將文件中含 "omega" 字串的資料輸出。其命令列如下 
+<h5>
+<pre>
+sed -f gp.scr 文件檔
+</pre>
+</h5>
+gp.scr 檔的內容如下 :
+<h5>
+<pre>
+/omega/b
+N
+h
+s/.*\n//
+/omega/b
+g
+D
+</pre>
+</h5>
+在上述 sed script(註解[<a href="sed_footnote.html#8.10">10</a>]), 因藉著函數參數 b 形成類似 C 語言中的 case statement 結構 , 使得 sed 可分別處理當資料內含 "omega" 字串 ; 當 "omega" 字串被拆成兩行 ; 以及資料內沒有"omega" 字串的情況。接下來就依上述的三種情況 , 將 sed script 分成下面三部份來討論。
+<ol>
+<li> 當資料內含 "omega" , 則執行編輯指令
+<h5>
+<pre>
+/omega/b
+</pre> 
+</h5>
+它表示當資料內含 "omega" 字串時 ,  sed 不用再對它執行後面的指令 , 而直接將它輸出。
+<li> 當資料內沒有"omega" , 則執行編輯指令如下
+<h5>
+<pre>
+N
+h
+s/.*\n//
+/omega/b
+</pre>
+</h5>
+其中 , 函數參數 N(參照[<a href="sed_sec_4.html#4.16">section 4.16</a>]) , 它表示將下一行資料讀入使得 pattern space 內含前後兩行資料 。函數參數 h(參照[<a href="sed_sec_4.html#4.19">section 4.19</a>]) , 它表示將 pattern space 內的前後兩行資料存入 hold space 。函數參數 s/.*\n// , 它表示將 pattern space 內的前後兩行資料合併(註解[<a href="sed_footnote.html#8.11">11</a>])成一行。/omega/b , 它表示如果合併後的資料內含 "omega" 字串 , 則不用再執行它之後的指令 ,  而將此資料自動輸出 ; 
+<p>
+<li> 當合併後的資料依舊不含 "omega" , 則執行編輯指令如下  
+<h5>
+<pre>
+g
+D
+</pre>  
+</h5>
+其中 , 函數參數 g(參照[<a href="sed_sec_4.html#4.21">section4.21</a>]) ,  它表示將 hold space 內合併前的兩行資料放回 pattern space。 函數參數 D(參照[<a href="sed_sec_4.html#4.17">section4.17</a>]) , 它表示刪除兩行資料中的第一行資料 , 並讓剩下的那行資料 , 重新執行 sed script。如此 , 無論的資料行內或行間的字串才可搜尋完全。
+</ol>     
+<p>
+<hr>
+<p>
+[<a href="index.html">Table Of Contents</a>][<a href="sed_sec_2.html">chapter2</a>][<a href="sed_sec_4.html">chapter4</a>]
+</html>
+
+
+
+
+

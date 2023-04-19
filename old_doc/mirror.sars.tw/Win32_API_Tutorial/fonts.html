@@ -1,0 +1,337 @@
+<HTML>
+
+<LINK HREF="style.css" REL="STYLESHEET" TYPE="text/css">
+
+<HEAD>
+<TITLE>Text and Fonts</TITLE>
+</HEAD>
+
+<BODY>
+<FONT SIZE="-1">
+[ <A HREF="./index.html">contents</A>
+| <A HREF="http://www.winprog.org/">#winprog</A>
+]
+</FONT>
+<HR>
+
+
+<H1>Text and Fonts</H1>
+
+<P>Example: font_one</P>
+<IMG SRC="images/font_one.gif" ALT="[images/font_one.gif]" ALIGN="right">
+
+<H2>Loading Fonts</H2>
+
+The Win32 GDI has some remarkable capabilites for dealing with vastly different typefaces,
+styles, languages and characters sets.  One of the drawbacks of this is that dealing with
+fonts can look rather intimidating to the newcomer.  <CODE>CreateFont()</CODE>, the primary
+API when it comes to fonts, has 14 parameters for specifying height, style, weight, family,
+and various other attributes.
+
+<P>
+Fortunately, it's not really has hard as it might appear, and a large portion of the work
+involved is taken care of my sensible default values.  All but 2 of the parameters to 
+<CODE>CreateFont()</CODE> can be set to <CODE>0</CODE> or <CODE>NULL</CODE>, and the system
+will simply use a default value giving you a plain ordinary font.
+
+<P>
+<CODE>CreateFont()</CODE> creates an <CODE>HFONT</CODE>, a handle to a <I>Logical Font</I> in memory.  The data held by this 
+handle can be retreived into a <CODE>LOGFONT</CODE> structure using <CODE>GetObject()</CODE> just
+as a <CODE>BITMAP</CODE> struct can be filled from an <CODE>HBITMAP</CODE>.  
+
+<P>
+The members of the <CODE>LOGFONT</CODE> are identical to the parameters to <CODE>CreateFont()</CODE> and
+for convenience you can create a font directly from an existing <CODE>LOGFONT</CODE> structure
+using <CODE>CreateFontIndirect()</CODE>.
+This is very handy, since it makes it simple to create a new font from an existing font handle
+when you only want to alter certain aspects of it.  Use <CODE>GetObject()</CODE> to fill a <CODE>LOGFONT</CODE>,
+alter the members that you wish, and create a new font with <CODE>CreateFontIndirect()</CODE>.
+
+<PRE CLASS="SNIP">
+    HFONT hf;
+    HDC hdc;
+    long lfHeight;
+    
+    hdc = GetDC(NULL);
+    lfHeight = -MulDiv(12, GetDeviceCaps(hdc, LOGPIXELSY), 72);
+    ReleaseDC(NULL, hdc);
+
+    hf = CreateFont(lfHeight, 0, 0, 0, 0, TRUE, 0, 0, 0, 0, 0, 0, 0, "Times New Roman");
+
+    if(hf)
+    {
+        DeleteObject(g_hfFont);
+        g_hfFont = hf;
+    }
+    else
+    {
+        MessageBox(hwnd, "Font creation failed!", "Error", MB_OK | MB_ICONEXCLAMATION);
+    }                   
+</PRE>
+
+<P>
+This is the code used to create the font in the example image.  This is <I>Times New Roman</I> at <I>12 Point</I> with
+the <I>Italics</I> style set.  The italics flag is the 6th parameter to <CODE>CreateFont()</CODE> which you can 
+see we have set to <CODE>TRUE</CODE>.  The name of the font we want to use is the last parameter.
+
+<P>
+The one bit of trickery in this code is the value used for the size of the font, the <CODE>lfHeight</CODE> parameter to 
+<CODE>CreateFont()</CODE>.  Usually people are used to working with <I>Point</I> sizes, Size 10, Size 12, etc... when 
+dealing with fonts.  <CODE>CreateFont()</CODE> however doesn't accept point sizes, it wants <CODE>Logical Units</CODE>
+which are different on your screen than they are on your Printer, and even between Printers and screens.  
+
+<P>
+The reason
+this situation exists is because the resolution of different devices is so vastly different... Printers can easily
+display 600 to 1200 pixels per inch, while a screen is lucky to get 200... if you used the same sized font on a printer
+as on a screen, you likely wouldn't even be able to see individual letters.
+
+<P>
+All we have to do is convert from the point size we want, into the appropriate logical size for the device.  In this
+case the device is the screen, so we get the <CODE>HDC</CODE> to the screen, and get the number of logical pixels per inch
+using <CODE>GetDeviceCaps()</CODE> and slap this into the formula so generously provided in MSDN which uses 
+<CODE>MulDiv()</CODE> to convert from our pointsize of <CODE>12</CODE> to the correct logical size that <CODE>CreateFont()</CODE>
+expects.  We store this in <CODE>lfHeight</CODE> and pass it as the first parameter to <CODE>CreateFont()</CODE>.
+
+<H3>Default Fonts</H3>
+
+When you first call <CODE>GetDC()</CODE> to get the <CODE>HDC</CODE> to your window, the
+default font that is selected into it is <I>System</I>, which to be honest isn't all that
+attractive.  The simplest way to get a reasonable looking font to work with (without going through the <CODE>CreateFont()</CODE>
+hassle) is to call 
+<CODE>GetStockObject()</CODE> and ask for the <CODE>DEFAULT_GUI_FONT</CODE>.  
+
+<P>
+This is
+a system object and you can get it as many times as you want without leaking memory,
+and you can call <CODE>DeleteObject()</CODE> on it which won't do anything, which is good
+because now you don't need to keep track of whether your font is one from <CODE>CreateFont()</CODE> or
+<CODE>GetStockObject()</CODE> before trying to free it.
+
+<H2>Drawing Text</H2>
+
+Now that we have a handy-dandy font, how do we get some text on the screen?  This is assuming that we don't
+just want to use an Edit or Static control.
+
+<P>
+Your basic options are <CODE>TextOut()</CODE> and <CODE>DrawText()</CODE>.  <CODE>TextOut()</CODE> is simpler,
+but has less options and doesn't do word wrapping or alignment for you.
+
+<PRE CLASS="SNIP">
+    char szSize[100];
+    char szTitle[] = "These are the dimensions of your client area:";
+    HFONT hfOld = SelectObject(hdc, hf);
+
+    SetBkColor(hdc, g_rgbBackground);
+    SetTextColor(hdc, g_rgbText);
+
+    if(g_bOpaque)
+    {
+        SetBkMode(hdc, OPAQUE);
+    }
+    else
+    {
+        SetBkMode(hdc, TRANSPARENT);
+    }
+
+    DrawText(hdc, szTitle, -1, prc, DT_WORDBREAK);
+
+    wsprintf(szSize, "{%d, %d, %d, %d}", prc->left, prc->top, prc->right, prc->bottom);
+    DrawText(hdc, szSize, -1, prc, DT_SINGLELINE | DT_CENTER | DT_VCENTER);
+
+    SelectObject(hdc, hfOld);
+</PRE>
+
+<P>
+First thing we do is use <CODE>SelectObject()</CODE> to get the font we want to use into our <CODE>HDC</CODE> and 
+ready for drawing.  All future text operations will use this font untill another one is selected in.
+
+<P>
+Next we set the Text and Background colours.  Setting the background colour doesn't actually make the <I>whole</I>
+background this colour, it only affects certain operations (text being one of them) that use the background colour to
+draw with.  This is also dependant on the current <I>Background Mode</I>.  If it is set to <CODE>OPAQUE</CODE> (the default)
+then any text drawn is filled in behing with the background colour.  If it is set to <CODE>TRANSPARENT</CODE> then
+text is drawn without a background and whatever is behind will show through and in this case the background colour
+has no effect.
+
+<P>
+Now we actually draw the text using <CODE>DrawText()</CODE>, we pass in the <CODE>HDC</CODE> to use and the string
+to draw.  The 3rd parameter is the length of the string, but we've passed -1 because <CODE>DrawText()</CODE> is
+smart enough that it will figure out how long the text is itself.  In the 4th parameter we pass in <CODE>prc</CODE>,
+the pointer to the client <CODE>RECT</CODE>.  <CODE>DrawText()</CODE> will draw inside this rectangle based on
+the other flags that you give it.
+
+<P>
+In the first call, we specify <CODE>DT_WORDBREAK</CODE>, which defaults to aligned to the top left, and will
+wrap the text it draws automatically at the edge of the rectangle... very useful.
+
+<P>
+For the second call, we're only printing a single line without wrapping, and we want it to be centered horizontally as well
+as vertically (which <CODE>DrawText()</CODE> will do only when drawing a single line).
+
+<H4>Client Redraw</H4>
+
+Just a note about the example program... when the <CODE>WNDCLASS</CODE> is registered I have set the 
+<CODE>CS_VREDRAW</CODE> and <CODE>CS_HREDRAW</CODE> class styles.  This causes the entire client
+area to be redrawn if the window is resized, whereas the default is to only redraw the parts that have
+changed.  That looks really bad since the centered text moves around when you resize and it doesn't update
+like you'd expect.
+
+
+<H2>Choosing Fonts</H2>
+
+In general, any program that deals with fonts will want to let the user choose their own font, as well
+as the colour and style attribute to use when displaying it.
+
+<P>
+Like the common dialogs for getting open and save file names, there is a common dialog for choosing a font.
+This is, oddly enough, called <CODE>ChooseFont()</CODE> and it works with the <CODE>CHOOSEFONT</CODE> structure
+for you to set the defaults it should start with as well as returning the final result of the users selection.
+
+<PRE CLASS="SNIP">
+HFONT g_hfFont = GetStockObject(DEFAULT_GUI_FONT);
+COLORREF g_rgbText = RGB(0, 0, 0);
+</PRE>
+<PRE CLASS="SNIP">
+void DoSelectFont(HWND hwnd)
+{
+    CHOOSEFONT cf = {sizeof(CHOOSEFONT)};
+    LOGFONT lf;
+
+    GetObject(g_hfFont, sizeof(LOGFONT), &lf);
+
+    cf.Flags = CF_EFFECTS | CF_INITTOLOGFONTSTRUCT | CF_SCREENFONTS;
+    cf.hwndOwner = hwnd;
+    cf.lpLogFont = &lf;
+    cf.rgbColors = g_rgbText;
+
+    if(ChooseFont(&cf))
+    {
+        HFONT hf = CreateFontIndirect(&lf);
+        if(hf)
+        {
+            g_hfFont = hf;
+        }
+        else
+        {
+            MessageBox(hwnd, "Font creation failed!", "Error", MB_OK | MB_ICONEXCLAMATION);
+        }
+
+        g_rgbText = cf.rgbColors;
+    }
+}
+</PRE>
+
+<P>
+The <CODE>hwnd</CODE> in this call is simply the window you want to use as the parent for the font dialog.
+
+<P>
+The easiest way to use this dialog is in conjunction with an existing <CODE>LOGFONT</CODE> structure, which
+is most likely from whichever <CODE>HFONT</CODE> you are currently using.  We set the <CODE>lpLogFont</CODE>
+member of the structure to point to the <CODE>LOGFONT</CODE> that we just filled with our current information
+and also added the <CODE>CF_INITTOLOGFONTSTRUCT</CODE> flag so that <CODE>ChooseFont()</CODE> knows to
+use this member.  The flag <CODE>CF_EFFECTS</CODE> tells <CODE>ChooseFont()</CODE> to allow the user
+to select a colour, as well as Underline and Strikeout attributes.
+
+<P>
+Oddly enough, the Bold and Italics styles don't count as effects, they are considered part of the font itself
+and in fact some fonts only come in Bold or Italics.  If you want to check or prevent the user from selecting
+a bold or italic font you can check the <CODE>lfWeight</CODE> and <CODE>lfItalic</CODE> members of the 
+<CODE>LOGFONT</CODE> respectively, after the user has made their selection.  You can then prompt the user
+to make another selection or something change the members before calling <CODE>CreateFontIndirect()</CODE>.
+
+<P>
+The colour of a font is not associated with an <CODE>HFONT</CODE>, and therefor must be stored seperately,
+the <CODE>rgbColors</CODE> member of the <CODE>CHOOSEFONT</CODE> struct is used both to pass in the initial
+colour and retreive the new colour afterward.
+
+<P>
+<CODE>CF_SCREENFONTS</CODE> indicates that we want fonts designed to work on the screen, as opposed to fonts that
+are designed for printers.  Some support both, some only one or the other.  Depending on what you're going
+to be using the font for, this and many other flags can be found in MSDN to limit exactly which fonts you
+want the user to be able to select.
+
+<H2>Choosing Colours</H2>
+
+In order to allow the user to change just the colour of the font, or to let them pick a new colour
+for anything at all, there is the <CODE>ChooseColor()</CODE> common dialog.  This is the code
+used to allow the user to select the background colour in the example program.
+
+<PRE CLASS="SNIP">
+COLORREF g_rgbBackground = RGB(255, 255, 255);
+COLORREF g_rgbCustom[16] = {0};
+</PRE>
+<PRE CLASS="SNIP">
+void DoSelectColour(HWND hwnd)
+{
+    CHOOSECOLOR cc = {sizeof(CHOOSECOLOR)};
+
+    cc.Flags = CC_RGBINIT | CC_FULLOPEN | CC_ANYCOLOR;
+    cc.hwndOwner = hwnd;
+    cc.rgbResult = g_rgbBackground;
+    cc.lpCustColors = g_rgbCustom;
+
+    if(ChooseColor(&cc))
+    {
+        g_rgbBackground = cc.rgbResult;
+    }
+}
+</PRE>
+
+<P>
+This is fairly straightforward, again we're using the <CODE>hwnd</CODE> parameter as the parent to the dialog.
+The <CODE>CC_RGBINIT</CODE> parameter says to start off with the colour we pass in through the <CODE>rgbResult</CODE>
+member, which is also where we get the colour the user selected when the dialog closes.
+
+<P>
+The <CODE>g_rgbCustom</CODE> array of 16 <CODE>COLORREF</CODE>s is required to store any values the user decides
+to put into the custom colour table on the dialog.  You could potentially store these values somewhere like the
+registry, otherwise they will simply be lost when your program is closed.  This parameter is not optional.
+
+<H2>Control Fonts</H2>
+
+Something else you might want to do at some point is change the font on the controls on your
+dialog or window.  This is usually the case when using <CODE>CreateWindow()</CODE> to create
+controls as we've done in previous examples.  Controls like windows use System by default,
+so we used <CODE>WM_SETFONT</CODE> to set a new font handle (from <CODE>GetStockObject()</CODE>)
+for the control to use.  You can use this method with fonts you create from <CODE>CreateFont()</CODE>
+as well.  Simply pass the font handle as <CODE>wParam</CODE> and set <CODE>lParam</CODE> to 
+<CODE>TRUE</CODE> to make the control redraw.
+
+<P>
+I've done this in previous examples, but it makes sense to mention it here because it's 
+relevant and very short:
+
+<PRE CLASS="SNIP">
+    SendDlgItemMessage(hwnd, IDC_OF_YOUR_CONTROL, WM_SETFONT, (WPARAM)hfFont, TRUE);
+</PRE>
+
+<P>
+Where <CODE>hfFont</CODE> is of course the <CODE>HFONT</CODE> you want to use, and 
+<CODE>IDC_OF_YOUR_CONTROL</CODE> is the ID of whichever control you want to change the font of.
+
+<HR>
+<FONT SIZE="-1">
+Copyright &copy; 1998-2003, Brook Miles (<A HREF="mailto:forger(nospam)winprog.org">theForger</A>).  All rights reserved.
+</FONT>
+
+<SCRIPT language="JavaScript">
+<!--
+   var re = /\(nospam\)/ig;
+   var str;
+
+   for(i = 0;i < document.links.length;i++) 
+   {
+      str = "" + document.links(i).href;
+      if(str.search(re) != -1)
+         document.links(i).href = str.replace(re, "@");
+
+      str = "" + document.links(i).innerHTML;
+      if(str.search(re) != -1)
+         document.links(i).innerHTML = str.replace(re, "@");
+   }
+-->
+</SCRIPT>
+
+</BODY>
+</HTML>

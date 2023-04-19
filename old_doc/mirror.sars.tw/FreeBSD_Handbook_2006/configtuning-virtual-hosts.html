@@ -1,0 +1,126 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>虛擬主機(Virtual Hosts)</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.79" />
+<link rel="HOME" title="FreeBSD 使用手冊" href="index.html" />
+<link rel="UP" title="設定與效能調校(Tuning)" href="config-tuning.html" />
+<link rel="PREVIOUS" title="設定網路卡" href="config-network-setup.html" />
+<link rel="NEXT" title="還有哪些主要設定檔呢？" href="configtuning-configfiles.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD 使用手冊</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="config-network-setup.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 11 設定與效能調校(Tuning)</td>
+<td width="10%" align="right" valign="bottom"><a href="configtuning-configfiles.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="CONFIGTUNING-VIRTUAL-HOSTS"
+name="CONFIGTUNING-VIRTUAL-HOSTS">11.9 虛擬主機(Virtual Hosts)</a></h1>
+
+<p>A very common use of FreeBSD is virtual site hosting, where one server appears to the
+network as many servers. This is achieved by assigning multiple network addresses to a
+single interface.</p>
+
+<p>A given network interface has one “real” address, and may have any number of
+“alias” addresses. These aliases are normally added by placing alias entries in <tt
+class="FILENAME">/etc/rc.conf</tt>.</p>
+
+<p>An alias entry for the interface <tt class="DEVICENAME">fxp0</tt> looks like:</p>
+
+<pre class="PROGRAMLISTING">
+ifconfig_fxp0_alias0="inet xxx.xxx.xxx.xxx netmask xxx.xxx.xxx.xxx"
+</pre>
+
+<p>Note that alias entries must start with <tt class="LITERAL">alias0</tt> and proceed
+upwards in order, (for example, <tt class="LITERAL">_alias1</tt>, <tt
+class="LITERAL">_alias2</tt>, and so on). The configuration process will stop at the
+first missing number.</p>
+
+<p>The calculation of alias netmasks is important, but fortunately quite simple. For a
+given interface, there must be one address which correctly represents the network's
+netmask. Any other addresses which fall within this network must have a netmask of all
+<tt class="LITERAL">1</tt>s (expressed as either <tt class="HOSTID">255.255.255.255</tt>
+or <tt class="HOSTID">0xffffffff</tt>).</p>
+
+<p>For example, consider the case where the <tt class="DEVICENAME">fxp0</tt> interface is
+connected to two networks, the <tt class="HOSTID">10.1.1.0</tt> network with a netmask of
+<tt class="HOSTID">255.255.255.0</tt> and the <tt class="HOSTID">202.0.75.16</tt> network
+with a netmask of <tt class="HOSTID">255.255.255.240</tt>. We want the system to appear
+at <tt class="HOSTID">10.1.1.1</tt> through <tt class="HOSTID">10.1.1.5</tt> and at <tt
+class="HOSTID">202.0.75.17</tt> through <tt class="HOSTID">202.0.75.20</tt>. As noted
+above, only the first address in a given network range (in this case, <tt
+class="HOSTID">10.0.1.1</tt> and <tt class="HOSTID">202.0.75.17</tt>) should have a real
+netmask; all the rest (<tt class="HOSTID">10.1.1.2</tt> through <tt
+class="HOSTID">10.1.1.5</tt> and <tt class="HOSTID">202.0.75.18</tt> through <tt
+class="HOSTID">202.0.75.20</tt>) must be configured with a netmask of <tt
+class="HOSTID">255.255.255.255</tt>.</p>
+
+<p>The following <tt class="FILENAME">/etc/rc.conf</tt> entries configure the adapter
+correctly for this arrangement:</p>
+
+<pre class="PROGRAMLISTING">
+ifconfig_fxp0="inet 10.1.1.1 netmask 255.255.255.0"
+ifconfig_fxp0_alias0="inet 10.1.1.2 netmask 255.255.255.255"
+ifconfig_fxp0_alias1="inet 10.1.1.3 netmask 255.255.255.255"
+ifconfig_fxp0_alias2="inet 10.1.1.4 netmask 255.255.255.255"
+ifconfig_fxp0_alias3="inet 10.1.1.5 netmask 255.255.255.255"
+ifconfig_fxp0_alias4="inet 202.0.75.17 netmask 255.255.255.240"
+ifconfig_fxp0_alias5="inet 202.0.75.18 netmask 255.255.255.255"
+ifconfig_fxp0_alias6="inet 202.0.75.19 netmask 255.255.255.255"
+ifconfig_fxp0_alias7="inet 202.0.75.20 netmask 255.255.255.255"
+</pre>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="config-network-setup.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="configtuning-configfiles.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">設定網路卡</td>
+<td width="34%" align="center" valign="top"><a href="config-tuning.html"
+accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">還有哪些主要設定檔呢？</td>
+</tr>
+</table>
+</div>
+
+<p align="center"><small>This, and other documents, can be downloaded from <a
+href="ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/">ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/</a>.</small></p>
+
+<p align="center"><small>For questions about FreeBSD, read the <a
+href="http://www.FreeBSD.org/docs.html">documentation</a> before contacting &#60;<a
+href="mailto:questions@FreeBSD.org">questions@FreeBSD.org</a>&#62;.<br />
+For questions about this documentation, e-mail &#60;<a
+href="mailto:doc@FreeBSD.org">doc@FreeBSD.org</a>&#62;.</small></p>
+</body>
+</html>
+

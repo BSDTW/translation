@@ -1,0 +1,1467 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML
+><HEAD
+><TITLE
+>Processes inside out</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Introduction to Linux"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="Processes"
+HREF="chap_04.html"><LINK
+REL="PREVIOUS"
+TITLE="Processes"
+HREF="chap_04.html"><LINK
+REL="NEXT"
+TITLE="Boot process, Init and shutdown"
+HREF="sect_04_02.html"></HEAD
+><BODY
+CLASS="sect1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Introduction to Linux: </TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="chap_04.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 4. Processes</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="sect_04_02.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="sect1"
+><H1
+CLASS="sect1"
+><A
+NAME="sect_04_01"
+></A
+>4.1. Processes inside out</H1
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="sect_04_01_01"
+></A
+>4.1.1. Multi-user and multi-tasking</H2
+><P
+>Now that we are more used to our environment and we are able to communicate a little bit with our system, it is time to study the processes we can start in more detail.  Not every command starts a single process.  Some commands initiate a series of processes, such as <B
+CLASS="command"
+>mozilla</B
+>; others, like <B
+CLASS="command"
+>ls</B
+>, are executed as a single command.</P
+><P
+>Furthermore, Linux is based on UNIX, where it has been common policy to have multiple users running multiple commands, at the same time and on the same system.  It is obvious that measures have to be taken to have the CPU manage all these processes, and that functionality has to be provided so users can switch between processes.  In some cases, processes will have to continue to run even when the user who started them logs out.  And users need a means to reactivate interrupted processes.</P
+><P
+>We will explain the structure of Linux processes in the next sections.</P
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="sect_04_01_02"
+></A
+>4.1.2. Process types</H2
+><DIV
+CLASS="sect3"
+><H3
+CLASS="sect3"
+><A
+NAME="sect_04_01_02_01"
+></A
+>4.1.2.1. Interactive processes</H3
+><P
+>Interactive processes are initialized and controlled through a terminal session.  In other words, there has to be someone connected to the system to start these processes; they are not started automatically as part of the system functions.  These processes can run in the foreground, occupying the terminal that started the program, and you can't start other applications as long as this process is running in the foreground.  Alternatively, they can run in the background, so that the terminal in which you started the program can accept new commands while the program is running.  Until now, we mainly focussed on programs running in the foreground - the length of time taken to run them was too short to notice - but viewing a file with the <B
+CLASS="command"
+>less</B
+> command is a good example of a command occupying the terminal session.  In this case, the activated program is waiting for you to do something.  The program is still connected to the terminal from where it was started, and the terminal is only useful for entering commands this program can understand.  Other commands will just result in errors or unresponsiveness of the system.</P
+><P
+>While a process runs in the background, however, the user is not prevented from doing other things in the terminal in which he started the program, while it is running.</P
+><P
+>The shell offers a feature called <EM
+>job control</EM
+> which allows easy handling of multiple processes.  This mechanism switches processes between the foreground and the background.  Using this system, programs can also be started in the background immediately.</P
+><P
+>Running a process in the background is only useful for programs that don't need user input (via the shell).  Putting a job in the background is typically done when execution of a job is expected to take a long time.  In order to free the issuing terminal after entering the command, a trailing ampersand is added.  In the example, using graphical mode, we open an extra terminal window from the existing one:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;<TT
+CLASS="prompt"
+>billy:~&#62;</TT
+> <B
+CLASS="command"
+>xterm &#38;</B
+>
+[1] 26558
+
+<TT
+CLASS="prompt"
+>billy:~&#62;</TT
+> <B
+CLASS="command"
+>jobs</B
+>
+[1]+  Running                 xterm &#38;
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>The full job control features are explained in detail in the <B
+CLASS="command"
+>bash</B
+> <SPAN
+CLASS="application"
+>Info</SPAN
+> pages, so only the frequently used job control applications are listed here:</P
+><DIV
+CLASS="table"
+><A
+NAME="AEN4685"
+></A
+><P
+><B
+>Table 4-1. Controlling processes</B
+></P
+><TABLE
+BORDER="1"
+CLASS="CALSTABLE"
+><THEAD
+><TR
+><TH
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>(part of) command</TH
+><TH
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>Meaning</TH
+></TR
+></THEAD
+><TBODY
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+><B
+CLASS="command"
+>regular_command</B
+></TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>Runs this command in the foreground.</TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+><B
+CLASS="command"
+>command &#38;</B
+></TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>Run this command in the background (release the terminal)</TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+><B
+CLASS="command"
+>jobs</B
+></TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>Show commands running in the background.</TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+><B
+CLASS="keycap"
+>Ctrl</B
+>+<B
+CLASS="keycap"
+>Z</B
+></TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>Suspend (stop, but not quit) a process running in the foreground (suspend).</TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+><B
+CLASS="keycap"
+>Ctrl</B
+>+<B
+CLASS="keycap"
+>C</B
+></TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>Interrupt (terminate and quit) a process running in the foreground.</TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+><TT
+CLASS="parameter"
+><I
+>%n</I
+></TT
+></TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>Every process running in the background gets a number assigned to it.  By using the % expression a job can be referred to using its number, for instance <B
+CLASS="command"
+>fg <TT
+CLASS="parameter"
+><I
+>%2</I
+></TT
+></B
+>.</TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+><B
+CLASS="command"
+>bg</B
+></TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>Reactivate a suspended program in the background.</TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+><B
+CLASS="command"
+>fg</B
+></TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>Puts the job back in the foreground.</TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+><B
+CLASS="command"
+>kill</B
+></TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>End a process (also see Shell Builtin Commands in the Info pages of <B
+CLASS="command"
+>bash</B
+>)</TD
+></TR
+></TBODY
+></TABLE
+></DIV
+><P
+>More practical examples can be found in the exercises.</P
+><P
+>Most UNIX systems are likely to be able to run <B
+CLASS="command"
+>screen</B
+>, which is useful when you actually want another shell to execute commands.  Upon calling <B
+CLASS="command"
+>screen</B
+>, a new session is created with an accompanying shell and/or commands as specified, which you can then put out of the way.  In this new session you may do whatever it is you want to do.  All programs and operations will run independent of the issuing shell.  You can then detach this session, while the programs you started in it continue to run, even when you log out of the originating shell, and pick your <EM
+>screen</EM
+> up again any time you like.</P
+><P
+>This program originates from a time when virtual consoles were not invented yet, and everything needed to be done using one text terminal.  To addicts, it still has meaning in Linux, even though we've had virtual consoles for almost ten years.</P
+></DIV
+><DIV
+CLASS="sect3"
+><H3
+CLASS="sect3"
+><A
+NAME="sect_04_01_02_02"
+></A
+>4.1.2.2. Automatic processes</H3
+><P
+>Automatic or batch processes are not connected to a terminal.  Rather, these are tasks that can be queued into a spooler area, where they wait to be executed on a FIFO (first-in, first-out) basis.  Such tasks can be executed using one of two criteria:</P
+><P
+></P
+><UL
+><LI
+><P
+>At a certain date and time: done using the <B
+CLASS="command"
+>at</B
+> command, which we will discuss in the second part of this chapter.</P
+></LI
+><LI
+><P
+>At times when the total system load is low enough to accept extra jobs: done using the <B
+CLASS="command"
+>batch</B
+> command.  By default, tasks are put in a queue where they wait to be executed until the system load is lower than 0.8.  In large environments, the system administrator may prefer batch processing when large amounts of data have to be processed or when tasks demanding a lot of system resources have to be executed on an already loaded system.  Batch processing is also used for optimizing system performance.</P
+></LI
+></UL
+></DIV
+><DIV
+CLASS="sect3"
+><H3
+CLASS="sect3"
+><A
+NAME="sect_04_01_02_03"
+></A
+>4.1.2.3. Daemons</H3
+><P
+>Daemons are server processes that run continuously.  Most of the time, they are initialized at system startup and then wait in the background until their service is required.  A typical example is the networking daemon, <EM
+>xinetd</EM
+>, which is started in almost every boot procedure.  After the system is booted, the network daemon just sits and waits until a client program, such as an FTP client, needs to connect.</P
+></DIV
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="sect_04_01_03"
+></A
+>4.1.3. Process attributes</H2
+><P
+>A process has a series of characteristics, which can be viewed with the <B
+CLASS="command"
+>ps</B
+> command:</P
+><P
+></P
+><UL
+><LI
+><P
+>The process ID or PID: a unique identification number used to refer to the process.</P
+></LI
+><LI
+><P
+>The parent process ID or PPID: the number of the process (PID) that started this process.</P
+></LI
+><LI
+><P
+>Nice number: the degree of friendliness of this process toward other processes (not to be confused with process priority, which is calculated based on this nice number and recent CPU usage of the process).</P
+></LI
+><LI
+><P
+>Terminal or TTY: terminal to which the process is connected.</P
+></LI
+><LI
+><P
+>User name of the real and effective user (RUID and EUID): the owner of the process.  The real owner is the user issuing the command, the effective user is the one determining access to system resources.  RUID and EUID are usually the same, and the process has the same access rights the issuing user would have.  An example to clarify this: the browser <B
+CLASS="command"
+>mozilla</B
+> in <TT
+CLASS="filename"
+>/usr/bin</TT
+> is owned by user <EM
+>root</EM
+>:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;<TT
+CLASS="prompt"
+>theo:~&#62;</TT
+> <B
+CLASS="command"
+>ls -l /usr/bin/mozilla</B
+>
+-rwxr-xr-x  1 root   root      4996 Nov 20 18:28 /usr/bin/mozilla*
+
+<TT
+CLASS="prompt"
+>theo:~&#62;</TT
+> <B
+CLASS="command"
+>mozilla &#38;</B
+>
+[1] 26595
+
+<TT
+CLASS="prompt"
+>theo:~&#62;</TT
+> <B
+CLASS="command"
+>ps -af</B
+>
+UID     PID  PPID C STIME TTY       TIME CMD
+theo  26601 26599 0 15:04 pts/5 00:00:00 /usr/lib/mozilla/mozilla-bin
+theo  26613 26569 0 15:04 pts/5 00:00:00 ps -af
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>When user <EM
+>theo</EM
+> starts this program, the process itself and all processes started by the initial process, will be owned by user <EM
+>theo</EM
+> and not by the system administrator.  When <B
+CLASS="command"
+>mozilla</B
+> needs access to certain files, that access will be determined by <EM
+>theo</EM
+>'s permissions and not by <EM
+>root</EM
+>'s.</P
+></LI
+><LI
+><P
+>Real and effective group owner (RGID and EGID): The real group owner of a process is the primary group of the user who started the process.  The effective group owner is usually the same, except when SGID access mode has been applied to a file.</P
+></LI
+></UL
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="sect_04_01_04"
+></A
+>4.1.4. Displaying process information</H2
+><P
+>The <B
+CLASS="command"
+>ps</B
+> command is one of the tools for visualizing processes.  This command has several options which can be combined to display different process attributes.</P
+><P
+>With no options specified, <B
+CLASS="command"
+>ps</B
+> only gives information about the current shell and eventual processes:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;<TT
+CLASS="prompt"
+>theo:~&#62;</TT
+> <B
+CLASS="command"
+>ps</B
+>
+  PID TTY          TIME CMD
+ 4245 pts/7    00:00:00 bash
+ 5314 pts/7    00:00:00 ps
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Since this does not give enough information - generally, at least a hundred processes are running on your system - we will usually select particular processes out of the list of all processes, using the <B
+CLASS="command"
+>grep</B
+> command in a <EM
+>pipe</EM
+>, see <A
+HREF="sect_05_01.html#sect_05_01_02_01"
+>Section 5.1.2.1</A
+>, as in this line, which will select and display all processes owned by a particular user:</P
+><P
+><B
+CLASS="command"
+>ps <TT
+CLASS="option"
+>-ef</TT
+> | grep <TT
+CLASS="parameter"
+><I
+>username</I
+></TT
+></B
+> </P
+><P
+>This example shows all processes with a process name of <B
+CLASS="command"
+>bash</B
+>, the most common login shell on Linux systems:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;<TT
+CLASS="prompt"
+>theo:&#62;</TT
+> <B
+CLASS="command"
+>ps auxw | grep bash</B
+>
+brenda   31970  0.0  0.3  6080 1556 tty2   S  Feb23   0:00 -bash
+root     32043  0.0  0.3  6112 1600 tty4   S  Feb23   0:00 -bash
+theo     32581  0.0  0.3  6384 1864 pts/1  S  Feb23   0:00 bash
+theo     32616  0.0  0.3  6396 1896 pts/2  S  Feb23   0:00 bash
+theo     32629  0.0  0.3  6380 1856 pts/3  S  Feb23   0:00 bash
+theo      2214  0.0  0.3  6412 1944 pts/5  S  16:18   0:02 bash
+theo      4245  0.0  0.3  6392 1888 pts/7  S  17:26   0:00 bash
+theo      5427  0.0  0.1  3720  548 pts/7  S  19:22   0:00 grep bash
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>In these cases, the <B
+CLASS="command"
+>grep</B
+> command finding lines containing the string <EM
+>bash</EM
+> is often displayed as well on systems that have a lot of idletime.  If you don't want this to happen, use the <B
+CLASS="command"
+>pgrep</B
+> command.</P
+><P
+>Bash shells are a special case: this process list also shows which ones are login shells (where you have to give your username and password, such as when you log in in textmode or do a remote login, as opposed to non-login shells, started up for instance by clicking a terminal window icon).  Such login shells are preceded with a dash (-).</P
+><DIV
+CLASS="note"
+><P
+></P
+><TABLE
+CLASS="note"
+WIDTH="100%"
+BORDER="0"
+><TR
+><TD
+WIDTH="25"
+ALIGN="CENTER"
+VALIGN="TOP"
+><IMG
+SRC="../images/note.gif"
+HSPACE="5"
+ALT="Note"></TD
+><TH
+ALIGN="LEFT"
+VALIGN="CENTER"
+><B
+>|?</B
+></TH
+></TR
+><TR
+><TD
+>&nbsp;</TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+><P
+>We will explain about the | operator in the next chapter, see <A
+HREF="chap_05.html"
+>Chapter 5</A
+>.</P
+></TD
+></TR
+></TABLE
+></DIV
+><P
+>More info can be found the usual way: <B
+CLASS="command"
+>ps <TT
+CLASS="option"
+>--help</TT
+></B
+> or <B
+CLASS="command"
+>man <TT
+CLASS="parameter"
+><I
+>ps</I
+></TT
+></B
+>.  GNU <B
+CLASS="command"
+>ps</B
+> supports different styles of option formats; the above examples don't contain errors.</P
+><P
+>Note that <B
+CLASS="command"
+>ps</B
+> only gives a momentary state of the active processes, it is a one-time recording.  The <B
+CLASS="command"
+>top</B
+> program displays a more precise view by updating the results given by <B
+CLASS="command"
+>ps</B
+> (with a bunch of options) once every five seconds, generating a new list of the processes causing the heaviest load periodically, meanwhile integrating more information about the swap space in use and the state of the CPU, from the <TT
+CLASS="filename"
+>proc</TT
+> file system:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13; 12:40pm up 9 days, 6:00, 4 users, load average: 0.21, 0.11, 0.03
+89 processes: 86 sleeping, 3 running, 0 zombie, 0 stopped
+CPU states:  2.5% user,  1.7% system,  0.0% nice, 95.6% idle
+Mem:   255120K av, 239412K used, 15708K free, 756K shrd, 22620K buff
+Swap: 1050176K av, 76428K used, 973748K free, 82756K cached
+
+  PID USER  PRI NI SIZE  RSS SHARE STAT %CPU %MEM TIME COMMAND
+ 5005 root  14  0 91572  15M 11580 R    1.9  6.0  7:53 X
+19599 jeff  14  0  1024 1024   796 R    1.1  0.4  0:01 top
+19100 jeff   9  0  5288 4948  3888 R    0.5  1.9  0:24 gnome-terminal
+19328 jeff   9  0 37884  36M 14724 S    0.5 14.8  1:30 mozilla-bin
+    1 root   8  0   516  472   464 S    0.0  0.1  0:06 init
+    2 root   9  0     0    0     0 SW   0.0  0.0  0:02 keventd
+    3 root   9  0     0    0     0 SW   0.0  0.0  0:00 kapm-idled
+    4 root  19 19     0    0     0 SWN  0.0  0.0  0:00 ksoftirqd_CPU0
+    5 root   9  0     0    0     0 SW   0.0  0.0  0:33 kswapd
+    6 root   9  0     0    0     0 SW   0.0  0.0  0:00 kreclaimd
+    7 root   9  0     0    0     0 SW   0.0  0.0  0:00 bdflush
+    8 root   9  0     0    0     0 SW   0.0  0.0  0:05 kupdated
+    9 root  -1-20     0    0     0 SW&#60;  0.0  0.0  0:00 mdrecoveryd
+   13 root   9  0     0    0     0 SW   0.0  0.0  0:01 kjournald
+   89 root   9  0     0    0     0 SW   0.0  0.0  0:00 khubd
+  219 root   9  0     0    0     0 SW   0.0  0.0  0:00 kjournald
+  220 root   9  0     0    0     0 SW   0.0  0.0  0:00 kjournald
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>The first line of <B
+CLASS="command"
+>top</B
+> contains the same information displayed by the <B
+CLASS="command"
+>uptime</B
+> command:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;<TT
+CLASS="prompt"
+>jeff:~&#62;</TT
+> <B
+CLASS="command"
+>uptime</B
+>
+  3:30pm, up 12 days, 23:29, 6 users, load average: 0.01, 0.02, 0.00
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>The data for these programs is stored among others in <TT
+CLASS="filename"
+>/var/run/utmp</TT
+> (information about currently connected users) and in the virtual file system <TT
+CLASS="filename"
+>/proc</TT
+>, for example <TT
+CLASS="filename"
+>/proc/loadavg</TT
+> (average load information).  There are all sorts of graphical applications to view this data, such as the <SPAN
+CLASS="application"
+>Gnome System Monitor</SPAN
+> and <EM
+>lavaps</EM
+>.  Over at <A
+HREF="http://www.freshmeat.net"
+TARGET="_top"
+>FreshMeat</A
+> and <A
+HREF="http://www.sourceforge.org"
+TARGET="_top"
+>SourceForge</A
+> you will find tens of applications that centralize this information along with other server data and logs from multiple servers on one (web) server, allowing monitoring of the entire IT infrastructure from one workstation.</P
+><P
+>The relations between processes can be visualized using the <B
+CLASS="command"
+>pstree</B
+> command:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;<TT
+CLASS="prompt"
+>sophie:~&#62;</TT
+> <B
+CLASS="command"
+>pstree</B
+>
+init-+-amd
+     |-apmd
+     |-2*[artsd]
+     |-atd
+     |-crond
+     |-deskguide_apple
+     |-eth0
+     |-gdm---gdm-+-X
+     |           `-gnome-session-+-Gnome
+     |                           |-ssh-agent
+     |                           `-true
+     |-geyes_applet
+     |-gkb_applet
+     |-gnome-name-serv
+     |-gnome-smproxy
+     |-gnome-terminal-+-bash---vim
+     |                |-bash
+     |                |-bash---pstree
+     |                |-bash---ssh
+     |                |-bash---mozilla-bin---mozilla-bin---3*[mozilla-bin]
+     |                `-gnome-pty-helper
+     |-gpm
+     |-gweather
+     |-kapm-idled
+     |-3*[kdeinit]
+     |-keventd
+     |-khubd
+     |-5*[kjournald]
+     |-klogd
+     |-lockd---rpciod
+     |-lpd
+     |-mdrecoveryd
+     |-6*[mingetty]
+     |-8*[nfsd]
+     |-nscd---nscd---5*[nscd]
+     |-ntpd
+     |-3*[oafd]
+     |-panel
+     |-portmap
+     |-rhnsd
+     |-rpc.mountd
+     |-rpc.rquotad
+     |-rpc.statd
+     |-sawfish
+     |-screenshooter_a
+     |-sendmail
+     |-sshd---sshd---bash---su---bash
+     |-syslogd
+     |-tasklist_applet
+     |-vmnet-bridge
+     |-xfs
+     `-xinetd-ipv6
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>The <TT
+CLASS="option"
+>-u</TT
+> and <TT
+CLASS="option"
+>-a</TT
+> options give additional information.  For more options and what they do, refer to the <SPAN
+CLASS="application"
+>Info</SPAN
+> pages.</P
+><P
+>In the next section, we will see how one process can create another.</P
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="sect_04_01_05"
+></A
+>4.1.5. Life and death of a process</H2
+><DIV
+CLASS="sect3"
+><H3
+CLASS="sect3"
+><A
+NAME="sect_04_01_05_01"
+></A
+>4.1.5.1. Process creation</H3
+><P
+>A new process is created because an existing process makes an exact copy of itself.  This child process has the same environment as its parent, only the process ID number is different.  This procedure is called <EM
+>forking</EM
+>.</P
+><P
+>After the forking process, the address space of the child process is overwritten with the new process data.  This is done through an <EM
+>exec</EM
+> call to the system.</P
+><P
+>The <EM
+>fork-and-exec</EM
+> mechanism thus switches an old command with a new, while the environment in which the new program is executed remains the same, including configuration of input and output devices, environment variables and priority.  This mechanism is used to create all UNIX processes, so it also applies to the Linux operating system.  Even the first process, <B
+CLASS="command"
+>init</B
+>, with process ID 1, is forked during the boot procedure in the so-called <EM
+>bootstrapping</EM
+> procedure.</P
+><P
+>This scheme illustrates the fork-and-exec mechanism.  The process ID changes after the fork procedure:</P
+><DIV
+CLASS="figure"
+><A
+NAME="AEN4957"
+></A
+><P
+><B
+>Figure 4-1. Fork-and-exec mechanism</B
+></P
+><DIV
+CLASS="mediaobject"
+><P
+><IMG
+SRC="images/fork-and-exec.png"></P
+></DIV
+></DIV
+><P
+>There are a couple of cases in which <B
+CLASS="command"
+>init</B
+> becomes the parent of a process, while the process was not started by <B
+CLASS="command"
+>init</B
+>, as we already saw in the <B
+CLASS="command"
+>pstree</B
+> example.   Many programs, for instance, <EM
+>daemonize</EM
+> their child processes, so they can keep on running when the parent stops or is being stopped.  A window manager is a typical example; it starts an <B
+CLASS="command"
+>xterm</B
+> process that generates a shell that accepts commands.  The window manager then denies any further responsibility and passes the child process to <B
+CLASS="command"
+>init</B
+>.  Using this mechanism, it is possible to change window managers without interrupting running applications.</P
+><P
+>Every now and then things go wrong, even in good families.  In an exceptional case, a process might finish while the parent does not wait for the completion of this process.  Such an unburied process is called a <EM
+>zombie</EM
+> process.</P
+></DIV
+><DIV
+CLASS="sect3"
+><H3
+CLASS="sect3"
+><A
+NAME="sect_04_01_05_02"
+></A
+>4.1.5.2. Ending processes</H3
+><P
+>When a process ends normally (it is not killed or otherwise unexpectedly interrupted), the program returns its <EM
+>exit status</EM
+> to the parent.  This exit status is a number returned by the program providing the results of the program's execution.  The system of returning information upon executing a job has its origin in the C programming language in which UNIX has been written.</P
+><P
+>The return codes can then be interpreted by the parent, or in scripts.  The values of the return codes are program-specific.  This information can usually be found in the man pages of the specified program, for example the <B
+CLASS="command"
+>grep</B
+> command returns <TT
+CLASS="computeroutput"
+>-1</TT
+> if no matches are found, upon which a message on the lines of <SPAN
+CLASS="QUOTE"
+>"No files found"</SPAN
+> can be printed.  Another example is the <SPAN
+CLASS="application"
+>Bash</SPAN
+> builtin command <B
+CLASS="command"
+>true</B
+>, which does nothing except return an exit status of 0, meaning success.</P
+></DIV
+><DIV
+CLASS="sect3"
+><H3
+CLASS="sect3"
+><A
+NAME="sect_04_01_05_03"
+></A
+>4.1.5.3. Signals</H3
+><P
+>Processes end because they receive a signal.  There are multiple signals that you can send to a process.  Use the <B
+CLASS="command"
+>kill</B
+> command to send a signal to a process.  The command <B
+CLASS="command"
+>kill <TT
+CLASS="option"
+>-l</TT
+></B
+> shows a list of signals.  Most signals are for internal use by the system, or for programmers when they write code.  As a user, you will need the following signals:</P
+><DIV
+CLASS="table"
+><A
+NAME="AEN5016"
+></A
+><P
+><B
+>Table 4-2. Common signals</B
+></P
+><TABLE
+BORDER="1"
+CLASS="CALSTABLE"
+><THEAD
+><TR
+><TH
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>Signal name</TH
+><TH
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>Signal number</TH
+><TH
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>Meaning</TH
+></TR
+></THEAD
+><TBODY
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>SIGTERM</TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>15</TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>Terminate the process in an orderly way.</TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>SIGINT</TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>2</TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>Interrupt the process.  A process can ignore this signal.</TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>SIGKILL</TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>9</TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>Interrupt the process.  A process can not ignore this signal.</TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>SIGHUP</TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>1</TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>For daemons: reread the configuration file.</TD
+></TR
+></TBODY
+></TABLE
+></DIV
+><P
+>You can read more about default actions that are taken when sending a signal to a process in <B
+CLASS="command"
+>man <TT
+CLASS="option"
+>7</TT
+> <TT
+CLASS="parameter"
+><I
+>signal</I
+></TT
+></B
+>.</P
+></DIV
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="sect_04_01_06"
+></A
+>4.1.6. SUID and SGID</H2
+><P
+>As promised in the previous chapter, we will now discuss the special modes SUID and SGID in more detail.  These modes exist to provide normal users the ability to execute tasks they would normally not be able to do because of the tight file permission scheme used on UNIX based systems.  In the ideal situation special modes are used as sparsely as possible, since they include security risks.  Linux developers have generally tried to avoid them as much as possible.  The Linux <B
+CLASS="command"
+>ps</B
+> version, for example, uses the information stored in the <TT
+CLASS="filename"
+>/proc</TT
+> file system, which is accessible to everyone, thus avoiding exposition of sensitive system data and resources to the general public.  Before that, and still on older UNIX systems, the <B
+CLASS="command"
+>ps</B
+> program needed access to files such as <TT
+CLASS="filename"
+>/dev/mem</TT
+> and <TT
+CLASS="filename"
+>/dev/kmem</TT
+>, which had disadvantages because of the permissions and ownerships on these files:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;<TT
+CLASS="prompt"
+>rita:~&#62;</TT
+> <B
+CLASS="command"
+>ls -l /dev/*mem</B
+>
+crw-r-----    1 root     kmem       1,   2 Aug 30 22:30 /dev/kmem
+crw-r-----    1 root     kmem       1,   1 Aug 30 22:30 /dev/mem
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>With older versions of <B
+CLASS="command"
+>ps</B
+>, it was not possible to start the program as a common user, unless special modes were applied to it.</P
+><P
+>While we generally try to avoid applying any special modes, it is sometimes necessary to use an SUID.  An example is the mechanism for changing passwords.  Of course users will want to do this themselves instead of having their password set by the system administrator.  As we know, user names and passwords are listed in the <TT
+CLASS="filename"
+>/etc/passwd</TT
+> file, which has these access permissions and owners:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;<TT
+CLASS="prompt"
+>bea:~&#62;</TT
+> <B
+CLASS="command"
+>ls -l /etc/passwd</B
+>
+-rw-r--r--    1 root     root     1267 Jan 16 14:43 /etc/passwd
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Still, users need to be able to change their own information in this file.  This is achieved by giving the <B
+CLASS="command"
+>passwd</B
+> program special permissions:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;<TT
+CLASS="prompt"
+>mia:~&#62;</TT
+> <B
+CLASS="command"
+>which passwd</B
+>
+passwd is /usr/bin/passwd
+
+<TT
+CLASS="prompt"
+>mia:~&#62;</TT
+> <B
+CLASS="command"
+>ls -l /usr/bin/passwd</B
+>
+-r-s--x--x    1 root     root    13476 Aug  7 06:03 /usr/bin/passwd*
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>When called, the <B
+CLASS="command"
+>passwd</B
+> command will run using the access permissions of <EM
+>root</EM
+>, thus enabling a common user to edit the password file which is owned by the system admin.</P
+><P
+>SGID modes on a file don't occur nearly as frequently as SUID, because SGID often involves the creation of extra groups.  In some cases, however, we have to go through this trouble in order to build an elegant solution (don't worry about this too much -  the necessary groups are usually created upon installation).  This is the case for the <B
+CLASS="command"
+>write</B
+> and <B
+CLASS="command"
+>wall</B
+> programs, which are used to send messages to other users' terminals (ttys).  The <B
+CLASS="command"
+>write</B
+> command writes a message to a single user, while <B
+CLASS="command"
+>wall</B
+> writes to all connected users.</P
+><P
+>Sending text to another user's terminal or graphical display is normally not allowed.  In order to bypass this problem, a group has been created, which owns all terminal devices.  When the <B
+CLASS="command"
+>write</B
+> and <B
+CLASS="command"
+>wall</B
+> commands are granted SGID permissions, the commands will run using the access rights as applicable to this group, <EM
+>tty</EM
+> in the example.  Since this group has write access to the destination terminal, also a user having no permissions to use that terminal in any way can send messages to it.</P
+><P
+>In the example below, user <EM
+>joe</EM
+> first finds out on which terminal his correspondent is connected, using the <B
+CLASS="command"
+>who</B
+> command.  Then he sends her a message using the <B
+CLASS="command"
+>write</B
+> command.  Also illustrated are the access rights on the <B
+CLASS="command"
+>write</B
+> program and on the terminals occupied by the receiving user: it is clear that others than the user owner have no permissions on the device, except for the group owner, which can write to it.</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;<TT
+CLASS="prompt"
+>joe:~&#62;</TT
+> <B
+CLASS="command"
+>which write</B
+>
+write is /usr/bin/write
+
+<TT
+CLASS="prompt"
+>joe:~&#62;</TT
+> <B
+CLASS="command"
+>ls -l /usr/bin/write</B
+>
+-rwxr-sr-x    1 root     tty      8744 Dec  5 00:55 /usr/bin/write*
+
+<TT
+CLASS="prompt"
+>joe:~&#62;</TT
+> <B
+CLASS="command"
+>who</B
+>
+jenny     tty1     Jan 23 11:41
+jenny     pts/1    Jan 23 12:21 (:0)
+jenny     pts/2    Jan 23 12:22 (:0)
+jenny     pts/3    Jan 23 12:22 (:0)
+joe       pts/0    Jan 20 10:13 (lo.callhost.org)
+
+<TT
+CLASS="prompt"
+>joe:~&#62;</TT
+> <B
+CLASS="command"
+>ls -l /dev/tty1</B
+>
+crw--w----    1 jenny   tty  4,     1 Jan 23 11:41 /dev/tty1
+
+<TT
+CLASS="prompt"
+>joe:~&#62;</TT
+> <B
+CLASS="command"
+>write jenny tty1</B
+>
+hey Jenny, shall we have lunch together?
+^C
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>User <EM
+>jenny</EM
+> gets this on her screen:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;Message from joe@lo.callhost.org on ptys/1 at 12:36 ...
+hey Jenny, shall we have lunch together?
+EOF
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>After receiving a message, the terminal can be cleared using the <B
+CLASS="keycap"
+>Ctrl</B
+>+<B
+CLASS="keycap"
+>L</B
+> key combination.  In order to receive no messages at all (except from the system administrator), use the <B
+CLASS="command"
+>mesg</B
+> command.  To see which connected users accept messages from others use <B
+CLASS="command"
+>who <TT
+CLASS="option"
+>-w</TT
+></B
+>.  All features are fully explained in the <SPAN
+CLASS="application"
+>Info</SPAN
+> pages of each command.</P
+><DIV
+CLASS="note"
+><P
+></P
+><TABLE
+CLASS="note"
+WIDTH="100%"
+BORDER="0"
+><TR
+><TD
+WIDTH="25"
+ALIGN="CENTER"
+VALIGN="TOP"
+><IMG
+SRC="../images/note.gif"
+HSPACE="5"
+ALT="Note"></TD
+><TH
+ALIGN="LEFT"
+VALIGN="CENTER"
+><B
+>Group names may vary</B
+></TH
+></TR
+><TR
+><TD
+>&nbsp;</TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+><P
+>The group scheme is specific to the distribution.  Other distributions may use other names or other solutions.</P
+></TD
+></TR
+></TABLE
+></DIV
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="chap_04.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="sect_04_02.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Processes</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="chap_04.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Boot process, Init and shutdown</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

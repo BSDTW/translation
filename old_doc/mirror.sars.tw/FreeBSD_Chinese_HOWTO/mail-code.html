@@ -1,0 +1,232 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>郵件亂碼？</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.7" />
+<link rel="HOME" title="FreeBSD Chinese HOWTO" href="index.html" />
+<link rel="UP" title="中文郵件用戶端" href="mailclient.html" />
+<link rel="PREVIOUS" title="pine4 - 操作便利的電子郵件軟體" href="pine4.html" />
+<link rel="NEXT" title="中文網際網路軟體" href="net.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD Chinese HOWTO</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="pine4.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 12. 中文郵件用戶端</td>
+<td width="10%" align="right" valign="bottom"><a href="net.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="MAIL-CODE" name="MAIL-CODE">12.4. 郵件亂碼？</a></h1>
+
+<p>由於歷史原因，Internet 上有些郵件系統只支援 7Bit 的字元傳輸， 而漢字的內碼是 8Bit
+的，當在電子郵件中發送中文時， 如果經過這些只支援 7Bit 字元的郵件系統，
+便會將漢字內碼的第八位元的 1 全部變成 0。</p>
+
+<p>以 "中文" 兩字為例，HEX 為 A4A4A4E5， 當最高位元被清掉時就會變成 24242465，也就是
+"$$$e"。 <b class="APPLICATION">telnet</b> 也存在這樣子的問題。</p>
+
+<p>除了中文郵件外，使用電子郵件傳送圖片、程式、 壓縮文件等也會發生這個問題。
+所以在電子郵件中一般採用各種郵件編碼方式來解決這個問題， 將 8Bit 按照一定的規則進行編碼，
+便可以完好地通過只支持 7Bit 字元的郵件系統。</p>
+
+<p>常見的郵件編碼有 UU 與 MIME，而 MIME (Multipurpose Internet Mail Extentions)
+一般翻譯成「多媒體傳送模式」， 顧名思義，它標榜的就是可以傳送多媒體型式的檔案，
+可以在一封mail中附加各種型式檔案一起送出。</p>
+
+<p>MIME 定義兩種編碼方法：Base64 與QP(Quote-Printable)， 兩者使用時機不同，QP
+的規則是對於資料中的7bits無須重複encode，
+僅8bits資料轉成7bits。QP編碼適用於非US-ASCII的文字內容，
+例如中文檔案，而Base64的編碼規則，是將整個檔案重新編碼，
+編成7bits，它是用於傳送binary檔案時使用。 由於編碼的方式不同，會影響編碼之後的檔案大小。
+有些較懶惰的軟體便都一律採用Base64編碼了。</p>
+
+<p>含有 MIME 編碼的文件，您查看它的源始碼，一般都含有： "This is a multi-part message in
+MIME format." 這樣的句子。</p>
+
+<p>以下以 <b class="APPLICATION">mmencode</b> (又稱為 <b
+class="APPLICATION">mimencode</b>) 作為 QP 與 BASE64 的範例， 安裝 <a
+href="http://www.FreeBSD.org/cgi/url.cgi?ports/converters/mmencode/pkg-descr"><tt
+class="FILENAME">converters/mmencode</tt></a>。</p>
+
+<p>RFC 2045 - Multipurpose Internet Mail Extensions (MIME) Part One: Format of Internet
+Message Bodies</p>
+
+<p>RFC 2046 - Multipurpose Internet Mail Extensions (MIME) Part Two: Media Types</p>
+
+<p>RFC 2047 - MIME (Multipurpose Internet Mail Extensions) Part Three: Message Header
+Extensions for Non-ASCII Text</p>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="UU" name="UU">12.4.1. UU 編碼 (uuencode與uudecode)</a></h2>
+
+<p>UU 是指 Unix 之間傳送二進制文件，就是 Unix to Unix。 使用 uuencode
+將檔案編成7位元ASCII檔案，把它寄出， 收信人收到後，可以用 uudecode
+將這份資料還原為原來的檔案。</p>
+
+<p>uuencode 的第一個參數是要加碼的檔案，也就是您信件的內容。
+第二個參數是希望收信人解開後檔案叫什麼名字。</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">%</samp> <kbd class="USERINPUT">echo "中文" &gt; infile</kbd>
+<samp class="PROMPT">%</samp> <kbd class="USERINPUT">uuencode infile remotefile</kbd>
+begin 644 remotefile
+%I*2DY0KQ
+`
+end
+<samp class="PROMPT">%</samp> <kbd
+class="USERINPUT">uuencode infile remotefile | mail statue</kbd>
+<samp class="PROMPT">%</samp> <kbd class="USERINPUT">mail</kbd>
+Mail version 8.1 6/6/93.  Type ? for help.
+"/var/mail/statue": 1 message 1 new
+&gt;N  1 statue                Fri Dec 21 13:12  16/390
+&#38;
+Message 1:
+From statue Fri Dec 21 13:12:19 2001
+Date: Fri, 21 Dec 2001 13:12:19 +0800 (CST)
+From: statue &lt;statuei&gt;
+To: statue
+
+begin 644 remotefile
+%I*2DY0KQ
+`
+end
+&#38; <kbd class="USERINPUT">s mail1</kbd>
+"mail1" [New file]
+&#38; <kbd class="USERINPUT">q</kbd>
+<samp class="PROMPT">%</samp> <kbd class="USERINPUT">uudecode mail1</kbd>
+<samp class="PROMPT">%</samp> <kbd class="USERINPUT">cat remotefile</kbd>
+中文
+</pre>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="QP" name="QP">12.4.2. QP - Quote-Printable</a></h2>
+
+<p>Content-Transfer-Encoding: quoted-printable</p>
+
+<p>QP編碼的方式，是將一個字元用二個16進位法的數值表示，
+然後前面再加個「=」字元（等號）：</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">%</samp> <kbd class="USERINPUT">echo "中文" | mmencode -q</kbd>
+=A4=A4=A4=E5
+<samp class="PROMPT">%</samp> <kbd
+class="USERINPUT">echo "=A4=A4=A4=E5" | mmencode -q -u</kbd>
+中文
+</pre>
+
+<p>或是用 perl 來將 QP 解碼：</p>
+
+<pre class="PROGRAMLISTING">
+while(defined($line = &lt;STDIN&gt;)) {
+  $line =~ s/=([0-9A-Fa-f][0-9A-Fa-f])/chr hex $1/ge;
+  $line =~ s/[\n\r]+$//;
+  print STDOUT $line;
+}
+</pre>
+
+<p>用 perl 來將文字編成 QP 碼：</p>
+
+<pre class="PROGRAMLISTING">
+while(defined($line = &lt;STDIN&gt;)) {
+  $line =~ s/([=\x00-\x1F\x80-\xFF])/sprintf("=%02X",ord($1))/ge;
+  print STDOUT $line;
+}
+</pre>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="BASE64" name="BASE64">12.4.3. BASE64</a></h2>
+
+<p>Content-Transfer-Encoding: BASE64</p>
+
+<p>BASE64 的算法很簡單，它將字符流順序放入一個 24 位的緩衝區，
+缺字符的地方補零。然後將緩衝區截斷成 4 個部分，高位在先， 每個部分 6
+位，用下面的64個字符重新表示：
+"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"。
+如果輸入只有一個或兩個字節，那麼輸出將用等號 "=" 補足。
+還可以隔斷附加的信息造成編碼的混亂。這就是BASE64。</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">%</samp> <kbd class="USERINPUT">echo "中文" | mmencode</kbd>
+pKSk5Qo=
+<samp class="PROMPT">%</samp> <kbd class="USERINPUT">echo "pKSk5Qo=" | mmencode -u</kbd>
+中文
+</pre>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN4262" name="AEN4262">12.4.4. 其他亂碼？</a></h2>
+
+<p>以 "中文" 兩字為例，整理一下以上的編碼會出現的狀況：</p>
+
+<pre class="PROGRAMLISTING">
+uuencode：%I*2DY0KQ
+QP：=A4=A4=A4=E5
+BASE64：pKSk5Qo=
+</pre>
+
+<p>以及其他語言性的轉碼可能出現的狀況：</p>
+
+<pre class="PROGRAMLISTING">
+GB2312：笢恅(iconv -t GB2312)
+Unicode：U+4E2D U+6587
+UCS-2：N-e(iconv -t UCS-2)
+UTF-7：+Ti1lhw(iconv -t UTF-7)
+UTF-8：銝剜??(iconv -t UTF-8) 
+UTF-16：??N-e?(iconv -t UTF16)
+UTF-32：??N-e?(iconv -t UTF32)
+CNS11643：1-4463 1-4546
+CCCII：213034 214258
+</pre>
+
+<p>另外一些有的沒的程式會出現的狀況：</p>
+
+<pre class="PROGRAMLISTING">
+hexdump：0000000 a4a4 e5a4 000a                         
+0000005(hexdump)
+</pre>
+</div>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="pine4.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="net.html" accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">pine4 - 操作便利的電子郵件軟體</td>
+<td width="34%" align="center" valign="top"><a href="mailclient.html"
+accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">中文網際網路軟體</td>
+</tr>
+</table>
+</div>
+</body>
+</html>
+

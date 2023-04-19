@@ -1,0 +1,165 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>中文轉碼軟體</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.7" />
+<link rel="HOME" title="FreeBSD Chinese HOWTO" href="index.html" />
+<link rel="PREVIOUS" title="ttf2pt1 - TTF 轉中文 Type1 字型" href="ttf2pt1.html" />
+<link rel="NEXT" title="cn2jp - 在中文和日文間的編碼轉移函式庫" href="cn2jp.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="CHAPTER" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD Chinese HOWTO</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="ttf2pt1.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom"></td>
+<td width="10%" align="right" valign="bottom"><a href="cn2jp.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="CHAPTER">
+<h1><a id="CONVERTER" name="CONVERTER"></a>Chapter 11. 中文轉碼軟體</h1>
+
+<div class="TOC">
+<dl>
+<dt><b>Table of Contents</b></dt>
+
+<dt>11.1. <a href="converter.html#ICONV">iconv</a></dt>
+
+<dt>11.2. <a href="cn2jp.html">cn2jp - 在中文和日文間的編碼轉移函式庫</a></dt>
+
+<dt>11.3. <a href="autoconvert.html">autoconvert - 智慧的中文編碼轉換</a></dt>
+
+<dt>11.4. <a href="c2t.html">c2t - 轉譯 GB/Big5 編碼成拼音</a></dt>
+
+<dt>11.5. <a href="hc.html">hc - 漢字轉換器，在 GB 和 Big5 編碼間轉換</a></dt>
+
+<dt>11.6. <a href="gb2jis.html">gb2jis - GB漢字轉換JIS漢字</a></dt>
+
+<dt>11.7. <a href="hztty.html">hztty - 在 GB Big5 和 HZ tty 中轉換</a></dt>
+
+<dt>11.8. <a href="jis2gb.html">jis2gb - JIS漢字轉換GB漢字</a></dt>
+
+<dt>11.9. <a href="pycodec.html">pycodec - 中文碼/萬國碼轉換程式</a></dt>
+
+<dt>11.10. <a href="fzzdxfw.html">fzzdxfw - 方正中等線繁體</a></dt>
+</dl>
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="ICONV" name="ICONV">11.1. iconv</a></h1>
+
+<p>由於版權的問題，FreeBSD 下的 iconv 2.0 大約是 2000 年的程式， 也就不能 GNU libiconv
+所擁有的轉換表， 在使用上也是有許多缺點。</p>
+
+<p>安裝 <a href="http://www.FreeBSD.org/cgi/url.cgi?ports/converters/iconv/pkg-descr"><tt
+class="FILENAME">converters/iconv</tt></a>。</p>
+
+<p>基本的用法有：</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">%</samp> <kbd
+class="USERINPUT">iconv -f gb2312 -t big5 file.gb &gt; file.big5</kbd>
+</pre>
+
+<p>以下是寫 C 程式的小範例：</p>
+
+<pre class="PROGRAMLISTING">
+#include &lt;stdio.h&gt;
+#include "iconv.h"
+
+void
+my_iconv(char *fromcode, char *tocode, char *inbuf, char *outbuf)
+{
+  iconv_t cd;
+  size_t status;
+  char *inbufp, *outbufp;
+  size_t inbytesleft, outbytesleft;
+
+  inbytesleft = strlen(inbuf);
+  outbytesleft = inbytesleft * 5;
+
+  cd = iconv_open(tocode, fromcode);
+  if ((iconv_t) (-1) == cd) {
+    perror ("Error at iconv_open");
+    exit(1);
+  }
+
+  inbufp = inbuf;
+  outbufp = outbuf;
+  status = iconv (cd, &amp;inbufp, &amp;inbytesleft, &amp;outbufp, &amp;outbytesleft);
+ if (status == (size_t) -1)
+  {
+    perror ("Error at my_iconv");
+  }
+
+  status = iconv_close(cd);
+  if (status == (int) -1)
+  {
+    perror ("Error at iconv_close");
+  }
+
+  return;
+}
+
+int
+main(int argc, char* argv[])
+{
+  char *inbuf = "加上";
+  char *outbuf =  (char *) malloc(sizeof (char) * strlen(inbuf)*5);
+
+  my_iconv("Big5", "GBK", inbuf, outbuf);
+  printf("%s -&#62; %s\n", inbuf, outbuf);
+  free(outbuf);
+}
+</pre>
+
+<p>以下是編譯的方式：</p>
+
+<pre class="PROGRAMLISTING">
+gcc -I/usr/local/include -L/usr/local/lib -liconv -o my_iconv my_iconv.c
+</pre>
+
+<p>WWW: <a href="http://www.dante.net/staff/konstantin/FreeBSD/iconv/"
+target="_top">http://www.dante.net/staff/konstantin/FreeBSD/iconv/</a></p>
+</div>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="ttf2pt1.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="cn2jp.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">ttf2pt1 - TTF 轉中文 Type1 字型</td>
+<td width="34%" align="center" valign="top">&nbsp;</td>
+<td width="33%" align="right" valign="top">cn2jp - 在中文和日文間的編碼轉移函式庫</td>
+</tr>
+</table>
+</div>
+</body>
+</html>
+

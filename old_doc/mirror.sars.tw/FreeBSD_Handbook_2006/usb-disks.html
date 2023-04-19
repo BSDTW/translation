@@ -1,0 +1,210 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>USB Storage Devices</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.79" />
+<link rel="HOME" title="FreeBSD 使用手冊" href="index.html" />
+<link rel="UP" title="儲存設備篇" href="disks.html" />
+<link rel="PREVIOUS" title="RAID" href="raid.html" />
+<link rel="NEXT" title="Creating and Using Optical Media (CDs)"
+href="creating-cds.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD 使用手冊</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="raid.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 17 儲存設備篇</td>
+<td width="10%" align="right" valign="bottom"><a href="creating-cds.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="USB-DISKS" name="USB-DISKS">17.5 USB Storage Devices</a></h1>
+
+<i class="AUTHORGROUP"><span class="CONTRIB">Contributed by</span> Marc Fonvieille.</i> 
+
+<p>A lot of external storage solutions, nowadays, use the Universal Serial Bus (USB):
+hard drives, USB thumbdrives, CD-R burners, etc. FreeBSD provides support for these
+devices.</p>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN24258" name="AEN24258">17.5.1 Configuration</a></h2>
+
+<p>The USB mass storage devices driver, <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=umass&amp;sektion=4"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">umass</span>(4)</span></a>, provides the
+support for USB storage devices. If you use the <tt class="FILENAME">GENERIC</tt> kernel,
+you do not have to change anything in your configuration. If you use a custom kernel, be
+sure that the following lines are present in your kernel configuration file:</p>
+
+<pre class="PROGRAMLISTING">
+device scbus
+device da
+device pass
+device uhci
+device ohci
+device usb
+device umass
+</pre>
+
+<p>The <a href="http://www.FreeBSD.org/cgi/man.cgi?query=umass&amp;sektion=4"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">umass</span>(4)</span></a> driver uses
+the SCSI subsystem to access to the USB storage devices, your USB device will be seen as
+a SCSI device by the system. Depending on the USB chipset on your motherboard, you only
+need either <tt class="LITERAL">device uhci</tt> or <tt class="LITERAL">device ohci</tt>,
+however having both in the kernel configuration file is harmless. Do not forget to
+compile and install the new kernel if you added any lines.</p>
+
+<div class="NOTE">
+<blockquote class="NOTE">
+<p><b>Note:</b> If your USB device is a CD-R or DVD burner, the SCSI CD-ROM driver, <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=cd&amp;sektion=4"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">cd</span>(4)</span></a>, must be added
+to the kernel via the line:</p>
+
+<pre class="PROGRAMLISTING">
+device cd
+</pre>
+
+<p>Since the burner is seen as a SCSI drive, the driver <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=atapicam&amp;sektion=4"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">atapicam</span>(4)</span></a> should not
+be used in the kernel configuration.</p>
+</blockquote>
+</div>
+
+<p>Support for USB 2.0 controllers is provided on FreeBSD&nbsp;5.X, and on the 4.X branch
+since FreeBSD&nbsp;4.10-RELEASE. You have to add:</p>
+
+<pre class="PROGRAMLISTING">
+device ehci
+</pre>
+
+<p>to your configuration file for USB 2.0 support. Note <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=uhci&amp;sektion=4"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">uhci</span>(4)</span></a> and <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=ohci&amp;sektion=4"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">ohci</span>(4)</span></a> drivers are
+still needed if you want USB 1.X support.</p>
+
+<div class="NOTE">
+<blockquote class="NOTE">
+<p><b>Note:</b> On FreeBSD&nbsp;4.X, the USB daemon (<a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=usbd&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">usbd</span>(8)</span></a>) must be
+running to be able to see some USB devices. To enable it, add <tt
+class="LITERAL">usbd_enable="YES"</tt> to your <tt class="FILENAME">/etc/rc.conf</tt>
+file and reboot the machine.</p>
+</blockquote>
+</div>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN24298" name="AEN24298">17.5.2 Testing the
+Configuration</a></h2>
+
+<p>The configuration is ready to be tested: plug in your USB device, and in the system
+message buffer (<a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=dmesg&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">dmesg</span>(8)</span></a>), the drive
+should appear as something like:</p>
+
+<pre class="SCREEN">
+umass0: USB Solid state disk, rev 1.10/1.00, addr 2
+GEOM: create disk da0 dp=0xc2d74850
+da0 at umass-sim0 bus 0 target 0 lun 0
+da0: &lt;Generic Traveling Disk 1.11&gt; Removable Direct Access SCSI-2 device
+da0: 1.000MB/s transfers
+da0: 126MB (258048 512 byte sectors: 64H 32S/T 126C)
+</pre>
+
+<p>Of course, the brand, the device node (<tt class="DEVICENAME">da0</tt>) and other
+details can differ according to your configuration.</p>
+
+<p>Since the USB device is seen as a SCSI one, the <tt class="COMMAND">camcontrol</tt>
+command can be used to list the USB storage devices attached to the system:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">camcontrol devlist</kbd>
+&lt;Generic Traveling Disk 1.11&gt;      at scbus0 target 0 lun 0 (da0,pass0)
+</pre>
+
+<p>If the drive comes with a file system, you should be able to mount it. The <a
+href="disks-adding.html">Section 17.3</a> will help you to format and create partitions
+on the USB drive if needed.</p>
+
+<p>If you unplug the device (the disk must be unmounted before), you should see, in the
+system message buffer, something like the following:</p>
+
+<pre class="SCREEN">
+umass0: at uhub0 port 1 (addr 2) disconnected
+(da0:umass-sim0:0:0:0): lost device
+(da0:umass-sim0:0:0:0): removing device entry
+GEOM: destroy disk da0 dp=0xc2d74850
+umass0: detached
+</pre>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN24316" name="AEN24316">17.5.3 Further Reading</a></h2>
+
+<p>Beside the <a href="disks-adding.html">Adding Disks</a> and <a
+href="mount-unmount.html">Mounting and Unmounting File Systems</a> sections, reading
+various manual pages may be also useful: <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=umass&amp;sektion=4"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">umass</span>(4)</span></a>, <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=camcontrol&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">camcontrol</span>(8)</span></a>, and <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=usbdevs&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">usbdevs</span>(8)</span></a>.</p>
+</div>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="raid.html" accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="creating-cds.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">RAID</td>
+<td width="34%" align="center" valign="top"><a href="disks.html"
+accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">Creating and Using Optical Media (CDs)</td>
+</tr>
+</table>
+</div>
+
+<p align="center"><small>This, and other documents, can be downloaded from <a
+href="ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/">ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/</a>.</small></p>
+
+<p align="center"><small>For questions about FreeBSD, read the <a
+href="http://www.FreeBSD.org/docs.html">documentation</a> before contacting &#60;<a
+href="mailto:questions@FreeBSD.org">questions@FreeBSD.org</a>&#62;.<br />
+For questions about this documentation, e-mail &#60;<a
+href="mailto:doc@FreeBSD.org">doc@FreeBSD.org</a>&#62;.</small></p>
+</body>
+</html>
+

@@ -1,0 +1,888 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>Chapter 16. Layers</title>
+    <link rel="stylesheet" type="text/css" href="docbook-xsl-mymods.css" />
+    <meta name="generator" content="DocBook XSL Stylesheets V1.76.0" />
+    <link rel="home" href="index.html" />
+    <link rel="up" href="pt04.html" />
+    <link rel="prev" href="ch15.html" />
+    <link rel="next" href="ch17.html" />
+  </head>
+  <body>
+    <div class="mattnotice">
+      <p>As a courtesy, this is a <b>full free</b> rendering of my book, <i>Programming iOS 6</i>, by Matt Neuburg. Copyright 2013 Matt Neuburg. Please note that this book has now been completely superseded by two more recent books, <a href="http://shop.oreilly.com/product/0636920032465.do">iOS 7 Fundamentals</a> and <a href="http://shop.oreilly.com/product/0636920031017.do">Programming iOS 7</a>. If my work has been of help to you, please <b>consider purchasing</b> one or both of them. Thank you!
+	</p>
+    </div>
+    <div class="navfooter">
+      <table width="100%" summary="Navigation footer">
+        <tr>
+          <td width="40%" align="left"><a accesskey="p" href="ch15.html">Prev</a> </td>
+          <td width="20%" align="center">
+            <a accesskey="u" href="pt04.html">Up</a>
+          </td>
+          <td width="40%" align="right"> <a accesskey="n" href="ch17.html">Next</a></td>
+        </tr>
+        <tr>
+          <td width="40%" align="left" valign="top">Chapter 15. Drawing </td>
+          <td width="20%" align="center">
+            <a accesskey="h" href="index.html">Table of Contents</a>
+          </td>
+          <td width="40%" align="right" valign="top"> Chapter 17. Animation</td>
+        </tr>
+      </table>
+    </div>
+    <div class="chapter">
+      <div class="titlepage">
+        <div>
+          <div>
+            <h2 class="title"><a id="chap_id16"></a>Chapter 16. Layers</h2>
+          </div>
+        </div>
+      </div>
+      <p>The tale told in <a class="xref" href="ch14.html">Chapter 14</a> and <a class="xref" href="ch15.html">Chapter 15</a> of how a UIView works and how it draws itself is only half the story. A UIView has a partner called its <span class="emphasis"><em>layer</em></span>, a CALayer. A UIView does not actually draw itself onto the screen; it draws itself into its layer, and it is the layer that is portrayed on the screen. As I’ve already mentioned, a view is not redrawn frequently; instead, its drawing is cached, and the cached version of the drawing (the bitmap backing store) is used where possible. The cached version is, in fact, the layer. What I spoke of in <a class="xref" href="ch15.html">Chapter 15</a> as the view’s graphics context is actually the layer’s graphics context.
+<a id="idm441650751104" class="indexterm"></a></p>
+      <p>This might seem like a mere implementation detail, but layers are important and interesting. To understand layers is to understand views more deeply; layers extend the power of views. In particular:
+<a id="idxlayers" class="indexterm"></a></p>
+      <div class="variablelist">
+        <dl>
+          <dt>
+            <span class="term">
+Layers have properties that affect drawing.
+</span>
+          </dt>
+          <dd>
+Layers have drawing-related properties beyond those of a UIView. Because a layer is the recipient and presenter of a view’s drawing, you can modify how a view is drawn on the screen by accessing the layer’s properties. In other words, by reaching down to the level of its layer, you can make a view do things you can’t do through UIView methods alone.
+</dd>
+          <dt>
+            <span class="term">
+Layers can be combined within a single view.
+</span>
+          </dt>
+          <dd>
+A UIView’s partner layer can contain additional layers. Since the purpose of layers is to draw, portraying visible material on the screen, this allows a UIView’s drawing to be composited of multiple distinct pieces. This can make drawing easier, with the constituents of a drawing being treated as objects.
+</dd>
+          <dt>
+            <span class="term">
+Layers are the basis of animation.
+</span>
+          </dt>
+          <dd>
+Animation allows you to add clarity, emphasis, and just plain coolness to your interface. Layers are made to be animated (the “CA” in “CALayer” stands for “Core Animation”). Animation is the subject of <a class="xref" href="ch17.html">Chapter 17</a>; understanding layers is a prerequisite for reading that chapter.<a id="idm441650741312" class="indexterm"></a>
+</dd>
+        </dl>
+      </div>
+      <div class="figure">
+        <a id="FIGcompass"></a>
+        <div class="figure-contents">
+          <div class="mediaobject">
+            <img src="figs/pios_1601.png" alt="figs/pios_1601.png" />
+          </div>
+        </div>
+        <p class="title">Figure 16.1. A compass, composed of layers</p>
+      </div>
+      <br class="figure-break" />
+      <p>For example, suppose we want to add a compass indicator to our app’s interface. <a class="xref" href="ch16.html#FIGcompass">Figure 16.1</a> portrays a simple version of such a compass. It takes advantage of the arrow that we figured out how to draw in <a class="xref" href="ch15.html">Chapter 15</a>; the arrow is drawn into a layer of its own. The other parts of the compass are layers too: the circle is a layer, and each of the cardinal point letters is a layer. The drawing is thus easy to composite in code (and later in this chapter, that’s exactly what we’ll do); even more intriguing, the pieces can be repositioned and animated separately, so it’s easy to rotate the arrow without moving the circle (and in <a class="xref" href="ch17.html">Chapter 17</a>, that’s exactly what we’ll do).</p>
+      <p>The documentation discusses layers chiefly in connection with animation (in particular, in the <span class="emphasis"><em>Core Animation Programming Guide</em></span>). This categorization gives the impression that layers are of interest only if you intend to animate. That’s misleading. Layers are the basis of animation, but they are also the basis of view drawing, and are useful and important even if you don’t use them for animation.</p>
+      <p>CALayer is not part of UIKit. It’s part of the Quartz Core framework, which is not linked by default into the project template.<a id="idm441650732624" class="indexterm"></a>
+<a id="idm441650729904" class="indexterm"></a> If your app contains code that refers to CALayer or related classes, you must link your target to <span class="emphasis"><em>QuartzCore.framework</em></span>, and you must import <code class="literal">&lt;QuartzCore/QuartzCore.h&gt;</code> into any file containing such code.</p>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_view_and_layer"></a>View and Layer</h2>
+            </div>
+          </div>
+        </div>
+        <p>A UIView instance has an accompanying CALayer instance, accessible as the view’s <code class="literal">layer</code> property. This layer has a special status: it is partnered with this view to embody all of the view’s drawing. The layer has no corresponding <code class="literal">view</code> property, but the view is the layer’s <code class="literal">delegate</code>. The documentation sometimes speaks of this layer as the view’s “underlying layer.”<a id="idm441650723600" class="indexterm"></a>
+<a id="idm441650722320" class="indexterm"></a></p>
+        <p>By default, when a UIView is instantiated, its layer is an instance of CALayer. But if you subclass UIView and you want your subclass’s underlying layer to be an instance of a CALayer subclass (built-in or your own), implement the UIView subclass’s <code class="literal">layerClass</code> class method.</p>
+        <p>That, for example, is how the compass in <a class="xref" href="ch16.html#FIGcompass">Figure 16.1</a> is created. We have a UIView subclass, CompassView, and a CALayer subclass, CompassLayer. CompassView contains these lines:</p>
+        <pre class="screen">+ (Class) layerClass {
+    return [CompassLayer class];
+}</pre>
+        <p>Thus, when CompassView is instantiated, its underlying layer is a CompassLayer. In this example, there is no drawing in CompassView; its job is to give CompassLayer a place in the visible interface, because a layer cannot appear without a view.</p>
+        <p>Because every view has an underlying layer, there is a tight integration between the two. The layer portrays all the view’s drawing; if the view draws, it does so by contributing to the layer’s drawing. The view is the layer’s delegate. And the view’s properties are often merely a convenience for accessing the layer’s properties. For example, when you set the view’s <code class="literal">backgroundColor</code>, you are really setting the layer’s <code class="literal">backgroundColor</code>, and if you set the layer’s <code class="literal">backgroundColor</code> directly, the view’s <code class="literal">backgroundColor</code> is set to match. Similarly, the view’s <code class="literal">frame</code> is really the layer’s <code class="literal">frame</code> and <span class="emphasis"><em>vice versa</em></span>.</p>
+        <div class="warning" style="margin-left: 0; margin-right: 10%;">
+          <h3 class="title">Warning</h3>
+          <p>A CALayer’s <code class="literal">delegate</code> property is settable, but you must never set the <code class="literal">delegate</code> property of a UIView’s underlying layer. To do so would be to break the integration between them, thereby causing drawing to stop working correctly.<a id="idm441650709744" class="indexterm"></a>
+<a id="idm441650708464" class="indexterm"></a> A UIView <span class="emphasis"><em>must</em></span> be the delegate of its underlying layer; moreover, it must <span class="emphasis"><em>not</em></span> be the delegate of any <span class="emphasis"><em>other</em></span> layer. <span class="emphasis"><em>Don’t do anything to mess this up.</em></span></p>
+        </div>
+        <p>The view draws into its layer, and the layer caches that drawing;<a id="idm441650705344" class="indexterm"></a><a id="idm441650704448" class="indexterm"></a> the layer can then be manipulated, changing the view’s appearance, without necessarily asking the view to redraw itself. This is a source of great efficiency in the drawing system. It also explains such phenomena as the content stretching that we encountered in the last section of <a class="xref" href="ch15.html">Chapter 15</a>: when the view’s bounds size changes, the drawing system, by default, simply stretches or repositions the cached layer image, until such time as the view is told to generate a new drawing of itself (<code class="literal">drawRect:</code>) to replace the layer’s content.</p>
+        <div class="note" style="margin-left: 0; margin-right: 10%;">
+          <h3 class="title">Mac OS X Programmer Alert</h3>
+          <p>On Mac OS X, NSView existed long before CALayer was introduced, so today a view might have no layer, or, if it does have a layer, it might relate to it in various ways. You may be accustomed to terms like <span class="emphasis"><em>layer-backed view</em></span> or <span class="emphasis"><em>layer-hosting view</em></span>. On iOS, layers were incorporated from the outset: every UIView has an underlying layer and relates to it in the same way.</p>
+        </div>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_layers_and_sublayers"></a>Layers and Sublayers</h2>
+            </div>
+          </div>
+        </div>
+        <p>A layer can have sublayers, and a layer has at most one superlayer.<a id="idm441650696928" class="indexterm"></a><a id="idm441650696032" class="indexterm"></a> Thus there is a tree of layers.<a id="idm441650694960" class="indexterm"></a>
+<a id="idm441650693664" class="indexterm"></a> This is similar and parallel to the tree of views (<a class="xref" href="ch14.html">Chapter 14</a>). In fact, so tight is the integration between a view and its underlying layer that these hierarchies are effectively the same hierarchy. Given a view and its underlying layer, that layer’s superlayer is the view’s superview’s underlying layer, and that layer has as sublayers all the underlying layers of all the view’s subviews. Indeed, because the layers are how the views actually get drawn, one might say that the view hierarchy really <span class="emphasis"><em>is</em></span> a layer hierarchy (<a class="xref" href="ch16.html#FIGviewsAndLayers">Figure 16.2</a>).</p>
+        <div class="figure">
+          <a id="FIGviewsAndLayers"></a>
+          <div class="figure-contents">
+            <div class="mediaobject">
+              <img src="figs/pios_1602.png" alt="figs/pios_1602.png" />
+            </div>
+          </div>
+          <p class="title">Figure 16.2. A hierarchy of views and the hierarchy of layers underlying it</p>
+        </div>
+        <br class="figure-break" />
+        <p>At the same time, the layer hierarchy can go beyond the view hierarchy. A view has exactly one underlying layer, but a layer can have sublayers that are not the underlying layers of any view. So the hierarchy of layers that underlie views exactly matches the hierarchy of views (<a class="xref" href="ch16.html#FIGviewsAndLayers">Figure 16.2</a>), but the total layer tree may be a superset of that hierarchy. In <a class="xref" href="ch16.html#FIGviewsAndLayers2">Figure 16.3</a>, we see the same view-and-layer hierarchy as in <a class="xref" href="ch16.html#FIGviewsAndLayers">Figure 16.2</a>, but two of the layers have additional sublayers that are theirs alone (that is, sublayers that are not any view’s underlying layers).</p>
+        <div class="figure">
+          <a id="FIGviewsAndLayers2"></a>
+          <div class="figure-contents">
+            <div class="mediaobject">
+              <img src="figs/pios_1603.png" alt="figs/pios_1603.png" />
+            </div>
+          </div>
+          <p class="title">Figure 16.3. Layers that have sublayers of their own</p>
+        </div>
+        <br class="figure-break" />
+        <p>From a visual standpoint, there may be nothing to distinguish a hierarchy of views from a hierarchy of layers. For example, in <a class="xref" href="ch14.html">Chapter 14</a> we drew three overlapping rectangles using a hierarchy of views (<a class="xref" href="ch14.html#FIGoverlap">Figure 14.1</a>). This code gives exactly the same visible display by manipulating layers:</p>
+        <pre class="screen">UIView* v = self.window.rootViewController.view;
+CALayer* lay1 = [CALayer new];
+lay1.frame = CGRectMake(113, 111, 132, 194);
+lay1.backgroundColor =
+    [[UIColor colorWithRed:1 green:.4 blue:1 alpha:1] CGColor];
+[v.layer addSublayer:lay1];
+CALayer* lay2 = [CALayer new];
+lay2.backgroundColor =
+    [[UIColor colorWithRed:.5 green:1 blue:0 alpha:1] CGColor];
+lay2.frame = CGRectMake(41, 56, 132, 194);
+[lay1 addSublayer:lay2];
+CALayer* lay3 = [CALayer new];
+lay3.backgroundColor =
+    [[UIColor colorWithRed:1 green:0 blue:0 alpha:1] CGColor];
+lay3.frame = CGRectMake(43, 197, 160, 230);
+[v.layer addSublayer:lay3];</pre>
+        <p>There are, indeed, situations in which it is not clear whether a piece of interface should be constructed as a view hierarchy or a layer hierarchy. Several of my apps have an interface that is a rectangular grid of objects of the same type; in some cases, I implement these as layers, in some cases I implement them as views, and sometimes it isn’t clear to me that my choice is much more than arbitrary. A layer on its own is more lightweight than a view; on the other hand, a view is a UIResponder, so it can respond to touches, and layers lack any form of automatic layout.</p>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_manipulating_the_layer_hierarchy"></a>Manipulating the Layer Hierarchy</h3>
+              </div>
+            </div>
+          </div>
+          <p>Layers come with a full set of methods for reading and manipulating the layer hierarchy, parallel to the methods for reading and manipulating the view hierarchy. A layer has a <code class="literal">superlayer</code> property and a <code class="literal">sublayers</code> property; there are methods <code class="literal">addSublayer:</code>, <code class="literal">insertSublayer:atIndex:</code>, <code class="literal">insertSublayer:below:</code>, <code class="literal">insertSublayer:above:</code>, <code class="literal">replaceSublayer:with:</code>, and <code class="literal">removeFromSuperlayer</code>.</p>
+          <p>Unlike a view’s <code class="literal">subviews</code> property, a layer’s <code class="literal">sublayers</code> property is writable; thus, you can give a layer multiple sublayers in a single move, by assigning to its <code class="literal">sublayers</code> property. To remove all of a layer’s sublayers, set its <code class="literal">sublayers</code> property to nil.</p>
+          <p>Although a layer’s sublayers have an order, reflected in the <code class="literal">sublayers</code> order and regulated with the methods I’ve just mentioned, this is not necessarily the same as their back-to-front drawing order. By default, it is, but a layer also has a <code class="literal">zPosition</code> property, a CGFloat, and this also determines drawing order.<a id="idm441650664368" class="indexterm"></a>
+<a id="idm441650663088" class="indexterm"></a> The rule is that all sublayers with the same <code class="literal">zPosition</code> are drawn in the order they are listed among their <code class="literal">sublayers</code> siblings, but lower <code class="literal">zPosition</code> siblings are drawn before higher <code class="literal">zPosition</code> siblings. (The default <code class="literal">zPosition</code> is <code class="literal">0</code>.)</p>
+          <p>Sometimes, the <code class="literal">zPosition</code> property is a more convenient way of dictating drawing order than sibling order is. For example, if layers represent playing cards laid out in a solitaire game, it will likely be a lot easier and more flexible to determine how the cards overlap by setting their <code class="literal">zPosition</code> than by rearranging their sibling order.</p>
+          <p>Methods are also provided for converting between the coordinate systems of layers within the same layer hierarchy: <code class="literal">convertPoint:fromLayer:</code>, <code class="literal">convertPoint:toLayer:</code>, <code class="literal">convertRect:fromLayer:</code>, and <code class="literal">convertRect:toLayer:</code>.<a id="idm441650652848" class="indexterm"></a>
+<a id="idm441650651536" class="indexterm"></a><a id="idm441650650624" class="indexterm"></a>
+<a id="idm441650649312" class="indexterm"></a></p>
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_positioning_a_sublayer"></a>Positioning a Sublayer</h3>
+              </div>
+            </div>
+          </div>
+          <p>Layer coordinate systems and positioning are similar to those of views. A layer’s own internal coordinate system is expressed by its <code class="literal">bounds</code>, just like a view; its size is its bounds size, and its bounds origin is the internal coordinate at its top left.<a id="idm441650645776" class="indexterm"></a>
+<a id="idm441650644464" class="indexterm"></a></p>
+          <p>However, a sublayer’s position within its superlayer is not described by its <code class="literal">center</code>, like a view; a layer does not have a <code class="literal">center</code>. Instead, a sublayer’s position within its superlayer is defined by a combination of two properties, its <code class="literal">position</code> and its <code class="literal">anchorPoint</code>. Think of the sublayer as pinned to its superlayer; then you have to say both where the pin passes through the sublayer and where it passes through the superlayer. (I didn’t make up that analogy, but it’s pretty apt.)</p>
+          <div class="variablelist">
+            <dl>
+              <dt>
+                <span class="term">
+<code class="literal">position</code>
+</span>
+              </dt>
+              <dd>
+A point expressed in the superlayer’s coordinate system.
+</dd>
+              <dt>
+                <span class="term">
+<code class="literal">anchorPoint</code>
+</span>
+              </dt>
+              <dd>
+Where the <code class="literal">position</code> point is with respect to the layer’s own bounds. It is a pair of floating-point numbers (a CGPoint) describing a fraction (or multiple) of the layer’s own bounds width and bounds height. Thus, for example, <code class="literal">{0,0}</code> is the layer’s top left, and <code class="literal">{1,1}</code> is its bottom right.
+</dd>
+            </dl>
+          </div>
+          <p>If the <code class="literal">anchorPoint</code> is <code class="literal">{0.5,0.5}</code> (the default), the <code class="literal">position</code> property works like a view’s <code class="literal">center</code> property. A view’s <code class="literal">center</code> is thus a special case of a layer’s <code class="literal">position</code>. This is quite typical of the relationship between view properties and layer properties; the view properties are often a simpler, more convenient, and less powerful version of the layer properties.</p>
+          <p>A layer’s <code class="literal">position</code> and <code class="literal">anchorPoint</code> are orthogonal (independent); changing one does not change the other. Therefore, changing either of them without changing the other changes where the layer is drawn within its superlayer.</p>
+          <p>For example, in <a class="xref" href="ch16.html#FIGcompass">Figure 16.1</a>, the most important point in the circle is its center; all the other objects need to be positioned with respect to it. Therefore they all have the same <code class="literal">position</code>: the center of the circle. But they differ in their <code class="literal">anchorPoint</code>. For example, the arrow’s <code class="literal">anchorPoint</code> is <code class="literal">{0.5,0.8}</code>, the middle of the shaft, near the end. On the other hand, the <code class="literal">anchorPoint</code> of a cardinal point letter is more like <code class="literal">{0.5,3}</code>, well outside the letter’s bounds, so as to place the letter near the edge of the circle.</p>
+          <p>A layer’s <code class="literal">frame</code> is a purely derived property.<a id="idm441650619280" class="indexterm"></a> When you get the <code class="literal">frame</code>, it is calculated from the bounds size along with the <code class="literal">position</code> and <code class="literal">anchorPoint</code>. When you set the <code class="literal">frame</code>, you set the bounds size and <code class="literal">position</code>. In general, you should regard the <code class="literal">frame</code> as a convenient façade and no more. Nevertheless, it is convenient! For example, to position a sublayer so that it exactly overlaps its superlayer, you can just set the sublayer’s <code class="literal">frame</code> to the superlayer’s <code class="literal">bounds</code>.</p>
+          <div class="note" style="margin-left: 0; margin-right: 10%;">
+            <h3 class="title">Note</h3>
+            <p>A layer created in code (as opposed to a view’s underlying layer) has a <code class="literal">frame</code> and <code class="literal">bounds</code> of <code class="literal">{{0,0},{0,0}}</code> and will not be visible on the screen even when you add it to a superlayer that is on the screen. Be sure to give your layer a nonzero width and height if you want to be able to see it.<a id="idm441650609744" class="indexterm"></a>
+<a id="idm441650608432" class="indexterm"></a><a id="idm441650607520" class="indexterm"></a>
+<a id="idm441650606208" class="indexterm"></a></p>
+          </div>
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_cascrolllayer"></a>CAScrollLayer</h3>
+              </div>
+            </div>
+          </div>
+          <p>If you’re going to be moving a layer’s bounds origin as a way of repositioning its sublayers <span class="emphasis"><em>en masse</em></span>, you might like to make the layer a <a id="idm441650603200" class="indexterm"></a>CAScrollLayer, a CALayer subclass that provides convenience methods for this sort of thing. (Despite the name, a CAScrollLayer provides no scrolling interface; the user can’t scroll it by dragging, for example.) By default, a CAScrollLayer’s <code class="literal">masksToBounds</code> property is YES; thus, the CAScrollLayer acts like a window through which you see can only what is within its bounds. (You can set its <code class="literal">masksToBounds</code> to NO, but this would be an odd thing to do, as it somewhat defeats the purpose.)</p>
+          <p>To move the CAScrollLayer’s bounds, you can talk either to it or to a sublayer (at any depth):</p>
+          <div class="variablelist">
+            <dl>
+              <dt>
+                <span class="term">
+Talking to the CAScrollLayer
+</span>
+              </dt>
+              <dd>
+                <div class="variablelist">
+                  <dl>
+                    <dt>
+                      <span class="term">
+<code class="literal">scrollToPoint:</code>
+</span>
+                    </dt>
+                    <dd>
+Changes the CAScrollLayer’s bounds origin to that point.
+</dd>
+                    <dt>
+                      <span class="term">
+<code class="literal">scrollToRect:</code>
+</span>
+                    </dt>
+                    <dd>
+Changes the CAScrollLayer’s bounds origin minimally so that the given portion of the bounds rect is visible.
+</dd>
+                  </dl>
+                </div>
+              </dd>
+              <dt>
+                <span class="term">
+Talking to a sublayer
+</span>
+              </dt>
+              <dd>
+                <div class="variablelist">
+                  <dl>
+                    <dt>
+                      <span class="term">
+<code class="literal">scrollPoint:</code>
+</span>
+                    </dt>
+                    <dd>
+Changes the CAScrollLayer’s bounds origin so that the given point <span class="emphasis"><em>of the sublayer</em></span> is at the top left of the CAScrollLayer.
+</dd>
+                    <dt>
+                      <span class="term">
+<code class="literal">scrollRectToVisible:</code>
+</span>
+                    </dt>
+                    <dd>
+Changes the CAScrollLayer’s bounds origin so that the given rect <span class="emphasis"><em>of the sublayer’s bounds</em></span> is within the CAScrollLayer’s bounds area. You can also ask the sublayer for its <code class="literal">visibleRect</code>, the part of this sublayer now within the CAScrollLayer’s bounds.
+</dd>
+                  </dl>
+                </div>
+              </dd>
+            </dl>
+          </div>
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_layout_of_sublayers"></a>Layout of Sublayers</h3>
+              </div>
+            </div>
+          </div>
+          <p>The view hierarchy is actually a layer hierarchy (<a class="xref" href="ch16.html#FIGviewsAndLayers">Figure 16.2</a>). The positioning of a view within its superview is actually the positioning of its layer within its superlayer (the superview’s layer). It follows as the night the day that what I described in <a class="xref" href="ch14.html">Chapter 14</a> as layout of views is actually layout of layers. Whether a view is positioned manually (by setting its frame or bounds and center) or automatically through its <code class="literal">autoresizingMask</code> or automatically through autolayout based on its constraints, what’s really being laid out is a layer.</p>
+          <p>But what about a sublayer that isn’t any view’s underlying layer (<a class="xref" href="ch16.html#FIGviewsAndLayers2">Figure 16.3</a>)? The system obviously keeps such a sublayer at the same position with respect to its superlayer’s bounds; but that’s all it does, and it doesn’t really count as layout. The only option for layout of such sublayers is manual layout that you perform in code.<a id="idm441650578736" class="indexterm"></a>
+<a id="idm441650577552" class="indexterm"></a></p>
+          <p>When a layer needs layout, either because its bounds have changed or because you called <code class="literal">setNeedsLayout</code>, you can respond in either of two ways:</p>
+          <div class="itemizedlist">
+            <ul class="itemizedlist" type="disc">
+              <li class="listitem">
+The layer’s <code class="literal">layoutSublayers</code> method is called; to respond, override <code class="literal">layoutSublayers</code> in your CALayer subclass.
+</li>
+              <li class="listitem">
+Alternatively, implement <code class="literal">layoutSublayersOfLayer:</code> in the layer’s delegate. (Remember, if the layer is a view’s underlying layer, the view is its delegate.)
+</li>
+            </ul>
+          </div>
+          <p>To do effective manual layout of sublayers, you’ll probably need a way to identify or refer to the sublayers. There is no layer equivalent of <code class="literal">viewWithTag:</code>, so such identification and reference is entirely up to you. Key–value coding can be helpful here; layers implement key–value coding in a special way, discussed at the end of this chapter.</p>
+          <div class="note" style="margin-left: 0; margin-right: 10%;">
+            <h3 class="title">Mac OS X Programmer Alert</h3>
+            <p>On Mac OS X, layers have extensive layout support, including both constraints and custom layout managers. But iOS lacks all of this.</p>
+          </div>
+          <p>For a view’s underlying layer, <code class="literal">layoutSublayers</code> or <code class="literal">layoutSublayersOfLayer:</code> is called after the view’s <code class="literal">layoutSubviews</code>. Under autolayout, you must call <code class="literal">super</code> or else autolayout will break. Moreover, these methods may be called more than once during the course of autolayout; if you’re looking for an automatically generated signal that it’s time to do manual layout of sublayers (because the device has been rotated, for example), the view’s <code class="literal">layoutSubviews</code> might be a better choice.</p>
+        </div>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_drawing_in_a_layer"></a>Drawing in a Layer</h2>
+            </div>
+          </div>
+        </div>
+        <p>There are various ways to make a layer display something (apart from having a partnered view draw into it, as discussed in <a class="xref" href="ch15.html">Chapter 15</a>).<a id="idm441650561312" class="indexterm"></a>
+<a id="idm441650560032" class="indexterm"></a></p>
+        <p>The simplest way to make something appear in a layer is through its <code class="literal">contents</code> property.<a id="idm441650558016" class="indexterm"></a>
+<a id="idm441650556704" class="indexterm"></a> This is parallel to the <code class="literal">image</code> in a UIImageView (<a class="xref" href="ch15.html">Chapter 15</a>). It is expected to be a CGImageRef (or nil, signifying no image). A CGImageRef is not an object type, but the <code class="literal">contents</code> property is typed as an <code class="literal">id</code>; in order to quiet the compiler, you’ll have to typecast your CGImageRef to an <code class="literal">id</code> as you assign it, like this:<a id="idm441650552032" class="indexterm"></a></p>
+        <pre class="screen">layer.contents = (id)[im CGImage];</pre>
+        <p>You may be wondering why, under ARC, we don’t also have to “cross the bridge” from the CFTypeRef world of a CGImageRef
+to the object world of an <code class="literal">id</code> by supplying a <code class="literal">__bridge</code> cast, as discussed in <a class="xref" href="ch12.html">Chapter 12</a>. It’s because the <code class="literal">CGImage</code> method is a Cocoa method and supplies ARC with the memory management information it needs. Coming back the other way, though, we would need an explicit <code class="literal">__bridge</code> cast:</p>
+        <pre class="screen">CGImageRef imref = (__bridge CGImageRef)layer.contents;</pre>
+        <div class="warning" style="margin-left: 0; margin-right: 10%;">
+          <h3 class="title">Warning</h3>
+          <p>Setting a layer’s <code class="literal">contents</code> to a UIImage, rather than a CGImage, will fail silently — the image doesn’t appear, but there is no error either. This is absolutely maddening, and I wish I had a nickel for every time I’ve done it and then wasted hours figuring out why my layer isn’t appearing.<a id="idm441650543696" class="indexterm"></a>
+<a id="idm441650542400" class="indexterm"></a></p>
+        </div>
+        <p>There are also four methods that can be implemented to provide or draw a layer’s content on demand, similar to a UIView’s <code class="literal">drawRect:</code>. A layer is very conservative about calling these methods (and you must not call any of them directly). When a layer <span class="emphasis"><em>does</em></span> call these methods, I will say that the layer <span class="emphasis"><em>redisplays itself</em></span>. Here is how a layer can be caused to redisplay itself:<a id="idm441650539328" class="indexterm"></a>
+<a id="idm441650538016" class="indexterm"></a></p>
+        <div class="itemizedlist">
+          <ul class="itemizedlist" type="disc">
+            <li class="listitem">
+If the layer’s <code class="literal">needsDisplayOnBoundsChange</code> property is NO (the default), then the only way to cause the layer to redisplay itself is by calling <code class="literal">setNeedsDisplay</code> (or <code class="literal">setNeedsDisplayInRect:</code>). Even this might not cause these methods to be called right away; if that’s crucial, then you will also call <code class="literal">displayIfNeeded</code>.
+</li>
+            <li class="listitem">
+If the layer’s <code class="literal">needsDisplayOnBoundsChange</code> property is YES, then the layer will also redisplay itself when the layer’s bounds change (rather like a UIView’s <code class="literal">UIViewContentModeRedraw</code>).
+</li>
+          </ul>
+        </div>
+        <p>Here are the four methods that can be called when a layer redisplays itself; pick one to implement (don’t try to combine them, you’ll just confuse things):</p>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+<code class="literal">display</code> in a subclass
+</span>
+            </dt>
+            <dd>
+Your CALayer subclass can override <code class="literal">display</code>. There’s no graphics context at this point, so <code class="literal">display</code> is pretty much limited to setting the <code class="literal">contents</code> image.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">displayLayer:</code> in the delegate
+</span>
+            </dt>
+            <dd>
+You can set the CALayer’s <code class="literal">delegate</code> property and implement <code class="literal">displayLayer:</code> in the delegate. As with <code class="literal">display</code>, there’s no graphics context, so you’ll just be setting the <code class="literal">contents</code> image.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">drawInContext:</code> in a subclass
+</span>
+            </dt>
+            <dd>
+Your CALayer subclass can override <code class="literal">drawInContext:</code>. The parameter is a graphics context into which you can draw directly; it is <span class="emphasis"><em>not</em></span> automatically made the current context.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">drawLayer:inContext:</code> in the delegate
+</span>
+            </dt>
+            <dd>
+You can set the CALayer’s <code class="literal">delegate</code> property and implement <code class="literal">drawLayer:inContext:</code>. The second parameter is a graphics context into which you can draw directly; it is <span class="emphasis"><em>not</em></span> automatically made the current context.
+</dd>
+          </dl>
+        </div>
+        <p>Remember, you must not set the <code class="literal">delegate</code> property of a view’s underlying layer! The view is its delegate and must remain its delegate. This restriction is not as onerous as it seems; there’s generally an easy architectural way to draw into a layer by way of some other delegate if that’s what you want to do.<a id="idm441650511200" class="indexterm"></a>
+<a id="idm441650509920" class="indexterm"></a></p>
+        <p>For example, in one of my apps there’s an overlay view, sitting on top of everything else on the screen; the user is unaware of this, because the view is transparent and usually does no drawing, and the view ignores touches, which fall through to the visible views, as if the overlay were not there at all. But every once in a while I want the overlay view to display something (this is its purpose). I don’t want the overhead of making an image, and my app has a main controller, which already knows what needs drawing, so I want to draw <span class="emphasis"><em>using this controller as a layer delegate</em></span>. But it can’t be the delegate of the overlay view’s underlying layer, so I give that layer a sublayer and make my main controller <span class="emphasis"><em>that</em></span> sublayer’s delegate. Thus we have a view and its underlying layer that do nothing, except to serve as a host for this sublayer (<a class="xref" href="ch16.html#FIGoverlay">Figure 16.4</a>) — and there’s nothing wrong with that.</p>
+        <div class="figure">
+          <a id="FIGoverlay"></a>
+          <div class="figure-contents">
+            <div class="mediaobject">
+              <img src="figs/pios_1604.png" alt="figs/pios_1604.png" />
+            </div>
+          </div>
+          <p class="title">Figure 16.4. A view and a layer delegate that draws into it</p>
+        </div>
+        <br class="figure-break" />
+        <p>Assigning a layer a <code class="literal">contents</code> image and drawing directly into the layer are, in effect, mutually exclusive. So:</p>
+        <div class="itemizedlist">
+          <ul class="itemizedlist" type="disc">
+            <li class="listitem">
+If a layer’s <code class="literal">contents</code> is assigned an image, this image is shown immediately and replaces whatever drawing may have been displayed in the layer.
+</li>
+            <li class="listitem">
+If a layer redisplays itself and <code class="literal">drawInContext:</code> or <code class="literal">drawLayer:inContext:</code> draws into the layer, the drawing replaces whatever image may have been displayed in the layer.
+</li>
+            <li class="listitem">
+If a layer redisplays itself and none of the <code class="literal">display</code> methods provides content (perhaps because you didn’t override any of them), the layer will be empty of content.
+</li>
+          </ul>
+        </div>
+        <p>A layer has a scale, its <code class="literal">contentsScale</code>, which maps point distances in the layer’s graphics context to pixel distances on the device. A layer that’s managed by Cocoa, if it has contents, will adjust its <code class="literal">contentsScale</code> automatically as needed; for example, if a UIImageView has a double-resolution image (its <code class="literal">scale</code> is 2), and if we’re running on a device with a double-resolution screen, then the image view’s underlying layer is assigned a <code class="literal">contentsScale</code> of 2. A layer that you are creating and managing yourself, however, has no such automatic behavior; it’s up to you, if you plan to draw into the layer, to set its <code class="literal">contentsScale</code> appropriately. Content drawn into a layer with a <code class="literal">contentsScale</code> of 1 may appear pixellated or fuzzy on a double-resolution screen.<a id="idm441650489776" class="indexterm"></a><a id="idm441650488864" class="indexterm"></a><a id="idm441650487952" class="indexterm"></a></p>
+        <p>Three layer properties strongly affect what the layer displays, in ways that can be baffling to beginners: its <code class="literal">backgroundColor</code> property, its <code class="literal">opaque</code> property, and its <code class="literal">opacity</code> property. Here’s what you need to know:</p>
+        <div class="itemizedlist">
+          <ul class="itemizedlist" type="disc">
+            <li class="listitem">
+Think of the <code class="literal">backgroundColor</code> as separate from the layer’s own drawing, and as painted <span class="emphasis"><em>behind</em></span> the layer’s own drawing. It is equivalent to a view’s <code class="literal">backgroundColor</code> (and if this layer is a view’s underlying layer, it <span class="emphasis"><em>is</em></span> the view’s <code class="literal">backgroundColor</code>). Changing the <code class="literal">backgroundColor</code> takes effect immediately.
+</li>
+            <li class="listitem">
+              <p class="simpara">
+The <code class="literal">opaque</code> property determines whether the layer’s <span class="emphasis"><em>graphics context is opaque</em></span>. An opaque graphics context is black; you can draw on top of that blackness, but the blackness is still there. A non-opaque graphics context is clear; where no drawing is, it is completely transparent.<a id="idm441650477712" class="indexterm"></a>
+<a id="idm441650476416" class="indexterm"></a><a id="idm441650475520" class="indexterm"></a>
+<a id="idm441650474208" class="indexterm"></a><a id="idm441650473296" class="indexterm"></a>
+<a id="idm441650471984" class="indexterm"></a><a id="idm441650471072" class="indexterm"></a> Changing the <code class="literal">opaque</code> property has no effect until the layer redisplays itself.
+</p>
+              <p class="simpara">If a layer is a view’s underlying layer, then setting the view’s <code class="literal">backgroundColor</code> to an opaque color (alpha component of <code class="literal">1</code>) sets the layer’s <code class="literal">opaque</code>, though not the view’s <code class="literal">opaque</code>, to YES. I regard this as extremely weird. (It is the reason behind the strange behavior of <code class="literal">CGContextClearRect</code> described in <a class="xref" href="ch15.html">Chapter 15</a>.)<a id="idm441650464640" class="indexterm"></a></p>
+            </li>
+            <li class="listitem">
+The <code class="literal">opacity</code> property affects the overall apparent transparency of the layer. It is equivalent to a view’s <code class="literal">alpha</code> (and if this layer is a view’s underlying layer, it <span class="emphasis"><em>is</em></span> the view’s <code class="literal">alpha</code>). It affects the apparent transparency of the layer’s sublayers as well. It affects the apparent transparency of the background color and the apparent transparency of the layer’s content separately (just as with a view’s <code class="literal">alpha</code>). Changing the <code class="literal">opacity</code> property takes effect immediately.<a id="idm441650458400" class="indexterm"></a>
+<a id="idm441650457104" class="indexterm"></a>
+</li>
+          </ul>
+        </div>
+        <p>When drawing directly into a layer, the behavior of <code class="literal">GCContextClearRect</code> differs from what was described in <a class="xref" href="ch15.html">Chapter 15</a>: instead of punching a hole through the background color, it effectively paints with the layer’s background color. (This can have curious side effects.)</p>
+        <div class="sidebar">
+          <div class="titlepage">
+            <div>
+              <div>
+                <p class="title">Automatically Redisplaying a View’s Underlying Layer</p>
+              </div>
+            </div>
+          </div>
+          <p>A layer is not told automatically to redisplay itself (unless its bounds are resized when <code class="literal">needsDisplayOnBoundsChange</code> is YES), but a view is. For example, a view is told to redraw itself when it first appears; basically, it is sent <code class="literal">setNeedsDisplay</code>, much as if you had sent it explicitly. When a view is sent <code class="literal">setNeedsDisplay</code>, the view’s underlying layer is also sent <code class="literal">setNeedsDisplay</code> — unless the view has no <code class="literal">drawRect:</code> implementation (because in that case, it is assumed that the view never needs redrawing). So, if you’re drawing a view entirely by drawing its underlying layer directly, and if you want the underlying layer to be redisplayed automatically when the view is told to redraw itself, you should implement <code class="literal">drawRect:</code>, even if it does nothing. (This technique has no effect on sublayers of the underlying layer.)<a id="idm441650447376" class="indexterm"></a>
+<a id="idm441650446080" class="indexterm"></a></p>
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_content_resizing_and_positioning"></a>Content Resizing and Positioning</h3>
+              </div>
+            </div>
+          </div>
+          <p>Once a layer has content, regardless of whether this content came from an image (setting the <code class="literal">contents</code> property) or from direct drawing into its context (<code class="literal">drawInContext:</code>, <code class="literal">drawLayer:inContext:</code>), various properties dictate how the content should be drawn in relation to the layer’s bounds. It is as if the cached content is itself treated as an image, which can then be resized, repositioned, cropped, and so on. These properties are:</p>
+          <div class="variablelist">
+            <dl>
+              <dt>
+                <span class="term">
+<code class="literal">contentsGravity</code>
+</span>
+              </dt>
+              <dd>
+This property, a string, is parallel to a UIView’s <code class="literal">contentMode</code> property, and describes how the content should be positioned or stretched in relation to the bounds. For example, <code class="literal">kCAGravityCenter</code> means the content is centered in the bounds without resizing; <code class="literal">kCAGravityResize</code> (the default) means the content is sized to fit the bounds, even if this means distorting its aspect; and so forth.
+</dd>
+            </dl>
+          </div>
+          <div class="note" style="margin-left: 0; margin-right: 10%;">
+            <h3 class="title">Note</h3>
+            <p>For historical reasons, the terms “bottom” and “top” in the names of the <code class="literal">contentsGravity</code> settings have the opposite of their expected meanings.<a id="idm441650434400" class="indexterm"></a><a id="idm441650433504" class="indexterm"></a></p>
+          </div>
+          <div class="variablelist">
+            <dl>
+              <dt>
+                <span class="term">
+<code class="literal">contentsRect</code>
+</span>
+              </dt>
+              <dd>
+                <p class="simpara">
+A CGRect expressing the proportion of the content that is to be displayed. The default is <code class="literal">{{0,0},{1,1}}</code>, meaning the entire content is displayed. The specified part of the content is sized and positioned in relation to the bounds in accordance with the <code class="literal">contentsGravity</code>. Thus, for example, you can scale up part of the content to fill the bounds, or slide part of a larger image into view without redrawing or changing the <code class="literal">contents</code> image.
+</p>
+                <p class="simpara">You can also use the <code class="literal">contentsRect</code> to scale down the content, by specifying a larger <code class="literal">contentsRect</code> such as <code class="literal">{{-.5, -.5}, {1.5, 1.5}}</code>; but any content pixels that touch the edge of the <code class="literal">contentsRect</code> will then be extended outwards to the edge of the layer (to prevent this, make sure that the outermost pixels of the content are all empty).</p>
+              </dd>
+              <dt>
+                <span class="term">
+<code class="literal">contentsCenter</code>
+</span>
+              </dt>
+              <dd>
+A CGRect expressing the central region of nine rectangular regions of the <code class="literal">contentsRect</code> that are variously allowed to stretch if the <code class="literal">contentsGravity</code> calls for stretching. The central region (the actual value of the <code class="literal">contentsCenter</code>) stretches in both directions. Of the other eight regions (inferred from the value you provide), the four corner regions don’t stretch, and the four side regions stretch in one direction. (This should remind you of how a resizable image stretches.)
+</dd>
+            </dl>
+          </div>
+          <p>If you’re drawing directly into the layer’s graphics context (e.g., with <code class="literal">drawLayer:inContext:</code>), and the <code class="literal">contentsRect</code> is the entire content, then if the layer redisplays itself, the <code class="literal">contentsGravity</code> won’t matter, because the graphics context fills the layer. But if the layer’s bounds are resized when <code class="literal">needsDisplayOnBoundsChange</code> is NO, then its cached content from the last time you drew is treated as an image. By a judicious combination of settings, you can attain some fairly sophisticated automatic behavior, with no need to redraw the content yourself. For example, <a class="xref" href="ch16.html#FIGstretch">Figure 16.5</a> shows the result of the following settings:</p>
+          <pre class="screen">arrow.needsDisplayOnBoundsChange = NO;
+arrow.contentsCenter = CGRectMake(0.0, 0.4, 1.0, 0.6);
+arrow.contentsGravity = kCAGravityResizeAspect;
+arrow.bounds = CGRectInset(arrow.bounds, -20, -20);</pre>
+          <p>Because <code class="literal">needsDisplayOnBoundsChange</code> is NO, the content is not redisplayed when the arrow’s bounds are increased; instead, the cached content is used. The <code class="literal">contentsGravity</code> setting tells us to resize proportionally; therefore, the arrow is both longer and wider than in <a class="xref" href="ch16.html#FIGcompass">Figure 16.1</a>, but not in such a way as to distort its proportions. However, notice that although the triangular arrowhead is wider, it is not longer; the increase in length is due entirely to the stretching of the shaft. That’s because the <code class="literal">contentsCenter</code> region is restricted to the shaft of the arrow.</p>
+          <div class="figure">
+            <a id="FIGstretch"></a>
+            <div class="figure-contents">
+              <div class="mediaobject">
+                <img src="figs/pios_1605.png" alt="figs/pios_1605.png" />
+              </div>
+            </div>
+            <p class="title">Figure 16.5. One way of resizing the compass arrow</p>
+          </div>
+          <br class="figure-break" />
+          <p>If the content is larger than the bounds of the layer (which can easily happen if you’re assigning a <code class="literal">contents</code> image), and if the <code class="literal">contentsGravity</code> and <code class="literal">contentsRect</code> do not resize the content to fit the bounds, then by default the content will be drawn larger than the layer; the layer does not automatically clip its content to its bounds (just as it does not automatically clip its sublayers to its bounds). To get such clipping, for both content and sublayers, set the layer’s <code class="literal">masksToBounds</code> property to YES.</p>
+          <div class="note" style="margin-left: 0; margin-right: 10%;">
+            <h3 class="title">Note</h3>
+            <p>The value of a layer’s bounds origin does not affect where its content is drawn. It affects only where its sublayers are drawn.</p>
+          </div>
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_layers_that_draw_themselves"></a>Layers that Draw Themselves</h3>
+              </div>
+            </div>
+          </div>
+          <p>A few built-in CALayer subclasses provide some basic but extremely helpful <span class="keep-together">self-drawing</span> ability:</p>
+          <div class="variablelist">
+            <dl>
+              <dt>
+                <span class="term">
+CATextLayer
+</span>
+              </dt>
+              <dd>
+A <a id="idm441650398848" class="indexterm"></a>CATextLayer has a <code class="literal">string</code> property, which can be an NSString or NSAttributedString, along with other text formatting properties; it draws its <code class="literal">string</code>. The default text color, the <code class="literal">foregroundColor</code> property, is white, which is unlikely to be what you want. The text is different from the <code class="literal">contents</code> and is mutually exclusive with it: either the contents image or the text will be drawn, but not both, so in general you should not give a CATextLayer any contents image. In <a class="xref" href="ch16.html#FIGcompass">Figure 16.1</a>, the cardinal point letters are CATextLayer instances.<a id="idm441650394400" class="indexterm"></a>
+<a id="idm441650393120" class="indexterm"></a>
+</dd>
+            </dl>
+          </div>
+          <div class="warning" style="margin-left: 0; margin-right: 10%;">
+            <h3 class="title">Warning</h3>
+            <p>Text drawing has changed in iOS 6. If you were using CATextLayer in iOS 5 or before, you may find that your text appears differently in iOS 6 (for example, its position may be shifted).<a id="idm441650391008" class="indexterm"></a>
+<a id="idm441650389680" class="indexterm"></a></p>
+          </div>
+          <div class="variablelist">
+            <dl>
+              <dt>
+                <span class="term">
+CAShapeLayer
+</span>
+              </dt>
+              <dd>
+A <a id="idm441650387184" class="indexterm"></a>CAShapeLayer has a <code class="literal">path</code> property, which is a CGPath. It fills or strokes this path, or both, depending on its <code class="literal">fillColor</code> and <code class="literal">strokeColor</code> values, and displays the result; the default is a <code class="literal">fillColor</code> of black and no <code class="literal">strokeColor</code>. A CAShapeLayer may also have <code class="literal">contents</code>; the shape is displayed on top of the contents image, but there is no property permitting you to specify a compositing mode. In <a class="xref" href="ch16.html#FIGcompass">Figure 16.1</a>, the background circle is a CAShapeLayer instance, stroked with gray and filled with a lighter, slightly transparent gray.<a id="idm441650381440" class="indexterm"></a>
+<a id="idm441650380160" class="indexterm"></a>
+</dd>
+              <dt>
+                <span class="term">
+CAGradientLayer
+</span>
+              </dt>
+              <dd>
+                <p class="simpara">
+A <a id="idm441650377520" class="indexterm"></a>CAGradientLayer covers its background with a simple linear gradient; thus, it’s an easy way to composite a gradient into your interface (and if you need something more elaborate you can always draw with Core Graphics instead). The gradient is defined much as in the Core Graphics gradient example in <a class="xref" href="ch15.html">Chapter 15</a>, an array of locations and an array of corresponding colors (except that these are NSArrays, not C arrays), along with a start and end point. To clip the gradient, you can add a mask to the CAGradientLayer (masks are discussed later in this chapter). A CAGradientLayer’s <code class="literal">contents</code> are not displayed.<a id="idm441650374128" class="indexterm"></a>
+<a id="idm441650372880" class="indexterm"></a>
+</p>
+                <p class="simpara">The <code class="literal">colors</code> array requires CGColors, not UIColors. But CGColorRef is not an object type, whereas NSArray expects objects, so to quiet the compiler you’ll need to typecast (to <code class="literal">id</code>).<a id="idm441650369776" class="indexterm"></a></p>
+              </dd>
+            </dl>
+          </div>
+          <p><a class="xref" href="ch16.html#FIGcompassGradient">Figure 16.6</a> shows our compass drawn with an extra CAGradientLayer behind it.</p>
+          <div class="figure">
+            <a id="FIGcompassGradient"></a>
+            <div class="figure-contents">
+              <div class="mediaobject">
+                <img src="figs/pios_1606.png" alt="figs/pios_1606.png" />
+              </div>
+            </div>
+            <p class="title">Figure 16.6. A gradient drawn behind the compass</p>
+          </div>
+          <br class="figure-break" />
+        </div>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_transforms"></a>Transforms</h2>
+            </div>
+          </div>
+        </div>
+        <p>The way a layer is drawn on the screen can be modified though a transform.<a id="idm441650362704" class="indexterm"></a> This is not surprising, because a view can have a transform (see <a class="xref" href="ch14.html">Chapter 14</a>), and a view is drawn on the screen by its layer. As with the bounds and other properties, a view and its underlying layer are tightly linked; when you change the transform of one, you are changing the transform of the other. But, as so often happens, the layer’s transform is more powerful than the view’s transform. Thus, you can use the transform of the underlying layer to accomplish things with a view that you can’t accomplish with the view’s transform alone.</p>
+        <p>In the simplest cases, when a transform is two-dimensional, you can use the <code class="literal">setAffineTransform:</code> and <code class="literal">affineTransform</code> methods. The value is a <a id="idm441650358656" class="indexterm"></a>CGAffineTransform, familiar from <a class="xref" href="ch14.html">Chapter 14</a> and <a class="xref" href="ch15.html">Chapter 15</a>. The transform is applied around the <code class="literal">anchorPoint</code>. Thus, the <code class="literal">anchorPoint</code> has a second purpose that I didn’t tell you about when discussing it earlier.</p>
+        <p>You now know everything you need to know in order to understand the code that generated <a class="xref" href="ch16.html#FIGcompassGradient">Figure 16.6</a>, so here is that code. Notice how the four cardinal point letters are drawn by a CATextLayer and placed using a transform. They are drawn at the same coordinates, but they have different rotation transforms. Moreover, even though the CATextLayers are small (just 40 by 40) and appear near the perimeter of the circle, they are anchored, and so their rotation is centered, at the center of the circle. In this code, <code class="literal">self</code> is the CompassLayer; it does no drawing of its own, but merely assembles and configures its sublayers. To generate the arrow, we make ourselves the arrow layer’s delegate and call <code class="literal">setNeedsDisplay</code>; this causes <code class="literal">drawLayer:inContext:</code> to be called in CompassLayer (that code is just the same code we developed for drawing the arrow into a context in <a class="xref" href="ch15.html">Chapter 15</a>, and is not repeated here):</p>
+        <pre class="screen">// the gradient
+CAGradientLayer* g = [CAGradientLayer new];
+g.contentsScale = [UIScreen mainScreen].scale;
+g.frame = self.bounds;
+g.colors = @[(id)[[UIColor blackColor] CGColor],
+            (id)[[UIColor redColor] CGColor]];
+g.locations = @[@0.0f,
+               @1.0f];
+[self addSublayer:g];
+
+// the circle
+CAShapeLayer* circle = [CAShapeLayer new];
+circle.contentsScale = [UIScreen mainScreen].scale;
+circle.lineWidth = 2.0;
+circle.fillColor =
+[[UIColor colorWithRed:0.9 green:0.95 blue:0.93 alpha:0.9] CGColor];
+circle.strokeColor = [[UIColor grayColor] CGColor];
+CGMutablePathRef p = CGPathCreateMutable();
+CGPathAddEllipseInRect(p, nil, CGRectInset(self.bounds, 3, 3));
+circle.path = p;
+[self addSublayer:circle];
+circle.bounds = self.bounds;
+circle.position = CGPointMake(CGRectGetMidX(self.bounds),
+                              CGRectGetMidY(self.bounds));
+
+// the four cardinal points
+NSArray* pts = @[@"N", @"E", @"S", @"W"];
+for (int i = 0; i &lt; 4; i++) {
+    CATextLayer* t = [CATextLayer new];
+    t.contentsScale = [UIScreen mainScreen].scale;
+    t.string = pts[i];
+    t.bounds = CGRectMake(0,0,40,40);
+    t.position = CGPointMake(CGRectGetMidX(circle.bounds),
+                             CGRectGetMidY(circle.bounds));
+    CGFloat vert = CGRectGetMidY(circle.bounds) / CGRectGetHeight(t.bounds);
+    t.anchorPoint = CGPointMake(0.5, vert);
+    t.alignmentMode = kCAAlignmentCenter;
+    t.foregroundColor = [[UIColor blackColor] CGColor];
+    [t setAffineTransform:CGAffineTransformMakeRotation(i*M_PI/2.0)];
+    [circle addSublayer:t];
+}
+
+// the arrow
+CALayer* arrow = [CALayer new];
+arrow.contentsScale = [UIScreen mainScreen].scale;
+arrow.bounds = CGRectMake(0, 0, 40, 100);
+arrow.position = CGPointMake(CGRectGetMidX(self.bounds),
+                             CGRectGetMidY(self.bounds));
+arrow.anchorPoint = CGPointMake(0.5, 0.8);
+arrow.delegate = self;
+[arrow setAffineTransform:CGAffineTransformMakeRotation(M_PI/5.0)];
+[self addSublayer:arrow];
+[arrow setNeedsDisplay];</pre>
+        <p>A full-fledged layer transform, the value of the <code class="literal">transform</code> property, takes place in three-dimensional space; its description includes a z-axis, perpendicular to both the x-axis and y-axis. (By default, the positive z-axis points out of the screen, toward the viewer’s face.) Layers do not magically give you realistic three-dimensional rendering — for that you would use OpenGL, which is beyond the scope of this discussion. Layers are two-dimensional objects, and they are designed for speed and simplicity. Nevertheless, they do operate in three dimensions, quite sufficiently to give a cartoonish but effective sense of reality, especially when performing an animation. We’ve all seen the screen image flip like turning over a piece of paper to reveal what’s on the back; that’s a rotation in three dimensions.</p>
+        <p>A three-dimensional transform takes place around a three-dimensional extension of the <code class="literal">anchorPoint</code>, whose z-component is supplied by the <code class="literal">anchorPointZ</code> property. Thus, in the reduced default case where <code class="literal">anchorPointZ</code> is <code class="literal">0</code>, the <code class="literal">anchorPoint</code> is sufficient, as we’ve already seen in using CGAffineTransform.</p>
+        <p>The transform itself is described mathematically by a struct called a <a id="idm441650344176" class="indexterm"></a>CATransform3D. The <span class="emphasis"><em>Core Animation Function Reference</em></span> lists the functions for working with these transforms. They are a lot like the CGAffineTransform functions, except they’ve got a third dimension. For example, here’s the declaration of the function for making a 2D scale transform:</p>
+        <pre class="screen">CGAffineTransform CGAffineTransformMakeScale (
+   CGFloat sx,
+   CGFloat sy
+);</pre>
+        <p>And here’s the declaration of the function for making a 3D scale transform:</p>
+        <pre class="screen">CATransform3D CATransform3DMakeScale (
+    CGFloat sx,
+    CGFloat sy,
+    CGFloat sz
+);</pre>
+        <p>The <a id="idm441650340272" class="indexterm"></a>rotation 3D transform is a little more complicated. In addition to the angle, you also have to supply three coordinates describing the vector around which the rotation takes place. Perhaps you’ve forgotten from your high-school math what a vector is, or perhaps trying to visualize three dimensions boggles your mind, so think of it this way.</p>
+        <p>Pretend for purposes of discussion that the anchor point is the origin, <code class="literal">{0,0,0}</code>. Now imagine an arrow emanating from the anchor point; its other end, the pointy end, is described by the three coordinates you provide. Now imagine a plane that intersects the anchor point, perpendicular to the arrow. That is the plane in which the rotation will take place; a positive angle is a clockwise rotation, as seen from the side of the plane with the arrow (<a class="xref" href="ch16.html#FIGrotationPlane">Figure 16.7</a>). In effect, the three points you supply describe, relative to the anchor point, where your eye would have to be to see this rotation as an old-fashioned two-dimensional rotation.</p>
+        <p>The three values you give specify a direction, not a point. Thus it makes no difference on what scale you give them: <code class="literal">{1,1,1}</code> means the same thing as <code class="literal">{10,10,10}</code>. If the three values are <code class="literal">{0,0,1}</code>, with all other things being equal, the case is collapsed to a simple CGAffineTransform, because the rotational plane is the screen. On the other hand, if the three values are <code class="literal">{0,0,-1}</code>, it’s a backward CGAffineTransform, so that a positive angle looks counterclockwise (because we are looking at the “back side” of the rotational plane).</p>
+        <div class="figure">
+          <a id="FIGrotationPlane"></a>
+          <div class="figure-contents">
+            <div class="mediaobject">
+              <img src="figs/pios_1607.png" alt="figs/pios_1607.png" />
+            </div>
+          </div>
+          <p class="title">Figure 16.7. An anchor point plus a vector defines a rotation plane</p>
+        </div>
+        <br class="figure-break" />
+        <p>A layer can itself be rotated in such a way that its “back” is showing. For example, the following rotation flips a layer around its y-axis:</p>
+        <pre class="screen">someLayer.transform = CATransform3DMakeRotation(M_PI, 0, 1, 0);</pre>
+        <p>By default, the layer is considered double-sided, so when it is flipped to show its “back,” what’s drawn is an appropriately reversed version of the content of the layer (along with its sublayers, which by default are still drawn in front of the layer, but reversed and positioned in accordance with the layer’s transformed coordinate system). But if the layer’s <code class="literal">doubleSided</code> property is NO, then when it is flipped to show its “back,” the layer disappears (along with its sublayers); its “back” is transparent and empty.</p>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_depth"></a>Depth</h3>
+              </div>
+            </div>
+          </div>
+          <p>There are two ways to place layers at different nominal depths with respect to their siblings.<a id="idm441650324592" class="indexterm"></a>
+<a id="idm441650323296" class="indexterm"></a> One is through the z-component of their <code class="literal">position</code>, which is the <code class="literal">zPosition</code> property. Thus the <code class="literal">zPosition</code>, too, has a second purpose that I didn’t tell you about earlier. The other is to apply a transform that translates the layer’s position in the z-direction. These two values (the z-component of a layer’s position and the z-component of its translation transform) are related; in some sense, the <code class="literal">zPosition</code> is a shorthand for a translation transform in the z-direction. (If you provide both a <code class="literal">zPosition</code> and a z-direction translation, you can rapidly confuse yourself.)</p>
+          <p>In the real world, changing an object’s <code class="literal">zPosition</code> would make it appear larger or smaller, as it is positioned closer or further away; but this, by default, is not the case in the world of layer drawing. There is no attempt to portray perspective; the layer planes are drawn at their actual size and flattened onto one another, with no illusion of distance. (This is called <span class="emphasis"><em>orthographic projection</em></span>, and is the way blueprints are often drawn to display an object from one side.)</p>
+          <p>However, there’s a widely used trick for introducing a quality of perspective into the way layers are drawn: make them sublayers of a layer whose <code class="literal">sublayerTransform</code> property maps all points onto a “distant” plane. (This is probably just about the only thing the <code class="literal">sublayerTransform</code> property is ever used for.) Combined with orthographic projection, the effect is to apply one-point perspective to the drawing, so that things do get perceptibly smaller in the negative z-direction.<a id="idm441650313888" class="indexterm"></a><a id="idm441650312976" class="indexterm"></a></p>
+          <p>For example, let’s try applying a sort of “page-turn” rotation to our compass: we’ll anchor it at its right side and then rotate it around the y-axis. For purposes of the example, the sublayer we’re actually rotating is accessed through a property, <code class="literal">rotationLayer</code>:</p>
+          <pre class="screen">self.rotationLayer.anchorPoint = CGPointMake(1,0.5);
+self.rotationLayer.position =
+    CGPointMake(CGRectGetMaxX(self.bounds), CGRectGetMidY(self.bounds));
+self.rotationLayer.transform = CATransform3DMakeRotation(M_PI/4.0, 0, 1, 0);</pre>
+          <div class="figure">
+            <a id="FIGpageturn1"></a>
+            <div class="figure-contents">
+              <div class="mediaobject">
+                <img src="figs/pios_1608.png" alt="figs/pios_1608.png" />
+              </div>
+            </div>
+            <p class="title">Figure 16.8. A disappointing page-turn rotation</p>
+          </div>
+          <br class="figure-break" />
+          <p>The results are disappointing (<a class="xref" href="ch16.html#FIGpageturn1">Figure 16.8</a>); the compass looks more squashed than rotated. Now, however, we’ll also apply the distance-mapping transform. The superlayer here is <code class="literal">self</code>:</p>
+          <pre class="screen">CATransform3D transform = CATransform3DIdentity;
+transform.m34 = -1.0/1000.0;
+self.sublayerTransform = transform;</pre>
+          <div class="figure">
+            <a id="FIGpageturn2"></a>
+            <div class="figure-contents">
+              <div class="mediaobject">
+                <img src="figs/pios_1609.png" alt="figs/pios_1609.png" />
+              </div>
+            </div>
+            <p class="title">Figure 16.9. A dramatic page-turn rotation</p>
+          </div>
+          <br class="figure-break" />
+          <p>The results (shown in <a class="xref" href="ch16.html#FIGpageturn2">Figure 16.9</a>) are better, and you can experiment with values to replace <code class="literal">1000.0</code>; for example, <code class="literal">500.0</code> gives an even more exaggerated effect. Also, the <code class="literal">zPosition</code> of the <code class="literal">rotationLayer</code> will now affect how large it is.</p>
+          <p>Another way to draw layers with depth is to use <a id="idm441650296304" class="indexterm"></a>CATransformLayer. This CALayer subclass doesn’t do any drawing of its own; it is intended solely as a host for other layers. It has the remarkable feature that you can apply a transform to it and it will maintain the depth relationships among its own sublayers. For example:</p>
+          <pre class="screen">// lay1 is a layer, f is a CGRect
+CALayer* lay2 = [CALayer layer];
+lay2.frame = f;
+lay2.backgroundColor = [UIColor blueColor].CGColor;
+[lay1 addSublayer:lay2];
+CALayer* lay3 = [CALayer layer];
+lay3.frame = CGRectOffset(f, 20, 30);
+lay3.backgroundColor = [UIColor greenColor].CGColor;
+lay3.zPosition = 10;
+[lay1 addSublayer:lay3];
+lay1.transform = CATransform3DMakeRotation(M_PI, 0, 1, 0);</pre>
+          <p>In that code, the superlayer <code class="literal">lay1</code> is flipped like a page being turned by setting its <code class="literal">transform</code>. Normally, as I mentioned earlier, the sublayer drawing order doesn’t change; the green layer is drawn in front of the blue layer, even after the transform is applied. But if <code class="literal">lay1</code> is a CATransformLayer, the green layer is drawn <span class="emphasis"><em>behind</em></span> the blue layer after the transform; they are both sublayers of <code class="literal">lay1</code>, so their depth relationship is maintained.</p>
+          <div class="figure">
+            <a id="FIGtransformLayer"></a>
+            <div class="figure-contents">
+              <div class="mediaobject">
+                <img src="figs/pios_1610.png" alt="figs/pios_1610.png" />
+              </div>
+            </div>
+            <p class="title">Figure 16.10. Page-turn rotation applied to a CATransformLayer</p>
+          </div>
+          <br class="figure-break" />
+          <p><a class="xref" href="ch16.html#FIGtransformLayer">Figure 16.10</a> shows our page-turn rotation yet again, still with the <code class="literal">sublayerTransform</code> applied to <code class="literal">self</code>, but this time the only sublayer of <code class="literal">self</code> is a CATransformLayer. The CATransformLayer, to which the page-turn transform is applied, holds the gradient layer, the circle layer, and the arrow layer. Those three layers are at different depths (using different <code class="literal">zPosition</code> settings), and you can see that the circle layer floats in front of the gradient layer. (This is clear from its apparent offset, but I wish you could see this page-turn as an animation, which makes the circle jump right out from the gradient as the rotation proceeds.) I’ve also tried to emphasize the arrow’s separation from the circle by adding a shadow.</p>
+          <p>Even more remarkable, note the little white peg sticking through the arrow and running into the circle. It is a CAShapeLayer, rotated to be perpendicular to the CATransformLayer. Normally, it runs straight out of the circle toward the viewer, so it is seen end-on, and because a layer has no thickness, it is invisible. But as the CATransformLayer pivots forward in our page-turn rotation, the peg maintains its orientation relative to the circle, and comes into view.</p>
+          <p>There is, I think, a slight additional gain in realism if the same <code class="literal">sublayerTransform</code> is applied also to the CATransformLayer, but I have not done so here.</p>
+        </div>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_shadows_borders_and_more"></a>Shadows, Borders, and More</h2>
+            </div>
+          </div>
+        </div>
+        <p>A CALayer has many additional properties that affect details of how it is drawn. Once again, all of these drawing details can, of course, be applied equally to a UIView; changing these properties of the UIView’s underlying layer changes how the view is drawn. Thus, these are effectively view features as well.</p>
+        <p>A CALayer can have a shadow, defined by its <code class="literal">shadowColor</code>, <code class="literal">shadowOpacity</code>, <code class="literal">shadowRadius</code>, and <code class="literal">shadowOffset</code> properties.<a id="idm441650274096" class="indexterm"></a> To make the layer draw a shadow, set the <code class="literal">shadowOpacity</code> to a nonzero value. The shadow is normally based on the shape of the layer’s nontransparent region, but deriving this shape can be calculation-intensive (so much so that in early versions of iOS, layer shadows weren’t implemented). You can vastly improve performance by defining the shape yourself and assigning this shape as a CGPath to the <code class="literal">shadowPath</code> property.</p>
+        <p>A CALayer can have a border (<code class="literal">borderWidth</code>, <code class="literal">borderColor</code>); the <code class="literal">borderWidth</code> is drawn inward from the bounds, potentially covering some of the content unless you compensate.<a id="idm441650268720" class="indexterm"></a></p>
+        <p>A CALayer can be bounded by a <a id="idm441650267408" class="indexterm"></a>rounded rectangle, by giving it a <code class="literal">cornerRadius</code> greater than zero. If the layer has a border, the border has rounded corners too. If the layer has a <code class="literal">backgroundColor</code>, that background is clipped to the shape of the rounded rectangle. If the layer’s <code class="literal">masksToBounds</code> is YES, the layer’s content and its sublayers are clipped by the rounded corners.
+<a id="idm441650264224" class="indexterm"></a></p>
+        <p>Like a UIView, a CALayer has a <code class="literal">hidden</code> property that can be set to take it and its sublayers out of the visible interface without actually removing it from its superlayer.</p>
+        <p>A CALayer can have a <code class="literal">mask</code>.<a id="idm441650261088" class="indexterm"></a>
+<a id="idm441650259792" class="indexterm"></a> This is itself a layer, whose content must be provided somehow. The transparency of the mask’s content in a particular spot becomes (all other things being equal) the transparency of the layer at that spot. The hues in the mask’s colors are irrelevant; only transparency matters. To position the mask, pretend it’s a sublayer.</p>
+        <p>For example, <a class="xref" href="ch16.html#FIGlayerMask">Figure 16.11</a> shows our arrow layer, with the gray circle layer behind it, and a mask applied to the arrow layer. The mask is silly, but it illustrates very well how masks work: it’s an ellipse, with an opaque fill and a thick, semitransparent stroke. Here’s the code that generates and applies the mask:</p>
+        <pre class="screen">CAShapeLayer* mask = [CAShapeLayer new];
+mask.frame = arrow.bounds;
+CGMutablePathRef p2 = CGPathCreateMutable();
+CGPathAddEllipseInRect(p2, nil, CGRectInset(mask.bounds, 10, 10));
+mask.strokeColor = [[UIColor colorWithWhite:0.0 alpha:0.5] CGColor];
+mask.lineWidth = 20;
+mask.path = p2;
+arrow.mask = mask;
+CGPathRelease(p2);</pre>
+        <div class="figure">
+          <a id="FIGlayerMask"></a>
+          <div class="figure-contents">
+            <div class="mediaobject">
+              <img src="figs/pios_1611.png" alt="figs/pios_1611.png" />
+            </div>
+          </div>
+          <p class="title">Figure 16.11. A layer with a mask</p>
+        </div>
+        <br class="figure-break" />
+        <p>Using a mask, we can do manually and in a more general way what the <code class="literal">cornerRadius</code> and <code class="literal">masksToBounds</code> properties do, clipping all our content drawing and our sublayers (and, if this layer is a view’s underlying layer, the view’s subviews) to a desired path. Here’s a utility method that generates a CALayer suitable for use as a rounded rectangle <code class="literal">mask</code>:</p>
+        <pre class="screen">- (CALayer*) maskOfSize:(CGSize)sz roundingCorners:(CGFloat)rad {
+    CGRect r = (CGRect){CGPointZero, sz};
+    UIGraphicsBeginImageContextWithOptions(r.size, NO, 0);
+    CGContextRef con = UIGraphicsGetCurrentContext();
+    CGContextSetFillColorWithColor(
+        con,[UIColor colorWithWhite:0 alpha:0].CGColor);
+    CGContextFillRect(con, r);
+    CGContextSetFillColorWithColor(
+        con,[UIColor colorWithWhite:0 alpha:1].CGColor);
+    UIBezierPath* p =
+        [UIBezierPath bezierPathWithRoundedRect:r cornerRadius:rad];
+    [p fill];
+    UIImage* im = UIGraphicsGetImageFromCurrentImageContext();
+    UIGraphicsEndImageContext();
+    CALayer* mask = [CALayer layer];
+    mask.frame = r;
+    mask.contents = (id)im.CGImage;
+    return mask;
+}</pre>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_layer_efficiency"></a>Layer Efficiency</h2>
+            </div>
+          </div>
+        </div>
+        <p>By now, you’re probably envisioning all sorts of compositing fun, with layers masking sublayers and laid semitransparently over other layers.<a id="idm441650247008" class="indexterm"></a>
+<a id="idm441650245744" class="indexterm"></a> There’s nothing wrong with that, but when an iOS device is asked to animate the movement of its drawing from place to place, the animation may stutter because the device lacks the necessary computing power to composite repeatedly and rapidly. This sort of issue is likely to emerge particularly when your code performs an animation (<a class="xref" href="ch17.html">Chapter 17</a>) or when the user is able to animate drawing through touch, as when scrolling a table view (<a class="xref" href="ch21.html">Chapter 21</a>). You may be able to detect these problems by eye, and you can quantify them on a device by using the Core Animation template in <a id="idm441650242560" class="indexterm"></a>Instruments, which shows the frame rate achieved during animation. Also, both the Core Animation template and the Simulator’s Debug menu let you summon colored overlays that provide clues as to possible sources of inefficient drawing which can lead to such problems.<a id="idm441650241808" class="indexterm"></a>
+<a id="idm441650239712" class="indexterm"></a></p>
+        <p>In general, opaque drawing is most efficient.<a id="idm441650238384" class="indexterm"></a> (Nonopaque drawing is what Instruments marks in red as “blended layers.”) If a layer will always be shown over a background consisting of a single color, you can give the layer its own background of that same color; when additional layer content is supplied, the visual effect will be the same as if that additional layer content were composited over a transparent background. For example, instead of an image masked to a rounded rectangle (with a layer’s <code class="literal">cornerRadius</code> or <code class="literal">mask</code> property), you could use Core Graphics to clip the drawing of that image into the graphics context of a layer whose background color is the same as that of the destination in front of which the drawing will be shown. Here’s an example from a view’s <code class="literal">drawRect:</code> in one of my own apps:</p>
+        <pre class="screen">// clip to rounded rect
+CGRect r = CGRectInset(rect, 1, 1);
+[[UIBezierPath bezierPathWithRoundedRect:r cornerRadius:6] addClip];
+// draw image
+UIImage* im = [UIImage imageNamed: @"linen.jpg"];
+// simulate UIViewContentModeScaleAspectFill
+// make widths the same, image height will be too tall
+CGFloat scale = im.size.width/rect.size.width;
+CGFloat y = (im.size.height/scale - rect.size.height) / 2.0;
+CGRect r2 = CGRectMake(0,-y,im.size.width/scale, im.size.height/scale);
+r2 = CGRectIntegral(r2); // looks a whole lot better if we do this
+[im drawInRect:r2];</pre>
+        <p>Another way to gain some efficiency is by “freezing” the entirety of the layer’s drawing as a bitmap. In effect, you’re drawing everything in the layer to a secondary cache and using the cache to draw to the screen. Copying from a cache is less efficient than drawing directly to the screen, but this inefficiency may be more than compensated for, if there’s a deep or complex layer tree, by not having to composite that tree every time we render. To do this, set the layer’s <code class="literal">shouldRasterize</code> to YES and its <code class="literal">rasterizationScale</code> to some sensible value (probably <code class="literal">[UIScreen mainScreen].scale</code>). You can always turn rasterization off again by setting <code class="literal">shouldRasterize</code> to NO, so it’s easy to rasterize just before some massive or sluggish rearrangement of the screen and then unrasterize afterward. (In addition, you can get some cool “out of focus” effects by setting the <code class="literal">rasterizationScale</code> to around <code class="literal">0.3</code>.)</p>
+        <p>New in iOS 6 is a layer property <code class="literal">drawsAsynchronously</code>. The default is NO. If set to YES, the layer’s graphics context accumulates drawing commands and obeys them later on a background thread. Your drawing commands thus run very quickly, because they are not in fact being obeyed at the time you give them. I haven’t had occasion to use this, but presumably there could be situations where it keeps your app responsive when drawing would otherwise be time-consuming.<a id="idm441650224688" class="indexterm"></a>
+<a id="idm441650223408" class="indexterm"></a></p>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_layers_and_key_value_coding"></a>Layers and Key–Value Coding</h2>
+            </div>
+          </div>
+        </div>
+        <p>All of a layer’s properties are accessible through key–value coding by way of keys with the same name as the property. Thus, to apply a mask to a layer, instead of saying this:</p>
+        <pre class="screen">layer.mask = mask;</pre>
+        <p>we could have said:</p>
+        <pre class="screen">[layer setValue: mask forKey: @"mask"];</pre>
+        <p>In addition, CATransform3D and CGAffineTransform values can be expressed through key–value coding and key paths.<a id="idm441650220944" class="indexterm"></a> For example, instead of writing this earlier:</p>
+        <pre class="screen">self.rotationLayer.transform = CATransform3DMakeRotation(M_PI/4.0, 0, 1, 0);</pre>
+        <p>we could have written this:</p>
+        <pre class="screen">[self.rotationLayer setValue:[NSNumber numberWithFloat:M_PI/4.0]
+                  forKeyPath:@"transform.rotation.y"];</pre>
+        <p>This notation is possible because CATransform3D is key–value coding compliant for a repertoire of keys and key paths. These are not properties, however; a CATransform3D doesn’t have a <code class="literal">rotation</code> property. It doesn’t have <span class="emphasis"><em>any</em></span> properties, because it isn’t even an object. You cannot say:</p>
+        <pre class="screen">self.rotationLayer.transform.rotation.y = //... No, sorry</pre>
+        <p>The transform key paths you’ll use most often are <code class="literal">rotation.x</code>, <code class="literal">rotation.y</code>, <code class="literal">rotation.z</code>, <code class="literal">rotation</code> (same as <code class="literal">rotation.z</code>), <code class="literal">scale.x</code>, <code class="literal">scale.y</code>, <code class="literal">scale.z</code>, <code class="literal">translation.x</code>, <code class="literal">translation.y</code>, <code class="literal">translation.z</code>, and <code class="literal">translation</code> (two-dimensional, a CGSize).</p>
+        <p>The Quartz Core framework also injects KVC compliance into CGPoint, CGSize, and CGRect, allowing you to use keys and key paths matching their struct component names. For a complete list of KVC compliant classes related to CALayer, along with the keys and key paths they implement, plus rules for how to wrap nonobject values as objects, see “Core Animation Extensions to Key-Value Coding” in the <span class="emphasis"><em>Core Animation Programming Guide</em></span>.</p>
+        <p>Moreover, you can treat a CALayer as a kind of NSDictionary, and get and set the value for <span class="emphasis"><em>any</em></span> key. This is tremendously useful, because it means you can attach arbitrary information to an individual layer instance and retrieve it later. For example, earlier I mentioned that to apply manual layout to a layer’s sublayers, you will need a way of identifying those sublayers. This feature could provide a way of doing that. For example:</p>
+        <pre class="screen">[myLayer1 setValue:@"Manny" forKey:@"name"];
+[myLayer2 setValue:@"Moe" forKey:@"name"];</pre>
+        <p>A layer doesn’t have a <code class="literal">name</code> property; the <code class="literal">@"name"</code> key is something I’m attaching to these layers arbitrarily. Now I can identify these layers later by getting the value of their respective <code class="literal">@"name"</code> keys.</p>
+        <p>Also, CALayer has a <code class="literal">defaultValueForKey:</code> class method; to implement it, you’ll need to subclass and override. In the case of keys whose value you want to provide a default for, return that value; otherwise, return the value that comes from calling <code class="literal">super</code>. Thus, even if a value for a particular key has never been explicitly provided, it can have a non-nil value.</p>
+        <p>The truth is that this feature, though delightful (and I often wish that all classes behaved like this), is not put there for your convenience and enjoyment. It’s there to serve as the basis for animation, which is the subject of the next chapter.</p>
+      </div>
+    </div>
+    <div class="navfooter">
+      <table width="100%" summary="Navigation footer">
+        <tr>
+          <td width="40%" align="left"><a accesskey="p" href="ch15.html">Prev</a> </td>
+          <td width="20%" align="center">
+            <a accesskey="u" href="pt04.html">Up</a>
+          </td>
+          <td width="40%" align="right"> <a accesskey="n" href="ch17.html">Next</a></td>
+        </tr>
+        <tr>
+          <td width="40%" align="left" valign="top">Chapter 15. Drawing </td>
+          <td width="20%" align="center">
+            <a accesskey="h" href="index.html">Table of Contents</a>
+          </td>
+          <td width="40%" align="right" valign="top"> Chapter 17. Animation</td>
+        </tr>
+      </table>
+    </div>
+  </body>
+</html>

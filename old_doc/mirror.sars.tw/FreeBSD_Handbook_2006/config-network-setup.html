@@ -1,0 +1,426 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>設定網路卡</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.79" />
+<link rel="HOME" title="FreeBSD 使用手冊" href="index.html" />
+<link rel="UP" title="設定與效能調校(Tuning)" href="config-tuning.html" />
+<link rel="PREVIOUS" title="在 FreeBSD 5.X (含之後) 使用 rc"
+href="configtuning-rcd.html" />
+<link rel="NEXT" title="虛擬主機(Virtual Hosts)"
+href="configtuning-virtual-hosts.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD 使用手冊</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="configtuning-rcd.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 11 設定與效能調校(Tuning)</td>
+<td width="10%" align="right" valign="bottom"><a href="configtuning-virtual-hosts.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="CONFIG-NETWORK-SETUP" name="CONFIG-NETWORK-SETUP">11.8
+設定網路卡</a></h1>
+
+<i class="AUTHORGROUP"><span class="CONTRIB">Contributed by</span> Marc Fonvieille.</i> 
+
+<p>Nowadays we can not think about a computer without thinking about a network
+connection. Adding and configuring a network card is a common task for any FreeBSD
+administrator.</p>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN16216" name="AEN16216">11.8.1
+選擇正確、可用的驅動程式(Driver)</a></h2>
+
+<p>Before you begin, you should know the model of the card you have, the chip it uses,
+and whether it is a PCI or ISA card. FreeBSD supports a wide variety of both PCI and ISA
+cards. Check the Hardware Compatibility List for your release to see if your card is
+supported.</p>
+
+<p>Once you are sure your card is supported, you need to determine the proper driver for
+the card. <tt class="FILENAME">/usr/src/sys/conf/NOTES</tt> and <tt
+class="FILENAME">/usr/src/sys/<tt class="REPLACEABLE"><i>arch</i></tt>/conf/NOTES</tt>
+will give you the list of network interface drivers with some information about the
+supported chipsets/cards. If you have doubts about which driver is the correct one, read
+the manual page of the driver. The manual page will give you more information about the
+supported hardware and even the possible problems that could occur.</p>
+
+<div class="NOTE">
+<blockquote class="NOTE">
+<p><b>Note:</b> <tt class="FILENAME">NOTES</tt> does not exist on FreeBSD&nbsp;4.X.
+Instead, check the <tt class="FILENAME">LINT</tt> file for information about various
+network interfaces. See <a href="kernelconfig-config.html">Section 8.4</a> for a more
+detailed summary of <tt class="FILENAME">NOTES</tt> versus <tt
+class="FILENAME">LINT</tt>.</p>
+</blockquote>
+</div>
+
+<p>If you own a common card, most of the time you will not have to look very hard for a
+driver. Drivers for common network cards are present in the <tt
+class="FILENAME">GENERIC</tt> kernel, so your card should show up during boot, like
+so:</p>
+
+<pre class="SCREEN">
+dc0: &lt;82c169 PNIC 10/100BaseTX&gt; port 0xa000-0xa0ff mem 0xd3800000-0xd38
+000ff irq 15 at device 11.0 on pci0
+dc0: Ethernet address: 00:a0:cc:da:da:da
+miibus0: &lt;MII bus&gt; on dc0
+ukphy0: &lt;Generic IEEE 802.3u media interface&gt; on miibus0
+ukphy0:  10baseT, 10baseT-FDX, 100baseTX, 100baseTX-FDX, auto
+dc1: &lt;82c169 PNIC 10/100BaseTX&gt; port 0x9800-0x98ff mem 0xd3000000-0xd30
+000ff irq 11 at device 12.0 on pci0
+dc1: Ethernet address: 00:a0:cc:da:da:db
+miibus1: &lt;MII bus&gt; on dc1
+ukphy1: &lt;Generic IEEE 802.3u media interface&gt; on miibus1
+ukphy1:  10baseT, 10baseT-FDX, 100baseTX, 100baseTX-FDX, auto
+</pre>
+
+<p>In this example, we see that two cards using the <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=dc&amp;sektion=4"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">dc</span>(4)</span></a> driver are
+present on the system.</p>
+
+<p>If the driver for your NIC is not present in <tt class="FILENAME">GENERIC</tt>, you
+will need to load the proper driver to use your NIC. This may be accomplished in one of
+two ways:</p>
+
+<ul>
+<li>
+<p>The easiest way is to simply load a kernel module for your network card with <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=kldload&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">kldload</span>(8)</span></a>. Not all
+NIC drivers are available as modules; notable examples of devices for which modules do
+not exist are ISA cards.</p>
+</li>
+
+<li>
+<p>Alternatively, you may statically compile the support for your card into your kernel.
+Check <tt class="FILENAME">/usr/src/sys/conf/NOTES</tt>, <tt
+class="FILENAME">/usr/src/sys/<tt class="REPLACEABLE"><i>arch</i></tt>/conf/NOTES</tt>
+and the manual page of the driver to know what to add in your kernel configuration file.
+For more information about recompiling your kernel, please see <a
+href="kernelconfig.html">Chapter 8</a>. If your card was detected at boot by your kernel
+(<tt class="FILENAME">GENERIC</tt>) you do not have to build a new kernel.</p>
+</li>
+</ul>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN16255" name="AEN16255">11.8.2 設定網路卡</a></h2>
+
+<p>Once the right driver is loaded for the network card, the card needs to be configured.
+As with many other things, the network card may have been configured at installation time
+by <b class="APPLICATION">sysinstall</b>.</p>
+
+<p>To display the configuration for the network interfaces on your system, enter the
+following command:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">%</samp> <kbd class="USERINPUT">ifconfig</kbd>
+dc0: flags=8843&lt;UP,BROADCAST,RUNNING,SIMPLEX,MULTICAST&gt; mtu 1500
+        inet 192.168.1.3 netmask 0xffffff00 broadcast 192.168.1.255
+        ether 00:a0:cc:da:da:da
+        media: Ethernet autoselect (100baseTX &lt;full-duplex&gt;)
+        status: active
+dc1: flags=8843&lt;UP,BROADCAST,RUNNING,SIMPLEX,MULTICAST&gt; mtu 1500
+        inet 10.0.0.1 netmask 0xffffff00 broadcast 10.0.0.255
+        ether 00:a0:cc:da:da:db
+        media: Ethernet 10baseT/UTP
+        status: no carrier
+lp0: flags=8810&lt;POINTOPOINT,SIMPLEX,MULTICAST&gt; mtu 1500
+lo0: flags=8049&lt;UP,LOOPBACK,RUNNING,MULTICAST&gt; mtu 16384
+        inet 127.0.0.1 netmask 0xff000000
+tun0: flags=8010&lt;POINTOPOINT,MULTICAST&gt; mtu 1500
+</pre>
+
+<div class="NOTE">
+<blockquote class="NOTE">
+<p><b>Note:</b> Old versions of FreeBSD may require the <code class="OPTION">-a</code>
+option following <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=ifconfig&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">ifconfig</span>(8)</span></a>, for more
+details about the correct syntax of <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=ifconfig&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">ifconfig</span>(8)</span></a>, please
+refer to the manual page. Note also that entries concerning IPv6 (<tt
+class="LITERAL">inet6</tt> etc.) were omitted in this example.</p>
+</blockquote>
+</div>
+
+<p>In this example, the following devices were displayed:</p>
+
+<ul>
+<li>
+<p><tt class="DEVICENAME">dc0</tt>: The first Ethernet interface</p>
+</li>
+
+<li>
+<p><tt class="DEVICENAME">dc1</tt>: The second Ethernet interface</p>
+</li>
+
+<li>
+<p><tt class="DEVICENAME">lp0</tt>: The parallel port interface</p>
+</li>
+
+<li>
+<p><tt class="DEVICENAME">lo0</tt>: The loopback device</p>
+</li>
+
+<li>
+<p><tt class="DEVICENAME">tun0</tt>: The tunnel device used by <b
+class="APPLICATION">ppp</b></p>
+</li>
+</ul>
+
+<p>FreeBSD uses the driver name followed by the order in which one the card is detected
+at the kernel boot to name the network card. For example <tt class="DEVICENAME">sis2</tt>
+would be the third network card on the system using the <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=sis&amp;sektion=4"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">sis</span>(4)</span></a> driver.</p>
+
+<p>In this example, the <tt class="DEVICENAME">dc0</tt> device is up and running. The key
+indicators are:</p>
+
+<ol type="1">
+<li>
+<p><tt class="LITERAL">UP</tt> means that the card is configured and ready.</p>
+</li>
+
+<li>
+<p>The card has an Internet (<tt class="LITERAL">inet</tt>) address (in this case <tt
+class="HOSTID">192.168.1.3</tt>).</p>
+</li>
+
+<li>
+<p>It has a valid subnet mask (<tt class="LITERAL">netmask</tt>; <tt
+class="HOSTID">0xffffff00</tt> is the same as <tt class="HOSTID">255.255.255.0</tt>).</p>
+</li>
+
+<li>
+<p>It has a valid broadcast address (in this case, <tt
+class="HOSTID">192.168.1.255</tt>).</p>
+</li>
+
+<li>
+<p>The MAC address of the card (<tt class="LITERAL">ether</tt>) is <tt
+class="HOSTID">00:a0:cc:da:da:da</tt></p>
+</li>
+
+<li>
+<p>The physical media selection is on autoselection mode (<tt class="LITERAL">media:
+Ethernet autoselect (100baseTX &lt;full-duplex&gt;)</tt>). We see that <tt
+class="DEVICENAME">dc1</tt> was configured to run with <tt
+class="LITERAL">10baseT/UTP</tt> media. For more information on available media types for
+a driver, please refer to its manual page.</p>
+</li>
+
+<li>
+<p>The status of the link (<tt class="LITERAL">status</tt>) is <tt
+class="LITERAL">active</tt>, i.e. the carrier is detected. For <tt
+class="DEVICENAME">dc1</tt>, we see <tt class="LITERAL">status: no carrier</tt>. This is
+normal when an Ethernet cable is not plugged into the card.</p>
+</li>
+</ol>
+
+<p>If the <a href="http://www.FreeBSD.org/cgi/man.cgi?query=ifconfig&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">ifconfig</span>(8)</span></a> output had
+shown something similar to:</p>
+
+<pre class="SCREEN">
+dc0: flags=8843&lt;BROADCAST,SIMPLEX,MULTICAST&gt; mtu 1500
+            ether 00:a0:cc:da:da:da
+</pre>
+
+<p>it would indicate the card has not been configured.</p>
+
+<p>To configure your card, you need <tt class="USERNAME">root</tt> privileges. The
+network card configuration can be done from the command line with <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=ifconfig&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">ifconfig</span>(8)</span></a> but you
+would have to do it after each reboot of the system. The file <tt
+class="FILENAME">/etc/rc.conf</tt> is where to add the network card's configuration.</p>
+
+<p>Open <tt class="FILENAME">/etc/rc.conf</tt> in your favorite editor. You need to add a
+line for each network card present on the system, for example in our case, we added these
+lines:</p>
+
+<pre class="PROGRAMLISTING">
+ifconfig_dc0="inet 192.168.1.3 netmask 255.255.255.0"
+ifconfig_dc1="inet 10.0.0.1 netmask 255.255.255.0 media 10baseT/UTP"
+</pre>
+
+<p>You have to replace <tt class="DEVICENAME">dc0</tt>, <tt class="DEVICENAME">dc1</tt>,
+and so on, with the correct device for your cards, and the addresses with the proper
+ones. You should read the card driver and <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=ifconfig&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">ifconfig</span>(8)</span></a> manual
+pages for more details about the allowed options and also <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=rc.conf&amp;sektion=5"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">rc.conf</span>(5)</span></a> manual page
+for more information on the syntax of <tt class="FILENAME">/etc/rc.conf</tt>.</p>
+
+<p>If you configured the network during installation, some lines about the network
+card(s) may be already present. Double check <tt class="FILENAME">/etc/rc.conf</tt>
+before adding any lines.</p>
+
+<p>You will also have to edit the file <tt class="FILENAME">/etc/hosts</tt> to add the
+names and the IP addresses of various machines of the LAN, if they are not already there.
+For more information please refer to <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=hosts&amp;sektion=5"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">hosts</span>(5)</span></a> and to <tt
+class="FILENAME">/usr/share/examples/etc/hosts</tt>.</p>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN16365" name="AEN16365">11.8.3 測試與疑難排除</a></h2>
+
+<p>Once you have made the necessary changes in <tt class="FILENAME">/etc/rc.conf</tt>,
+you should reboot your system. This will allow the change(s) to the interface(s) to be
+applied, and verify that the system restarts without any configuration errors.</p>
+
+<p>Once the system has been rebooted, you should test the network interfaces.</p>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="AEN16370" name="AEN16370">11.8.3.1 測試乙太網路卡(Ethernet
+Card)</a></h3>
+
+<p>To verify that an Ethernet card is configured correctly, you have to try two things.
+First, ping the interface itself, and then ping another machine on the LAN.</p>
+
+<p>First test the local interface:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">%</samp> <kbd class="USERINPUT">ping -c5 192.168.1.3</kbd>
+PING 192.168.1.3 (192.168.1.3): 56 data bytes
+64 bytes from 192.168.1.3: icmp_seq=0 ttl=64 time=0.082 ms
+64 bytes from 192.168.1.3: icmp_seq=1 ttl=64 time=0.074 ms
+64 bytes from 192.168.1.3: icmp_seq=2 ttl=64 time=0.076 ms
+64 bytes from 192.168.1.3: icmp_seq=3 ttl=64 time=0.108 ms
+64 bytes from 192.168.1.3: icmp_seq=4 ttl=64 time=0.076 ms
+
+--- 192.168.1.3 ping statistics ---
+5 packets transmitted, 5 packets received, 0% packet loss
+round-trip min/avg/max/stddev = 0.074/0.083/0.108/0.013 ms
+</pre>
+
+<p>Now we have to ping another machine on the LAN:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">%</samp> <kbd class="USERINPUT">ping -c5 192.168.1.2</kbd>
+PING 192.168.1.2 (192.168.1.2): 56 data bytes
+64 bytes from 192.168.1.2: icmp_seq=0 ttl=64 time=0.726 ms
+64 bytes from 192.168.1.2: icmp_seq=1 ttl=64 time=0.766 ms
+64 bytes from 192.168.1.2: icmp_seq=2 ttl=64 time=0.700 ms
+64 bytes from 192.168.1.2: icmp_seq=3 ttl=64 time=0.747 ms
+64 bytes from 192.168.1.2: icmp_seq=4 ttl=64 time=0.704 ms
+
+--- 192.168.1.2 ping statistics ---
+5 packets transmitted, 5 packets received, 0% packet loss
+round-trip min/avg/max/stddev = 0.700/0.729/0.766/0.025 ms
+</pre>
+
+<p>You could also use the machine name instead of <tt class="HOSTID">192.168.1.2</tt> if
+you have set up the <tt class="FILENAME">/etc/hosts</tt> file.</p>
+</div>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="AEN16387" name="AEN16387">11.8.3.2 疑難排除</a></h3>
+
+<p>Troubleshooting hardware and software configurations is always a pain, and a pain
+which can be alleviated by checking the simple things first. Is your network cable
+plugged in? Have you properly configured the network services? Did you configure the
+firewall correctly? Is the card you are using supported by FreeBSD? Always check the
+hardware notes before sending off a bug report. Update your version of FreeBSD to the
+latest STABLE version. Check the mailing list archives, or perhaps search the
+Internet.</p>
+
+<p>If the card works, yet performance is poor, it would be worthwhile to read over the <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=tuning&amp;sektion=7"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">tuning</span>(7)</span></a> manual page.
+You can also check the network configuration as incorrect network settings can cause slow
+connections.</p>
+
+<p>Some users experience one or two “<tt class="ERRORNAME">device timeout</tt>”
+messages, which is normal for some cards. If they continue, or are bothersome, you may
+wish to be sure the device is not conflicting with another device. Double check the cable
+connections. Perhaps you may just need to get another card.</p>
+
+<p>At times, users see a few “<tt class="ERRORNAME">watchdog timeout</tt>” errors. The
+first thing to do here is to check your network cable. Many cards require a PCI slot
+which supports Bus Mastering. On some old motherboards, only one PCI slot allows it
+(usually slot 0). Check the network card and the motherboard documentation to determine
+if that may be the problem.</p>
+
+<p>“<tt class="ERRORNAME">No route to host</tt>” messages occur if the system is unable
+to route a packet to the destination host. This can happen if no default route is
+specified, or if a cable is unplugged. Check the output of <tt class="COMMAND">netstat
+-rn</tt> and make sure there is a valid route to the host you are trying to reach. If
+there is not, read on to <a href="advanced-networking.html">Chapter 27</a>.</p>
+
+<p>“<tt class="ERRORNAME">ping: sendto: Permission denied</tt>” error messages are
+often caused by a misconfigured firewall. If <tt class="COMMAND">ipfw</tt> is enabled in
+the kernel but no rules have been defined, then the default policy is to deny all
+traffic, even ping requests! Read on to <a href="firewalls.html">Chapter 26</a> for more
+information.</p>
+
+<p>Sometimes performance of the card is poor, or below average. In these cases it is best
+to set the media selection mode from <tt class="LITERAL">autoselect</tt> to the correct
+media selection. While this usually works for most hardware, it may not resolve this
+issue for everyone. Again, check all the network settings, and read over the <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=tuning&amp;sektion=7"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">tuning</span>(7)</span></a> manual
+page.</p>
+</div>
+</div>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="configtuning-rcd.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="configtuning-virtual-hosts.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">在 FreeBSD 5.X (含之後) 使用 rc</td>
+<td width="34%" align="center" valign="top"><a href="config-tuning.html"
+accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">虛擬主機(Virtual Hosts)</td>
+</tr>
+</table>
+</div>
+
+<p align="center"><small>This, and other documents, can be downloaded from <a
+href="ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/">ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/</a>.</small></p>
+
+<p align="center"><small>For questions about FreeBSD, read the <a
+href="http://www.FreeBSD.org/docs.html">documentation</a> before contacting &#60;<a
+href="mailto:questions@FreeBSD.org">questions@FreeBSD.org</a>&#62;.<br />
+For questions about this documentation, e-mail &#60;<a
+href="mailto:doc@FreeBSD.org">doc@FreeBSD.org</a>&#62;.</small></p>
+</body>
+</html>
+

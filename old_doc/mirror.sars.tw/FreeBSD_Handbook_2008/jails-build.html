@@ -1,0 +1,252 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>建立和控制 Jail</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.79" />
+<link rel="HOME" title="FreeBSD 使用手冊" href="index.html" />
+<link rel="UP" title="Jails" href="jails.html" />
+<link rel="PREVIOUS" title="背景故事" href="jails-intro.html" />
+<link rel="NEXT" title="微調與管理" href="jails-tuning.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD 使用手冊</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="jails-intro.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 15 Jails</td>
+<td width="10%" align="right" valign="bottom"><a href="jails-tuning.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="JAILS-BUILD" name="JAILS-BUILD">15.4 建立和控制 Jail</a></h1>
+
+<p>有些系統管理者把 jail 分為下列兩種：“complete(完全)” jail —— 通常包括完整的
+FreeBSD 系統；另一種則為 “service(服務)” jail ——
+專門只跑某單一可能要用特殊權限的程式或 service。 這只是一種概念上的區分
+，並不影響如何建立 jail 的過程。 至於如何建立 jail 在 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=jail&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">jail</span>(8)</span></a>
+內有更詳細的說明：</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">setenv D <tt
+class="REPLACEABLE"><i>/here/is/the/jail</i></tt></kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">mkdir -p $D</kbd> <a id="JAILPATH"
+name="JAILPATH"><img src="./imagelib/callouts/1.png" hspace="0" vspace="0" border="0"
+alt="(1)" /></a>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">cd /usr/src</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">make world DESTDIR=$D</kbd> <a
+id="JAILWORLD" name="JAILWORLD"><img src="./imagelib/callouts/2.png" hspace="0"
+vspace="0" border="0" alt="(2)" /></a>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">cd etc/</kbd> <a id="AEN21376"
+name="AEN21376" href="#FTN.AEN21376"><span class="footnote">[1]</span></a>
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">make distribution DESTDIR=$D</kbd> <a id="JAILDISTRIB"
+name="JAILDISTRIB"><img src="./imagelib/callouts/3.png" hspace="0" vspace="0" border="0"
+alt="(3)" /></a>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">mount -t devfs $D/dev</kbd> <a
+id="JAILDEVFS" name="JAILDEVFS"><img src="./imagelib/callouts/4.png" hspace="0"
+vspace="0" border="0" alt="(4)" /></a>
+</pre>
+
+<div class="CALLOUTLIST">
+<dl compact="COMPACT">
+<dt><a href="jails-build.html#JAILPATH"><img src="./imagelib/callouts/1.png" hspace="0"
+vspace="0" border="0" alt="(1)" /></a></dt>
+
+<dd>首先就是先為 jail 找個家。 該路徑是在 host 系統中的 jail 實體位置。 習慣是放在 <tt
+class="FILENAME">/usr/jail/<tt class="REPLACEABLE"><i>jailname</i></tt></tt>， <tt
+class="REPLACEABLE"><i>jailname</i></tt> 請替換為該 jail 的 hostname 以便辨別。 通常 <tt
+class="FILENAME">/usr</tt> 會有足夠空間來存放 jail 檔案系統，對於 “complete” jail
+而言，它通常包括了 FreeBSD 預設安裝 base system 所有檔案的拷貝檔。</dd>
+
+<dt><a href="jails-build.html#JAILWORLD"><img src="./imagelib/callouts/2.png" hspace="0"
+vspace="0" border="0" alt="(2)" /></a></dt>
+
+<dd>該指令將會在 jail 目錄中安裝所需的 binary、library、manual 說明等 。 這些是以傳統的
+FreeBSD 方式完成 —— 即首先先編譯所有檔案， 接著再裝到目的地。</dd>
+
+<dt><a href="jails-build.html#JAILDISTRIB"><img src="./imagelib/callouts/3.png"
+hspace="0" vspace="0" border="0" alt="(3)" /></a></dt>
+
+<dd>使用 <tt class="MAKETARGET">distribution</tt> 這個 <b class="APPLICATION">make</b>
+target 來裝所有會用到的設定檔。 簡單來說該動作就是把 <tt
+class="FILENAME">/usr/src/etc/</tt> 複製到 jail 環境內的 <tt
+class="FILENAME">/etc</tt>，也就是 <tt class="FILENAME">$D/etc/</tt>。</dd>
+
+<dt><a href="jails-build.html#JAILDEVFS"><img src="./imagelib/callouts/4.png" hspace="0"
+vspace="0" border="0" alt="(4)" /></a></dt>
+
+<dd>對於 jail 環境而言，<a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=devfs&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">devfs</span>(8)</span></a>
+檔案系統的掛載並非必須， 但另一方面，幾乎所有應用程式都會需要存取至少一個設備(device)，
+這主要取決於該程式目的而定。 控制 jail 所能存取的設備非常重要，
+因為不正確的設定，會讓攻擊者對 jail 有機可趁。 至於如何透過 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=devfs&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">devfs</span>(8)</span></a>
+來控制的規則，可以參閱 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=devfs&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">devfs</span>(8)</span></a> 及 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=devfs.conf&amp;sektion=5"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">devfs.conf</span>(5)</span></a>
+說明。</dd>
+</dl>
+</div>
+
+<p>裝好 jail 之後，就可以用 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=jail&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">jail</span>(8)</span></a> 工具。 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=jail&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">jail</span>(8)</span></a>
+需要四項必填參數，這些參數在 <a href="jails-intro.html#JAILS-WHAT">Section 15.3.1</a>
+有介紹過。 除了這四個參數之外，還可以指定其他參數，像是以特定帳號在 jail 中執行 process。
+<code class="OPTION"><tt class="REPLACEABLE"><i>command</i></tt></code> 參數取決於 jail
+類型而定；對於 <span class="emphasis"><b class="EMPHASIS">virtual
+system(虛擬系統)</b></span> ，那麼就選擇 <tt class="FILENAME">/etc/rc</tt>，
+因為它會完成真正 FreeBSD 系統啟動所需的操作。 對於 <span class="emphasis"><b
+class="EMPHASIS">service(服務)</b></span> jail 而言，執行的指令取決於將在 jail 內執行的
+service 或應用程式而定。</p>
+
+<p>Jail 通常要在系統開機時啟動，因此 FreeBSD 的 <tt class="FILENAME">rc</tt>
+機制提供一些便利的方式來簡化這些工作：</p>
+
+<div class="PROCEDURE">
+<ol type="1">
+<li class="STEP">
+<p>開機時要啟動的 jail 清單要加到 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=rc.conf&amp;sektion=5"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">rc.conf</span>(5)</span></a>
+設定檔：</p>
+
+<pre class="PROGRAMLISTING">
+jail_enable="YES"   # 若設為 NO 則表示不自動啟動 jail
+jail_list="<tt
+class="REPLACEABLE"><i>www</i></tt>"     # 若有許多 jail 則請以空白隔開來寫
+</pre>
+</li>
+
+<li class="STEP">
+<p>對於每一筆在 <code class="VARNAME">jail_list</code> 所列出的 jail， 也要在 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=rc.conf&amp;sektion=5"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">rc.conf</span>(5)</span></a>
+做出相對應的設定：</p>
+
+<pre class="PROGRAMLISTING">
+jail_<tt class="REPLACEABLE"><i>www</i></tt>_rootdir="/usr/jail/www"     # jail 的根目錄
+jail_<tt class="REPLACEABLE"><i>www</i></tt>_hostname="<tt
+class="REPLACEABLE"><i>www</i></tt>.example.org"  # jail 的 hostname
+jail_<tt
+class="REPLACEABLE"><i>www</i></tt>_ip="192.168.0.10"           # jail 的 IP address
+jail_<tt
+class="REPLACEABLE"><i>www</i></tt>_devfs_enable="YES"          # 在 jail 內 mount devfs
+jail_<tt class="REPLACEABLE"><i>www</i></tt>_devfs_ruleset="<tt
+class="REPLACEABLE"><i>www_ruleset</i></tt>" # jail 內所用的 devfs 規則表
+</pre>
+
+<p>在 <a href="http://www.FreeBSD.org/cgi/man.cgi?query=rc.conf&amp;sektion=5"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">rc.conf</span>(5)</span></a> 所預設的
+jail 啟動設定會跑 <tt class="FILENAME">/etc/rc</tt> 內的 jail script，也就是說會假設 jail
+是完整的虛擬系統。 若要用 service jail 類型，則要另外指定啟動指令， 方法是設定對應的
+<code class="VARNAME">jail_<tt class="REPLACEABLE"><i>jailname</i></tt>_exec_start</code>
+設定。</p>
+
+<div class="NOTE">
+<blockquote class="NOTE">
+<p><b>Note:</b> 若欲知道所有可用的選項清單，請參閱 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=rc.conf&amp;sektion=5"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">rc.conf</span>(5)</span></a> 說明。</p>
+</blockquote>
+</div>
+</li>
+</ol>
+</div>
+
+<p>也可以透過手動執行 <tt class="FILENAME">/etc/rc.d/jail</tt> script 來啟動或停止 <tt
+class="FILENAME">rc.conf</tt> 所設定的 jail：</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">/etc/rc.d/jail start <tt
+class="REPLACEABLE"><i>www</i></tt></kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">/etc/rc.d/jail stop <tt
+class="REPLACEABLE"><i>www</i></tt></kbd>
+</pre>
+
+<p>目前尚無任何方法來很乾淨地關閉 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=jail&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">jail</span>(8)</span></a>。
+此乃因為正常用來關閉系統的指令，目前尚不能在 jail 中使用。 目前關閉 jail 最佳的方式，是在
+jail 內執行下列指令，或者 jail 外面透過 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=jexec&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">jexec</span>(8)</span></a>
+執行下列指令：</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">sh /etc/rc.shutdown</kbd>
+</pre>
+
+<p>詳情請參閱 <a href="http://www.FreeBSD.org/cgi/man.cgi?query=jail&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">jail</span>(8)</span></a> 說明。</p>
+</div>
+
+<h3 class="FOOTNOTES">Notes</h3>
+
+<table border="0" class="FOOTNOTES" width="100%">
+<tr>
+<td align="LEFT" valign="TOP" width="5%"><a id="FTN.AEN21376" name="FTN.AEN21376"
+href="jails-build.html#AEN21376"><span class="footnote">[1]</span></a></td>
+<td align="LEFT" valign="TOP" width="95%">
+<p>FreeBSD 6.0(含) 之後就不需這步驟。</p>
+</td>
+</tr>
+</table>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="jails-intro.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="jails-tuning.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">背景故事</td>
+<td width="34%" align="center" valign="top"><a href="jails.html"
+accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">微調與管理</td>
+</tr>
+</table>
+</div>
+
+<p align="center"><small>本文及其他文件，可由此下載：<a
+href="ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/">ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/</a>。</small></p>
+
+<p align="center"><small>若有 FreeBSD 方面疑問，請先閱讀 <a
+href="http://www.FreeBSD.org/docs.html">FreeBSD 相關文件</a>，如不能解決的話，再洽詢
+&#60;<a href="mailto:questions@FreeBSD.org">questions@FreeBSD.org</a>&#62;。<br />
+關於本文件的問題，請洽詢 &#60;<a
+href="mailto:doc@FreeBSD.org">doc@FreeBSD.org</a>&#62;。</small></p>
+</body>
+</html>
+

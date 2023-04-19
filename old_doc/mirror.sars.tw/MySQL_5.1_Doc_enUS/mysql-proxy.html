@@ -1,0 +1,1387 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><title>Chapter 17. MySQL Proxy</title><link rel="stylesheet" href="mysql-html.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.69.1"><link rel="start" href="index.html" title="MySQL 5.1 Reference Manual"><link rel="up" href="index.html" title="MySQL 5.1 Reference Manual"><link rel="prev" href="ha-memcached.html" title="Chapter 16. Using MySQL with memcached"><link rel="next" href="load-balancer.html" title="Chapter 18. MySQL Load Balancer"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">Chapter 17. MySQL Proxy</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="ha-memcached.html">Prev</a> </td><th width="60%" align="center"> </th><td width="20%" align="right"> <a accesskey="n" href="load-balancer.html">Next</a></td></tr></table><hr></div><div class="chapter" lang="en"><div class="titlepage"><div><div><h2 class="title"><a name="mysql-proxy"></a>Chapter 17. MySQL Proxy</h2></div></div></div><div class="toc"><p><b>Table of Contents</b></p><dl><dt><span class="section"><a href="mysql-proxy.html#mysql-proxy-platforms">17.1. MySQL Proxy Supported Platforms</a></span></dt><dt><span class="section"><a href="mysql-proxy.html#mysql-proxy-install">17.2. Installing MySQL Proxy</a></span></dt><dd><dl><dt><span class="section"><a href="mysql-proxy.html#mysql-proxy-install-binary">17.2.1. Installing MySQL Proxy from a binary distribution</a></span></dt><dt><span class="section"><a href="mysql-proxy.html#mysql-proxy-install-source">17.2.2. Installing MySQL Proxy from a source distribution</a></span></dt><dt><span class="section"><a href="mysql-proxy.html#mysql-proxy-install-svn">17.2.3. Installing MySQL Proxy from the Subversion repository</a></span></dt></dl></dd><dt><span class="section"><a href="mysql-proxy.html#mysql-proxy-cmdline">17.3. MySQL Proxy Command-Line Options</a></span></dt><dt><span class="section"><a href="mysql-proxy.html#mysql-proxy-scripting">17.4. MySQL Proxy Scripting</a></span></dt><dd><dl><dt><span class="section"><a href="mysql-proxy.html#mysql-proxy-scripting-injection">17.4.1. Proxy Scripting Sequence During Query Injection</a></span></dt><dt><span class="section"><a href="mysql-proxy.html#mysql-proxy-scripting-structures">17.4.2. Internal Structures</a></span></dt><dt><span class="section"><a href="mysql-proxy.html#mysql-proxy-scripting-connect-server">17.4.3. Capturing a connection with <code class="literal">connect_server()</code></a></span></dt><dt><span class="section"><a href="mysql-proxy.html#mysql-proxy-scripting-read-handshake">17.4.4. Examining the handshake with <code class="literal">read_handshake()</code></a></span></dt><dt><span class="section"><a href="mysql-proxy.html#mysql-proxy-scripting-read-auth">17.4.5. Examining the authentication credentials with
+        <code class="literal">read_auth()</code></a></span></dt><dt><span class="section"><a href="mysql-proxy.html#mysql-proxy-scripting-read-auth-result">17.4.6. Accessing authentication information with
+        <code class="literal">read_auth_result()</code></a></span></dt><dt><span class="section"><a href="mysql-proxy.html#mysql-proxy-scripting-read-query">17.4.7. Manipulating Queries with <code class="literal">read_query()</code></a></span></dt><dt><span class="section"><a href="mysql-proxy.html#mysql-proxy-scripting-read-query-result">17.4.8. Manipulating Results with <code class="literal">read_query_result()</code></a></span></dt></dl></dd><dt><span class="section"><a href="mysql-proxy.html#mysql-proxy-using">17.5. Using MySQL Proxy</a></span></dt><dd><dl><dt><span class="section"><a href="mysql-proxy.html#mysql-proxy-using-admin">17.5.1. Using the Administration Interface</a></span></dt></dl></dd><dt><span class="section"><a href="mysql-proxy.html#mysql-proxy-faq">17.6. MySQL Proxy FAQ</a></span></dt></dl></div><p>
+    The MySQL Proxy is an application that communicates over the network
+    using the MySQL Network Protocol and provides communication between
+    one or more MySQL servers and one or more MySQL clients. In the most
+    basic configuration, MySQL Proxy simply passes on queries from the
+    client to the MySQL Server and returns the responses from the MySQL
+    Server to the client.
+  </p><p>
+    Because MySQL Proxy uses the MySQL network protocol, any MySQL
+    compatible client (include the command line client, any clients
+    using the MySQL client libraries, and any connector that supports
+    the MySQL network protocol) can connect to the proxy without
+    modification.
+  </p><p>
+    In addition to the basic pass-through configuration, the MySQL Proxy
+    is also capable of monitoring and altering the communication between
+    the client and the server. This interception of the queries enables
+    you to add profiling, and the interception of the exchanges is
+    scriptable using the Lua scripting language.
+  </p><p>
+    By intercepting the queries from the client, the proxy can insert
+    additional queries into the list of queries sent to the server, and
+    remove the additional results when they are returned by the server.
+    Using this functionality you can add informational statements to
+    each query, for example to monitor their execution time or progress,
+    and separately log the results, while still returning the results
+    from the original query to the client.
+  </p><p>
+    The proxy allows you to perform additional monitoring, filtering or
+    manipulation on queries without you having to make any modifications
+    to the client and without the client even being aware that it is
+    communicating with anything but a genuine MySQL server.
+  </p><div class="warning" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Warning</h3><p>
+      MySQL Proxy is currently an Alpha release and should not be used
+      within production environments.
+    </p></div><div class="important" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Important</h3><p>
+      MySQL Proxy is compatible with MySQL 5.0.x or later. Testing has
+      not been performed with Version 4.1. Please provide feedback on
+      your experiences via the
+      <a href="http://forums.mysql.com/list.php?146" target="_top">MySQL Proxy
+      Forum</a>.
+    </p></div><div class="section" lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="mysql-proxy-platforms"></a>17.1. MySQL Proxy Supported Platforms</h2></div></div></div><p>
+      MySQL Proxy is currently available as a pre-compiled binary for
+      the following platforms:
+    </p><div class="itemizedlist"><ul type="disc"><li><p>
+          Linux (including RedHat, Fedora, Debian, SuSE) and
+          derivatives.
+        </p></li><li><p>
+          Mac OS X
+        </p></li><li><p>
+          FreeBSD
+        </p></li><li><p>
+          IBM AIX
+        </p></li><li><p>
+          Sun Solaris
+        </p></li></ul></div><p>
+      Other Unix/Linux platforms not listed should be compatible by
+      using the source package and building MySQL Proxy locally.
+    </p><p>
+      System requirements for the MySQL Proxy application are the same
+      as the main MySQL server. Currently MySQL Proxy is compatible only
+      with MySQL 5.0.1 and later. MySQL Proxy is provided as a
+      standalone, statically linked binary. You do not need to have
+      MySQL or Lua installed.
+    </p></div><div class="section" lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="mysql-proxy-install"></a>17.2. Installing MySQL Proxy</h2></div></div></div><div class="toc"><dl><dt><span class="section"><a href="mysql-proxy.html#mysql-proxy-install-binary">17.2.1. Installing MySQL Proxy from a binary distribution</a></span></dt><dt><span class="section"><a href="mysql-proxy.html#mysql-proxy-install-source">17.2.2. Installing MySQL Proxy from a source distribution</a></span></dt><dt><span class="section"><a href="mysql-proxy.html#mysql-proxy-install-svn">17.2.3. Installing MySQL Proxy from the Subversion repository</a></span></dt></dl></div><p>
+      You have three choices for installing MySQL Proxy:
+    </p><div class="itemizedlist"><ul type="disc"><li><p>
+          Pre-compiled binaries are available for a number of different
+          platforms. See <a href="mysql-proxy.html#mysql-proxy-install-binary" title="17.2.1. Installing MySQL Proxy from a binary distribution">Section 17.2.1, “Installing MySQL Proxy from a binary distribution”</a>.
+        </p></li><li><p>
+          You can install from the source code if you want to build on
+          an environment not supported by the binary distributions. See
+          <a href="mysql-proxy.html#mysql-proxy-install-source" title="17.2.2. Installing MySQL Proxy from a source distribution">Section 17.2.2, “Installing MySQL Proxy from a source distribution”</a>.
+        </p></li><li><p>
+          The latest version of the MySQL proxy source code is available
+          through a development repository is the best way to stay up to
+          date with the latest fixes and revisions. See
+          <a href="mysql-proxy.html#mysql-proxy-install-svn" title="17.2.3. Installing MySQL Proxy from the Subversion repository">Section 17.2.3, “Installing MySQL Proxy from the Subversion repository”</a>.
+        </p></li></ul></div><div class="section" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="mysql-proxy-install-binary"></a>17.2.1. Installing MySQL Proxy from a binary distribution</h3></div></div></div><p>
+        If you download the binary packages then you need only to
+        extract the package and then copy the
+        <span><strong class="command">mysql-proxy</strong></span> file to your desired location.
+        For example:
+      </p><pre class="programlisting">$ tar zxf <em class="replaceable"><code>mysql-proxy-0.5.0.tar.gz</code></em>
+$ cp ./mysql-proxy-0.5.0/sbin/mysql-proxy /usr/local/sbin</pre></div><div class="section" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="mysql-proxy-install-source"></a>17.2.2. Installing MySQL Proxy from a source distribution</h3></div></div></div><p>
+        If you have downloaded the source package then you will need to
+        compile the MySQL Proxy before using it. To build you will need
+        to have the following installed:
+      </p><div class="itemizedlist"><ul type="disc"><li><p>
+            libevent 1.x or higher (1.3b or later is preferred)
+          </p></li><li><p>
+            lua 5.1.x or higher
+          </p></li><li><p>
+            glib2 2.6.0 or higher
+          </p></li><li><p>
+            pkg-config
+          </p></li><li><p>
+            MySQL 5.0.x or higher developer files
+          </p></li></ul></div><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Note</h3><p>
+          On some operating systems you may need to manually build the
+          required components to get the latest version. If you are
+          having trouble compiling MySQL Proxy then consider using one
+          of the binary distributions.
+        </p></div><p>
+        Once these components are installed, you need to configure and
+        then build:
+      </p><pre class="programlisting">$ tar zxf <em class="replaceable"><code>mysql-proxy-0.5.0.tar.gz</code></em>
+$ cd mysql-proxy-0.5.0
+$ ./configure
+$ make</pre><p>
+        If you want to test the build, then use the
+        <code class="literal">check</code> target to <span><strong class="command">make</strong></span>:
+      </p><pre class="programlisting">$ make check</pre><p>
+        The tests try to connect to <code class="literal">localhost</code> using
+        the <code class="literal">root</code> user. If you need to provide a
+        password, set the <code class="literal">MYSQL_PASSWORD</code> environment
+        variable:
+      </p><pre class="programlisting">$ MYSQL_PASSWORD=root_pwd make check</pre><p>
+        You can install using the <code class="literal">install</code> target:
+      </p><pre class="programlisting">$ make install</pre><p>
+        By default <span><strong class="command">mysql-proxy</strong></span> is installed into
+        <code class="filename">/usr/local/sbin/mysql-proxy</code>. The Lua
+        example scripts are copied into
+        <code class="filename">/usr/local/share</code>.
+      </p></div><div class="section" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="mysql-proxy-install-svn"></a>17.2.3. Installing MySQL Proxy from the Subversion repository</h3></div></div></div><p>
+        The MySQL Proxy source is available through a public Subversion
+        repository and is the quickest way to get hold of the latest
+        releases and fixes.
+      </p><p>
+        To build from the Subversion repository, you need the following
+        components already installed:
+      </p><div class="itemizedlist"><ul type="disc"><li><p>
+            Subversion 1.3.0 or higher
+          </p></li><li><p>
+            <code class="literal">libtool</code> 1.5 or higher
+          </p></li><li><p>
+            <code class="literal">autoconf</code> 2.56 or higher
+          </p></li><li><p>
+            <code class="literal">automake</code> 1.9 or higher
+          </p></li><li><p>
+            <code class="literal">libevent</code> 1.x or higher (1.3b or later is
+            preferred)
+          </p></li><li><p>
+            <code class="literal">lua</code> 5.1.x or higher
+          </p></li><li><p>
+            <code class="literal">glib2</code> 2.4.0 or higher
+          </p></li><li><p>
+            <code class="literal">pkg-config</code>
+          </p></li><li><p>
+            <code class="literal">MySQL</code> 5.0.x or higher developer files
+          </p></li></ul></div><p>
+        To checkout a local copy of the Subversion repository, use
+        <span><strong class="command">svn</strong></span>:
+      </p><pre class="programlisting">$ svn co http://svn.MySQL.com/svnpublic/mysql-proxy/ mysql-proxy</pre><p>
+        The above command will download a complete version of the
+        Subversion repository for <code class="literal">mysql-proxy</code>. The
+        main source files are located within the
+        <code class="filename">trunk</code> subdirectory. The configuration
+        scripts need to be generated before you can configure and build
+        <code class="literal">mysql-proxy</code>. The
+        <code class="filename">autogen.sh</code> script will generate the
+        configuration scripts for you:
+      </p><pre class="programlisting">$ sh ./autogen.sh</pre><p>
+        The script creates the standard <span><strong class="command">configure</strong></span>
+        script, which you can then use to configure and build with
+        <span><strong class="command">make</strong></span>:
+      </p><pre class="programlisting">$ ./configure
+$ make
+$ make install</pre><p>
+        If you want to create a standalone source distribution,
+        identical to the source distribution available for download:
+      </p><pre class="programlisting">$ make distcheck</pre><p>
+        The above will create the file
+        <code class="filename">mysql-proxy-<em class="replaceable"><code>0.5.0</code></em>.tar.gz</code>
+        within the current directory.
+      </p></div></div><div class="section" lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="mysql-proxy-cmdline"></a>17.3. MySQL Proxy Command-Line Options</h2></div></div></div><p>
+      To start <span><strong class="command">mysql-proxy</strong></span> you can just run the
+      command directly. However, for most situations you will want to
+      specify at the very least the address/hostname and port number of
+      the backend MySQL server to which the MySQL Proxy should pass on
+      queries.
+    </p><p>
+      You can get a list of the supported command-line options using the
+      <code class="literal">--help-all</code> command-line option. The majority of
+      these options set up the environment, either in terms of the
+      address/port number that <span><strong class="command">mysql-proxy</strong></span> should
+      listen on for connections, or the onward connection to a MySQL
+      server. A full description of the options is shown below:
+    </p><div class="itemizedlist"><ul type="disc"><li><p>
+          <code class="literal">--help-all</code> — show all help options.
+        </p></li><li><p>
+          <code class="literal">--help-admin </code> — show options for the
+          admin-module.
+        </p></li><li><p>
+          <code class="literal">--help-proxy</code> — Show options for the
+          proxy-module.
+        </p></li><li><p>
+          <code class="literal">--admin-address=host:port</code> — specify
+          the hostname (or IP address) and port for the administration
+          port. The default is <code class="literal">localhost:4041</code>.
+        </p></li><li><p>
+          <code class="literal">--proxy-address=host:port</code> — the
+          listening hostname (or IP address) and port of the proxy
+          server. The default is <code class="literal">localhost:4040</code>.
+        </p></li><li><p>
+          <code class="literal">--proxy-read-only-backend-address=host:port</code>
+          — the listening hostname (or IP address) and port of the
+          proxy server for read-only connections. The default is for
+          this information not to be set.
+        </p></li><li><p>
+          <code class="literal">--proxy-backend-addresses=host:port</code> —
+          the hostname (or IP address) and port of the MySQL server to
+          connect to. You can specify multiple backend servers by
+          supplying multiple options. Clients are connected to each
+          backend server in round-robin fashion. For example, if you
+          specify two servers A and B, the first client connection will
+          go to server A; the second client connection to server B and
+          the third client connection to server A.
+        </p></li><li><p>
+          <code class="literal">--proxy-skip-profiling </code> — disables
+          profiling of queries (tracking time statistics). The default
+          is for tracking to be enabled.
+        </p></li><li><p>
+          <code class="literal">--proxy-fix-bug-25371 </code> — gets round
+          an issue when connecting to a MySQL server later than 5.1.12
+          when using a MySQL client library of any earlier version.
+        </p></li><li><p>
+          <code class="literal">--proxy-lua-script=file </code> — specify
+          the Lua script file to be loaded. Note that the script file is
+          not physically loaded and parsed until a connection is made.
+          Also note that the specified Lua script is reloaded for each
+          connection; if the content of the Lua script changes while
+          <span><strong class="command">mysql-proxy</strong></span> is running then the updated
+          content will automatically be used when a new connection is
+          made.
+        </p></li><li><p>
+          <code class="literal">--daemon</code> — starts the proxy in daemon
+          mode.
+        </p></li><li><p>
+          <code class="literal">--pid-file=file</code> — sets the name of
+          the file to be used to store the process ID.
+        </p></li><li><p>
+          <code class="literal">--version</code> — show the version number.
+        </p></li></ul></div><p>
+      The most common usage is as a simple proxy service (i.e. without
+      addition scripting). For basic proxy operation you must specify at
+      least one <code class="literal">proxy-backend-addresses</code> option to
+      specify the MySQL server to connect to by default:
+    </p><pre class="programlisting">$ mysql-proxy
+--proxy-backend-addresses=MySQL.example.com:3306</pre><p>
+      The default proxy port is <code class="literal">4040</code>, so you can
+      connect to your MySQL server through the proxy by specifying the
+      hostname and port details:
+    </p><pre class="programlisting">$ mysql --host=localhost --port=4040</pre><p>
+      If your server requires authentication information then this will
+      be passed through natively without alteration by
+      <span><strong class="command">mysql-proxy</strong></span>, so you must also specify the
+      authentication information if required:
+    </p><pre class="programlisting">$ mysql --host=localhost --port=4040 \
+   --user=username --password=password</pre><p>
+      You can also connect to a read-only port (which filters out
+      <code class="literal">UPDATE</code> and <code class="literal">INSERT</code> queries)
+      by connecting to the read-only port. By default the hostname is
+      the default, and the port is <code class="literal">4042</code>, but you can
+      alter the host/port information by using the
+      <code class="literal">--proxy-read-only-address</code> command-line option.
+    </p><p>
+      For more detailed information on how to use these command line
+      options, and <span><strong class="command">mysql-proxy</strong></span> in general in
+      combination with Lua scripts, see
+      <a href="mysql-proxy.html#mysql-proxy-using" title="17.5. Using MySQL Proxy">Section 17.5, “Using MySQL Proxy”</a>.
+    </p></div><div class="section" lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="mysql-proxy-scripting"></a>17.4. MySQL Proxy Scripting</h2></div></div></div><div class="toc"><dl><dt><span class="section"><a href="mysql-proxy.html#mysql-proxy-scripting-injection">17.4.1. Proxy Scripting Sequence During Query Injection</a></span></dt><dt><span class="section"><a href="mysql-proxy.html#mysql-proxy-scripting-structures">17.4.2. Internal Structures</a></span></dt><dt><span class="section"><a href="mysql-proxy.html#mysql-proxy-scripting-connect-server">17.4.3. Capturing a connection with <code class="literal">connect_server()</code></a></span></dt><dt><span class="section"><a href="mysql-proxy.html#mysql-proxy-scripting-read-handshake">17.4.4. Examining the handshake with <code class="literal">read_handshake()</code></a></span></dt><dt><span class="section"><a href="mysql-proxy.html#mysql-proxy-scripting-read-auth">17.4.5. Examining the authentication credentials with
+        <code class="literal">read_auth()</code></a></span></dt><dt><span class="section"><a href="mysql-proxy.html#mysql-proxy-scripting-read-auth-result">17.4.6. Accessing authentication information with
+        <code class="literal">read_auth_result()</code></a></span></dt><dt><span class="section"><a href="mysql-proxy.html#mysql-proxy-scripting-read-query">17.4.7. Manipulating Queries with <code class="literal">read_query()</code></a></span></dt><dt><span class="section"><a href="mysql-proxy.html#mysql-proxy-scripting-read-query-result">17.4.8. Manipulating Results with <code class="literal">read_query_result()</code></a></span></dt></dl></div><p>
+      You can control how MySQL Proxy manipulates and works with the
+      queries and results that are passed on to the MySQL server through
+      the use of the embedded Lua scripting language. You can find out
+      more about the Lua programming language from the
+      <a href="http://www.lua.org" target="_top">Lua Website</a>.
+    </p><p>
+      The primary interaction between MySQL Proxy and the server is
+      provided by defining one or more functions through an Lua script.
+      A number of functions are supported, according to different events
+      and operations in the communication sequence between a client and
+      one or more backend MySQL servers:
+    </p><div class="itemizedlist"><ul type="disc"><li><p>
+          <code class="literal">connect_server()</code> — this function is
+          called each time a connection is made to MySQL Proxy from a
+          client. You can use this function during load-balancing to
+          intercept the original connection and decide which server the
+          client should ultimately be attached to. If you don't define a
+          special solution, then a simple round-robin style distribution
+          is used by default.
+        </p></li><li><p>
+          <code class="literal">read_handshake()</code> — this function is
+          called when the initial handshake information is returned by
+          the server. You can capture the handshake information returned
+          and provide additional checks before the authorization
+          exchange takes place.
+        </p></li><li><p>
+          <code class="literal">read_auth()</code> — this function is
+          called when the authorization packet (username, password,
+          default database) are submitted by the client to the server
+          for authentication.
+        </p></li><li><p>
+          <code class="literal">read_auth_result()</code> — this function
+          is called when the server returns an authorization packet to
+          the client indicating whether the authorization succeeded.
+        </p></li><li><p>
+          <code class="literal">read_query()</code> — this function is
+          called each time a query is sent by the client to the server.
+          You can use this to edit and manipulate the original query,
+          including adding new queries before and after the original
+          statement. You can also use this function to return
+          information directly to the client, bypassing the server,
+          which can be useful to filter unwanted queries or queries that
+          exceed known limits.
+        </p></li><li><p>
+          <code class="literal">read_query_result()</code> — this function
+          is called each time a result is returned from the server,
+          providing you have manually injected queries into the query
+          queue. If you have not explicitly inject queries within the
+          <code class="literal">read_query()</code> function then this function
+          is not triggered. You can use this to edit the result set, or
+          to remove or filter the result sets generated from additional
+          queries you injected into the queue when using
+          <code class="literal">read_query()</code>.
+        </p></li></ul></div><p>
+      The table below describes the direction of flow of information at
+      the point when the function is triggered.
+    </p><div class="informaltable"><table border="1"><colgroup><col><col><col></colgroup><thead><tr><th>Function</th><th>Supplied Information</th><th>Direction</th></tr></thead><tbody><tr><td><code class="literal">connect_server()</code></td><td>None</td><td>Client to Server</td></tr><tr><td><code class="literal">read_handshake()</code></td><td>Handshake packet</td><td>Server to Client</td></tr><tr><td><code class="literal">read_auth()</code></td><td>Authorization packet</td><td>Client to Server</td></tr><tr><td><code class="literal">read_auth_result()</code></td><td>Authorization response</td><td>Server to Client</td></tr><tr><td><code class="literal">read_query()</code></td><td>Query</td><td>Client to Server</td></tr><tr><td><code class="literal">read_query_result()</code></td><td>Query result</td><td>Server to Client</td></tr></tbody></table></div><p>
+      By default, all functions return a result that indicates that the
+      data should be passed on to the client or server (depending on the
+      direction of the information being transferred). This return value
+      can be overridden by explicitly returning a constant indicating
+      that a particular response should be sent. For example, it is
+      possible to construct result set information by hand within
+      <code class="literal">read_query()</code> and to return the resultset
+      directly to the client without ever sending the original query to
+      the server.
+    </p><p>
+      In addition to these functions, a number of built-in structures
+      provide control over how MySQL Proxy forwards on queries and
+      returns the results by providing a simplified interface to
+      elements such as the list of queries and the groups of result sets
+      that are returned.
+    </p><div class="section" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="mysql-proxy-scripting-injection"></a>17.4.1. Proxy Scripting Sequence During Query Injection</h3></div></div></div><p>
+        The figure below gives an example of how the proxy might be used
+        when injecting queries into the query queue. Because the proxy
+        sits between the client and MySQL server, what the proxy sends
+        to the server, and the information that the proxy ultimately
+        returns to the client do not have to match or correlate. Once
+        the client has connected to the proxy, the following sequence
+        occurs for each individual query sent by the client.
+      </p><div class="mediaobject"><img src="images/proxy-architecture.png" alt="MySQL Proxy architecture"></div><div class="orderedlist"><ol type="1"><li><p>
+            The client submits one query to the proxy, the
+            <code class="literal">read_query()</code> function within the proxy
+            is triggered. The function adds the query to the query
+            queue.
+          </p></li><li><p>
+            Once manipulation by <code class="literal">read_query()</code> has
+            completed, the queries are submitted, sequentially, to the
+            MySQL server.
+          </p></li><li><p>
+            The MySQL server returns the results from each query, one
+            result set for each query submitted. The
+            <code class="literal">read_query_result()</code> function is
+            triggered for each result set, and each invocation can
+            decide which result set to return to the client
+          </p></li></ol></div><p>
+        For example, you can queue additional queries into the global
+        query queue to be processed by the server. This can be used to
+        add statistical information by adding queries before and after
+        the original query, changing the original query:
+      </p><pre class="programlisting">SELECT * FROM City;</pre><p>
+        Into a sequence of queries:
+      </p><pre class="programlisting">SELECT NOW();
+SELECT * FROM City;
+SELECT NOW();</pre><p>
+        You can also modify the original statement, for example to add
+        <code class="literal">EXPLAIN</code> to each statement executed to get
+        information on how the statement was processed, again altering
+        our original SQL statement into a number of statements:
+      </p><pre class="programlisting">SELECT * FROM City;
+EXPLAIN SELECT * FROM City;</pre><p>
+        In both of these examples, the client would have received more
+        result sets than expected. Regardless of how you manipulate the
+        incoming query and the returned result, the number of queries
+        returned by the proxy must match the number of original queries
+        sent by the client.
+      </p><p>
+        You could adjust the client to handle the multiple result sets
+        sent by the proxy, but in most cases you will want the existence
+        of the proxy to remain transparent. To ensure that the number of
+        queries and result sets match, you can use the MySQL Proxy
+        <code class="literal">read_query_result()</code> to extract the
+        additional result set information and return only the result set
+        the client originally requested back to the client. You can
+        achieve this by giving each query that you add to the query
+        queue a unique ID, and then filter out queries that do not match
+        the original query ID when processing them with
+        <code class="literal">read_query_result()</code>.
+      </p></div><div class="section" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="mysql-proxy-scripting-structures"></a>17.4.2. Internal Structures</h3></div></div></div><p>
+        There are a number of internal structures within the scripting
+        element of MySQL Proxy. The primary structure is
+        <code class="literal">proxy</code> and this provides an interface to the
+        many common structures used throughout the script, such as
+        connection lists and configured backend servers. Other
+        structures, such as the incoming packet from the client and
+        result sets are only available within the context of one of the
+        scriptable functions.
+      </p><div class="informaltable"><a name="mysql-proxy-scripting-structures-proxy"></a><table border="1"><colgroup><col><col></colgroup><thead><tr><th>Attribute</th><th>Description</th></tr></thead><tbody><tr><td><code class="literal">connection</code></td><td>A structure containing the active client connections. For a list of
+                attributes, see
+                <a href="mysql-proxy.html#mysql-proxy-scripting-structures-connection">
+                <code class="literal">proxy.connection</code> </a>.</td></tr><tr><td><code class="literal">servers</code></td><td>A structure containing the list of configured backend servers. For a
+                list of attributes, see
+                <a href="mysql-proxy.html#mysql-proxy-scripting-structures-backends">
+                <code class="literal">proxy.backends</code> </a>.</td></tr><tr><td><code class="literal">queries</code></td><td>A structure containing the queue of queries that will be sent to the
+                server during a single client query. For a list of
+                attributes, see
+                <a href="mysql-proxy.html#mysql-proxy-scripting-structures-queries">
+                <code class="literal">proxy.queries</code> </a>.</td></tr><tr><td><code class="literal">PROXY_VERSION</code></td><td>The version number of MySQL Proxy, encoded in hex. You can use this to
+                check that the version number supports a particular
+                option from within the Lua script. Note that the value
+                is encoded as a hex value, so to check the version is at
+                least 0.5.1 you compare against
+                <code class="literal">0x00501</code>.</td></tr></tbody></table></div><p><a name="mysql-proxy-scripting-structures-connection"></a>
+        <span class="bold"><strong> <code class="literal">proxy.connection</code>
+        </strong></span>
+      </p><p>
+        The <code class="literal">proxy.connection</code> object is read only, and
+        provides information about the current connection.
+      </p><div class="informaltable"><table border="1"><colgroup><col><col></colgroup><thead><tr><th>Attribute</th><th>Description</th></tr></thead><tbody><tr><td><code class="literal">thread_id</code></td><td>The thread ID of the connection.</td></tr><tr><td><code class="literal">backend_ndx</code></td><td>The ID of the server used for this connection. This is an ID valid
+                against the list of configured servers available through
+                the <code class="literal">proxy.backends</code> object.</td></tr></tbody></table></div><p><a name="mysql-proxy-scripting-structures-backends"></a>
+        <span class="bold"><strong> <code class="literal">proxy.backends</code>
+        </strong></span>
+      </p><p>
+        The <code class="literal">proxy.backends</code> table is partially
+        writable and contains an array of all the configured backend
+        servers and the server metadata (IP address, status, etc.). You
+        can determine the array index of the current connection using
+        <code class="literal">proxy.connection["backend_ndx"]</code> which is the
+        index into this table of the backend server being used by the
+        active connection.
+      </p><p>
+        The attributes for each entry within the
+        <code class="literal">proxy.backends</code> table are shown in this table.
+      </p><div class="informaltable"><table border="1"><colgroup><col><col></colgroup><thead><tr><th>Attribute</th><th>Description</th></tr></thead><tbody><tr><td><code class="literal">address</code></td><td>The hostname/port combination used for this connection</td></tr><tr><td><code class="literal">connected_clients</code></td><td>The number of clients currently connected.</td></tr><tr><td><code class="literal">state</code></td><td>The status of the backend server. See
+                <a href="mysql-proxy.html#mysql-proxy-scripting-structures-backend-states">Section 17.4.2, “Internal Structures”</a>.</td></tr></tbody></table></div><p><a name="mysql-proxy-scripting-structures-queries"></a>
+        <span class="bold"><strong> <code class="literal">proxy.queries</code>
+        </strong></span>
+      </p><p>
+        The <code class="literal">proxy.queries</code> object is a queue
+        representing the list of queries to be sent to the server. The
+        queue is not populated automatically, but if you do not
+        explicitly populate the queue then queries are passed on to the
+        backend server verbatim. Also, if you do not populate the query
+        queue by hand, then the <code class="literal">read_query_result()</code>
+        function is not triggered.
+      </p><p>
+        The following methods are supported for populating the
+        <code class="literal">proxy.queries</code> object.
+      </p><div class="informaltable"><table border="1"><colgroup><col><col></colgroup><thead><tr><th>Function</th><th>Description</th></tr></thead><tbody><tr><td><code class="literal">append(id,packet)</code></td><td>Appends a query to the end of the query queue. The <code class="literal">id</code>
+                is an integer identifier that you can use to recognize
+                the query results when they are returned by the server.
+                The packet should be a properly formatted query packet.</td></tr><tr><td><code class="literal">prepend(id,packet)</code></td><td>Prepends a query to the query queue. The <code class="literal">id</code> is an
+                identifier that you can use to recognize the query
+                results when they are returned by the server. The packet
+                should be a properly formatted query packet.</td></tr><tr><td><code class="literal">reset()</code></td><td>Empties the query queue.</td></tr><tr><td><code class="literal">len()</code></td><td>Returns the number of query packets in the queue.</td></tr></tbody></table></div><p>
+        For example, you could append a query packet to the
+        <code class="literal">proxy.queries</code> queue by using the
+        <code class="literal">append()</code>:
+      </p><pre class="programlisting">proxy.queries:append(1,packet)</pre><p><a name="mysql-proxy-scripting-structures-response"></a>
+        <span class="bold"><strong><code class="literal">proxy.response</code></strong></span>
+      </p><p>
+        The <code class="literal">proxy.response</code> structure is used when you
+        want to return your own MySQL response, instead of forwarding a
+        packet that you have received a backend server. The structure
+        holds the response type information, an optional error message,
+        and the result set (rows/columns) that you want to return.
+      </p><div class="informaltable"><table border="1"><colgroup><col><col></colgroup><thead><tr><th>Attribute</th><th>Description</th></tr></thead><tbody><tr><td><code class="literal">type</code></td><td>The type of the response. The type must be either
+                <code class="literal">MYSQLD_PACKET_OK</code> or
+                <code class="literal">MYSQLD_PACKET_ERR</code>. If the
+                <code class="literal">MYSQLD_PACKET_ERR</code>, then you should
+                set the value of the
+                <code class="literal">mysql.response.errmsg</code> with a suitable
+                error message.</td></tr><tr><td><code class="literal">errmsg</code></td><td>A string containing the error message that will be returned to the
+                client.</td></tr><tr><td><code class="literal">resultset</code></td><td>A structure containing the result set information (columns and rows),
+                identical to what would be returned when returning a
+                results from a <code class="literal">SELECT</code> query.</td></tr></tbody></table></div><p>
+        When using <code class="literal">proxy.response</code> you either set
+        <code class="literal">proxy.response.type</code> to
+        <code class="literal">proxy.MYSQLD_PACKET_OK</code> and then build
+        <code class="literal">resultset</code> to contain the results that you
+        want to return, or set <code class="literal">proxy.response.type</code> to
+        <code class="literal">proxy.MYSQLD_PACKET_ERR</code> and set the
+        <code class="literal">proxy.response.errmsg</code> to a string with the
+        error message. To send the completed resultset or error message,
+        you should return the <code class="literal">proxy.PROXY_SEND_RESULT</code>
+        to trigger the return of the packet information.
+      </p><p>
+        An example of this can be seen in the
+        <code class="filename">tutorial-resultset.lua</code> script within the
+        MySQL Proxy package:
+      </p><pre class="programlisting">if string.lower(command) == "show" and string.lower(option) == "querycounter" then
+        ---
+        -- proxy.PROXY_SEND_RESULT requires
+        --
+        -- proxy.response.type to be either
+        -- * proxy.MYSQLD_PACKET_OK or
+        -- * proxy.MYSQLD_PACKET_ERR
+        --
+        -- for proxy.MYSQLD_PACKET_OK you need a resultset
+        -- * fields
+        -- * rows
+        --
+        -- for proxy.MYSQLD_PACKET_ERR
+        -- * errmsg
+        proxy.response.type = proxy.MYSQLD_PACKET_OK
+        proxy.response.resultset = {
+                fields = {
+                        { type = proxy.MYSQL_TYPE_LONG, name = "global_query_counter", },
+                        { type = proxy.MYSQL_TYPE_LONG, name = "query_counter", },
+                },
+                rows = {
+                        { proxy.global.query_counter, query_counter }
+                }
+        }
+
+        -- we have our result, send it back
+        return proxy.PROXY_SEND_RESULT
+elseif string.lower(command) == "show" and string.lower(option) == "myerror" then
+        proxy.response.type = proxy.MYSQLD_PACKET_ERR
+        proxy.response.errmsg = "my first error"
+
+        return proxy.PROXY_SEND_RESULT
+</pre><p><a name="mysql-proxy-scripting-structures-resultset"></a>
+        <span class="bold"><strong><code class="literal">proxy.response.resultset</code></strong></span>
+      </p><p>
+        The <code class="literal">proxy.response.resultset</code> structure should
+        be populated with the rows and columns of data that you want to
+        return. The structure contains the information about the entire
+        result set, with the individual elements of the data shown in
+        the table below.
+      </p><div class="informaltable"><table border="1"><colgroup><col><col></colgroup><thead><tr><th>Attribute</th><th>Description</th></tr></thead><tbody><tr><td><code class="literal">fields</code></td><td>The definition of the columns being returned. This should be a
+                dictionary structure with the <code class="literal">type</code>
+                specifying the MySQL data type, and the
+                <code class="literal">name</code> specifying the column name.
+                Columns should be listed in the the order of the column
+                data that will be returned.</td></tr><tr><td><code class="literal">flags</code></td><td>A number of flags related to the resultset. Valid flags include
+                <code class="literal">auto_commit</code> (whether an automatic
+                commit was triggered),
+                <code class="literal">no_good_index_used</code> (the query
+                executed without using an appropriate index), and
+                <code class="literal">no_index_used</code> (the query executed
+                without using any index).</td></tr><tr><td><code class="literal">rows</code></td><td>The actual row data. The information should be returned as an array of
+                arrays. Each inner array should contain the column data,
+                with the outer array making up the entire result set.</td></tr><tr><td><code class="literal">warning_count</code></td><td>The number of warnings for this result set.</td></tr><tr><td><code class="literal">affected_rows</code></td><td>The number of rows affected by the original statement.</td></tr><tr><td><code class="literal">insert_id</code></td><td>The last insert ID for an auto-incremented column in a table.</td></tr><tr><td><code class="literal">query_status</code></td><td>The status of the query operation. You can use the
+                <code class="literal">MYSQLD_PACKET_OK</code> or
+                <code class="literal">MYSQLD_PACKET_ERR</code> constants to
+                populate this parameter.</td></tr></tbody></table></div><p>
+        For an example of the population of this table, see
+        <a href="mysql-proxy.html#mysql-proxy-scripting-structures-response">Section 17.4.2, “Internal Structures”</a>.
+      </p><p><a name="mysql-proxy-scripting-structures-return-states"></a>
+        <span class="bold"><strong>Proxy Return State Constants</strong></span>
+      </p><p>
+        The following constants are used internally by the proxy to
+        specify the response to send to the client or server. All
+        constants are exposed as values within the main
+        <code class="literal">proxy</code> table.
+      </p><div class="informaltable"><table border="1"><colgroup><col><col></colgroup><thead><tr><th>Constant</th><th>Description</th></tr></thead><tbody><tr><td><code class="literal">PROXY_SEND_QUERY</code></td><td>Causes the proxy to send the current contents of the queries queue to
+                the server.</td></tr><tr><td><code class="literal">PROXY_SEND_RESULT</code></td><td>Causes the proxy to send a result set back to the client.</td></tr><tr><td><code class="literal">PROXY_IGNORE_RESULT</code></td><td>Causes the proxy to drop the result set (nothing is returned to the
+                client).</td></tr></tbody></table></div><p>
+        As constants, these entities are available without qualification
+        in the Lua scripts. For example, at the end of the
+        <code class="literal">read_query_result()</code> you might return
+        <code class="literal">PROXY_IGNORE_RESULT:</code>
+      </p><pre class="programlisting">return proxy.PROXY_IGNORE_RESULT</pre><p><a name="mysql-proxy-scripting-structures-packet-states"></a>
+        <span class="bold"><strong>Packet State Constants</strong></span>
+      </p><p>
+        The following states describe the status of a network packet.
+        These items are entries within the main <code class="literal">proxy</code>
+        table.
+      </p><div class="informaltable"><table border="1"><colgroup><col><col></colgroup><thead><tr><th>Constant</th><th>Description</th></tr></thead><tbody><tr><td><code class="literal">MYSQLD_PACKET_OK</code></td><td>The packet is OK.</td></tr><tr><td><code class="literal">MYSQLD_PACKET_ERR</code></td><td>The packet contains error information.</td></tr><tr><td><code class="literal">MYSQLD_PACKET_RAW</code></td><td>The packet contains raw data.</td></tr></tbody></table></div><p><a name="mysql-proxy-scripting-structures-backend-states"></a>
+        <span class="bold"><strong>Backend State/Type Constants</strong></span>
+      </p><p>
+        The following constants are used either to define the status of
+        the backend server (the MySQL server to which the proxy is
+        connected) or the type of backend server. These items are
+        entries within the main <code class="literal">proxy</code> table.
+      </p><div class="informaltable"><table border="1"><colgroup><col><col></colgroup><thead><tr><th>Constant</th><th>Description</th></tr></thead><tbody><tr><td><code class="literal">BACKEND_STATE_UNKNOWN</code></td><td>The current status is unknown.</td></tr><tr><td><code class="literal">BACKEND_STATE_UP</code></td><td>The backend is known to be up (available).</td></tr><tr><td><code class="literal">BACKEND_STATE_DOWN</code></td><td>The backend is known to be down (unavailable).</td></tr><tr><td><code class="literal">BACKEND_TYPE_UNKNOWN</code></td><td>Backend type is unknown.</td></tr><tr><td><code class="literal">BACKEND_TYPE_RW</code></td><td>Backend is available for read/write.</td></tr><tr><td><code class="literal">BACKEND_TYPE_RO</code></td><td>Backend is available only for read-only use.</td></tr></tbody></table></div><p><a name="mysql-proxy-scripting-structures-command-constants"></a>
+        <span class="bold"><strong>Server Command Constants</strong></span>
+      </p><p>
+        The following values are used in the packets exchanged between
+        the client and server to identify the information in the rest of
+        the packet. These items are entries within the main
+        <code class="literal">proxy</code> table. The packet type is defined as
+        the first character in the sent packet. For example, when
+        intercepting packets from the client to edit or monitor a query
+        you would check that the first byte of the packet was of type
+        <code class="literal">proxy.COM_QUERY</code>.
+      </p><div class="informaltable"><table border="1"><colgroup><col><col></colgroup><thead><tr><th>Constant</th><th>Description</th></tr></thead><tbody><tr><td><code class="literal">COM_SLEEP</code></td><td>Sleep</td></tr><tr><td><code class="literal">COM_QUIT</code></td><td>Quit</td></tr><tr><td><code class="literal">COM_INIT_DB</code></td><td>Initialize database</td></tr><tr><td><code class="literal">COM_QUERY</code></td><td>Query</td></tr><tr><td><code class="literal">COM_FIELD_LIST</code></td><td>Field List</td></tr><tr><td><code class="literal">COM_CREATE_DB</code></td><td>Create database</td></tr><tr><td><code class="literal">COM_DROP_DB</code></td><td>Drop database</td></tr><tr><td><code class="literal">COM_REFRESH</code></td><td>Refresh</td></tr><tr><td><code class="literal">COM_SHUTDOWN</code></td><td>Shutdown</td></tr><tr><td><code class="literal">COM_STATISTICS</code></td><td>Statistics</td></tr><tr><td><code class="literal">COM_PROCESS_INFO</code></td><td>Process List</td></tr><tr><td><code class="literal">COM_CONNECT</code></td><td>Connect</td></tr><tr><td><code class="literal">COM_PROCESS_KILL</code></td><td>Kill</td></tr><tr><td><code class="literal">COM_DEBUG</code></td><td>Debug</td></tr><tr><td><code class="literal">COM_PING</code></td><td>Ping</td></tr><tr><td><code class="literal">COM_TIME</code></td><td>Time</td></tr><tr><td><code class="literal">COM_DELAYED_INSERT</code></td><td>Delayed insert</td></tr><tr><td><code class="literal">COM_CHANGE_USER</code></td><td>Change user</td></tr><tr><td><code class="literal">COM_BINLOG_DUMP</code></td><td>Binlog dump</td></tr><tr><td><code class="literal">COM_TABLE_DUMP</code></td><td>Table dump</td></tr><tr><td><code class="literal">COM_CONNECT_OUT</code></td><td>Connect out</td></tr><tr><td><code class="literal">COM_REGISTER_SLAVE</code></td><td>Register slave</td></tr><tr><td><code class="literal">COM_STMT_PREPARE</code></td><td>Prepare server-side statement</td></tr><tr><td><code class="literal">COM_STMT_EXECUTE</code></td><td>Execute server-side statement</td></tr><tr><td><code class="literal">COM_STMT_SEND_LONG_DATA</code></td><td>Long data</td></tr><tr><td><code class="literal">COM_STMT_CLOSE</code></td><td>Close server-side statement</td></tr><tr><td><code class="literal">COM_STMT_RESET</code></td><td>Reset statement</td></tr><tr><td><code class="literal">COM_SET_OPTION</code></td><td>Set option</td></tr><tr><td><code class="literal">COM_STMT_FETCH</code></td><td>Fetch statement</td></tr><tr><td><code class="literal">COM_DAEMON</code></td><td>Daemon (MySQL 5.1 only)</td></tr><tr><td><code class="literal">COM_ERROR</code></td><td>Error</td></tr></tbody></table></div><p><a name="mysql-proxy-scripting-structures-type-constants"></a>
+        <span class="bold"><strong>MySQL Type Constants</strong></span>
+      </p><p>
+        These constants are used to identify the field types in the
+        query result data returned to clients from the result of a
+        query. These items are entries within the main
+        <code class="literal">proxy</code> table.
+      </p><div class="informaltable"><table border="1"><colgroup><col><col></colgroup><thead><tr><th>Constant</th><th>Field Type</th></tr></thead><tbody><tr><td><code class="literal">MYSQL_TYPE_DECIMAL</code></td><td>Decimal</td></tr><tr><td><code class="literal">MYSQL_TYPE_NEWDECIMAL</code></td><td>Decimal (MySQL 5.0 or later)</td></tr><tr><td><code class="literal">MYSQL_TYPE_TINY</code></td><td>Tiny</td></tr><tr><td><code class="literal">MYSQL_TYPE_SHORT</code></td><td>Short</td></tr><tr><td><code class="literal">MYSQL_TYPE_LONG</code></td><td>Long</td></tr><tr><td><code class="literal">MYSQL_TYPE_FLOAT</code></td><td>Float</td></tr><tr><td><code class="literal">MYSQL_TYPE_DOUBLE</code></td><td>Double</td></tr><tr><td><code class="literal">MYSQL_TYPE_NULL</code></td><td>Null</td></tr><tr><td><code class="literal">MYSQL_TYPE_TIMESTAMP</code></td><td>Timestamp</td></tr><tr><td><code class="literal">MYSQL_TYPE_LONGLONG</code></td><td>Long long</td></tr><tr><td><code class="literal">MYSQL_TYPE_INT24</code></td><td>Integer</td></tr><tr><td><code class="literal">MYSQL_TYPE_DATE</code></td><td>Date</td></tr><tr><td><code class="literal">MYSQL_TYPE_TIME</code></td><td>Time</td></tr><tr><td><code class="literal">MYSQL_TYPE_DATETIME</code></td><td>Datetime</td></tr><tr><td><code class="literal">MYSQL_TYPE_YEAR</code></td><td>Year</td></tr><tr><td><code class="literal">MYSQL_TYPE_NEWDATE</code></td><td>Date (MySQL 5.0 or later)</td></tr><tr><td><code class="literal">MYSQL_TYPE_ENUM</code></td><td>Enumeration</td></tr><tr><td><code class="literal">MYSQL_TYPE_SET</code></td><td>Set</td></tr><tr><td><code class="literal">MYSQL_TYPE_TINY_BLOB</code></td><td>Tiny Blob</td></tr><tr><td><code class="literal">MYSQL_TYPE_MEDIUM_BLOB</code></td><td>Medium Blob</td></tr><tr><td><code class="literal">MYSQL_TYPE_LONG_BLOB</code></td><td>Long Blob</td></tr><tr><td><code class="literal">MYSQL_TYPE_BLOB</code></td><td>Blob</td></tr><tr><td><code class="literal">MYSQL_TYPE_VAR_STRING</code></td><td>Varstring</td></tr><tr><td><code class="literal">MYSQL_TYPE_STRING</code></td><td>String</td></tr><tr><td><code class="literal">MYSQL_TYPE_TINY</code></td><td>Tiny (compatible with <code class="literal">MYSQL_TYPE_CHAR)</code></td></tr><tr><td><code class="literal">MYSQL_TYPE_ENUM</code></td><td>Enumeration (compatible with <code class="literal">MYSQL_TYPE_INTERVAL</code>)</td></tr><tr><td><code class="literal">MYSQL_TYPE_GEOMETRY</code></td><td>Geometry</td></tr><tr><td><code class="literal">MYSQL_TYPE_BIT</code></td><td>Bit</td></tr></tbody></table></div></div><div class="section" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="mysql-proxy-scripting-connect-server"></a>17.4.3. Capturing a connection with <code class="literal">connect_server()</code></h3></div></div></div><p>
+        When the proxy accepts a connection from a MySQL client, the
+        <code class="literal">connect_server()</code> function is called.
+      </p><p>
+        There are no arguments to the function, but you can use and if
+        necessary manipulate the information in the
+        <code class="literal">proxy.connection</code> table, which is unique to
+        each client session.
+      </p><p>
+        For example, if you have multiple backend servers then you can
+        set the server to be used by that connection by setting the
+        value of <code class="literal">proxy.connection.backend_ndx</code> to a
+        valid server number. The code below will choose between two
+        servers based on whether the current time in minutes is odd or
+        even:
+      </p><pre class="programlisting">function connect_server()
+        print("--&gt; a client really wants to talk to a server")
+        if (tonumber(os.date("%M")) % 2 == 0) then
+                proxy.connection.backend_ndx = 2
+                print("Choosing backend 2")
+        else
+                proxy.connection.backend_ndx = 1
+                print("Choosing backend 1")
+        end
+        print("Using " .. proxy.backends[proxy.connection.backend_ndx].address)
+end</pre><p>
+        In this example the IP address/port combination is also
+        displayed by accessing the information from the internal
+        <code class="literal">proxy.backends</code> table.
+      </p></div><div class="section" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="mysql-proxy-scripting-read-handshake"></a>17.4.4. Examining the handshake with <code class="literal">read_handshake()</code></h3></div></div></div><p>
+        Handshake information is sent by the server to the client after
+        the initial connection (through
+        <code class="literal">connect_server()</code>) has been made. The
+        handshake information contains details about the MySQL version,
+        the ID of the thread that will handle the connection
+        information, and the IP address of the client and server. This
+        information is exposed through a Lua table as the only argument
+        to the function.
+      </p><div class="itemizedlist"><ul type="disc"><li><p>
+            <code class="literal">mysqld_version</code> — the version of the
+            MySQL server.
+          </p></li><li><p>
+            <code class="literal">thread_id</code> — the thread ID.
+          </p></li><li><p>
+            <code class="literal">scramble</code> — the password scramble
+            buffer.
+          </p></li><li><p>
+            <code class="literal">server_addr</code> — the IP address of the
+            server.
+          </p></li><li><p>
+            <code class="literal">client_addr</code> — the IP address of the
+            client.
+          </p></li></ul></div><p>
+        For example, you can print out the handshake data and refuse
+        clients by IP address with the following function:
+      </p><pre class="programlisting">function read_handshake( auth )
+        print("&lt;-- let's send him some information about us")
+        print("    mysqld-version: " .. auth.mysqld_version)
+        print("    thread-id     : " .. auth.thread_id)
+        print("    scramble-buf  : " .. string.format("%q", auth.scramble))
+        print("    server-addr   : " .. auth.server_addr)
+        print("    client-addr   : " .. auth.client_addr)
+
+        if not auth.client_addr:match("^127.0.0.1:") then
+                proxy.response.type = proxy.MYSQLD_PACKET_ERR
+                proxy.response.errmsg = "only local connects are allowed"
+
+                print("we don't like this client");
+
+                return proxy.PROXY_SEND_RESULT
+        end
+end</pre><p>
+        Note that you have to return an error packet to the client by
+        using <code class="literal">proxy.PROXY_SEND_RESULT</code>.
+      </p></div><div class="section" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="mysql-proxy-scripting-read-auth"></a>17.4.5. Examining the authentication credentials with
+        <code class="literal">read_auth()</code></h3></div></div></div><p>
+        The <code class="literal">read_auth()</code> function is triggered when
+        an authentication handshake is initiated by the client. In the
+        execution sequence, <code class="literal">read_auth()</code> occurs
+        immediately after <code class="literal">read_handshake()</code>, so the
+        server selection has already been made, but the connection and
+        authorization information has not yet been provided to the
+        backend server.
+      </p><p>
+        The function accepts a single argument, an Lua table containing
+        the authorization information for the handshake process. The
+        entries in the table are:
+      </p><div class="itemizedlist"><ul type="disc"><li><p>
+            <code class="literal">username</code> — the user login for
+            connecting to the server.
+          </p></li><li><p>
+            <code class="literal">password</code> — the password, encrypted,
+            to be used when connecting.
+          </p></li><li><p>
+            <code class="literal">default_db</code> — the default database
+            to be used once the connection has been made.
+          </p></li></ul></div><p>
+        For example, you can print the username and password supplied
+        during authorization using:
+      </p><pre class="programlisting">function read_auth( auth )
+        print("    username      : " .. auth.username)
+        print("    password      : " .. string.format("%q", auth.password))
+end</pre><p>
+        You can interrupt the authentication process within this
+        function and return an error packet back to the client by
+        constructing a new packet and returning
+        <code class="literal">proxy.PROXY_SEND_RESULT</code>:
+      </p><pre class="programlisting">proxy.response.type = proxy.MYSQLD_PACKET_ERR
+proxy.response.errmsg = "Logins are not allowed"
+return proxy.PROXY_SEND_RESULT
+</pre></div><div class="section" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="mysql-proxy-scripting-read-auth-result"></a>17.4.6. Accessing authentication information with
+        <code class="literal">read_auth_result()</code></h3></div></div></div><p>
+        The return packet from the server during authentication is
+        captured by <code class="literal">read_auth_result()</code>. The only
+        argument to this function is the authentication packet returned
+        by the server. As the packet is a raw MySQL network protocol
+        packet, you must access the first byte to identify the packet
+        type and contents. The <code class="literal">MYSQLD_PACKET_ERR</code> and
+        <code class="literal">MYSQLD_PACKET_OK</code> constants can be used to
+        identify whether the authentication was successful:
+      </p><pre class="programlisting">function read_auth_result( auth )
+        local state = auth.packet:byte()
+
+        if state == proxy.MYSQLD_PACKET_OK then
+                print("&lt;-- auth ok");
+        elseif state == proxy.MYSQLD_PACKET_ERR then
+                print("&lt;-- auth failed");
+        else
+                print("&lt;-- auth ... don't know: " .. string.format("%q", auth.packet));
+        end
+end</pre></div><div class="section" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="mysql-proxy-scripting-read-query"></a>17.4.7. Manipulating Queries with <code class="literal">read_query()</code></h3></div></div></div><p>
+        The <code class="literal">read_query()</code> function is called once
+        for each query submitted by the client and accepts a single
+        argument, the query packet that was provided. To access the
+        content of the packet you must parse the packet contents
+        manually.
+      </p><p>
+        For example, you can intercept a query packet and print out the
+        contents using the following function definition:
+      </p><pre class="programlisting">function read_query( packet )
+        if packet:byte() == proxy.COM_QUERY then
+                print("we got a normal query: " .. packet:sub(2))
+        end
+end</pre><p>
+        This example checks the first byte of the packet to determine
+        the type. If the type is <code class="literal">COM_QUERY</code> (see
+        <a href="mysql-proxy.html#mysql-proxy-scripting-structures-command-constants">Section 17.4.2, “Internal Structures”</a>),
+        then we extract the query from the packet and print it out. The
+        structure of the packet type supplied is important. In the case
+        of a <code class="literal">COM_QUERY</code> packet, the remaining contents
+        of the packet are the text of the query string. In this example,
+        no changes have been made to the query or the list of queries
+        that will ultimately be sent to the MySQL server.
+      </p><p>
+        To modify a query, or add new queries, you must populate the
+        query queue (<code class="literal">proxy.queries</code>) and then execute
+        the queries that you have placed into the queue. If you do not
+        modify the original query or the queue, then the query received
+        from the client is sent to the MySQL server verbatim.
+      </p><p>
+        When adding queries to the queue, you should follow these
+        guidelines:
+      </p><div class="itemizedlist"><ul type="disc"><li><p>
+            The packets inserted into the queue must be valid query
+            packets. For each packet, you must set the initial byte to
+            the packet type. If you are appending a query, you can
+            append the query statement to the rest of the packet.
+          </p></li><li><p>
+            Once you add a query to the queue, the queue is used as the
+            source for queries sent to the server. If you add a query to
+            the queue to add more information, you must also add the
+            original query to the queue or it will not be executed.
+          </p></li><li><p>
+            Once the queue has been populated, you must set the return
+            value from <code class="literal">read_query()</code> to indicate
+            whether the query queue should be sent to the server.
+          </p></li><li><p>
+            When you add queries to the queue, you should add an ID. The
+            ID you specify is returned with the result set so that you
+            identify each query and corresponding result set. The ID has
+            no other purpose than as an identifier for correlating the
+            query and resultset. When operating in a passive mode,
+            during profiling for example, you want to identify the
+            original query and the corresponding resultset so that the
+            results expect by the client can be returned correctly.
+          </p></li><li><p>
+            Unless your client is designed to cope with more result sets
+            than queries, you should ensure that the number of queries
+            from the client match the number of results sets returned to
+            the client. Using the unique ID and removing result sets you
+            inserted will help.
+          </p></li></ul></div><p>
+        Normally, the <code class="literal">read_query()</code> and
+        <code class="literal">read_query_result()</code> function are used in
+        conjunction with each other to inject additional queries and
+        remove the additional result sets. However,
+        <code class="literal">read_query_result()</code> is only called if you
+        populate the query queue within
+        <code class="literal">read_query()</code>.
+      </p></div><div class="section" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="mysql-proxy-scripting-read-query-result"></a>17.4.8. Manipulating Results with <code class="literal">read_query_result()</code></h3></div></div></div><p>
+        The <code class="literal">read_query_result()</code> is called for each
+        result set returned by the server only if you have manually
+        injected queries into the query queue. If you have not
+        manipulated the query queue then this function is not called.
+        The function supports a single argument, the result packet,
+        which provides a number of properties:
+      </p><div class="itemizedlist"><ul type="disc"><li><p>
+            <code class="literal">id</code> — the ID of the result set,
+            which corresponds to the ID that was set when the query
+            packet was submitted to the server when using
+            <code class="literal">append(id)</code> on the query queue.
+          </p></li><li><p>
+            <code class="literal">query</code> — the text of the original
+            query.
+          </p></li><li><p>
+            <code class="literal">query_time</code> — the number of
+            microseconds required to receive the first row of a result
+            set.
+          </p></li><li><p>
+            <code class="literal">response_time</code> — the number of
+            microseconds required to receive the last row of the result
+            set.
+          </p></li><li><p>
+            <code class="literal">resultset</code> — the content of the
+            result set data.
+          </p></li></ul></div><p>
+        By accessing the result information from the MySQL server you
+        can extract the results that match the queries that you
+        injected, return different result sets (for example, from a
+        modified query), and even create your own result sets.
+      </p><p>
+        The Lua script below, for example, will output the query,
+        followed by the query time and response time (i.e. the time to
+        execute the query and the time to return the data for the query)
+        for each query sent to the server:
+      </p><pre class="programlisting">function read_query( packet )
+        if packet:byte() == proxy.COM_QUERY then
+                print("we got a normal query: " .. packet:sub(2))
+
+                proxy.queries:append(1, packet )
+
+                return proxy.PROXY_SEND_QUERY
+        end
+end
+
+function read_query_result(inj)
+        print("query-time: " .. (inj.query_time / 1000) .. "ms")
+        print("response-time: " .. (inj.response_time / 1000) .. "ms")
+end</pre><p>
+        You can access the rows of returned results from the resultset
+        by accessing the rows property of the resultset property of the
+        result that is exposed through
+        <code class="literal">read_query_result()</code>. For example, you can
+        iterate over the results showing the first column from each row
+        using this Lua fragment:
+      </p><pre class="programlisting">for row in inj.resultset.rows do
+        print("injected query returned: " .. row[1])
+end</pre><p>
+        Just like <code class="literal">read_query()</code>,
+        <code class="literal">read_query_result()</code> can return different
+        values for each result according to the result returned. If you
+        have injected additional queries into the query queue, for
+        example, then you will want to remove the results returned from
+        those additional queries and only return the results from the
+        query originally submitted by the client.
+      </p><p>
+        The example below injects additional <code class="literal">SELECT
+        NOW()</code> statements into the query queue, giving them a
+        different ID to the ID of the original query. Within
+        <code class="literal">read_query_result()</code>, if the ID for the
+        injected queries is identified, we display the result row, and
+        return the <code class="literal">proxy.PROXY_IGNORE_RESULT</code> from the
+        function so that the result is not returned to the client. If
+        the result is from any other query, we print out the query time
+        information for the query and return the default, which passes
+        on the result set unchanged. We could also have explicitly
+        returned <code class="literal">proxy.PROXY_IGNORE_RESULT</code> to the
+        MySQL client.
+      </p><pre class="programlisting">function read_query( packet )
+        if packet:byte() == proxy.COM_QUERY then
+                proxy.queries:append(2, string.char(proxy.COM_QUERY) .. "SELECT NOW()" )
+                proxy.queries:append(1, packet )
+                proxy.queries:append(2, string.char(proxy.COM_QUERY) .. "SELECT NOW()" )
+
+                return proxy.PROXY_SEND_QUERY
+        end
+end
+
+
+function read_query_result(inj)
+        if inj.id == 2 then
+                for row in inj.resultset.rows do
+                        print("injected query returned: " .. row[1])
+                end
+                return proxy.PROXY_IGNORE_RESULT
+        else
+                print("query-time: " .. (inj.query_time / 1000) .. "ms")
+                print("response-time: " .. (inj.response_time / 1000) .. "ms")
+        end
+end</pre><p>
+        For further examples, see <a href="mysql-proxy.html#mysql-proxy-using" title="17.5. Using MySQL Proxy">Section 17.5, “Using MySQL Proxy”</a>.
+      </p></div></div><div class="section" lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="mysql-proxy-using"></a>17.5. Using MySQL Proxy</h2></div></div></div><div class="toc"><dl><dt><span class="section"><a href="mysql-proxy.html#mysql-proxy-using-admin">17.5.1. Using the Administration Interface</a></span></dt></dl></div><p>
+      There are a number of different ways to use MySQL Proxy. At the
+      most basic level, you can allow MySQL Proxy to pass on queries
+      from clients to a single server. To use MySQL proxy in this mode,
+      you just have to specify the backend server that the proxy should
+      connect to on the command line:
+    </p><pre class="programlisting">$ mysql-proxy --proxy-backend-addresses=sakila:3306</pre><p>
+      If you specify multiple backend MySQL servers then the proxy will
+      connect each client to each server in a round-robin fashion. For
+      example, imagine you have two MySQL servers, A and B. The first
+      client to connect will be connected to server A, the second to
+      server B, the third to server C. For example:
+    </p><pre class="programlisting">$ mysql-proxy \
+     --proxy-backend-addresses=narcissus:3306 \
+     --proxy-backend-addresses=nostromo:3306</pre><p>
+      When you have specified multiple servers in this way, the proxy
+      will automatically identify when a MySQL server has become
+      unavailable and mark it accordingly. New connections will
+      automatically be attached to a server that is available, and a
+      warning will be reported to the standard output from
+      <span><strong class="command">mysql-proxy</strong></span>:
+    </p><pre class="programlisting">network-mysqld.c.367: connect(nostromo:3306) failed: Connection refused
+network-mysqld-proxy.c.2405: connecting to backend (nostromo:3306) failed, marking it as down for ...
+</pre><p>
+      Lua scripts enable a finer level of control, both over the
+      connections and their distribution and how queries and result sets
+      are processed. When using an Lua script, you must specify the name
+      of the script on the command line using the
+      <code class="option">--proxy-lua-script</code> option:
+    </p><pre class="programlisting">$ mysql-proxy --proxy-lua-script=mc.lua --proxy-backend-addresses=sakila:3306</pre><p>
+      When you specify a script, the script is not executed until a
+      connection is made. This means that faults with the script will
+      not be raised until the script is executed. Script faults will not
+      affect the distribution of queries to backend MySQL servers.
+    </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Note</h3><p>
+        Because the script is not read until the connection is made, you
+        can modify the contents of the Lua script file while the proxy
+        is still running and the script will automatically be used for
+        the next connection. This ensures that MySQL Proxy remains
+        available because it does not have to be restarted for the
+        changes to take effect.
+      </p></div><div class="section" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="mysql-proxy-using-admin"></a>17.5.1. Using the Administration Interface</h3></div></div></div><p>
+        The <span><strong class="command">mysql-proxy</strong></span> administration interface can
+        be accessed using any MySQL client using the standard protocols.
+        You can use the administration interface to gain information
+        about the proxy server as a whole - standard connections to the
+        proxy are isolated to operate as if you were connected directly
+        to the backend MySQL server. Currently, the interface supports a
+        limited set of functionality designed to provide connection and
+        configuration information.
+      </p><p>
+        Because connectivity is provided over the standard MySQL
+        protocol, you must access this information using SQL syntax. By
+        default, the administration port is configured as 4041. You can
+        change this port number using the
+        <code class="literal">--admin-address</code> command-line option.
+      </p><p>
+        To get a list of the currently active connections to the proxy:
+      </p><pre class="programlisting">mysql&gt; select * from proxy_connections;
++------+--------+-------+------+
+| id   | type   | state | db   |
++------+--------+-------+------+
+|    0 | server | 0     |      | 
+|    1 | proxy  | 0     |      | 
+|    2 | server | 10    |      | 
++------+--------+-------+------+
+3 rows in set (0.00 sec)</pre><p>
+        To get the current configuration:
+      </p><pre class="programlisting">mysql&gt; select * from proxy_config;
++----------------------------+----------------------+
+| option                     | value                |
++----------------------------+----------------------+
+| admin.address              | :4041                | 
+| proxy.address              | :4040                | 
+| proxy.lua_script           | mc.lua               | 
+| proxy.backend_addresses[0] | mysql:3306           | 
+| proxy.fix_bug_25371        | 0                    | 
+| proxy.profiling            | 1                    | 
++----------------------------+----------------------+
+6 rows in set (0.01 sec)</pre></div></div><div class="section" lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="mysql-proxy-faq"></a>17.6. MySQL Proxy FAQ</h2></div></div></div><p><span class="bold"><strong>Questions</strong></span></p><div class="itemizedlist"><ul type="disc"><li><p><a href="mysql-proxy.html#qandaitem-18-6-1">18.6.1: </a>
+        Is the system context switch expensive, how much overhead does
+        the lua script add?
+      </p></li><li><p><a href="mysql-proxy.html#qandaitem-18-6-2">18.6.2: </a>
+        How do I use a socket with MySQL Proxy? Proxy change logs
+        mention that support for UNIX sockets has been added.
+      </p></li><li><p><a href="mysql-proxy.html#qandaitem-18-6-3">18.6.3: </a>
+        If MySQL Proxy has to live on same machine as MySQL, are there
+        any tuning considerations to ensure both perform optimally?
+      </p></li><li><p><a href="mysql-proxy.html#qandaitem-18-6-4">18.6.4: </a>
+        Do proxy applications run on a separate server? If not, what is
+        the overhead incurred by Proxy on the DB server side?
+      </p></li><li><p><a href="mysql-proxy.html#qandaitem-18-6-5">18.6.5: </a>
+        Can MySQL Proxy handle SSL connections?
+      </p></li><li><p><a href="mysql-proxy.html#qandaitem-18-6-6">18.6.6: </a>
+        What is the limit for <code class="literal">max-connections</code> on the
+        server?
+      </p></li><li><p><a href="mysql-proxy.html#qandaitem-18-6-7">18.6.7: </a>
+        With load balancing, what happen to transactions ? Are all
+        queries sent to the same server ?
+      </p></li><li><p><a href="mysql-proxy.html#qandaitem-18-6-8">18.6.8: </a>
+        Can I run MySQL Proxy as a daemon?
+      </p></li><li><p><a href="mysql-proxy.html#qandaitem-18-6-9">18.6.9: </a>
+        What about caching the authorization info so clients connecting
+        are given back-end connections that were established with
+        identical authorization information, thus saving a few more
+        round trips?
+      </p></li><li><p><a href="mysql-proxy.html#qandaitem-18-6-10">18.6.10: </a>
+        Could MySQL Proxy be used to capture passwords?
+      </p></li><li><p><a href="mysql-proxy.html#qandaitem-18-6-11">18.6.11: </a>
+        Can MySQL Proxy be used on slaves and intercept binlog messages?
+      </p></li><li><p><a href="mysql-proxy.html#qandaitem-18-6-12">18.6.12: </a>
+        As the script is re-read by proxy, does it cache this or is it
+        looking at the filesystem with each request?
+      </p></li><li><p><a href="mysql-proxy.html#qandaitem-18-6-13">18.6.13: </a>
+        MySQL Proxy can handle about 5000 connections, what is the limit
+        on a MySQL server?
+      </p></li><li><p><a href="mysql-proxy.html#qandaitem-18-6-14">18.6.14: </a>
+        How does MySQL Proxy compare to DBSlayer ?
+      </p></li><li><p><a href="mysql-proxy.html#qandaitem-18-6-15">18.6.15: </a>
+        I currently use SQL Relay for efficient connection pooling with
+        a number of apache processes connecting to a MySQL server. Can
+        MySQL proxy currently accomplish this. My goal is to minimize
+        connection latency while keeping temporary tables available.
+      </p></li><li><p><a href="mysql-proxy.html#qandaitem-18-6-16">18.6.16: </a>
+        The global namespace variable example with quotas does not
+        persist after a reboot, is that correct?
+      </p></li><li><p><a href="mysql-proxy.html#qandaitem-18-6-17">18.6.17: </a>
+        I tried using MySQL Proxy without any Lua script to try a
+        round-robin type load balancing. In this case, if the first
+        database in the list is down, MySQL Proxy would not connect the
+        client to the second database in the list.
+      </p></li><li><p><a href="mysql-proxy.html#qandaitem-18-6-18">18.6.18: </a>
+        Would the Java-only connection pooling solution work for
+        multiple web servers? With this, I'd assume you can pool across
+        many web servers at once?
+      </p></li><li><p><a href="mysql-proxy.html#qandaitem-18-6-19">18.6.19: </a>
+        Is the MySQL Proxy an API ?
+      </p></li><li><p><a href="mysql-proxy.html#qandaitem-18-6-20">18.6.20: </a>
+        If you have multiple databases on the same box, can you use
+        proxy to connect to databases on default port 3306?
+      </p></li><li><p><a href="mysql-proxy.html#qandaitem-18-6-21">18.6.21: </a>
+        Will Proxy be deprecated for use with connection pooling once
+        MySQL 6.x comes out? Or will 6.x integrate proxy more deeply?
+      </p></li><li><p><a href="mysql-proxy.html#qandaitem-18-6-22">18.6.22: </a>
+        We've looked at using MySQL Proxy but we're concerned about the
+        alpha status - when do you think the proxy would be considered
+        production ready?
+      </p></li><li><p><a href="mysql-proxy.html#qandaitem-18-6-23">18.6.23: </a>
+        Will the proxy road map involve moving popular features from lua
+        to C? For example Read/Write splitting
+      </p></li><li><p><a href="mysql-proxy.html#qandaitem-18-6-24">18.6.24: </a>
+        In load balancing, how can I separate reads from writes? Is a
+        backend-server a remote MySQL machine ? You would think so, but
+        from another post in this forum, it looks like the separation of
+        reads from writes has not been implemented yet, so I am not
+        clear as to the distinction between backend-servers and
+        read-only servers.
+      </p><pre class="programlisting">$ mysql-proxy \
+--proxy-backend-addresses=10.0.1.2:3306 \
+--proxy-backend-addresses=10.0.1.3:3306 &amp;</pre><p>
+        I don't see how this works for writes, as they have to go to the
+        master server.
+      </p></li><li><p><a href="mysql-proxy.html#qandaitem-18-6-25">18.6.25: </a>
+        Are these reserved function names (e.g., error_result) that get
+        automatically called?
+      </p></li><li><p><a href="mysql-proxy.html#qandaitem-18-6-26">18.6.26: </a>
+        Can you explain the status of your work with
+        <span><strong class="command">memcached</strong></span> and MySQL Proxy?
+      </p></li><li><p><a href="mysql-proxy.html#qandaitem-18-6-27">18.6.27: </a>
+        Is there any big web site using MySQL Proxy ? For what purpose
+        and what transaction rate have they achieved.
+      </p></li><li><p><a href="mysql-proxy.html#qandaitem-18-6-28">18.6.28: </a>
+        So the authentication when connection pooling has to be done at
+        every connection? What's the authentication latency?
+      </p></li><li><p><a href="mysql-proxy.html#qandaitem-18-6-29">18.6.29: </a>
+        Is it possible to use the MySQL proxy w/ updating a Lucene index
+        (or Solr) by making TCP calls to that server to update?
+      </p></li><li><p><a href="mysql-proxy.html#qandaitem-18-6-30">18.6.30: </a>
+        Isn't MySQL Proxy similar to what is provided by Java connection
+        pools?
+      </p></li><li><p><a href="mysql-proxy.html#qandaitem-18-6-31">18.6.31: </a>
+        Are there tools for isolating problems? How can someone figure
+        out if a problem is in the client, in the db or in the proxy?
+      </p></li><li><p><a href="mysql-proxy.html#qandaitem-18-6-32">18.6.32: </a>
+        Can you dynamically reconfigure the pool of MySQL servers that
+        MySQL Proxy will load balance to?
+      </p></li><li><p><a href="mysql-proxy.html#qandaitem-18-6-33">18.6.33: </a>
+        Given that there is a <code class="literal">connect_server</code>
+        function, can a Lua script link up with multiple servers?
+      </p></li><li><p><a href="mysql-proxy.html#qandaitem-18-6-34">18.6.34: </a>
+        Adding a proxy must add latency to the connection, how big is
+        that latency?
+      </p></li><li><p><a href="mysql-proxy.html#qandaitem-18-6-35">18.6.35: </a>
+        In the quick poll, I see "Load Balancer: read-write splitting"
+        as an option, so would it be correct to say that there are no
+        scripts written for Proxy yet to do this?
+      </p></li><li><p><a href="mysql-proxy.html#qandaitem-18-6-36">18.6.36: </a>
+        Is it "safe" to use <code class="literal">LuaSocket</code> with proxy
+        scripts?
+      </p></li><li><p><a href="mysql-proxy.html#qandaitem-18-6-37">18.6.37: </a>
+        How different is MySQL Proxy from DBCP (Database connection
+        pooling) for Apache in terms of connection pooling?
+      </p></li><li><p><a href="mysql-proxy.html#qandaitem-18-6-38">18.6.38: </a>
+        Do you have make one large script and call at proxy startup, can
+        I change scripts without stopping and restarting (interrupting)
+        the proxy?
+      </p></li></ul></div><p><span class="bold"><strong>Questions and Answers</strong></span></p><p><a name="qandaitem-18-6-1"></a><span class="bold"><strong>18.6.1: </strong></span><span class="bold"><strong>
+        Is the system context switch expensive, how much overhead does
+        the lua script add?
+      </strong></span></p><p>
+        Lua is fast and the overhead should be small enough for most
+        applications. The raw packet-overhead is around 400
+        microseconds.
+      </p><p><a name="qandaitem-18-6-2"></a><span class="bold"><strong>18.6.2: </strong></span><span class="bold"><strong>
+        How do I use a socket with MySQL Proxy? Proxy change logs
+        mention that support for UNIX sockets has been added.
+      </strong></span></p><p>
+        Just specify the path to the socket:
+      </p><pre class="programlisting">--proxy-backend-addresses=/path/to/socket</pre><p>
+        However it appears that
+        <code class="literal">--proxy-address=/path/to/socket</code> does not work
+        on the front end. It would be nice if someone added this
+        feature.
+      </p><p><a name="qandaitem-18-6-3"></a><span class="bold"><strong>18.6.3: </strong></span><span class="bold"><strong>
+        If MySQL Proxy has to live on same machine as MySQL, are there
+        any tuning considerations to ensure both perform optimally?
+      </strong></span></p><p>
+        MySQL Proxy can live on any box: application, db or its own box.
+        MySQL Proxy uses comparatively little CPU or RAM, so additional
+        requirements or overhead is negligible.
+      </p><p><a name="qandaitem-18-6-4"></a><span class="bold"><strong>18.6.4: </strong></span><span class="bold"><strong>
+        Do proxy applications run on a separate server? If not, what is
+        the overhead incurred by Proxy on the DB server side?
+      </strong></span></p><p>
+        You can run the proxy on the application server, on its own box
+        or on the DB-server depending on the use-case
+      </p><p><a name="qandaitem-18-6-5"></a><span class="bold"><strong>18.6.5: </strong></span><span class="bold"><strong>
+        Can MySQL Proxy handle SSL connections?
+      </strong></span></p><p>
+        No, being the man-in-the-middle, Proxy can't handle encrypted
+        sessions because it cannot share the SSL information.
+      </p><p><a name="qandaitem-18-6-6"></a><span class="bold"><strong>18.6.6: </strong></span><span class="bold"><strong>
+        What is the limit for <code class="literal">max-connections</code> on the
+        server?
+      </strong></span></p><p>
+        Around 1024 connections the MySQL Server may run out of threads
+        it can spawn. Leaving it at around 100 is advised.
+      </p><p><a name="qandaitem-18-6-7"></a><span class="bold"><strong>18.6.7: </strong></span><span class="bold"><strong>
+        With load balancing, what happen to transactions ? Are all
+        queries sent to the same server ?
+      </strong></span></p><p>
+        Without any special customization the whole connection is sent
+        to the same server. That keeps the whole connection state
+        intact.
+      </p><p><a name="qandaitem-18-6-8"></a><span class="bold"><strong>18.6.8: </strong></span><span class="bold"><strong>
+        Can I run MySQL Proxy as a daemon?
+      </strong></span></p><p>
+        Starting from version 0.6.0, the Proxy is launched as a daemon
+        by default. If you want to avoid this, use the
+        <code class="literal">-D</code> or <code class="literal">--no-daemon</code> option.
+        To keep track of the process ID, the daemon can be started with
+        the additional option <code class="literal">--pid-file=file</code>, to
+        save the PID to a known file name. On version 0.5.x, the Proxy
+        can't be started natively as a daemon
+      </p><p><a name="qandaitem-18-6-9"></a><span class="bold"><strong>18.6.9: </strong></span><span class="bold"><strong>
+        What about caching the authorization info so clients connecting
+        are given back-end connections that were established with
+        identical authorization information, thus saving a few more
+        round trips?
+      </strong></span></p><p>
+        There is an option that provides this functionality <code class="literal">
+        --proxy-pool-no-change-user</code>.
+      </p><p><a name="qandaitem-18-6-10"></a><span class="bold"><strong>18.6.10: </strong></span><span class="bold"><strong>
+        Could MySQL Proxy be used to capture passwords?
+      </strong></span></p><p>
+        The MySQL network protocol does not allow passwords to be sent
+        in clear-text, all you could capture is the encrypted version.
+      </p><p><a name="qandaitem-18-6-11"></a><span class="bold"><strong>18.6.11: </strong></span><span class="bold"><strong>
+        Can MySQL Proxy be used on slaves and intercept binlog messages?
+      </strong></span></p><p>
+        We are working on that. See
+        <a href="http://jan.kneschke.de/2008/5/30/mysql-proxy-rbr-to-sbr-decoding" target="_top">http://jan.kneschke.de/2008/5/30/mysql-proxy-rbr-to-sbr-decoding</a>
+        for an example.
+      </p><p><a name="qandaitem-18-6-12"></a><span class="bold"><strong>18.6.12: </strong></span><span class="bold"><strong>
+        As the script is re-read by proxy, does it cache this or is it
+        looking at the filesystem with each request?
+      </strong></span></p><p>
+        It looks for the script at client-connect and reads it if it has
+        changed, otherwise it uses the cached version.
+      </p><p><a name="qandaitem-18-6-13"></a><span class="bold"><strong>18.6.13: </strong></span><span class="bold"><strong>
+        MySQL Proxy can handle about 5000 connections, what is the limit
+        on a MySQL server?
+      </strong></span></p><p>
+        Se your <code class="literal">max-connections</code> settings. By default
+        the setting is 150, the proxy can handle a lot more.
+      </p><p><a name="qandaitem-18-6-14"></a><span class="bold"><strong>18.6.14: </strong></span><span class="bold"><strong>
+        How does MySQL Proxy compare to DBSlayer ?
+      </strong></span></p><p>
+        DBSlayer is a REST-&gt;MySQL tool, MySQL Proxy is transparent to
+        your application. No change to the application is needed.
+      </p><p><a name="qandaitem-18-6-15"></a><span class="bold"><strong>18.6.15: </strong></span><span class="bold"><strong>
+        I currently use SQL Relay for efficient connection pooling with
+        a number of apache processes connecting to a MySQL server. Can
+        MySQL proxy currently accomplish this. My goal is to minimize
+        connection latency while keeping temporary tables available.
+      </strong></span></p><p>
+        Yes.
+      </p><p><a name="qandaitem-18-6-16"></a><span class="bold"><strong>18.6.16: </strong></span><span class="bold"><strong>
+        The global namespace variable example with quotas does not
+        persist after a reboot, is that correct?
+      </strong></span></p><p>
+        Yes. if you restart the proxy, you lose the results, unless you
+        save them in a file.
+      </p><p><a name="qandaitem-18-6-17"></a><span class="bold"><strong>18.6.17: </strong></span><span class="bold"><strong>
+        I tried using MySQL Proxy without any Lua script to try a
+        round-robin type load balancing. In this case, if the first
+        database in the list is down, MySQL Proxy would not connect the
+        client to the second database in the list.
+      </strong></span></p><p>
+        This issue is fixed in version 0.7.0.
+      </p><p><a name="qandaitem-18-6-18"></a><span class="bold"><strong>18.6.18: </strong></span><span class="bold"><strong>
+        Would the Java-only connection pooling solution work for
+        multiple web servers? With this, I'd assume you can pool across
+        many web servers at once?
+      </strong></span></p><p>
+        Yes. But you can also start one proxy on each application server
+        to get a similar behaviour as you have it already.
+      </p><p><a name="qandaitem-18-6-19"></a><span class="bold"><strong>18.6.19: </strong></span><span class="bold"><strong>
+        Is the MySQL Proxy an API ?
+      </strong></span></p><p>
+        No, MySQL Proxy is an application that forwards packets from a
+        client to a server using the MySQL network protocol. The MySQL
+        proxy provides a API allowing you to change its behaviour.
+      </p><p><a name="qandaitem-18-6-20"></a><span class="bold"><strong>18.6.20: </strong></span><span class="bold"><strong>
+        If you have multiple databases on the same box, can you use
+        proxy to connect to databases on default port 3306?
+      </strong></span></p><p>
+        Yes, MySQL Proxy can listen on any port. Providing none of the
+        MySQL servers are listening on the same port.
+      </p><p><a name="qandaitem-18-6-21"></a><span class="bold"><strong>18.6.21: </strong></span><span class="bold"><strong>
+        Will Proxy be deprecated for use with connection pooling once
+        MySQL 6.x comes out? Or will 6.x integrate proxy more deeply?
+      </strong></span></p><p>
+        The logic about the pooling is controlled by the lua scripts,
+        you can enable and disable it if you like. There are no plans to
+        embed the current MySQL Proxy functionality into the MySQL
+        Server.
+      </p><p><a name="qandaitem-18-6-22"></a><span class="bold"><strong>18.6.22: </strong></span><span class="bold"><strong>
+        We've looked at using MySQL Proxy but we're concerned about the
+        alpha status - when do you think the proxy would be considered
+        production ready?
+      </strong></span></p><p>
+        We are on the road to the next feature release: 0.7.0. It will
+        improve the performance quite a bit. After that we may be able
+        to enter the beta phase.
+      </p><p><a name="qandaitem-18-6-23"></a><span class="bold"><strong>18.6.23: </strong></span><span class="bold"><strong>
+        Will the proxy road map involve moving popular features from lua
+        to C? For example Read/Write splitting
+      </strong></span></p><p>
+        We will keep the high-level parts in the Lua layer to be able to
+        adjust to special situations without a rebuild. Read/Write
+        splitting sometimes needs external knowledge that may only be
+        available by the DBA.
+      </p><p><a name="qandaitem-18-6-24"></a><span class="bold"><strong>18.6.24: </strong></span><span class="bold"><strong>
+        In load balancing, how can I separate reads from writes? Is a
+        backend-server a remote MySQL machine ? You would think so, but
+        from another post in this forum, it looks like the separation of
+        reads from writes has not been implemented yet, so I am not
+        clear as to the distinction between backend-servers and
+        read-only servers.
+      </strong></span></p><pre class="programlisting">$ mysql-proxy \
+--proxy-backend-addresses=10.0.1.2:3306 \
+--proxy-backend-addresses=10.0.1.3:3306 &amp;</pre><p><span class="bold"><strong>
+        I don't see how this works for writes, as they have to go to the
+        master server.
+      </strong></span></p><p>
+        In version 0.6.0 there is no separation between read and writes
+        and it is up the user to make sure that only reads are sent to
+        the proxy. In the next releases we will add connection pooling
+        and read/write splitting to make this more useful. See also
+        <a href="load-balancer.html" title="Chapter 18. MySQL Load Balancer">Chapter 18, <i>MySQL Load Balancer</i></a>.
+      </p><p><a name="qandaitem-18-6-25"></a><span class="bold"><strong>18.6.25: </strong></span><span class="bold"><strong>
+        Are these reserved function names (e.g., error_result) that get
+        automatically called?
+      </strong></span></p><p>
+        Only functions and values starting with
+        <code class="literal">proxy.*</code> are provided by the proxy. All others
+        are provided by you.
+      </p><p><a name="qandaitem-18-6-26"></a><span class="bold"><strong>18.6.26: </strong></span><span class="bold"><strong>
+        Can you explain the status of your work with
+        <span><strong class="command">memcached</strong></span> and MySQL Proxy?
+      </strong></span></p><p>
+        There are some ideas to integrate proxy and
+        <span><strong class="command">memcache</strong></span> a bit, but no code yet.
+      </p><p><a name="qandaitem-18-6-27"></a><span class="bold"><strong>18.6.27: </strong></span><span class="bold"><strong>
+        Is there any big web site using MySQL Proxy ? For what purpose
+        and what transaction rate have they achieved.
+      </strong></span></p><p>
+        Yes, <a href="http://gaiaonline.com/" target="_top">gaiaonline</a>.
+        They have tested MySQL Proxy and seen it handle 2400 queries per
+        second through the proxy.
+      </p><p><a name="qandaitem-18-6-28"></a><span class="bold"><strong>18.6.28: </strong></span><span class="bold"><strong>
+        So the authentication when connection pooling has to be done at
+        every connection? What's the authentication latency?
+      </strong></span></p><p>
+        You can skip the round-trip and use the connection as it was
+        added to the pool. As long as the application cleans up the
+        temporary tables it used. The overhead is (as always) around 400
+        microseconds.
+      </p><p><a name="qandaitem-18-6-29"></a><span class="bold"><strong>18.6.29: </strong></span><span class="bold"><strong>
+        Is it possible to use the MySQL proxy w/ updating a Lucene index
+        (or Solr) by making TCP calls to that server to update?
+      </strong></span></p><p>
+        Yes, but it isn't advised for now.
+      </p><p><a name="qandaitem-18-6-30"></a><span class="bold"><strong>18.6.30: </strong></span><span class="bold"><strong>
+        Isn't MySQL Proxy similar to what is provided by Java connection
+        pools?
+      </strong></span></p><p>
+        Yes and no. Java connection pools are specific to Java
+        applications, MySQL Proxy works with any client API that talks
+        the MySQL network protocol. Also, connection pools do not
+        provide any functionality for intelligently examining the
+        network packets and modifying the contents.
+      </p><p><a name="qandaitem-18-6-31"></a><span class="bold"><strong>18.6.31: </strong></span><span class="bold"><strong>
+        Are there tools for isolating problems? How can someone figure
+        out if a problem is in the client, in the db or in the proxy?
+      </strong></span></p><p>
+        You can set a debug script in the proxy, which is an
+        exceptionally good tool for this purpose. You can see very
+        clearly which component is causing the problem, if you set the
+        right breakpoints.
+      </p><p><a name="qandaitem-18-6-32"></a><span class="bold"><strong>18.6.32: </strong></span><span class="bold"><strong>
+        Can you dynamically reconfigure the pool of MySQL servers that
+        MySQL Proxy will load balance to?
+      </strong></span></p><p>
+        Not yet, it is on the list. We are working on a administration
+        interface for that purpose.
+      </p><p><a name="qandaitem-18-6-33"></a><span class="bold"><strong>18.6.33: </strong></span><span class="bold"><strong>
+        Given that there is a <code class="literal">connect_server</code>
+        function, can a Lua script link up with multiple servers?
+      </strong></span></p><p>
+        The proxy provides some tutorials in the source-package, one is
+        <code class="filename">examples/tutorial-keepalive.lua</code>.
+      </p><p><a name="qandaitem-18-6-34"></a><span class="bold"><strong>18.6.34: </strong></span><span class="bold"><strong>
+        Adding a proxy must add latency to the connection, how big is
+        that latency?
+      </strong></span></p><p>
+        In the range of 400microseconds
+      </p><p><a name="qandaitem-18-6-35"></a><span class="bold"><strong>18.6.35: </strong></span><span class="bold"><strong>
+        In the quick poll, I see "Load Balancer: read-write splitting"
+        as an option, so would it be correct to say that there are no
+        scripts written for Proxy yet to do this?
+      </strong></span></p><p>
+        There is a proof of concept script for that included. But its
+        far from perfect and may not work for you yet.
+      </p><p><a name="qandaitem-18-6-36"></a><span class="bold"><strong>18.6.36: </strong></span><span class="bold"><strong>
+        Is it "safe" to use <code class="literal">LuaSocket</code> with proxy
+        scripts?
+      </strong></span></p><p>
+        You can, but it is not advised as it may block.
+      </p><p><a name="qandaitem-18-6-37"></a><span class="bold"><strong>18.6.37: </strong></span><span class="bold"><strong>
+        How different is MySQL Proxy from DBCP (Database connection
+        pooling) for Apache in terms of connection pooling?
+      </strong></span></p><p>
+        Connection Pooling is just one use-case of the MySQL Proxy. You
+        can use it for a lot more and it works in cases where you can't
+        use DBCP (like if you don't have Java).
+      </p><p><a name="qandaitem-18-6-38"></a><span class="bold"><strong>18.6.38: </strong></span><span class="bold"><strong>
+        Do you have make one large script and call at proxy startup, can
+        I change scripts without stopping and restarting (interrupting)
+        the proxy?
+      </strong></span></p><p>
+        You can just change the script and the proxy will reload it when
+        a client connects.
+      </p></div></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="ha-memcached.html">Prev</a> </td><td width="20%" align="center"> </td><td width="40%" align="right"> <a accesskey="n" href="load-balancer.html">Next</a></td></tr><tr><td width="40%" align="left" valign="top">Chapter 16. Using MySQL with <span><strong class="command">memcached</strong></span> </td><td width="20%" align="center"><a accesskey="h" href="index.html">Home</a></td><td width="40%" align="right" valign="top"> Chapter 18. MySQL Load Balancer</td></tr></table></div></body></html>

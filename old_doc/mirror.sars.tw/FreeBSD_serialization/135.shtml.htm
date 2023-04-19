@@ -1,0 +1,192 @@
+
+
+<!-- Vignette StoryServer 4 Sat Mar 11 15:43:24 2000 --> 
+<style type=text/css>
+<!--
+p,div {font-size:12pt; line-height:14pt; font-family:宋體;}
+.p1{font-size:12pt;font-family:宋體;}
+.p2{font-size:12pt;font-family:宋體;line-height:14pt;}
+.p3{font-size:14.8px;font-family:宋體;}
+.p4{font-size:14.8px;font-family:宋體;line-height:14pt;}
+.p5{font-size:1pt}
+a:hover{color:red;}
+a.t1:visited{color:red;}
+-->
+</style>
+<title>FreeBSD使用大全</title></head>
+
+<body bgcolor="#FFFFFF" text="#000000" link="#383098" vlink="#336699" alink="#FF0000" topmargin="0">
+<!-- Vignette StoryServer 4 Thu Mar 23 10:01:54 2000 --> <!-- Vignette StoryServer 4 Thu Mar 23 15:34:35 2000 --> 
+
+<!--開始：新聞內容-->
+<TABLE WIDTH=750 BORDER=0 CELLSPACING=0 CELLPADDING=0>
+
+<tr valign=top>
+
+
+
+<TD  valign=top>
+<CENTER><FONT COLOR=#000066 size=5><B>FreeBSD連載(39)：定義自己的名字服務</B><br></FONT></CENTER>
+
+<HR  ALIGN="center" SIZE=1>
+<CENTER><FONT FACE="Arial" SIZE=2> 1999年12月11日 15:02 </FONT><FONT COLOR="#990000" SIZE=2>王波</FONT></CENTER><p>
+
+<h1 align=center>定義自己的名字服務</h1>
+
+<p>　　緩衝形式的名字服務只能用於名字查詢，但沒有定義任何名字數據。如果要想讓自己
+的網路有一個域名，並為其他電腦都提供服務，就必須使用完整配置的名字伺服器。</p>
+
+<ul><h2><P><LI>正向解析zone</LI></P></B></h2></ul>
+
+<p>　　第一步要為自己的子域在/etc/namedb/named.conf檔案中定義zone，並修改設置檔案
+named.conf。在named.conf檔案中，首先要刪除forward的相關設置，使伺服器不僅用於轉發
+請求，也能擁有自己的名字解析數據庫。然後再增加一項新zone的定義：</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre> zone "bsdgroup.example.org.cn" {
+        type master;
+        file "db.bsdgroup";
+};</td></pre></tr></table>
+
+<P>　　這一項描述了bsdgroup.example.org.cn的zone對應的配置檔案為db.bsdgroup。其中
+type master表示這台DNS伺服器為這個zone的主伺服器，對於一個zone來講，可以由多個DNS
+伺服器提供服務，以提供一定的備份能力。當為一個zone使用多個DNS伺服器的時候，通常可
+以設置一個主伺服器，而其他伺服器為輔伺服器，輔伺服器將從主伺服器上獲得zone的解析
+數據，而本地檔案只是用於萬一主伺服器出現故障的情況。</P>
+
+<P>　　更改過named.conf中的zone設置項，就能創建zone的解析數據檔案db.bsdgroup，用於
+保存zone內的解析數據。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre><font size=2>@           IN   SOA  ns.bsdgroup.example.org.cn. admin.example.org.cn. (
+                         1999010801 ; Serial (date, 2 digits version of day)
+                         86400   ; refresh (1 day)
+                         7200    ; retry (2 hours)
+                         8640000 ; expire (100 days)
+                         86400 ) ; minimum (1 day)
+            IN   NS   ns.bsdgroup.example.org.cn.
+            IN   NS   ns1.bsdgroup.example.org.cn.
+            IN   MX   10  ns
+            IN   MX   20  ns1
+
+ns          IN   A    192.168.4.21
+ns1         IN   A    192.168.4.22
+www         IN   CNAME  freebsd.example.org.cn.</font></td></pre></tr></table>
+
+<P>　　這個設置檔案中首先為這個zone定義了SOA記錄，接下來定義了服務於這個zone的兩個
+名字伺服器。當為一個zone定義名字伺服器時，有的管理員以為將名字伺服器設置的越多越能
+提供備份，其實並不是這樣。如果定義的一台名字伺服器，其named.conf（或named.boot）設
+置檔案中並沒有設置它為這個zone服務，那麼該名字伺服器上就沒有這個zone的解析數據，這
+就導致一些客戶從這個名字伺服器中查詢這個zone的數據失敗。這個配置錯誤就是Internet中
+經常發生的Lame Server錯誤，一些老版本的named不能檢測並糾正這個錯誤，就會導致網路上
+部分客戶電腦不能解析這個zone。同樣，多個名字伺服器之間還應該保持zone數據一致，正
+確劃分好主/輔伺服器可以很好的解決這個問題。</P>
+
+<P>　　然後又針對這個zone定義了兩個MX記錄，表示對應於這個zone的郵件伺服器為ns和ns1，
+這樣在電子郵件中的地址中，就不需要使用具體的電腦名字ns.bsdgroup.example.org.cn，
+而可以直接使用bsdgroup.example.org.cn。其中ns的參數為10，ns1的參數為20，用於標識不
+同郵件伺服器的優先級，一個郵件總是首先向低優先級的郵件伺服器發送，只有當這個伺服器
+出現故障時，才會嘗試其他的郵件伺服器。</P>
+
+<P>　　這個檔案中還定義了幾個A記錄，這個記錄具體定義ns和ns1的IP地址，然後定義了一個
+www的電腦，但這只是freebsd.example.org.cn的一個別名。</P>
+
+<P>　　這個zone是對該zone中的電腦進行正向名字查詢，從名字返回相應的IP地址，進一步
+可以配置反向查詢zone，輸入要查詢的IP地址，返回正確的主機名字。</P>
+
+<ul><h2><P><LI>反向解析zone</LI></P></h2></ul>
+
+<P>　　前面提到的localhost.rev就是一個反向查詢zone檔案。因此要定義其他反向解析zone，
+就與它相似。首先在named.conf中增加一個設置語句：</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre><font size=2>zone "4.168.192.in-addr.arpa" {
+        type master;
+        file "bsdgroup.rev";
+};</font></td></pre></tr></table>
+
+<p>　　網路地址以反方向的方式寫出，並使用in-addr.arpa後綴，表示一個反向查詢zone為192.168.4。
+然後創建反向解析數據bsdgroup.rev：
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre><font size=2>@	IN	SOA	ns.bsdgroup.example.org.cn. admin.example.org.cn.  (
+				1998012314	; Serial
+				3600	; Refresh
+				900	; Retry
+				3600000	; Expire
+				3600 )	; Minimum
+	IN	NS	ns.bsdgroup.example.org.cn.
+21	IN	PTR	ns.bsdgroup.example.org.cn.
+22	IN	PTR	ns1.bsdgroup.example.org.cn.</font></td></pre></tr></table>
+
+<P>　　注意，這裡正向解析和反向解析位於同一台伺服器上，這只是一種較簡單的情況，但對
+Internet上更廣泛的複雜情況，並不總是如此。</P>
+
+<ul><h2><P><LI>維護名字伺服器</LI></P></h2></ul>
+
+<P>　　當完成了這一步之後，就可以把本網路上所有電腦的解析數據，使用A記錄增加到
+db.bsdgroup中，使用PTR記錄增加到bsdgroup.rev檔案中去，並重新啟動named守護進程，或者
+向named發送SIGHUP信號（使用kill或killall），使其重新讀取設置檔案。那麼所有使用這台計
+算機作名字伺服器的電腦將能正確查詢相應的名字和IP。</P>
+
+<P>　　但是，外部的電腦並不知道有這個名字伺服器的存在，因此外部電腦還無法查找到
+正確的結果。因此就需要將這個名字伺服器，及其提供伺服器的域，登記到Internet上的正式名
+字伺服器上，以便這個名字伺服器上的zone數據通過正式伺服器發布到整個Internet。最方便的
+做法是將這個名字伺服器登記到其上一級名字伺服器上，如在example.org.cn的名字伺服器中可
+以指定bsdgroup.example.org.cn子域的zone設置及名字伺服器。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>bsdgroup.example.org.cn.	IN	NS	192.168.4.21</td></pre></tr></table>
+
+<P>　　此後，外部電腦才能查找bsdgroup這個域的內容。</P>
+<P>這個例子中使用了兩個名字伺服器ns和ns1，為了保持兩個伺服器中的數據一致，兩個伺服器
+一個需要作為主伺服器，另一個必須作為輔伺服器。主伺服器ns在配置檔案named.conf中使用
+type master來說明，而輔伺服器ns1使用type slave來說明：</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>zone "bsdgroup.example.org.cn" {
+        type slave;
+        file "db.bsdgroup";
+};</td></pre></tr></table>
+
+<P>　　這使得ns1首先嘗試從ns（192.168.4.21）中獲得zone的配置數據，如果不能成功再從本
+機配置檔案中獲得。這樣既能起到備份作用，又能保持解析數據盡量一致。</P>
+
+<P>　　named在啟動和運行的過程中將不斷向控制台打印信息，這些信息也被寫入/var/log/messages
+檔案中。查看這些檔案可以判斷是否有錯誤發生。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre><font size=2>Feb 15 01:26:17 roke named[6091]: starting.  named 8.1.1 Sat Feb 14 \
+       00:18:20 MET 1998 ^Iwb@example.org.cn:/var/tmp/bind-8.1.1/src/bin/named
+Feb 15 01:26:17 roke named[6091]: cache zone "" (IN) loaded (serial 0)
+Feb 15 01:26:17 roke named[6091]: master zone "0.0.127.in-addr.arpa" \
+       (IN) loaded (serial 1)
+Feb 15 01:26:17 roke named[6091]: listening [127.0.0.1].53 (lo)
+Feb 15 01:26:17 roke named[6091]: listening [129.240.230.92].53 (ppp0)
+Feb 15 01:26:17 roke named[6091]: Forwarding source address is [0.0.0.0].1040
+Feb 15 01:26:17 roke named[6092]: Ready to answer queries.</font></td></pre></tr></table>
+
+
+<P>　　此外，隨著Internet的發展，根DNS伺服器也會不斷更新，因此保持自己的DNS伺服器中
+root.hints（或named.root）檔案與Internet上的真實根檔案伺服器同步也是非常重要。通常可
+以使用dig來從一個根檔案伺服器上取得這個檔案：</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># cd /etc/namedb
+# dig @rs.internic.net . ns >root.hints.new</td></pre></tr></table>
+
+<P>　　如果一切正常，就可以將root.hints.new復制為named.root，並重新啟動named。此外還
+有一些常用的工具程序有nslookup，dig，dnswalk，named-xfer等，能用來分析DNS設置，幫助解
+決設置問題。</P>
+
+
+
+<BR>
+
+</TD>
+</TR></TABLE>
+
+
+
+</BODY>
+</HTML>

@@ -1,0 +1,165 @@
+
+
+<!-- Vignette StoryServer 4 Sat Mar 11 15:43:24 2000 --> 
+<style type=text/css>
+<!--
+p,div {font-size:12pt; line-height:14pt; font-family:宋體;}
+.p1{font-size:12pt;font-family:宋體;}
+.p2{font-size:12pt;font-family:宋體;line-height:14pt;}
+.p3{font-size:14.8px;font-family:宋體;}
+.p4{font-size:14.8px;font-family:宋體;line-height:14pt;}
+.p5{font-size:1pt}
+a:hover{color:red;}
+a.t1:visited{color:red;}
+-->
+</style>
+<title>FreeBSD使用大全</title></head>
+
+<body bgcolor="#FFFFFF" text="#000000" link="#383098" vlink="#336699" alink="#FF0000" topmargin="0">
+<!-- Vignette StoryServer 4 Thu Mar 23 10:01:54 2000 --> <!-- Vignette StoryServer 4 Thu Mar 23 15:34:35 2000 --> 
+
+<!--開始：新聞內容-->
+<TABLE WIDTH=750 BORDER=0 CELLSPACING=0 CELLPADDING=0>
+
+<tr valign=top>
+
+
+
+<TD  valign=top>
+<CENTER><FONT COLOR=#000066 size=5><B>FreeBSD連載(59)：編譯安裝新核心</B><br></FONT></CENTER>
+
+<HR  ALIGN="center" SIZE=1>
+<CENTER><FONT FACE="Arial" SIZE=2> 1999年12月31日 16:36 </FONT><FONT COLOR="#990000" SIZE=2>王波</FONT></CENTER><p>
+
+<h1 align=center>編譯安裝新核心</h1>
+
+<p>　　在/usr/src/sys/i386/conf目錄下，可以看到一系列核心配置文
+件的樣例。</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>bash-2.02$ ls /sys/i386/conf
+GENERIC   Makefile.i386   files.i386     majors.i386
+LINT      PICOBSD-N.2000  ipfilter       options.i386
+LKM       devices.i386    kernel.script</td></pre></tr></table>
+
+<P>　　目錄中最重要的檔案有GENERIC和LINT，名為GENERIC的檔案就是
+通用核心kernel.GENERIC的配置檔案，而LINT檔案中包括FreeBSD支持的
+幾乎所有配置參數，並逐一加以解釋。另一些檔案則是其他硬體配置下，
+用於特定目的的配置檔案的例子。因此GENERIC和LINT檔案是在設置核心
+時的必備參考。有了這些檔案作參考之後，就可以生成針對某個電腦具
+體設置的配置檔案就更為簡單了，並執行編譯核心的任務。</P>
+
+<ul><h2><P><LI>修改核心的一般原則</LI></P></h2></ul>
+
+<P>　　要定制核心，就必須要生成配置檔案。一般都是通過更改已有配
+置檔案的方法來生成特定的配置檔案，以簡化設置工作。但直接修改已有
+的配置檔案的方式，如修改GENERIC檔案，並不可取，而應該先復制生成
+一個新的配置檔案，這樣就可以使用多個配置檔案，維護多個不同配置的
+核心。這些核心可以是為一台電腦準備的，也可以是為多台電腦準備
+的。新配置檔案可以很方便的從對已有配置檔案，如GENERIC，進行復制
+得到。例如：</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># cd /usr/src/sys/i386/conf
+# cp GENERIC mykernel</td></pre></tr></table>
+
+<P>　　然後再修改mykernel這個配置檔案，第一步需要完成的任務是先刪
+除不必要的硬體支持選項，這是因為通用核心支持的硬體設備通常要多於
+電腦系統中實際存在的硬體設備，不必要的硬體驅動代碼會占用不必要
+的核心內存空間。除了根據管理員對電腦硬體配置的了解來進行刪除不
+必要的硬體驅動選項之外，比較簡便的方法是根據FreeBSD的通用核心在啟
+動時報告的信息來判斷哪個設備已經探測到，哪個設備沒被探測到。使用
+系統命令dmesg可以查看系統啟動時的信息，因此沒被探測到的設備可以使
+用命令來得到：</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># dmesg | grep “not found”</td></pre></tr></table>
+
+<P>　　這個命令輸出的結果，或者是電腦中並不存在的設備，或者是驅
+動程序的參數沒有配置正確，沒有正確檢測到硬體設備的情況。如果確認
+沒有這個硬體設備，就可以在配置檔案中將其刪除。</P>
+
+<P>　　有些硬體設置的預設參數與系統中的硬體設置並不一致，可以通過
+更改配置檔案中的配置參數來改變設置，以達到正確檢測硬體的目的。</P>
+
+<P>　　有些設備在GENERIC配置檔案中並沒有提供支持，例如聲卡設備，以
+及多處理器支持能力。如果要想支持這些設置，就要將相應的設置參數增添
+到配置檔案中，可以要參考檔案LINT中的相應設置來完成增添硬體的過程。</P>
+
+<P>　　為了得到一個合適的核心，或許需要不止一次的更改設置。當對計
+算機的某些硬體設置不是很清楚，為了節約編譯核心次數，可以先通過
+UserConfig更改確定正確的硬體設置，再重新編譯核心的這種循序漸進方
+式，逐步獲得硬體的正確配置。</P>
+
+<P>　　重新定制核心不但是為了獲得硬體配置的正確性，還可以通過更改內
+核設置支持一些FreeBSD支持的特定功能、優化現有能力，以發揮系統的最大
+能力，從而達到將硬體具備的最大能力，充分發揮FreeBSD具備的強大處理能
+力。</P>
+
+<ul><h2><P><LI>編譯和安裝核心</LI></P></h2></ul>
+
+<P>　　在生成自己的核心配置檔案mykernel之後，就可以進入下一步編譯安
+裝過程了。在配置檔案所在的目錄中，輸入：</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># /usr/sbin/config mykernel
+Removing old directory ../../compile/mykernel:  Done.
+Kernel build directory is ../../compile/mykernel</td></pre></tr></table>
+
+<P>　　這個命令將產生一個/usr/src/sys/complie/mykernel的目錄，其中目
+錄名對應於核心的名字，這樣就使得系統中可以同時維護多個不同的核心，不
+同的核心相互獨立而互不干擾。這個目錄中就包括了編譯核心所需的源檔案。</P>
+
+<P>　　如果這個過程出現錯誤，就說明配置檔案中存在語法錯誤，config程序
+將會提示出錯的行，以便使用者進行修改。但是config不會發現配置檔案中存
+在的邏輯錯誤，這些邏輯錯誤只能在編譯核心時才能發現。</P>
+
+<P>　　下一步就是進入生成的目錄中進行編譯和安裝。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># cd ../../compile/mykernel
+# make depend
+# make</td></pre></tr></table>
+
+<P>　　編譯過程需要一些時間以進行編譯，這時候就可以作些其他任務等待
+編譯結束。但如果配置檔案存在邏輯錯誤，在編譯時會形成錯誤。因為核心配
+置選項不是相互無關的，而是存在相關依賴關系，有些設置項會依賴於另外的
+設置項。當發生這些邏輯錯誤的時候，當所有需要的源檔案都存在時，就說明
+配置檔案中缺少一些基本參數定義的代碼，需要重新加入。例如所有的EISA設
+備依賴於controller eisa0定義的EISA控制器，那麼刪除controller eisa0設
+置項就會造次弤譯EISA設備時，缺少controller eisa0對應的源程序中定義的
+函數和變量，就會造次弤譯失敗。確定沒有EISA設備的時候，就要刪除所有的
+EISA相關選項，以避免邏輯錯誤。</P>
+
+<P>　　核心編譯成功之後，就可以進行安裝了：</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># make install</td></pre></tr></table>
+
+<P>　　這將原有核心更改為/kernel.old，然後將編譯後產生的新核心移到根
+目錄下，命名為/kernel。此後可以重起系統，檢查新核心是否正確。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># reboot</td></pre></tr></table>
+
+<P>　　如果新核心的配置不正確，造成某些硬體不能正確檢測造成不能正常啟
+動。此時就需要重新用老核心進入系統，以重新進行編譯糾正錯誤。選擇不同
+核心必須通過Boot Loader的交互界面進行，需要在啟動時進入Boot Loader，然
+後可以輸入load  kernel.old命令，使用老核心啟動系統，或者使用kernel.GENERIC
+通用核心啟動系統。</P>
+
+<P>　　為了避免第二次編譯核心時，將錯誤的核心保存為kernel.old，覆蓋原
+有的正確設置，也可以先將正確的核心拷貝為根檔案系統中的另一個檔案，進行
+備份保存，只有放置在根分區上的核心才能正常啟動系統，因此備份到其他檔案
+系統中核心意義不大。</P>
+
+
+<BR>
+
+</TD>
+</TR></TABLE>
+
+
+
+</BODY>
+</HTML>

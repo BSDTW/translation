@@ -1,0 +1,1065 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><title>Chapter 16. Writing a Custom Storage Engine</title><meta name="generator" content="DocBook XSL Stylesheets V1.69.1"><link rel="start" href="index.html" title="MySQL 5.1 Reference Manual"><link rel="up" href="index.html" title="MySQL 5.1 Reference Manual"><link rel="prev" href="storage-engines.html" title="Chapter 15. Storage Engines and Table Types"><link rel="next" href="ndbcluster.html" title="Chapter 17. MySQL Cluster">
+<style>
+<!--
+span.quote
+	{}
+-->
+</style>
+</head><body><div class="chapter"><div class="titlepage"><div><div><h2 class="title"><a name="custom-engine"></a>
+	第16章：編寫自行定義儲存引擎</h2></div></div></div><div class="toc"><p><b>
+	目錄</b></p><dl><dt><span class="section"><a href="custom-engine.html#custom-engine-introduction">
+			16.1. 前言</a></span></dt><dt><span class="section"><a href="custom-engine.html#custom-engine-overview">
+			16.2. 概述</a></span></dt><dt><span class="section"><a href="custom-engine.html#custom-engine-create-files">
+			16.3. 建立儲存引擎源檔案</a></span></dt><dt><span class="section"><a href="custom-engine.html#custom-engine-handlerton">
+			16.4. 建立handlerton<code class="literal"></code></a></span></dt><dt><span class="section"><a href="custom-engine.html#custom-engine-instancing">
+			16.5. 對處理程式進行實例化處理</a></span></dt><dt><span class="section"><a href="custom-engine.html#custom-engine-extensions">
+			16.6. 定義資料表延伸</a></span></dt><dt><span class="section"><a href="custom-engine.html#custom-engine-create-table">
+			16.7. 建立資料表</a></span></dt><dt><span class="section"><a href="custom-engine.html#custom-engine-open-table">
+			16.8. 打開資料表</a></span></dt><dt><span class="section"><a href="custom-engine.html#custom-engine-table-scanning">
+			16.9. 實施基本的資料表掃瞄功能</a></span></dt><dd><dl><dt><span class="section"><a href="custom-engine.html#custom-engine-scanning-store">
+				16.9.1. 實施store_lock()函數<code class="function"></code></a></span></dt><dt><span class="section"><a href="custom-engine.html#custom-engine-scanning-external">
+				16.9.2. 實施external_lock()函數</a></span></dt><dt><span class="section"><a href="custom-engine.html#custom-engine-scanning-init">
+				16.9.3. 實施rnd_init()函數<code class="function"></code></a></span></dt><dt><span class="section"><a href="custom-engine.html#custom-engine-scanning-info">
+				16.9.4. 實施info()函數<code class="function"></code></a></span></dt><dt><span class="section"><a href="custom-engine.html#custom-engine-scanning-extra">
+				16.9.5. 實施extra()函數<code class="function"></code></a></span></dt><dt><span class="section"><a href="custom-engine.html#custom-engine-table-scanning-next">
+				16.9.6. 實施rnd_next()函數<code class="function"></code></a></span></dt></dl></dd><dt><span class="section"><a href="custom-engine.html#custom-engine-close-table">
+			16.10. 關閉資料表</a></span></dt><dt><span class="section"><a href="custom-engine.html#custom-engine-insert">
+			16.11. 為儲存引擎新增對INSERT的支援<code class="literal"></code></a></span></dt><dt><span class="section"><a href="custom-engine.html#custom-engine-update">
+			16.12. 為儲存引擎新增對UPDATE的支援<code class="literal"></code></a></span></dt><dt><span class="section"><a href="custom-engine.html#custom-engine-delete">
+			16.13. 為儲存引擎新增對DELETE的支援<code class="literal"></code></a></span></dt><dt><span class="section"><a href="custom-engine.html#custom-engine-api-reference">
+			16.14. API引用</a></span></dt><dd><dl><dt><span class="section"><a href="custom-engine.html#custom-engine-api-reference-bas_ext">16.14.1. bas_ext</a></span></dt><dt><span class="section"><a href="custom-engine.html#custom-engine-api-reference-close">16.14.2. close</a></span></dt><dt><span class="section"><a href="custom-engine.html#custom-engine-api-reference-create">16.14.3. create</a></span></dt><dt><span class="section"><a href="custom-engine.html#custom-engine-api-reference-delete_row">16.14.4. delete_row</a></span></dt><dt><span class="section"><a href="custom-engine.html#custom-engine-api-reference-delete_table">16.14.5. delete_table</a></span></dt><dt><span class="section"><a href="custom-engine.html#custom-engine-api-reference-external_lock">16.14.6. external_lock</a></span></dt><dt><span class="section"><a href="custom-engine.html#custom-engine-api-reference-extra">16.14.7. extra</a></span></dt><dt><span class="section"><a href="custom-engine.html#custom-engine-api-reference-info">16.14.8. info</a></span></dt><dt><span class="section"><a href="custom-engine.html#custom-engine-api-reference-open">16.14.9. open</a></span></dt><dt><span class="section"><a href="custom-engine.html#custom-engine-api-reference-rnd_init">16.14.10. rnd_init</a></span></dt><dt><span class="section"><a href="custom-engine.html#custom-engine-api-reference-rnd_next">16.14.11. rnd_next</a></span></dt><dt><span class="section"><a href="custom-engine.html#custom-engine-api-reference-store_lock">16.14.12. store_lock</a></span></dt><dt><span class="section"><a href="custom-engine.html#custom-engine-api-reference-update_row">16.14.13. update_row</a></span></dt><dt><span class="section"><a href="custom-engine.html#custom-engine-api-reference-write_row">16.14.14. write_row</a></span></dt></dl></dd></dl></div><div class="section"><div class="titlepage"><div><div><h2 class="title"><a name="custom-engine-introduction"></a>
+	16.1.&nbsp;前言</h2></div></div></div>
+	<p>對於<span>MySQL 5.1</span>，<span>MySQL AB</span>公司引入了插件式儲存引擎體系結構，這樣，就能建立新的儲存引擎，並將它們新增到正在運行的<span>MySQL</span>伺服器上，而不必重新編譯伺服器本身。</p>
+	<p>該體系結構簡化了新儲存引擎的開發和部署。</p>
+	<p>本章的意圖是作為指南，用於幫助您為新的插件式儲存引擎體系結構開發儲存引擎。</p>
+	<span>關於<span>MySQL</span>插件式儲存引擎體系結構的更多訊息，請參見</span><a href="pluggable-storage.html">第14章：</a><a href="pluggable-storage.html" title="Chapter 14. Pluggable Storage Engine Architecture"><i>插件式儲存引擎體系結構</i></a>。</div><div class="section"><div class="titlepage"><div><div><h2 class="title"><a name="custom-engine-overview"></a>
+		16.2.&nbsp;概述</h2></div></div></div><div class="figure"><a name="id2953282"></a>
+			<span>MySQL</span>伺服器採用了模塊化風格。<p class="title"><b>圖16.1：MySQL體系結構</b></p><div class="mediaobject"><img src="images/custom-engine-overview.png" alt="MySQL architecture"></div></div></div><div class="section"><div class="titlepage"><div><div>
+	儲存引擎負責管理數據儲存，以及<span>MySQL</span>的索引管理。通過定義的<span>API</span>，<span>MySQL</span>伺服器能夠與儲存引擎進行通信。<p>
+	每個儲存引擎均是<span>1</span>個繼承類，每個類實例作為處理程式而被引用。</p>
+	<p>針對需要與特殊資料表一起工作的每個線程，處理程式是在<span>1</span>個處理程式的基礎上實例化的。例如，如果<span>3</span>個連接全都在相同的資料表上工作，需要建立<span>3</span>個處理程式實例。</p>
+	<p>一旦建立了處理程式實例，<span>MySQL</span>伺服器將向處理程式發送命令，以便執行數據儲存和檢索任務，如打開資料表、操縱行和管理索引等。</p>
+	<p>能夠以累進方式建立定制儲存引擎：開發人員能夠以只讀儲存引擎啟動，隨後新增對<span>INSERT</span>、<span>UPDATE</span>和<span><span>DELETE</span>操作的支援，甚至能夠增加對索引功能、事務和其他高級操作的支援。</span></p>
+	<h2 class="title"><a name="custom-engine-create-files"></a>
+		16.3.&nbsp;建立儲存引擎源檔案</h2></div></div></div>
+	<p>實施新儲存引擎的最簡單方法是，通過拷貝和更改<span><span>EXAMPLE</span>儲存引擎開始。在</span><span>MySQL 
+	5.1</span>原始碼樹的<span><span>sql/examples/</span>目錄下可找到</span>檔案<span>ha_example.cc</span>和<span>ha_example.h</span>。關於如何獲得<span>5.1</span>原始碼樹的說明，請參見<a href="installing.html#installing-source-tree" title="2.8.3. Installing from the Development Source Tree">2.8.3節，「從開發原始碼樹安裝」</a>。</p>
+	<p>複製檔案時，將名稱從<span>ha_example.cc</span>和<span><span>ha_example.h</span>更改為與儲存引擎相適應的名稱，如<span>ha_foo.cc</span></span>和<span>ha_foo.h</span>。</p>
+	<p>拷貝並重命名了這些檔案後，必須更換所有的<span><span>EXAMPLE</span>示範，以及具有儲存引擎名稱的示範。如果您熟悉<span>sed</span>，也能自動完成這些步驟：</span></p>
+	<pre><span>sed s/EXAMPLE/FOO/g ha_example.h | sed s/example/foo/g ha_foo.h</span></pre>
+	<pre><span>sed s/EXAMPLE/FOO/g ha_example.cc | sed s/example/foo/g ha_foo.cc</span></pre>
+	</div><div class="section"><div class="titlepage"><div><div><h2 class="title"><a name="custom-engine-handlerton"></a>
+		16.4.&nbsp;建立handlerton<code class="literal"></code></h2></div></div></div>
+		<p><span>handlerton</span>（「單個處理程式」的簡稱<span class="quote">）</span>定義了儲存引擎，並包含指向函數的函數指針，它以整體方式作用在引擎上，而函數工作在單獨的處理程式實例中。在這類函數的一些示範中，包含用於處理註釋和回滾的事務函數。</p>
+		<p>下面給出了一個來自<span><span>EXAMPLE</span>儲存引擎的示範：</span></p>
+		<pre><span>handlerton example_hton= {</span></pre>
+		<pre><span>&nbsp; &quot;EXAMPLE&quot;,</span></pre>
+		<pre><span>&nbsp; SHOW_OPTION_YES,</span></pre>
+		<pre><span>&nbsp; &quot;Example storage engine&quot;, </span></pre>
+		<pre><span>&nbsp;&nbsp;DB_TYPE_EXAMPLE_DB,</span></pre>
+		<pre><span>&nbsp; NULL,&nbsp;&nbsp;&nbsp; /* Initialize */</span></pre>
+		<pre><span>&nbsp; 0,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; /* slot */</span></pre>
+		<pre><span>&nbsp; 0,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; /* savepoint size. */</span></pre>
+		<pre><span>&nbsp; NULL,&nbsp;&nbsp;&nbsp; /* close_connection */</span></pre>
+		<pre><span>&nbsp; NULL,&nbsp;&nbsp;&nbsp; /* savepoint */</span></pre>
+		<pre><span>&nbsp; NULL,&nbsp;&nbsp;&nbsp; /* rollback to savepoint */</span></pre>
+		<pre><span>&nbsp; NULL,&nbsp;&nbsp;&nbsp; /* release savepoint */</span></pre>
+		<pre><span>&nbsp; NULL,&nbsp;&nbsp;&nbsp; /* commit */</span></pre>
+		<pre><span>&nbsp; NULL,&nbsp;&nbsp;&nbsp; /* rollback */</span></pre>
+		<pre><span>&nbsp; NULL,&nbsp;&nbsp;&nbsp; /* prepare */</span></pre>
+		<pre><span>&nbsp; NULL,&nbsp;&nbsp;&nbsp; /* recover */</span></pre>
+		<pre><span>&nbsp; NULL,&nbsp;&nbsp;&nbsp; /* commit_by_xid */</span></pre>
+		<pre><span>&nbsp; NULL,&nbsp;&nbsp;&nbsp; /* rollback_by_xid */</span></pre>
+		<pre><span>&nbsp; NULL,&nbsp;&nbsp;&nbsp; /* create_cursor_read_view */</span></pre>
+		<pre><span>&nbsp; NULL,&nbsp;&nbsp;&nbsp; /* set_cursor_read_view */</span></pre>
+		<pre><span>&nbsp; NULL,&nbsp;&nbsp;&nbsp; /* close_cursor_read_view */</span></pre>
+		<pre><span>&nbsp; example_create_handler,&nbsp;&nbsp;&nbsp; /* Create a new handler */</span></pre>
+		<pre><span>&nbsp; NULL,&nbsp;&nbsp;&nbsp; /* Drop a database */</span></pre>
+		<pre><span>&nbsp; NULL,&nbsp;&nbsp;&nbsp; /* Panic call */</span></pre>
+		<pre><span>&nbsp; NULL,&nbsp;&nbsp;&nbsp; /* Release temporary latches */</span></pre>
+		<pre><span>&nbsp; NULL,&nbsp;&nbsp;&nbsp; /* Update Statistics */</span></pre>
+		<pre><span>&nbsp; NULL,&nbsp;&nbsp;&nbsp; /* Start Consistent Snapshot */</span></pre>
+		<pre><span>&nbsp; NULL,&nbsp;&nbsp;&nbsp; /* Flush logs */</span></pre>
+		<pre><span>&nbsp; NULL,&nbsp;&nbsp;&nbsp; /* Show status */</span></pre>
+		<pre><span>&nbsp; NULL,&nbsp;&nbsp;&nbsp; /* Replication Report Sent Binlog */</span></pre>
+		<pre><span>&nbsp; HTON_CAN_RECREATE</span></pre>
+		<pre><span>};</span></pre>
+		<p>下面給出了來自<span><span>handler.h</span>的<span>handlerton</span>定義：</span></p>
+		<pre><span>typedef struct</span></pre>
+		<pre><span>&nbsp; {</span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp; const char *name;</span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp; SHOW_COMP_OPTION state;</span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp; const char *comment;</span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp; enum db_type db_type;</span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp; bool (*init)();</span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp; uint slot;</span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp; uint savepoint_offset;</span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp; int&nbsp; (*close_connection)(THD *thd);</span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp; int&nbsp; (*savepoint_set)(THD *thd, void *sv);</span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp; int&nbsp; (*savepoint_rollback)(THD *thd, void *sv);</span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp; int&nbsp; (*savepoint_release)(THD *thd, void *sv);</span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp; int&nbsp; (*commit)(THD *thd, bool all);</span></pre>
+		<pre><span>&nbsp;&nbsp; &nbsp;int&nbsp; (*rollback)(THD *thd, bool all);</span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp; int&nbsp; (*prepare)(THD *thd, bool all);</span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp; int&nbsp; (*recover)(XID *xid_list, uint len);</span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp; int&nbsp; (*commit_by_xid)(XID *xid);</span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp; int&nbsp; (*rollback_by_xid)(XID *xid);</span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp; void *(*create_cursor_read_view)();</span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp; void (*set_cursor_read_view)(void *);</span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp; void (*close_cursor_read_view)(void *);</span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp; handler *(*create)(TABLE *table);</span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp; void (*drop_database)(char* path);</span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp; int (*panic)(enum ha_panic_function flag);</span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp; int (*release_temporary_latches)(THD *thd);</span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp; int (*update_statistics)();</span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp; int (*start_consistent_snapshot)(THD *thd);</span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp; bool (*flush_logs)();</span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp; bool (*show_status)(THD *thd, stat_print_fn *print, enum ha_stat_type stat);</span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp; int (*repl_report_sent_binlog)(THD *thd, char *log_file_name, my_off_t end_offset);</span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp; uint32 flags;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </span></pre>
+		<pre><span>&nbsp;&nbsp;} handlerton;&nbsp; </span></pre>
+		<p>共有<span>30</span>個<span>handlerton</span>元素，但只有少量元素是強制性的（明確地講是前<span>4</span>個元素和第<span>21</span>個元素）。</p>
+		<p><span>1.<span>&nbsp;&nbsp;&nbsp;
+		</span></span>儲存引擎的名稱。這是建立資料表時將使用的名稱（<span>CREATE 
+		TABLE ... ENGINE = <i>FOO</i>;</span>）。</p>
+		<p>
+		<span>2.<span>&nbsp;&nbsp;&nbsp;
+		</span></span>確定使用<span><span>SHOW 
+		STORAGE ENGINES</span>命令時是否列出儲存引擎。</span></p>
+		<p>
+		<span>3.<span>&nbsp;&nbsp;&nbsp;
+		</span></span>儲存引擎註釋，對使用<span><span>SHOW 
+		STORAGE ENGINES</span>命令時顯示的儲存引擎的描述。</span></p>
+		<p>
+		<span>4.<span>&nbsp;&nbsp;&nbsp;
+		</span></span>在<span>MySQL</span>伺服器內唯一識別儲存引擎的整數。內置儲存引擎使用的常數定義在<span><span>handler.h</span>檔案中。作為建立常數的可選方法，可使用大於<span>25</span>的整數。</span></p>
+		<p><span>
+		5.<span>&nbsp;&nbsp;&nbsp; </span>
+		</span>指向儲存引擎初始化程式的指針。僅當啟動伺服器時才使用該函數，以便在實例化處理程式之前，儲存引擎類能執行必要的內務操作。</p>
+		<p><span>6.<span>&nbsp;&nbsp;&nbsp;
+		</span></span>插槽。保存每連接的訊息時，每個儲存引擎在<span>thd</span>中有自己的內存區域（實際上為指針）。它是作為<span><span>thd-&gt;ha_data[<i>foo</i>_hton.slot]</span>訪問的。</span>插槽編號在使用<span><i><span>foo</span></i><span>_init()</span>後</span>由<span>MySQL</span>初始化。</p>
+		<p><span>7.<span>&nbsp;&nbsp;&nbsp;
+		</span></span>保存點偏移。為了保存每個<span>savepoint</span>數據，為儲存引擎提供了請求的大小（典型情況下為<span>0</span>）。</p>
+		<p>必須以靜態方式初始化<span>savepoint</span>偏移，使其具有所有的內存大小，以便保存每個<span>savepoint</span>的訊息。在<span><i><span>foo</span></i><span>_init</span>之後，它被更改為</span><span>savepoint</span>儲存區域的偏移，儲存引擎不需要使用它。</p>
+		<p><span>8.<span>&nbsp;&nbsp;&nbsp;
+		</span></span>由事務性儲存引擎使用，清理其儲存段內分配的內存，和／或回滾任何未完成的事務。</p>
+		<p><span>9.<span>&nbsp;&nbsp;&nbsp;
+		</span></span>由事務性儲存引擎選擇性使用，建立<span>savepoint</span>（保存點），並將其保存到提供的內存中。</p>
+		<p><span>10.</span>指向處理程式<span><span>rollback_to_savepoint()</span>函數的函數指針。它用於在事務期間返回</span><span>savepoint</span>。僅對支援保存點的儲存引擎才會填充它。</p>
+		<p><span>11.</span>指向處理程式<span><span>release_savepoint()</span>函數的函數指針。它用於在事務期間</span>釋放保存點的資源。僅對支援保存點的儲存引擎才會填充它。 
+		</p>
+		<p><span>12.</span>指向處理程式<span><span>commit()</span>函數的函數指針。</span>它用於提交事務。僅對支援事務的儲存引擎才會填充它。 
+		</p>
+		<p><span>13.</span>指向處理程式<span><span>rollback()</span>函數的函數指針。</span>它用於回滾交易。僅對支援事務的儲存引擎才會填充它。 
+		</p>
+		<p><span>
+		14.XA</span>事務性儲存引擎所需。為提交操作準備事務。將<span>XID</span>與事務關聯起來。</p>
+		<p><span>
+		15.XA</span>事務性儲存引擎所需。恢復由<span>XID</span>標識的事務。 </p>
+		<p><span>
+		16.XA</span>事務性儲存引擎所需。提交由<span>XID</span>標識的事務。</p>
+		<p><span>
+		17.XA</span>事務性儲存引擎所需。回滾由<span>XID</span>標識的事務。</p>
+		<p><span>18.</span>與伺服器端光標一起使用，尚未實施。</p>
+		<p><span>19.</span>與伺服器端光標一起使用，尚未實施。 
+		</p>
+		<p><span>20.</span>與伺服器端光標一起使用，尚未實施。</p>
+		<p><span>21.</span><em><span>MANDATORY</span></em>：構造並返回處理程式實例。</p>
+		<p><span>22.</span>撤銷方案時，如果儲存引擎需要執行特殊步驟時使用（如在使用資料表空間的儲存引擎中使用）。</p>
+		<p><span>23.</span>清理在伺服器關閉和崩潰時使用的函數。</p>
+		<p><span>
+		24.InnoDB</span>特殊函數。</p>
+		<p><span>25.</span>在啟動<span><span>SHOW 
+		STATUS</span>時使用</span><span>InnoDB</span>特殊函數<span>。</span></p>
+		<p><span>26.</span>使用<span>InnoDB</span>特殊函數以開始連續讀取。</p>
+		<p><span>27.</span>使用它，指明應將日誌刷新為可靠的儲存。</p>
+		<p><span>28.</span>在儲存引擎上提供可被人員讀取的狀態訊息。</p>
+		<p><span>
+		29.InnoDB</span>特殊函數用於複製。</p>
+		<p>
+		<span>30.</span><span>Handlerton</span>標誌，通常與<span><span>ALTER 
+		TABLE</span>相關。可能的值定義於<span>sql/handler.h</span>檔案中，並在此列出；</span></p>
+		<pre><span>31.<span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </span></span><span>#define HTON_NO_FLAGS&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 0</span></pre>
+		<pre><span>32.<span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </span>#define HTON_CLOSE_CURSORS_AT_COMMIT (1 &lt;&lt; 0)</span></pre>
+		<pre><span>33.<span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </span>#define HTON_ALTER_NOT_SUPPORTED &nbsp;&nbsp;&nbsp;&nbsp;(1 &lt;&lt; 1)</span></pre>
+		<pre><span>34.<span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </span>#define HTON_CAN_RECREATE&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (1 &lt;&lt; 2)</span></pre>
+		<pre><span>35.<span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </span>#define HTON_FLUSH_AFTER_RENAME&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (1 &lt;&lt; 3)</span></pre>
+		<pre><span>36.<span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </span>#define HTON_NOT_USER_SELECTABLE&nbsp;&nbsp;&nbsp;&nbsp; (1 &lt;&lt; 4)</span></pre>
+		<p>
+		<span>HTON_ALTER_NOT_SUPPORTED</span>由<span><span>FEDERATED</span>儲存引擎使用，用以指明儲存引擎不接受<span>AFTER 
+		TABLE</span>語句。</span></p>
+		<p><span>
+		<span>HTON_FLUSH_AFTER_RENAME</span>指明，重命名資料表後</span> ，必須使用<span>FLUSH 
+		LOGS</span>。</p>
+		<p>
+		<span>HTON_NOT_USER_SELECTABLE</span>指明儲存引擎不能由用戶選擇，而是用作系統儲存引擎，如用於二進制日誌的偽儲存引擎。</div><div class="section"><div class="titlepage"><div><div><h2 class="title"><a name="custom-engine-instancing"></a>
+		16.5.&nbsp;對處理程式進行實例化處理</h2></div></div></div>
+		<p>使用儲存引擎的第<span>1</span>個方法是使用新的處理程式實例。</p>
+		<p>在儲存引擎源檔案中定義<span><span>handlerton</span>之前，必須定義用於函數實例化的函數題頭。</span>下面給出了<span>1</span>個來自<span>CSV</span>引擎的示範：</p>
+		<pre><span>static handler* tina_create_handler(TABLE *table);</span></pre>
+		<p>正如您所見到的那樣，函數接受指向處理程式準備管理的資料表的指針，並返回處理程式對象。</p>
+		<p>定義了函數題頭後，用第<span>21</span>個<span><span>handlerton</span>元素中的函數指針命名函數，</span>指明函數負責生成新的處理程式實例。</p>
+		<p>下面給出了<span><span>MyISAM</span>儲存引擎的實例化函數示範：</span></p>
+		<pre><span>static handler *myisam_create_handler(TABLE *table)</span></pre>
+		<pre><span>&nbsp; {</span></pre>
+		<pre><span>&nbsp; &nbsp;&nbsp;return new ha_myisam(table);</span></pre>
+		<pre><span>&nbsp; }</span></pre>
+		<p>該使用隨後與儲存引擎的構造程式一起工作。下面給出了來自<span><span>FEDERATED</span>儲存引擎的<span>1</span>個示範：</span></p>
+		<pre><span>ha_federated::ha_federated(TABLE *table_arg)</span></pre>
+		<pre><span>&nbsp; :handler(&amp;federated_hton, table_arg),</span></pre>
+		<pre><span>&nbsp; mysql(0), stored_result(0), scan_flag(0),</span></pre>
+		<pre><span>&nbsp; ref_length(sizeof(MYSQL_ROW_OFFSET)), current_position(0)</span></pre>
+		<pre><span>&nbsp; {}</span></pre>
+		<p>下面給出了來自<span><span>EXAMPLE</span>儲存引擎的另一個示範：</span></p>
+		<pre><span>ha_example::ha_example(TABLE *table_arg)</span></pre>
+		<pre><span>&nbsp; :handler(&amp;example_hton, table_arg)</span></pre>
+		<pre><span>&nbsp; {}&nbsp; </span></pre>
+		<p><span><span>FEDERATED</span>示範中的附加元素是</span>處理程式的額外初始化要素。所要求的最低實施是<span>EXAMPLE</span>示範中顯示的<span><span>handler()</span>初始化。</span></div><div class="section"><div class="titlepage"><div><div><h2 class="title"><a name="custom-engine-extensions"></a>
+		16.6.&nbsp;定義資料表延伸</h2></div></div></div>
+		<p>就給定的資料表、數據和索引，要求儲存引擎為<span>MySQL</span>伺服器提供儲存引擎所使用的延伸列資料表。</p>
+		<p>延伸應採用以<span>Null</span>終結的字串數組形式。下面給出了<span>CSV</span>引擎使用的數組：</p>
+		<pre><span>static const char *ha_tina_exts[] = {</span></pre>
+		<pre><span>&nbsp; &quot;.CSV&quot;,</span></pre>
+		<pre><span>&nbsp; NullS</span></pre>
+		<pre><span>};</span></pre>
+		<p>使用<span><a title="16.14.1.&nbsp;bas_ext"  href="../../../../../../澶┼渤/2006.1/1/third/custom-engine.html#custom-engine-api-reference-bas_ext"><span>bas_ext()</span></a></span>函數時返回該數組。</p>
+		<pre><span>const char **ha_tina::bas_ext() const</span></pre>
+		<pre><span>{</span></pre>
+		<pre><span>&nbsp; return ha_tina_exts;</span></pre>
+		<pre><span>}</span></pre>
+		<p>通過提供延伸訊息，您還能忽略<span><span>DROP 
+		TABLE</span>功能的實施，這是因為，通過關閉資料表並用您指定的延伸刪除所有檔案，<span>MySQL</span>伺服器能實現該功能。</span></div><div class="section"><div class="titlepage"><div><div><h2 class="title"><a name="custom-engine-create-table"></a>
+		16.7.&nbsp;建立資料表</h2></div></div></div>
+		<p>一旦實例化了處理程式，所需的第<span>1</span>個操作很可能是建立資料表。</p>
+		<p>您的儲存引擎必須實現<span><a title="16.14.3.&nbsp;create"  href="../../../../../../澶┼渤/2006.1/1/third/custom-engine.html#custom-engine-api-reference-create"><span>create()</span></a></span>虛擬函數：</p>
+		<pre><span>virtual int create(const char *name, TABLE *form, HA_CREATE_INFO *info)=0;</span></pre>
+		<p>該函數應建立所有必須的檔案，然後關閉資料表。<span>MySQL</span>伺服器將使用隨後需打開的資料表。</p>
+		<p><span><span>*name</span>參數是資料表的名稱。<span>*form</span>參數<span>是st_table</span>結構，該結構定義了資料表並與</span><span>MySQL</span>伺服器已建立的<span><i><span>tablename</span></i><span>.frm</span>檔案的內容匹配。在大多數情況下，</span>儲存引擎不需要更改<span><i><span>tablename</span></i><span>.frm</span></span>檔案，也沒有支援該操作的預置功能。</p>
+		<p><span><span>*info</span>參數是包含<span>CREATE 
+		TABLE</span>語句用於建立資料表所需訊息的結構。該結構定義於<span>handler.h</span>檔案中，並為了便於參考列於下面：</span></p>
+		<pre><span>typedef struct st_ha_create_information</span></pre>
+		<pre><span>&nbsp; {</span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp; CHARSET_INFO *table_charset, *default_table_charset;</span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp; LEX_STRING connect_string;</span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp; const char *comment,*password;</span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp; const char *data_file_name, *index_file_name;</span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp; const char *alias;</span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp; ulonglong max_rows,min_rows;</span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp; ulonglong auto_increment_value;</span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp; ulong table_options;</span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp; ulong avg_row_length;</span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp; ulong raid_chunksize;</span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp; ulong used_fields;</span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp; SQL_LIST merge_list;</span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp; enum db_type db_type;</span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp; enum row_type row_type;</span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp; uint null_bits;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; /* NULL bits at start of record */</span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp; uint options;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; /* OR of HA_CREATE_ options */</span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp; uint raid_type,raid_chunks;</span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp; uint merge_insert_method;</span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp; uint extra_size;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; /* length of extra data segment */</span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp; bool table_existed;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; /* 1 in create if table existed */</span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp; bool frm_only;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; /* 1 if no ha_create_table() */</span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp; bool varchar;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; /* 1 if table has a VARCHAR */</span></pre>
+		<pre><span>&nbsp; } HA_CREATE_INFO;</span></pre>
+		<p>基本的儲存引擎能忽略<span>*form</span>和<span><span>*info</span>的內容，這是因為，真正所需的是建立儲存引擎所使用的數據檔案，以及對數據檔案的可能初始化操作（假定儲存檔案是基於檔案的）。</span></p>
+		<p>下面給出了來自<span><span>CSV</span>儲存引擎的實施示範：</span></p>
+		<pre><span>int ha_tina::create(const char *name, TABLE *table_arg,</span></pre>
+		<pre><span>&nbsp; HA_CREATE_INFO *create_info)</span></pre>
+		<pre><span>&nbsp; {</span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp; char name_buff[FN_REFLEN];</span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp; File create_file;</span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp; DBUG_ENTER(&quot;ha_tina::create&quot;);</span></pre>
+		<pre><span>&nbsp; </span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp;&nbsp;if ((create_file= my_create(fn_format(name_buff, name, &quot;&quot;, &quot;.CSV&quot;,</span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; MY_REPLACE_EXT|MY_UNPACK_FILENAME),0,</span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; O_RDWR | O_TRUNC,MYF(MY_WME))) &lt; 0)</span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp; DBUG_RETURN(-1);</span></pre>
+		<pre><span>&nbsp; </span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp;&nbsp;my_close(create_file,MYF(0));</span></pre>
+		<pre><span> </span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp;&nbsp;DBUG_RETURN(0);</span></pre>
+		<pre><span>&nbsp; }</span></pre>
+		<p>在前面的例子中，<span><span>CSV</span>引擎未引用<span>*table_arg</span></span>或<span>*create_info</span>參數，而是簡單地建立了所需的數據檔案，關閉它們，並返回。</p>
+		<p><span><span>my_create</span>和<span>my_close</span>函數是定義於<span>src/include/my_sys.h</span>檔案中的</span>助手函數。</div><div class="section"><div class="titlepage"><div><div><h2 class="title"><a name="custom-engine-open-table"></a>
+		16.8.&nbsp;打開資料表</h2></div></div></div>
+		<p>在資料表上執行任何讀或寫操作之前，<span>MySQL</span>伺服器將使用<span><a title="16.14.9.&nbsp;open"  href="../../../../../../澶┼渤/2006.1/1/third/custom-engine.html#custom-engine-api-reference-open">open()</a></span>方法打開資料表數據和索引檔案（如果存在的話）。</p>
+		<pre><span>int open(const char *name, int mode, int test_if_locked);</span></pre>
+		<p>第<span>1</span>個參數是要打開的資料表的名稱。第<span>2</span>個參數確定了要打開的檔案或準備執行的操作。它們的值定義於<span><span>handler.h</span>中，並為了方便起見列在下面</span>：</p>
+		<pre><span>#define HA_OPEN_KEYFILE&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp; 1</span></pre>
+		<pre><span>#define HA_OPEN_RNDFILE&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp; 2</span></pre>
+		<pre><span>#define HA_GET_INDEX&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; 4</span></pre>
+		<pre><span>#define HA_GET_INFO&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 8 &nbsp;&nbsp;&nbsp; /* do a ha_info() after open */</span></pre>
+		<pre><span>#define HA_READ_ONLY&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; 16&nbsp; &nbsp; /* File opened as readonly */</span></pre>
+		<pre><span>#define HA_TRY_READ_ONLY&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp; 32&nbsp;&nbsp;&nbsp; /* Try readonly if can&#39;t open with read and write */</span></pre>
+		<pre><span>#define HA_WAIT_IF_LOCKED&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp; 64&nbsp;&nbsp;&nbsp; &nbsp; /* Wait if locked on open */</span></pre>
+		<pre><span>#define HA_ABORT_IF_LOCKED&nbsp;&nbsp;&nbsp;&nbsp; 128&nbsp;&nbsp;&nbsp;&nbsp; &nbsp; /* skip if locked on open.*/</span></pre>
+		<pre><span>#define HA_BLOCK_LOCK&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; 256 &nbsp; /* unlock when reading some records */</span></pre>
+		<pre><span>#define HA_OPEN_TEMPORARY&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp; 512</span></pre>
+		<p>最後一個選項規定了是否要在打開資料表之前檢查資料表上的鎖定。</p>
+		<p>在典型情況下，儲存引擎需要實施某種形式的共享訪問控制，以防止在多線程環境下的檔案損壞。關於如何實施檔案鎖定的示範，請參見<span><span>sql/examples/ha_tina.cc</span>的<span>get_share()</span></span>和<span>free_share()</span>方法。</div><div class="section"><div class="titlepage"><div><div><h2 class="title"><a name="custom-engine-table-scanning"></a>
+		16.9.&nbsp;實施基本的資料表掃瞄功能</h2></div></div></div><div class="toc"><dl><dt><span class="section"><a href="custom-engine.html#custom-engine-scanning-store">
+			16.9.1. 實施store_lock()函數<code class="function"></code></a></span></dt><dt><span class="section"><a href="custom-engine.html#custom-engine-scanning-external">
+			16.9.2. 實施external_lock()函數</a></span></dt><dt><span class="section"><a href="custom-engine.html#custom-engine-scanning-init">
+			16.9.3. 實施rnd_init()函數<code class="function"></code></a></span></dt><dt><span class="section"><a href="custom-engine.html#custom-engine-scanning-info">
+			16.9.4. 實施info()函數<code class="function"></code></a></span></dt><dt><span class="section"><a href="custom-engine.html#custom-engine-scanning-extra">
+			16.9.5. 實施extra()函數<code class="function"></code></a></span></dt><dt><span class="section"><a href="custom-engine.html#custom-engine-table-scanning-next">
+			16.9.6. 實施rnd_next()函數<code class="function"></code></a></span></dt></dl></div>
+		<p>最基本的儲存引擎能實現只讀資料表掃瞄功能。這類引擎可用於支援<span>SQL</span>日誌查詢、以及在<span>MySQL</span>之外填充的其他數據檔案。</p>
+		<p>本節介紹的方法實施提供了建立更高級儲存引擎的基礎。</p>
+		<p>下面給出了在<span>CSV</span>引擎的<span>9</span>行資料表掃瞄過程中進行的方法使用：</p>
+		<pre class="programlisting">ha_tina::store_lock
+ha_tina::external_lock
+ha_tina::info
+ha_tina::rnd_init
+ha_tina::extra - ENUM HA_EXTRA_CACHE   Cache record in HA_rrnd()
+ha_tina::rnd_next
+ha_tina::rnd_next
+ha_tina::rnd_next
+ha_tina::rnd_next
+ha_tina::rnd_next
+ha_tina::rnd_next
+ha_tina::rnd_next
+ha_tina::rnd_next
+ha_tina::rnd_next
+ha_tina::extra - ENUM HA_EXTRA_NO_CACHE   End cacheing of records (def)
+ha_tina::external_lock
+ha_tina::extra - ENUM HA_EXTRA_RESET   Reset database to after open
+</pre><div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="custom-engine-scanning-store"></a>
+			16.9.1.&nbsp;實施store_lock()函數<code class="function"></code></h3></div></div></div>
+			<p>在執行任何讀取或寫操作之前，使用<span><a title="16.14.12.&nbsp;store_lock"  href="../../../../../../澶┼渤/2006.1/1/third/custom-engine.html#custom-engine-api-reference-store_lock"><span>store_lock()</span></a></span>函數。</p>
+			<p>將鎖定新增到資料表鎖定處理程式之前（請參見<span>thr_lock.c</span>），<span>mysqld</span>將用請求的鎖使用儲存鎖定。目前，儲存鎖定能將寫鎖定更改為讀鎖定（或其他鎖定），忽略鎖定（如果不打算使用<span>MySQL</span>鎖定的話），或為很多資料表新增鎖定（就像使用<span>MERGE</span>處理程式時作的那樣）。</p>
+			<p>例如，<span>Berkeley DB</span>能將所有的<span>WRITE</span>鎖定更改為<span>TL_WRITE_ALLOW_WRITE</span>（資料表示我們正在執行<span>WRITES</span>，但我們仍允許其他人員進行操作）。</p>
+			<p>釋放鎖定時，也將使用<span>store_lock()</span>，在這種情況下，通常不需做任何事。</p>
+			<p>在某些特殊情況下，<span>MySQL</span>可能會發送對<span>TL_IGNORE</span>的請求。這意味著我們正在請求與上次相同的鎖定，這也應被忽略（當我們打開了資料表的某一部分時，如果其他人執行了資料表刷新操作，就會出現該情況，此時，<span>mysqld</span>將關閉並再次打開資料表，然後獲取與上次相同的鎖定）。我們打算在將來刪除該特性。</p>
+			<p>可能的鎖定類型定義於<span><span>includes/thr_lock.h</span>中，並列在下面：</span></p>
+			<pre><span>enum thr_lock_type</span></pre>
+			<pre><span>{</span></pre>
+			<pre><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; TL_IGNORE=-1,</span></pre>
+			<pre><span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TL_UNLOCK,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; /* UNLOCK ANY LOCK */</span></pre>
+			<pre><span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TL_READ,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; /* Read lock */</span></pre>
+			<pre><span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TL_READ_WITH_SHARED_LOCKS,&nbsp; </span></pre>
+			<pre><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TL_READ_HIGH_PRIORITY,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; /* High prior. than TL_WRITE. Allow concurrent insert */</span></pre>
+			<pre><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; TL_READ_NO_INSERT, &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/* READ, Don&#39;t allow concurrent insert */</span></pre>
+			<pre><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; TL_WRITE_ALLOW_WRITE, &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;/*&nbsp;&nbsp; Write lock, but allow other threads to read / write. */</span></pre>
+			<pre><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; TL_WRITE_ALLOW_READ,&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Write lock, but allow other threads to read / write. */</span></pre>
+			<pre><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; TL_WRITE_CONCURRENT_INSERT, /* WRITE lock used by concurrent insert. */</span></pre>
+			<pre><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; TL_WRITE_DELAYED,&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/* Write used by INSERT DELAYED.&nbsp; Allows READ locks */</span></pre>
+			<pre><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; TL_WRITE_LOW_PRIORITY,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp; /* WRITE lock that has lower priority than TL_READ */</span></pre>
+			<pre><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; TL_WRITE,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/* Normal WRITE lock */</span></pre>
+			<pre><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; TL_WRITE_ONLY&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; /* Abort new lock request with an error */</span></pre>
+			<pre><span>};&nbsp; </span></pre>
+			<p>
+			實際的鎖定處理因鎖定實施的不同而不同，您可以選擇某些請求的鎖定類型或不選擇任何鎖定類型，並根據情況恰當地代入您自己的方法。下面給出了<span>1</span>個<span><span>CSV</span>儲存引擎實施示範：</span></p>
+			<pre><span>THR_LOCK_DATA **ha_tina::store_lock(THD *thd,</span></pre>
+			<pre><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; THR_LOCK_DATA **to,</span></pre>
+			<pre><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; enum thr_lock_type lock_type)</span></pre>
+			<pre><span> {</span></pre>
+			<pre><span>&nbsp;&nbsp; if (lock_type != TL_IGNORE &amp;&amp; lock.type == TL_UNLOCK)</span></pre>
+			<pre><span>&nbsp;&nbsp;&nbsp;&nbsp; lock.type=lock_type;</span></pre>
+			<pre><span>&nbsp;&nbsp; *to++= &amp;lock;</span></pre>
+			<pre><span>&nbsp;&nbsp; return to;</span></pre>
+			<pre><span> }&nbsp; </span></pre>
+		</div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="custom-engine-scanning-external"></a>
+			16.9.2.&nbsp;實施external_lock()函數</h3></div></div></div>
+			<p><span>
+			<a title="16.14.6.&nbsp;external_lock"  href="../../../third/custom-engine.html#custom-engine-api-reference-external_lock">
+			<span>external_lock()</span></a></span>函數是在事務開始時使用的，或發出<span><span>LOCK 
+			TABLES</span>語句時使用的，用於事務性儲存引擎。</span></p>
+			<p>在<span>sql/ha_innodb.cc</span>和<span><span>sql/ha_berkeley.cc</span>檔案中，可找到</span>使用<span><span>external_lock()</span>的示範，但大多數儲存引擎簡單地返回<span>0</span>，</span>就像<span><span>EXAMPLE</span>儲存引擎那樣：</span></p>
+			<pre><span>int ha_example::external_lock(THD *thd, int lock_type)</span></pre>
+			<pre><span> {</span></pre>
+			<pre><span>&nbsp;&nbsp; DBUG_ENTER(&quot;ha_example::external_lock&quot;);</span></pre>
+			<pre><span>&nbsp;&nbsp; DBUG_RETURN(0);</span></pre>
+			<pre><span> }</span></pre>
+		</div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="custom-engine-scanning-init"></a>
+			16.9.3.&nbsp;實施rnd_init()函數<code class="function"></code></h3></div></div></div>
+			<p>在任何資料表掃瞄之前使用的函數是<span><a title="16.14.10.&nbsp;rnd_init"  href="../../../../../../澶┼渤/2006.1/1/third/custom-engine.html#custom-engine-api-reference-rnd_init"><span style=" ; font-family:細明體">rnd_init()</span></a></span>函數。函數<span><span>rnd_init()</span>用於為資料表掃瞄作準備，將計數器和指針復位為資料表的開始狀態。</span></p>
+			<p>下述示範來自<span><span>CSV</span>儲存引擎：</span></p>
+			<pre class="programlisting">  int ha_tina::rnd_init(bool scan)
+    {
+      DBUG_ENTER("ha_tina::rnd_init");
+ 
+      current_position= next_position= 0;
+      records= 0;
+      chain_ptr= chain;
+ 
+      DBUG_RETURN(0);
+    }  
+</pre></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="custom-engine-scanning-info"></a>
+			16.9.4.&nbsp;實施info()函數<code class="function"></code></h3></div></div></div></div><div class="section"><div class="titlepage"><div><div>
+			執行資料表掃瞄操作之前，將使用<span><a title="16.14.8.&nbsp;info"  href="../../../../../../澶┼渤/2006.1/1/third/custom-engine.html#custom-engine-api-reference-info"><span>info()</span></a></span>函數，以便為最佳化程式提供額外訊息。<p>
+			最佳化程式所需的訊息不是通過返回值給定的，您需填充儲存引擎類的特定屬性，當<span><span>info()</span>使用返回後，最佳化程式將讀取儲存引擎類。</span></p>
+			<p>除了供最佳化程式使用外，在使用<span><span>info()</span>函數期間，很多值集合還將用於<span>SHOW 
+			TABLE STATUS</span>語句。</span></p>
+			<p>在<span><span>sql/handler.h</span>中列出了完整的公共屬性，下面給出了一些常見的屬性：</span></p>
+			<pre><span>ulonglong data_file_length;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; /* Length off data file */</span></pre>
+			<pre><span>ulonglong max_data_file_length;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; /* Length off data file */</span></pre>
+			<pre><span>ulonglong index_file_length;</span></pre>
+			<pre><span>ulonglong max_index_file_length;</span></pre>
+			<pre><span>ulonglong delete_length;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; /* Free bytes */</span></pre>
+			<pre><span>ulonglong auto_increment_value;</span></pre>
+			<pre><span>ha_rows records;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; /* Records in table */</span></pre>
+			<pre><span>ha_rows deleted;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; /* Deleted records */</span></pre>
+			<pre><span>ulong raid_chunksize;</span></pre>
+			<pre><span>ulong mean_rec_length;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; /* physical reclength */</span></pre>
+			<pre><span>time_t create_time;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; /* When table was created */</span></pre>
+			<pre><span>time_t check_time;</span></pre>
+			<pre><span>time_t update_time;&nbsp; </span></pre>
+			<p>對於資料表掃瞄，最重要的屬性是「<span><span>records」</span>，它指明了資料表中的記錄數。當儲存引擎指明資料表中有<span>0</span>或<span>1</span>行時，或有<span>2</span>行以上時，在這兩種情況下，最佳化程式的執行方式不同。因此，</span>當您在執行資料表掃瞄之前不清楚資料表中有多少行時，應返回大於等於<span>2</span>的值，這很重要（例如，數據是在外部填充的）。</p>
+			<h3 class="title"><a name="custom-engine-scanning-extra"></a>
+			16.9.5.&nbsp;實施extra()函數<code class="function"></code></h3></div></div></div>
+			<p>執行某些操作之前，應使用<span><a title="16.14.7.&nbsp;extra"  href="../../../../../../澶┼渤/2006.1/1/third/custom-engine.html#custom-engine-api-reference-extra"><span style=" ; font-family:細明體">extra()</span></a></span>函數，以便為儲存引擎就如何執行特定操作予以提示。</p>
+			<p>額外使用中的提示實施不是強制性的，大多數儲存引擎均返回<span>0</span>：</p>
+			<pre class="programlisting">int ha_tina::extra(enum ha_extra_function operation)
+ {
+   DBUG_ENTER("ha_tina::extra");
+   DBUG_RETURN(0);
+ }
+</pre></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="custom-engine-table-scanning-next"></a>
+			16.9.6.&nbsp;實施rnd_next()函數<code class="function"></code></h3></div></div></div>
+			<p>完成資料表的初始化操作後，<span>MySQL</span>伺服器將使用處理程式的<span><a title="16.14.11.&nbsp;rnd_next"  href="../../../../../../澶┼渤/2006.1/1/third/custom-engine.html#custom-engine-api-reference-rnd_next"><span>rnd_next()</span></a></span>函數，每兩個掃瞄行使用<span>1</span>次，直至滿足了伺服器的搜索條件或到達檔案結尾為止，在後一種情況下，處理程式將返回<span>HA_ERR_END_OF_FILE</span>。</p>
+			<p><span>rnd_next()</span>函數有一個名為<span><span>*buf</span>的單字節數組參數。對於<span>*buf</span>參數，必須按內部<span>MySQL</span>格式用資料表行的內容填充它。</span></p>
+			<p>伺服器採用了三種數據格式：固定長度行，可變長度行，以及具有<span>BLOB</span>指針的可變長度行。對於每種格式，各列將按照它們由<span>CREATE 
+			TABLE</span>語句定義的順序顯示（資料表定義保存在<span>.frm</span>檔案中，最佳化程式和處理程式均能從相同的源，即<span>TABLE</span>結構，訪問資料表的元數據）。</p>
+			<p>每種格式以每列<span>1</span>比特的<span>&quot;NULL bitmap&quot;</span>開始。對於含<span>6</span>個列的資料表，其<span>bitmap</span>為<span>1</span>字節，對於含<span>9</span>～<span>16</span>列的資料表，其<span>bitmap</span>為<span>2</span>字節，依此類推。要想指明特定的值是<span>NULL</span>，應將該列<span>NULL</span>位設置為<span>1</span>。</p>
+			<p>當<span>NULL bitmap</span>逐個進入列後，每列將具有<span>MySQL</span>手冊的「<span>MySQL</span>數據類型」一節中指定的大小。在伺服器中，列的數據類型定義在<span>sql/field.cc</span>檔案中。對於固定長度行格式，列將簡單地逐個放置。對於可變長度行，<span>VARCHAR</span>列將被編碼為<span>1</span>字節長，後跟字串。對於具有<span>BLOB</span>列的可變長度行，每個<span>blob</span>由兩部分資料表示：首先是資料表示<span>BLOB</span>實際大小的整數，然後是指向內存中<span>BLOB</span>的指針。</p>
+			<p>在任何資料表處理程式中從<span><span>rnd_next()</span>開始，可找到</span>行轉換（或「包裝」）的示範。例如，在<span>ha_tina.cc</span>中，<span>find_current_row()</span>內的代碼給出了使用<span>TABLE</span>結構（由資料表指向的）和字串對像（命名緩衝）包裝字元數據（來自<span>CSV</span>檔案）的方法。將行寫回磁盤需要反向轉換，從內部格式解包。</p>
+			<p>下述示範來自<span>CSV</span>儲存引擎： </p>
+			<pre><span>int ha_tina::rnd_next(byte *buf)</span></pre>
+			<pre><span> {</span></pre>
+			<pre><span>&nbsp; &nbsp;DBUG_ENTER(&quot;ha_tina::rnd_next&quot;);</span></pre>
+			<pre><span> </span></pre>
+			<pre><span>&nbsp;&nbsp;&nbsp;statistic_increment(table-&gt;in_use-&gt;status_var.ha_read_rnd_next_count, &amp;LOCK_status);</span></pre>
+			<pre><span> </span></pre>
+			<pre><span>&nbsp;&nbsp;&nbsp;current_position= next_position;</span></pre>
+			<pre><span>&nbsp;&nbsp; if (!share-&gt;mapped_file)</span></pre>
+			<pre><span>&nbsp;&nbsp;&nbsp;&nbsp; DBUG_RETURN(HA_ERR_END_OF_FILE);</span></pre>
+			<pre><span>&nbsp;&nbsp; if (HA_ERR_END_OF_FILE == find_current_row(buf) )</span></pre>
+			<pre><span>&nbsp;&nbsp;&nbsp;&nbsp; DBUG_RETURN(HA_ERR_END_OF_FILE);</span></pre>
+			<pre><span> </span></pre>
+			<pre><span>&nbsp;&nbsp;&nbsp;records++;</span></pre>
+			<pre><span>&nbsp;&nbsp; DBUG_RETURN(0);</span></pre>
+			<pre><span> }&nbsp; </span></pre>
+			<p>對於從內部行格式到<span>CSV</span>行格式的轉換，它是在<span><span>find_current_row()</span>函數中執行的。</span></p>
+			<pre><span>int ha_tina::find_current_row(byte *buf)</span></pre>
+			<pre><span> {</span></pre>
+			<pre><span>&nbsp;&nbsp; byte *mapped_ptr= (byte *)share-&gt;mapped_file + current_position;</span></pre>
+			<pre><span>&nbsp;&nbsp; byte *end_ptr;</span></pre>
+			<pre><span>&nbsp;&nbsp; DBUG_ENTER(&quot;ha_tina::find_current_row&quot;);</span></pre>
+			<pre><span> </span></pre>
+			<pre><span>&nbsp;&nbsp;&nbsp;/* EOF should be counted as new line */</span></pre>
+			<pre><span>&nbsp;&nbsp; if ((end_ptr=&nbsp; find_eoln(share-&gt;mapped_file, current_position,</span></pre>
+			<pre><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; share-&gt;file_stat.st_size)) == 0)</span></pre>
+			<pre><span>&nbsp;&nbsp;&nbsp;&nbsp; DBUG_RETURN(HA_ERR_END_OF_FILE);</span></pre>
+			<pre><span> </span></pre>
+			<pre><span>&nbsp;&nbsp;&nbsp;for (Field **field=table-&gt;field ; *field ; field++)</span></pre>
+			<pre><span>&nbsp;&nbsp; {</span></pre>
+			<pre><span>&nbsp;&nbsp;&nbsp;&nbsp; buffer.length(0);</span></pre>
+			<pre><span>&nbsp;&nbsp;&nbsp;&nbsp; mapped_ptr++; // Increment past the first quote</span></pre>
+			<pre><span>&nbsp;&nbsp;&nbsp;&nbsp; for(;mapped_ptr != end_ptr; mapped_ptr++)</span></pre>
+			<pre><span>&nbsp;&nbsp;&nbsp;&nbsp; {</span></pre>
+			<pre><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; // Need to convert line feeds!</span></pre>
+			<pre><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; if (*mapped_ptr == &#39;&quot;&#39; &amp;&amp;</span></pre>
+			<pre><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (((mapped_ptr[1] == &#39;,&#39;) &amp;&amp; (mapped_ptr[2] == &#39;&quot;&#39;)) ||</span></pre>
+			<pre><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (mapped_ptr == end_ptr -1 )))</span></pre>
+			<pre><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; {</span></pre>
+			<pre><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; mapped_ptr += 2; // Move past the , and the &quot;</span></pre>
+			<pre><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; break;</span></pre>
+			<pre><span>&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;}</span></pre>
+			<pre><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; if (*mapped_ptr == &#39;\\&#39; &amp;&amp; mapped_ptr != (end_ptr - 1))</span></pre>
+			<pre><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; {</span></pre>
+			<pre><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; mapped_ptr++;</span></pre>
+			<pre><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; if (*mapped_ptr == &#39;r&#39;)</span></pre>
+			<pre><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; buffer.append(&#39;\r&#39;);</span></pre>
+			<pre><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; else if (*mapped_ptr == &#39;n&#39; )</span></pre>
+			<pre><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; buffer.append(&#39;\n&#39;);</span></pre>
+			<pre><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; else if ((*mapped_ptr == &#39;\\&#39;) || (*mapped_ptr == &#39;&quot;&#39;))</span></pre>
+			<pre><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; buffer.append(*mapped_ptr);</span></pre>
+			<pre><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; else&nbsp; /* This could only happed with an externally created file */</span></pre>
+			<pre><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; {</span></pre>
+			<pre><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; buffer.append(&#39;\\&#39;);</span></pre>
+			<pre><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; buffer.append(*mapped_ptr);</span></pre>
+			<pre><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; }</span></pre>
+			<pre><span>&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;}</span></pre>
+			<pre><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; else</span></pre>
+			<pre><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; buffer.append(*mapped_ptr);</span></pre>
+			<pre><span>&nbsp;&nbsp;&nbsp;&nbsp; }</span></pre>
+			<pre><span>&nbsp;&nbsp;&nbsp;&nbsp; (*field)-&gt;store(buffer.ptr(), buffer.length(), system_charset_info);</span></pre>
+			<pre><span>&nbsp;&nbsp; }</span></pre>
+			<pre><span>&nbsp;&nbsp; next_position= (end_ptr - share-&gt;mapped_file)+1;</span></pre>
+			<pre><span>&nbsp;&nbsp; /* Maybe use \N for null? */</span></pre>
+			<pre><span>&nbsp;&nbsp; memset(buf, 0, table-&gt;s-&gt;null_bytes); /* We do not implement nulls! */</span></pre>
+			<pre><span> </span></pre>
+			<pre><span>&nbsp;&nbsp;&nbsp;DBUG_RETURN(0);</span></pre>
+			<pre><span> }&nbsp; </span></pre>
+			<div>
+				<div>
+					<h2 class="title">
+					<a name="custom-engine-close-table"></a>16.10.&nbsp;關閉資料表</h2>
+				</div></div></div></div><div class="section"><div class="titlepage"><div><div>
+		當<span>MySQL</span>伺服器完成資料表操作時，它將使用<span><a title="16.14.2.&nbsp;close"  href="../../../../../../澶┼渤/2006.1/1/third/custom-engine.html#custom-engine-api-reference-close">close()</a></span>方法關閉檔案指針並釋放任何其他資源。<p>
+		對於使用共享訪問方法的儲存引擎（如<span><span>CSV</span>引擎和其他示範引擎中顯示的方法），必須將它們自己從共享結構中刪除：</span></p>
+		<pre><span>int ha_tina::close(void)</span></pre>
+		<pre><span> {</span></pre>
+		<pre><span>&nbsp;&nbsp; DBUG_ENTER(&quot;ha_tina::close&quot;);</span></pre>
+		<pre><span>&nbsp;&nbsp; DBUG_RETURN(free_share(share));</span></pre>
+		<pre><span> }&nbsp; </span></pre>
+		<p>對於使用其自己共享管理系統的儲存引擎，應使用任何所需的方法，在它們的處理程式中，從已打開資料表的共享區刪除處理程式實例。</p>
+		<h2 class="title"><a name="custom-engine-insert"></a>
+		16.11.&nbsp;為儲存引擎新增對INSERT的支援<code class="literal"></code></h2></div></div></div></div><div class="section"><div class="titlepage"><div><div>
+		一旦在您的儲存引擎中有了讀支援，下一個需要實施的特性是對<span><span>INSERT</span>語句的支援。有了<span>INSERT</span>支援，儲存引擎就能處理</span><span>WORM</span>（寫一次，讀多次）應用程式，如用於以後分析的日誌和歸檔應用等。<p>
+		所有的<span><span>INSERT</span>操作均是通過</span><span><a title="16.14.14.&nbsp;write_row"  href="../../../../../../澶┼渤/2006.1/1/third/custom-engine.html#custom-engine-api-reference-write_row"><span>write_row()</span></a></span>函數予以處理的：</p>
+		<pre><span>int ha_foo::write_row(byte *buf)&nbsp; </span></pre>
+		<p><span><span>*buf</span>參數包含將要插入的行，採用內部<span>MySQL</span>格式</span>。基本的儲存引擎將簡單地前進到數據檔案末尾，並直接在末尾處新增緩衝的內容，這樣就能使行讀取變得簡單，這是因為，您可以讀取行並將其直接傳遞到<span><span>rnd_next()</span>函數的</span>緩衝參數中。</p>
+		<p>寫入行的程序與讀取行的程序相反：從<span>MySQL</span>內部行格式獲取數據，並將其寫入數據檔案。下述示範來自<span>CSV</span>儲存引擎： 
+		</p>
+		<pre><span>int ha_tina::write_row(byte * buf)</span></pre>
+		<pre><span> {</span></pre>
+		<pre><span>&nbsp;&nbsp; int size;</span></pre>
+		<pre><span>&nbsp;&nbsp; DBUG_ENTER(&quot;ha_tina::write_row&quot;);</span></pre>
+		<pre><span> </span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp;statistic_increment(table-&gt;in_use-&gt;status_var.ha_write_count, &amp;LOCK_status);</span></pre>
+		<pre><span> </span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp;if (table-&gt;timestamp_field_type &amp; TIMESTAMP_AUTO_SET_ON_INSERT)</span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp;&nbsp; table-&gt;timestamp_field-&gt;set_time();</span></pre>
+		<pre><span> </span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp;size= encode_quote(buf);</span></pre>
+		<pre><span> </span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp;if (my_write(share-&gt;data_file, buffer.ptr(), size, MYF(MY_WME | MY_NABP)))</span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp;&nbsp; DBUG_RETURN(-1);</span></pre>
+		<pre><span>&nbsp;</span></pre>
+		<pre><span>&nbsp;&nbsp; if (get_mmap(share, 0) &gt; 0)</span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp;&nbsp; DBUG_RETURN(-1);</span></pre>
+		<pre><span>&nbsp;&nbsp; DBUG_RETURN(0);</span></pre>
+		<pre><span> }</span></pre>
+		<p>前述示範中的兩條註釋包括，更新關於寫入操作的資料表統計，以及在寫入行之前設置時間戳。</p>
+		<h2 class="title"><a name="custom-engine-update"></a>
+		16.12.&nbsp;為儲存引擎新增對UPDATE的支援<code class="literal"></code></h2></div></div></div>
+		<p>通過執行資料表掃瞄操作，在找到與<span><span>UPDATE</span>語句的<span>WHERE</span>子句匹配的行後，</span><span>MySQL</span>伺服器將執行<span><span>UPDATE</span>語句，</span>然後使用<a href="custom-engine.html#custom-engine-api-reference-update_row" title="16.14.13. update_row">update_row()函數</a>：</p>
+		<pre><span>int ha_foo::update_row(const byte *old_data, byte *new_data)</span></pre>
+		<p><span><span>*old_data</span>參數包含更新前位於行中的數據，</span>而<span>*new_data</span>參數包含行的新內容（採用<span>MySQL</span>內部行格式）。</p>
+		<p>更新的執行取決於行格式和儲存實施方式。某些儲存引擎將替換恰當位置的數據，而其他實施方案則會刪除已有的行，並在數據檔案末尾新增新行。</p>
+		<p>非事務性儲存引擎通常會忽略<span><span>*old_data</span>參數的內容，僅處理<span>*new_data</span>緩衝。</span>事務性儲存引擎可能需要比較緩衝，以確定在上次回滾中出現了什麼變化。</p>
+		<p>如果正在更新的資料表中包含時間戳列，對時間戳的更新將由<span><span>update_row()</span>使用管理。</span>下述示範來自<span>CSV</span>引擎：</p>
+		<pre><span>int ha_tina::update_row(const byte * old_data, byte * new_data)</span></pre>
+		<pre><span> {</span></pre>
+		<pre><span>&nbsp;&nbsp; int size;</span></pre>
+		<pre><span>&nbsp;&nbsp; DBUG_ENTER(&quot;ha_tina::update_row&quot;);</span></pre>
+		<pre><span> </span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp;statistic_increment(table-&gt;in_use-&gt;status_var.ha_read_rnd_next_count,</span></pre>
+		<pre><span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&amp;LOCK_status);</span></pre>
+		<pre><span> </span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp;if (table-&gt;timestamp_field_type &amp; TIMESTAMP_AUTO_SET_ON_UPDATE)</span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp;&nbsp; table-&gt;timestamp_field-&gt;set_time();</span></pre>
+		<pre><span> </span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp;size= encode_quote(new_data);</span></pre>
+		<pre><span> </span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp;if (chain_append())</span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp;&nbsp; DBUG_RETURN(-1);</span></pre>
+		<pre><span> </span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp;if (my_write(share-&gt;data_file, buffer.ptr(), size, MYF(MY_WME | MY_NABP)))</span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp;&nbsp; DBUG_RETURN(-1);</span></pre>
+		<pre><span>&nbsp;&nbsp; DBUG_RETURN(0);</span></pre>
+		<pre><span> }</span></pre>
+		<p>請注意上例中的時間戳設置。</div><div class="section"><div class="titlepage"><div><div><h2 class="title"><a name="custom-engine-delete"></a>
+		16.13.&nbsp;為儲存引擎新增對DELETE的支援<code class="literal"></code></h2></div></div></div>
+		<p><span>MySQL</span>伺服器採用了與<span><span>INSERT</span>語句相同的方法來執行<span>DELETE</span>語句：伺服器使用<span>rnd_next()</span>函數跳到要刪除的行，</span>然後使用<a href="custom-engine.html#custom-engine-api-reference-delete_row" title="16.14.4. delete_row">delete_row()</a>函數刪除行。</p>
+		<pre><span>int ha_foo::delete_row(const byte *buf)</span></pre>
+		<p><span>*buf</span>參數包含要刪除行的內容。對於大多數儲存引擎，該參數可被忽略，但事務性儲存引擎可能需要保存刪除的數據，以供回滾操作使用。</p>
+		<p>下述示範來自<span>CSV</span>儲存引擎： </p>
+		<pre><span>int ha_tina::delete_row(const byte * buf)</span></pre>
+		<pre><span> {</span></pre>
+		<pre><span>&nbsp;&nbsp; DBUG_ENTER(&quot;ha_tina::delete_row&quot;);</span></pre>
+		<pre><span>&nbsp;&nbsp; statistic_increment(table-&gt;in_use-&gt;status_var.ha_delete_count,</span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &amp;LOCK_status);</span></pre>
+		<pre><span> </span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp;if (chain_append())</span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp;&nbsp; DBUG_RETURN(-1);</span></pre>
+		<pre><span>&nbsp; </span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp;--records;</span></pre>
+		<pre><span> </span></pre>
+		<pre><span>&nbsp;&nbsp;&nbsp;DBUG_RETURN(0);</span></pre>
+		<pre><span> }</span></pre>
+		<p>前述示範的步驟是更新<span>delete_count</span>統計，並記錄計數。</div><div class="section"><div class="titlepage"><div><div><h2 class="title"><a name="custom-engine-api-reference"></a>
+		16.14.&nbsp;API引用</h2></div></div></div><div class="toc"><dl><dt><span class="section"><a href="custom-engine.html#custom-engine-api-reference-bas_ext">16.14.1. bas_ext</a></span></dt><dt><span class="section"><a href="custom-engine.html#custom-engine-api-reference-close">16.14.2. close</a></span></dt><dt><span class="section"><a href="custom-engine.html#custom-engine-api-reference-create">16.14.3. create</a></span></dt><dt><span class="section"><a href="custom-engine.html#custom-engine-api-reference-delete_row">16.14.4. delete_row</a></span></dt><dt><span class="section"><a href="custom-engine.html#custom-engine-api-reference-delete_table">16.14.5. delete_table</a></span></dt><dt><span class="section"><a href="custom-engine.html#custom-engine-api-reference-external_lock">16.14.6. external_lock</a></span></dt><dt><span class="section"><a href="custom-engine.html#custom-engine-api-reference-extra">16.14.7. extra</a></span></dt><dt><span class="section"><a href="custom-engine.html#custom-engine-api-reference-info">16.14.8. info</a></span></dt><dt><span class="section"><a href="custom-engine.html#custom-engine-api-reference-open">16.14.9. open</a></span></dt><dt><span class="section"><a href="custom-engine.html#custom-engine-api-reference-rnd_init">16.14.10. rnd_init</a></span></dt><dt><span class="section"><a href="custom-engine.html#custom-engine-api-reference-rnd_next">16.14.11. rnd_next</a></span></dt><dt><span class="section"><a href="custom-engine.html#custom-engine-api-reference-store_lock">16.14.12. store_lock</a></span></dt><dt><span class="section"><a href="custom-engine.html#custom-engine-api-reference-update_row">16.14.13. update_row</a></span></dt><dt><span class="section"><a href="custom-engine.html#custom-engine-api-reference-write_row">16.14.14. write_row</a></span></dt></dl></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="custom-engine-api-reference-bas_ext"></a>16.14.1. bas_ext</h3></div></div></div><h4><a name="id2955344"></a>
+		目的</h4>
+		<p>定義儲存引擎所使用的檔案延伸。</p>
+		<h4><a name="id2955352"></a>概要</h4><div class="funcsynopsis"><table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em"><tr><td>virtual const char ** <b class="fsfunc">bas_ext</b>
+
+          (</td><td>);</td><td> </td></tr></table><table border="0" summary="Function argument synopsis" cellspacing="0" cellpadding="0"><tr><td> </td><td>;</td></tr></table></div><h4><a name="id2955372"></a>
+		描述</h4>
+		<p>這是<span><span>bas_ext</span>方法。使用它，可為<span>MySQL</span>伺服器提供儲存引擎所使用的檔案延伸列資料表。該列資料表將返回以<span>Null</span>終結的字串數組。</span></p>
+		<p>通過提供延伸列資料表，在很多情況下，儲存引擎能省略<a href="custom-engine.html#custom-engine-api-reference-delete_table" title="16.14.5. delete_table">delete_table()</a>函數，這是<span>因為MySQL</span>伺服器將關閉所有對資料表的引用，並使用指定的延伸刪除所有檔案。</p>
+		<h4><a name="id2955401"></a>參數</h4>
+		<p>該函數無參數。 </p>
+		<h4><a name="id2955409"></a>返回值</h4><div class="itemizedlist"><ul type="disc"><li><p>
+            <span>
+			返回值是儲存引擎延伸的以<span>Null</span>終結的字串數組。下面給出了<span>CSV</span>引擎的示範：</span>
+          </p><pre class="programlisting">static const char *ha_tina_exts[] =
+ {
+   ".CSV",
+   NullS
+ };
+</pre></li></ul></div><h4><a name="id2955433"></a>用法</h4><pre class="programlisting">static const char *ha_tina_exts[] =
+ {
+   ".CSV",
+   NullS
+ };
+        
+const char **ha_tina::bas_ext() const
+ {
+   return ha_tina_exts;
+ }  
+</pre><h4><a name="id2955442"></a>預設實施</h4><pre class="programlisting">static const char *ha_example_exts[] = {
+   NullS
+ };
+ 
+const char **ha_example::bas_ext() const
+ {
+   return ha_example_exts;
+ }
+</pre></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="custom-engine-api-reference-close"></a>16.14.2. close</h3></div></div></div><h4><a name="id2955460"></a>
+			目的</h4>
+			<p>關閉打開的資料表。 </p>
+			<h4><a name="id2955468"></a>概要</h4><div class="funcsynopsis"><table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em"><tr><td>virtual int <b class="fsfunc">close</b>
+
+          (</td><td><var class="pdparam">void</var>);</td><td> </td></tr></table><table border="0" summary="Function argument synopsis" cellspacing="0" cellpadding="0"><tr><td>
+
+             </td><td><var class="pdparam">void</var>
+
+          ;</td></tr></table></div><h4><a name="id2955492"></a>描述</h4>
+			<p>這是<span><span>close</span>方法。</span></p>
+			<p>關閉資料表。這是釋放任何已分配資源的恰當時機。</p>
+			<p>從<span>sql_base.cc</span>、<span>sql_select.cc</span>和<span>table.cc</span>使用它。在<span>sql_select.cc</span>中，它僅用於關閉臨時資料表，或在將臨時資料表轉換為<span>myisam</span>資料表的過程中關閉資料表。關於<span>sql_base.cc</span>，請查看<span>close_data_tables()</span>。</p>
+			<h4><a name="id2955516"></a>參數</h4><div class="itemizedlist"><ul type="disc"><li><p>
+            void
+          </p></li></ul></div><h4><a name="id2955532"></a>返回值</h4>
+			<p>無返回值。</p>
+			<h4><a name="id2955540"></a>用法</h4>
+			<p>取自<span>CSV</span>引擎的示範： </p>
+			<pre class="programlisting">int ha_example::close(void)
+{
+  DBUG_ENTER("ha_example::close");
+  DBUG_RETURN(free_share(share));
+}
+</pre></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="custom-engine-api-reference-create"></a>16.14.3. create</h3></div></div></div><h4><a name="id2955565"></a>
+			目的</h4>
+			<p>建立新資料表。</p>
+			<h4><a name="id2955573"></a>概要</h4><div class="funcsynopsis"><table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em"><tr><td>virtual int <b class="fsfunc">create</b>
+
+          (</td><td><var class="pdparam">name</var>, </td><td> </td></tr><tr><td> </td><td><var class="pdparam">form</var>, </td><td> </td></tr><tr><td> </td><td><var class="pdparam">info</var>);</td><td> </td></tr></table><table border="0" summary="Function argument synopsis" cellspacing="0" cellpadding="0"><tr><td>const char * </td><td><var class="pdparam">name</var>
+
+          ;</td></tr><tr><td>TABLE * </td><td><var class="pdparam">form</var>
+
+          ;</td></tr><tr><td>HA_CREATE_INFO * </td><td><var class="pdparam">info</var>
+
+          ;</td></tr></table></div><h4><a name="id2955611"></a>描述</h4>
+			<p>這是<span>create</span>方法。 
+			</p>
+			<p><span>使用<span>create()</span>以建立資料表。</span>變數名稱為資料表的名稱。使用<span><span>create()</span>時，不需要打開資料表。此外，</span>由於已建立了<span><span>.frm</span>檔案，不推薦調整<span>create_info</span>。</span></p>
+			<p>由<span><span>ha_create_table()</span>從<span>handle.cc</span>中使用。</span></p>
+			<h4><a name="id2955655"></a>參數</h4><div class="itemizedlist"><ul type="disc"><li><p>
+            name
+          </p></li><li><p>
+            form
+          </p></li><li><p>
+            info
+          </p></li></ul></div><h4><a name="id2955691"></a>返回值</h4>
+			<p>無返回值。 </p>
+			<h4><a name="id2955699"></a>用法</h4>
+			<p><span><span>CSV</span>搜索引擎示範：</span></p>
+			<pre class="programlisting">int ha_tina::create(const char *name, TABLE *table_arg,
+                    HA_CREATE_INFO *create_info)
+{
+  char name_buff[FN_REFLEN];
+  File create_file;
+  DBUG_ENTER("ha_tina::create");
+
+  if ((create_file= my_create(fn_format(name_buff, name, "", ".CSV",
+                                        MY_REPLACE_EXT|MY_UNPACK_FILENAME),0,
+                              O_RDWR | O_TRUNC,MYF(MY_WME))) &lt; 0)
+    DBUG_RETURN(-1);
+
+  my_close(create_file,MYF(0));
+
+  DBUG_RETURN(0);
+}          
+</pre></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="custom-engine-api-reference-delete_row"></a>16.14.4. delete_row</h3></div></div></div><h4><a name="id2955736"></a>
+			目的</h4>
+			<p>刪除行。 </p>
+			<h4><a name="id2955743"></a>概要</h4><div class="funcsynopsis"><table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em"><tr><td>virtual int <b class="fsfunc">delete_row</b>
+
+          (</td><td><var class="pdparam">buf</var>);</td><td> </td></tr></table><table border="0" summary="Function argument synopsis" cellspacing="0" cellpadding="0"><tr><td>const byte * </td><td><var class="pdparam">buf</var>
+
+          ;</td></tr></table></div><h4><a name="id2955767"></a>描述</h4>
+			<p>這是<span>delete_row</span>方法。</p>
+			<p><span><i><span>Buf</span></i></span>包含刪除行的副本。使用了當前行後，伺服器將立刻使用它（通過前一個<span><span>rnd_next()</span>或索引使用</span>）。如果存在指向上一行的指針，或能夠訪問
+			主鍵，刪除操作將更為容易。請記住，伺服器不保證連續刪除。可以使用<span><span>ORDER 
+			BY</span>子句。</span></p>
+			<p>在<span><span>sql_acl.cc</span>和<span>sql_udf.cc</span>中使用，以管理內部的資料表訊息。</span>在<span>sql_delete.cc</span>、<span>sql_insert.cc</span>和<span><span>sql_select.cc</span>中使用。</span>在<span><span>sql_select</span>中，</span>它用於刪除副本，而在插入操作中，它用於<span><span>REPLACE</span>使用。</span></p>
+			<h4><a name="id2955836"></a>參數</h4><div class="itemizedlist"><ul type="disc"><li><p>
+            buf
+          </p></li></ul></div><h4><a name="id2955852"></a>返回值</h4><p>
+        無返回值。
+      </p><h4><a name="id2955859"></a>用法</h4><pre class="programlisting">          
+        </pre><h4><a name="id2955866"></a>預設實施</h4><pre class="programlisting">{ return  HA_ERR_WRONG_COMMAND; }
+</pre></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="custom-engine-api-reference-delete_table"></a>16.14.5. delete_table</h3></div></div></div><h4><a name="id2955884"></a>
+			目的</h4>
+			<p>用來自<a href="custom-engine.html#custom-engine-api-reference-bas_ext" title="16.14.1. bas_ext">bas_ext()</a>的延伸刪除所有檔案。</p>
+			<h4><a name="id2955899"></a>概要</h4><div class="funcsynopsis"><table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em"><tr><td>virtual int <b class="fsfunc">delete_table</b>
+
+          (</td><td><var class="pdparam">name</var>);</td><td> </td></tr></table><table border="0" summary="Function argument synopsis" cellspacing="0" cellpadding="0"><tr><td>const char * </td><td><var class="pdparam">name</var>
+
+          ;</td></tr></table></div><h4><a name="id2955923"></a>描述</h4>
+			<p>這是<span>delete_table</span>方法。</p>
+			<p>用於刪除資料表。使用<span>delete_table()</span>時，所有已打開的對該資料表的引用均將被關閉（並釋放全局共享的引用）。變數名稱為資料表名。此時，需要刪除任何已建立的檔案。</p>
+			<p>如果未實施它，將從<span><span>handler.cc</span>使用</span>預設的<span><span>delete_table()</span>，並用<span>bas_ext()</span>返回的檔案延伸</span>刪除所有檔案。假定處理程式返回的延伸比檔案實際使用的多。</p>
+			<p>由<span>delete_table</span>和<span><span>ha_create_table()</span>從<span>handler.cc</span>使用。如果為儲存引擎指定了<span>table_flag</span></span><span>
+			<span>HA_DROP_BEFORE_CREATE</span></span><span>，僅在建立過程中使用。</span></p>
+			<h4><a name="id2955990"></a>參數</h4><div class="itemizedlist"><ul type="disc"><li><p>
+            name: 資料表的基本名稱</p></li></ul></div><h4><a name="id2956007"></a>
+			返回值</h4><div class="itemizedlist">
+				<p>
+				<span>
+				<span>
+				·<span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+				</span></span>如果成功地從<span>base_ext</span>刪除了至少<span>1</span>個檔案而且未出現除<span>ENOENT</span>之外的錯誤，返回<span>0</span>。</span></p>
+				<p>
+				<span>
+				·<span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+				</span></span><span>#</span><span>: 
+				Error </span></div><h4><a name="id2956043"></a>用法</h4></div><div class="section"><div class="titlepage"><div><div>
+			大多數儲存引擎均會忽略該函數的實施。<h3 class="title"><a name="custom-engine-api-reference-external_lock"></a>16.14.6. external_lock</h3></div></div></div><h4><a name="id2956060"></a>
+			目的</h4>
+			<p>為事務處理資料表鎖定。</p>
+			<h4><a name="id2956068"></a>概要</h4><div class="funcsynopsis"><table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em"><tr><td>virtual int <b class="fsfunc">external_lock</b>
+
+          (</td><td><var class="pdparam">thd</var>, </td><td> </td></tr><tr><td> </td><td><var class="pdparam">lock_type</var>);</td><td> </td></tr></table><table border="0" summary="Function argument synopsis" cellspacing="0" cellpadding="0"><tr><td>THD * </td><td><var class="pdparam">thd</var>
+
+          ;</td></tr><tr><td>int </td><td><var class="pdparam">lock_type</var>
+
+          ;</td></tr></table></div><h4><a name="id2956098"></a>描述</h4>
+			<p>這是<span>external_lock</span>方法。</p>
+			<p>在<span><span>lock.cc</span>中<span>「</span>用於</span><span class="quote"><span>mysql</span>的鎖定函數</span><span><span>」</span>一節，給出了關於該議題的額外註釋，值的一讀。</span></p>
+			<p>在資料表上建立鎖定。如果實施了能處理事務的儲存引擎，請查看<span>ha_berkely.cc</span>，以瞭解如何執行該操作的方法。否則，應考慮在此使用<span>flock()</span>。</p>
+			<p>由<span>lock_external()</span>和<span><span>unlock_external()</span>從<span>lock.cc</span>中使用。也能由<span>copy_data_between_tables()</span>從<span>sql_table.cc</span>中使用。</span></p>
+			<h4><a name="id2956161"></a>參數</h4><div class="itemizedlist"><ul type="disc"><li><p>
+            thd
+          </p></li><li><p>
+            lock_type
+          </p></li></ul></div><h4><a name="id2956187"></a>返回值</h4><p>
+        無返回值。
+      </p><h4><a name="id2956195"></a>預設實施</h4><pre class="programlisting">{ return 0; }
+</pre></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="custom-engine-api-reference-extra"></a>16.14.7. extra</h3></div></div></div><h4><a name="id2956212"></a>
+			目的</h4>
+			<p>將提示從伺服器傳遞給儲存引擎。</p>
+			<h4><a name="id2956219"></a>概要</h4><div class="funcsynopsis"><table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em"><tr><td>virtual int <b class="fsfunc">extra</b>
+
+          (</td><td><var class="pdparam">operation</var>);</td><td> </td></tr></table><table border="0" summary="Function argument synopsis" cellspacing="0" cellpadding="0"><tr><td>enum
+            ha_extra_function </td><td><var class="pdparam">operation</var>
+
+          ;</td></tr></table></div><h4><a name="id2956244"></a>描述</h4>
+			<p>這是<span><span>extra</span>方法。</span></p>
+			<p><span>無論何時，當伺服器希望將提示發送到儲存引擎時，將使用<span>extra()</span>。<span>MyISAM</span></span>引擎實現了大多數提示。<span><span>ha_innodb.cc</span>給出了最詳盡的提示列資料表。</span></p>
+			<h4><a name="id2956272"></a>參數</h4><div class="itemizedlist"><ul type="disc"><li><p>
+            operation
+          </p></li></ul></div><h4><a name="id2956289"></a>返回值</h4><p>
+        無返回值。
+      </p><h4><a name="id2956296"></a>用法</h4><pre class="programlisting">          
+        </pre><h4><a name="id2956303"></a>預設實施</h4>
+			<p>預設情況下，儲存引擎傾向於不實施任何提示。</p>
+			<pre class="programlisting">{ return 0; }
+</pre></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="custom-engine-api-reference-info"></a>16.14.8. info</h3></div></div></div><h4><a name="id2956325"></a>
+			目的</h4>
+			<p>提示儲存引擎通報統計訊息。</p>
+			<h4><a name="id2956332"></a>概要</h4><div class="funcsynopsis"><table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em"><tr><td>virtual void <b class="fsfunc">info</b>
+
+          (</td><td><var class="pdparam">uint</var>);</td><td> </td></tr></table><table border="0" summary="Function argument synopsis" cellspacing="0" cellpadding="0"><tr><td>
+
+             </td><td><var class="pdparam">uint</var>
+
+          ;</td></tr></table></div><h4><a name="id2956356"></a>描述</h4>
+			<p>這是<span>info</span>方法。</p>
+			<p><span>::info()</span>用於將訊息返回給最佳化程式。目前，該資料表處理程式未實施實際需要的大多數字段。<span>SHOW</span>也能利用該數據。注意，或許您打算在您的代碼中包含下述內容「<span>if 
+			(records &gt; 2) records = 2<span>」。原因在於，伺服器僅最佳化具有一條記錄的情形。如果在資料表掃瞄過程中，您不清楚記錄的數目，最好將記錄數設為</span>2</span>，以便能夠返回盡可能多的所需記錄。除了記錄外，您或許還希望設置其他變數，包括：刪除的記錄，<span>data_file_length</span>，<span>index_file_length</span>，<span>delete_length</span>，<span>check_time</span>。更多訊息，請參見<span>handler.h</span>中的公共變數。</p>
+			<p>在下述檔案中使用：<span>filesort.cc ha_heap.cc item_sum.cc 
+			opt_sum.cc sql_delete.cc sql_delete.cc sql_derived.cc sql_select.cc 
+			sql_select.cc sql_select.cc sql_select.cc sql_select.cc sql_show.cc 
+			sql_show.cc sql_show.cc sql_show.cc sql_table.cc sql_union.cc 
+			sql_update.cc </span></p>
+			<h4><a name="id2956416"></a>參數</h4><div class="itemizedlist"><ul type="disc"><li><p>
+            uint
+          </p></li></ul></div><h4><a name="id2956432"></a>返回值</h4><p>
+        無返回值。
+      </p><h4><a name="id2956440"></a>用法</h4>
+			<p>該示範取自<span>CSV</span>儲存引擎： </p>
+			<pre class="programlisting">void ha_tina::info(uint flag)
+{
+  DBUG_ENTER("ha_tina::info");
+  /* This is a lie, but you don't want the optimizer to see zero or 1 */
+  if (records &lt; 2)
+    records= 2;
+  DBUG_VOID_RETURN;
+}          
+</pre></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="custom-engine-api-reference-open"></a>16.14.9. open</h3></div></div></div><h4><a name="id2956469"></a>
+			目的</h4>
+			<p>打開資料表。 </p>
+			<h4><a name="id2956476"></a>概要</h4><div class="funcsynopsis"><table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em"><tr><td>virtual int <b class="fsfunc">open</b>
+
+          (</td><td><var class="pdparam">name</var>, </td><td> </td></tr><tr><td> </td><td><var class="pdparam">mode</var>, </td><td> </td></tr><tr><td> </td><td><var class="pdparam">test_if_locked</var>);</td><td> </td></tr></table><table border="0" summary="Function argument synopsis" cellspacing="0" cellpadding="0"><tr><td>const char * </td><td><var class="pdparam">name</var>
+
+          ;</td></tr><tr><td>int </td><td><var class="pdparam">mode</var>
+
+          ;</td></tr><tr><td>uint </td><td><var class="pdparam">test_if_locked</var>
+
+          ;</td></tr></table></div><h4><a name="id2956514"></a>描述</h4>
+			<p>這是<span>open</span>方法。</p>
+			<p>
+			用於打開資料表。名稱是檔案的名稱。在需要打開資料表時打開它。例如，當請求在資料表上執行選擇操作時（對於每一請求，資料表未打開並被關閉，對其進行高速緩衝處理）。</p>
+			<p>由<span>handler::ha_open()</span>從<span>handler.cc</span>中使用。通過使用<span>ha_open()</span>，然後使用處理程式相關的<span>open()</span>，伺服器打開所有資料表。</p>
+			<p>
+			對於處理程式對象，將作為初始化的一部分並在將其用於正常查詢之前打開它（並非總在元數據變化之前）。如果打開了對象，在刪除之前還將關閉它。</p>
+			<p>這是<span>open</span>方法。使用<span><span>open</span>以打開資料庫資料表。</span></p>
+			<p>第<span>1</span>個參數是要打開的資料表的名稱。第<span>2</span>個參數決定了要打開的檔案或將要執行的操作。這類值定義於<span><span>handler.h</span>中，為了方便起見在此列出：</span></p>
+			<pre><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; #define HA_OPEN_KEYFILE&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp; 1</span></pre>
+			<pre><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; #define HA_OPEN_RNDFILE&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp; 2</span></pre>
+			<pre><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; #define HA_GET_INDEX&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; 4</span></pre>
+			<pre><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; #define HA_GET_INFO&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 8 &nbsp;&nbsp;&nbsp; /* do a ha_info() after open */</span></pre>
+			<pre><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; #define HA_READ_ONLY&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; 16&nbsp; &nbsp; /* File opened as readonly */</span></pre>
+			<pre><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; #define HA_TRY_READ_ONLY&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp; 32&nbsp;&nbsp;&nbsp; /* Try readonly if can&#39;t open with read and write */</span></pre>
+			<pre><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; #define HA_WAIT_IF_LOCKED&nbsp;&nbsp;&nbsp;&nbsp; &nbsp; 64&nbsp;&nbsp;&nbsp; &nbsp; /* Wait if locked on open */</span></pre>
+			<pre><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; #define HA_ABORT_IF_LOCKED&nbsp;&nbsp;&nbsp; 128&nbsp;&nbsp;&nbsp;&nbsp; &nbsp; /* skip if locked on open.*/</span></pre>
+			<pre><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; #define HA_BLOCK_LOCK&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; 256 &nbsp; /* unlock when reading some records */</span></pre>
+			<pre><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; #define HA_OPEN_TEMPORARY&nbsp;&nbsp;&nbsp;&nbsp; &nbsp; 512</span></pre>
+			<pre><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </span></pre>
+			<p>最後的選項規定了在打開資料表之前是否應檢查資料表上的鎖定。</p>
+			<p>典型情況下，儲存引擎需要實現某種形式的共享訪問控制，以防止多線程環境下的檔案損壞。關於如何實現檔案鎖定的示範，請參見<span><span>sql/examples/ha_tina.cc</span>的<span>get_share()</span></span>和<span><span>free_share()</span>方法。</span></p>
+			<h4><a name="id2956622"></a>參數</h4><div class="itemizedlist"><ul type="disc"><li><p>
+            name
+          </p></li><li><p>
+            mode
+          </p></li><li><p>
+            test_if_locked
+          </p></li></ul></div><h4><a name="id2956659"></a>返回值</h4><p>
+        無返回值。
+      </p><h4><a name="id2956666"></a>用法</h4>
+			<p>該示範取自<span>CSV</span>儲存引擎：</p>
+			<pre class="programlisting">        int ha_tina::open(const char *name, int mode, uint test_if_locked)
+        {
+        DBUG_ENTER("ha_tina::open");
+        
+        if (!(share= get_share(name, table)))
+        DBUG_RETURN(1);
+        thr_lock_data_init(&amp;share-&gt;lock,&amp;lock,NULL);
+        ref_length=sizeof(off_t);
+        
+        DBUG_RETURN(0);
+        }          
+      </pre></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="custom-engine-api-reference-rnd_init"></a>16.14.10. rnd_init</h3></div></div></div><h4><a name="id2956698"></a>
+			目的</h4>
+			<p>為資料表掃瞄功能初始化處理程式。</p>
+			<h4><a name="id2956706"></a>概要</h4><div class="funcsynopsis"><table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em"><tr><td>virtual int <b class="fsfunc">rnd_init</b>
+
+          (</td><td><var class="pdparam">scan</var>);</td><td> </td></tr></table><table border="0" summary="Function argument synopsis" cellspacing="0" cellpadding="0"><tr><td>bool </td><td><var class="pdparam">scan</var>
+
+          ;</td></tr></table></div><h4><a name="id2956730"></a>描述</h4>
+			<p>這是<span>rnd_init</span>方法。 
+			</p>
+			<p>當系統希望儲存引擎執行資料表掃瞄時，將使用<span>rnd_init()</span>。</p>
+			<p>與<span>index_init()</span>不同，<span>rnd_init()</span>可以使用兩次，兩次使用之間不使用<span>rnd_end()</span>（僅當<span>scan=1</span>時才有意義）。隨後，第<span>2</span>次使用應準備好新的資料表掃瞄。例如，如果<span>rnd_init</span>分配了光標，第<span>2</span>次使用應將光標定位於資料表的開始部分，不需要撤銷分配並再次分配。</p>
+			<p>從下述檔案使用：<span>filesort.cc, records.cc, sql_handler.cc, 
+			sql_select.cc, sql_table.cc, </span>和<span>sql_update.cc</span>。</p>
+			<h4><a name="id2956761"></a>參數</h4><div class="itemizedlist"><ul type="disc"><li><p>
+            scan
+          </p></li></ul></div><h4><a name="id2956777"></a>返回值</h4><p>
+        無返回值。
+      </p><h4><a name="id2956785"></a>用法</h4>
+			<p>該示範取自<span>CSV</span>儲存引擎：</p>
+			<pre class="programlisting">int ha_tina::rnd_init(bool scan)
+{
+  DBUG_ENTER("ha_tina::rnd_init");
+
+  current_position= next_position= 0;
+  records= 0;
+  chain_ptr= chain;
+  DBUG_RETURN(0);
+}          
+</pre></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="custom-engine-api-reference-rnd_next"></a>16.14.11. rnd_next</h3></div></div></div><h4><a name="id2956812"></a>
+			目的</h4>
+			<p>從資料表中讀取下一行，並將其返回伺服器。</p>
+			<h4><a name="id2956820"></a>概要</h4><div class="funcsynopsis"><table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em"><tr><td>virtual int <b class="fsfunc">rnd_next</b>
+
+          (</td><td><var class="pdparam">buf</var>);</td><td> </td></tr></table><table border="0" summary="Function argument synopsis" cellspacing="0" cellpadding="0"><tr><td>byte * </td><td><var class="pdparam">buf</var>
+
+          ;</td></tr></table></div><h4><a name="id2956843"></a>描述</h4>
+			<p>這是<span>rnd_next</span>方法。</p>
+			<p>對於資料表掃瞄的每一行使用它。耗盡記錄時，應返回<span>HA_ERR_END_OF_FILE</span>。用行訊息填充<span>buff</span>。資料表的字段結構是以伺服器能理解的方式將數據保存到<span>buf</span>中的鍵。</p>
+			<p>從下述檔案使用：<span>filesort.cc, records.cc, sql_handler.cc, 
+			sql_select.cc, sql_table.cc, </span>和<span>sql_update.cc</span>。</p>
+			<h4><a name="id2956869"></a>參數</h4><div class="itemizedlist"><ul type="disc"><li><p>
+            buf
+          </p></li></ul></div><h4><a name="id2956885"></a>返回值</h4><p>
+        無返回值。
+      </p><h4><a name="id2956893"></a>用法</h4>
+			<p>下述示範取自<span>ARCHIVE</span>儲存引擎： </p>
+			<pre class="programlisting">int ha_archive::rnd_next(byte *buf)
+{
+  int rc;
+  DBUG_ENTER("ha_archive::rnd_next");
+
+  if (share-&gt;crashed)
+      DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
+ 
+  if (!scan_rows)
+    DBUG_RETURN(HA_ERR_END_OF_FILE);
+  scan_rows--;
+
+  statistic_increment(table-&gt;in_use-&gt;status_var.ha_read_rnd_next_count,
+		      &amp;LOCK_status);
+    current_position= gztell(archive);
+  rc= get_row(archive, buf);
+ 
+  if (rc != HA_ERR_END_OF_FILE)
+    records++;
+
+  DBUG_RETURN(rc);
+}          
+</pre></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="custom-engine-api-reference-store_lock"></a>16.14.12. store_lock</h3></div></div></div><h4><a name="id2956929"></a>
+			目的</h4>
+			<p>建立和釋放資料表鎖定。 </p>
+			<h4><a name="id2956936"></a>概要</h4><div class="funcsynopsis"><table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em"><tr><td>virtual THR_LOCK_DATA **
+            <b class="fsfunc">store_lock</b>
+
+          (</td><td><var class="pdparam">thd</var>, </td><td> </td></tr><tr><td> </td><td><var class="pdparam">to</var>, </td><td> </td></tr><tr><td> </td><td><var class="pdparam">lock_type</var>);</td><td> </td></tr></table><table border="0" summary="Function argument synopsis" cellspacing="0" cellpadding="0"><tr><td>THD * </td><td><var class="pdparam">thd</var>
+
+          ;</td></tr><tr><td>THR_LOCK_DATA ** </td><td><var class="pdparam">to</var>
+
+          ;</td></tr><tr><td>enum
+          thr_lock_type </td><td><var class="pdparam">lock_type</var>
+
+          ;</td></tr></table></div><h4><a name="id2956974"></a>描述</h4>
+			<p>這是<span>store_lock</span>方法。</p>
+			<p>下面介紹了關於<span>handler::store_lock()</span>的概念：</p>
+			<p>該語句決定了在資料表上需要何種鎖定。對於<span>updates/deletes/inserts</span>，我們得到<span>WRITE</span>鎖定；對於<span>SELECT...</span>，我們得到讀鎖定。</p>
+			<p>將鎖定新增到資料表鎖定處理程式之前（請參見<span>thr_lock.c</span>），<span>mysqld</span>將用請求的鎖定使用儲存鎖定。目前，儲存鎖定能將寫鎖定更改為讀鎖定（或某些其他鎖定），忽略鎖定（如果不打算使用<span>MySQL</span>資料表鎖定），或為很多資料表新增鎖定（就像使用<span>MERGE</span>處理程式時那樣）。 
+			</p>
+			<p>例如，<span>Berkeley DB</span>能夠將所有的<span>WRITE</span>鎖定更改為<span>TL_WRITE_ALLOW_WRITE</span>（表明正在執行<span>WRITES</span>操作，但我們仍允許其他人執行操作）。</p>
+			<p>釋放鎖定時，也將使用<span>store_lock()</span>。在這種情況下，通常不需要作任何事。</p>
+			<p>在某些特殊情況下，<span>MySQL</span>可能會發送對<span>TL_IGNORE</span>的請求。這意味著我們正在請求與上次相同的鎖定，這也應被忽略（當我們打開了資料表的某一部分時，如果其他人執行了資料表刷新操作，就會出現該情況，此時，<span>mysqld</span>將關閉並再次打開資料表，然後獲取與上次相同的鎖定）。我們打算在將來刪除該特性。</p>
+			<p>由<span>get_lock_data()</span>從<span>lock.cc</span>中使用。</p>
+			<h4><a name="id2957034"></a>參數</h4><div class="itemizedlist"><ul type="disc"><li><p>
+            thd
+          </p></li><li><p>
+            to
+          </p></li><li><p>
+            lock_type
+          </p></li></ul></div><h4><a name="id2957069"></a>返回值</h4><p>
+        無返回值。
+      </p><h4><a name="id2957077"></a>用法</h4>
+			<p>下述示範取自<span><span>ARCHIVE</span>儲存引擎：</span></p>
+			<pre class="programlisting">/* 
+  Below is an example of how to setup row level locking.
+*/
+THR_LOCK_DATA **ha_archive::store_lock(THD *thd,
+                                       THR_LOCK_DATA **to,
+                                       enum thr_lock_type lock_type)
+{
+  if (lock_type == TL_WRITE_DELAYED)
+    delayed_insert= TRUE;
+  else
+    delayed_insert= FALSE;
+
+  if (lock_type != TL_IGNORE &amp;&amp; lock.type == TL_UNLOCK) 
+  {
+    /* 
+      Here is where we get into the guts of a row level lock.
+      If TL_UNLOCK is set 
+      If we are not doing a LOCK TABLE or DISCARD/IMPORT
+      TABLESPACE, then allow multiple writers 
+    */
+
+    if ((lock_type &gt;= TL_WRITE_CONCURRENT_INSERT &amp;&amp;
+         lock_type &lt;= TL_WRITE) &amp;&amp; !thd-&gt;in_lock_tables
+        &amp;&amp; !thd-&gt;tablespace_op)
+      lock_type = TL_WRITE_ALLOW_WRITE;
+
+    /* 
+      In queries of type INSERT INTO t1 SELECT ... FROM t2 ...
+      MySQL would use the lock TL_READ_NO_INSERT on t2, and that
+      would conflict with TL_WRITE_ALLOW_WRITE, blocking all inserts
+      to t2. Convert the lock to a normal read lock to allow
+      concurrent inserts to t2. 
+    */
+
+    if (lock_type == TL_READ_NO_INSERT &amp;&amp; !thd-&gt;in_lock_tables) 
+      lock_type = TL_READ;
+
+    lock.type=lock_type;
+  }
+
+  *to++= &amp;lock;
+ 
+  return to;
+}          
+</pre></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="custom-engine-api-reference-update_row"></a>16.14.13. update_row</h3></div></div></div><h4><a name="id2957140"></a>
+			目的</h4>
+			<p>更新已有行的內容。 </p>
+			<h4><a name="id2957147"></a>概要</h4><div class="funcsynopsis"><table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em"><tr><td>virtual int <b class="fsfunc">update_row</b>
+
+          (</td><td><var class="pdparam">old_data</var>, </td><td> </td></tr><tr><td> </td><td><var class="pdparam">new_data</var>);</td><td> </td></tr></table><table border="0" summary="Function argument synopsis" cellspacing="0" cellpadding="0"><tr><td>const byte * </td><td><var class="pdparam">old_data</var>
+
+          ;</td></tr><tr><td>byte * </td><td><var class="pdparam">new_data</var>
+
+          ;</td></tr></table></div><h4><a name="id2957178"></a>描述</h4>
+			<p>這是<span>update_row</span>方法。</p>
+			<p><span>old_data</span>將保存前一行的記錄，而<span>new_data</span>將保存最新的數據。</p>
+			<p>如果使用了<span>ORDER BY</span>子句，伺服器能夠根據排序執行更新操作。不保證連續排序。</p>
+			<p>目前，<span>new_data</span>不會擁有已更新的<span>auto_increament</span>記錄，或已更新的時間戳字段。您可以通過下述方式（例如）完成該操作：<span>if 
+			(table-&gt;timestamp_field_type &amp; TIMESTAMP_AUTO_SET_ON_UPDATE) table-&gt;timestamp_field-&gt;set_time(); 
+			if (table-&gt;next_number_field &amp;&amp; record == table-&gt;record[0]) 
+			update_auto_increment(); </span></p>
+			<p>從<span>sql_select.cc, sql_acl.cc, sql_update.cc</span>和<span>sql_insert.cc</span>使用。</p>
+			<h4><a name="id2957222"></a>參數</h4><div class="itemizedlist"><ul type="disc"><li><p>
+            old_data
+          </p></li><li><p>
+            new_data
+          </p></li></ul></div><h4><a name="id2957248"></a>返回值</h4><p>
+        無返回值。
+      </p><h4><a name="id2957256"></a>用法</h4><pre class="programlisting">          
+        </pre><h4><a name="id2957263"></a>預設實施</h4><pre class="programlisting">           { return  HA_ERR_WRONG_COMMAND; }
+        </pre></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="custom-engine-api-reference-write_row"></a>16.14.14. write_row</h3></div></div></div><h4><a name="id2957280"></a>
+			目的</h4>
+			<p>為資料表新增新行。</p>
+			<h4><a name="id2957288"></a>概要</h4><div class="funcsynopsis"><table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em"><tr><td>virtual int <b class="fsfunc">write_row</b>
+
+          (</td><td><var class="pdparam">buf</var>);</td><td> </td></tr></table><table border="0" summary="Function argument synopsis" cellspacing="0" cellpadding="0"><tr><td>byte * </td><td><var class="pdparam">buf</var>
+
+          ;</td></tr></table></div><h4><a name="id2957311"></a>描述</h4>
+			<p>這是<span>write_row</span>方法。</p>
+			<p><span>write_row()</span>用於插入行。目前，如果出現大量加載，不會給出任何<a href="custom-engine.html#custom-engine-api-reference-extra" title="16.14.7. extra">extra()</a>提示。<span>buf</span>是數據的字節數組，大小為<span>table-&gt;s-&gt;reclength</span>。</p>
+			<p>可以使用字段訊息從本地字節數組類型提取數據。例如：</p>
+			<p><span>for (Field **field=table-&gt;field ; *field ; 
+			field++) { ... } </span></p>
+			<p><span>BLOB</span>必須特殊處理：</p>
+			<pre><span>&nbsp;&nbsp;&nbsp; </span></pre>
+			<pre><span>for (ptr= table-&gt;s-&gt;blob_field, end= ptr + table-&gt;s-&gt;blob_fields ; ptr != end ; ptr++) </span></pre>
+			<pre><span>&nbsp;&nbsp;{ </span></pre>
+			<pre><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;char *data_ptr; </span></pre>
+			<pre><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;uint32 size= ((Field_blob*)table-&gt;field[*ptr])-&gt;get_length();</span></pre>
+			<pre><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ((Field_blob*)table-&gt;field[*ptr])-&gt;get_ptr(&amp;data_ptr); </span></pre>
+			<pre><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;... </span></pre>
+			<pre><span>&nbsp;&nbsp;}</span></pre>
+			<p>關於以字串形式提取所有數據的示範，請參見<span>ha_tina.cc</span>。在<span>ha_berkeley.cc</span>中，對於<span>ha_berkeley</span>自己的本地儲存類型，給出了一個通過「包裝功能」完整保存它的例子。</p>
+			<p>請參見<span><span>update_row()</span>關於</span><span>auto_increments</span>和時間戳的註釋。該情形也適用於<span>write_row()</span>。</p>
+			<p>從<span>item_sum.cc</span>、<span>item_sum.cc</span>、<span>sql_acl.cc</span>、<span>sql_insert.cc</span>、<span>sql_insert.cc</span>、<span>sql_select.cc</span>、<span>sql_table.cc</span>、<span>sql_udf.cc</span>、以及<span>sql_update.cc</span>使用。</p>
+			<h4><a name="id2957388"></a>參數</h4><div class="itemizedlist"><ul type="disc"><li><p>
+			<span>數據的<span>buf</span>字節數組</span>
+          </p></li></ul></div><h4><a name="id2957405"></a>返回值</h4><p>
+        無返回值。
+      </p><h4><a name="id2957412"></a>用法</h4><pre class="programlisting">          
+        </pre><h4><a name="id2957419"></a>預設實施</h4><pre class="programlisting">           { return  HA_ERR_WRONG_COMMAND; }
+        </pre></div></div></div><div><hr>
+	<p>這是MySQL參考手冊的翻譯版本，關於MySQL參考手冊，請訪問<a target="_top"  href="http://dev.mysql.com/doc/mysql/en">dev.mysql.com</a>。 
+	原始參考手冊為英文版，與英文版參考手冊相比，本翻譯版可能不是最新的。</div>
+</body></html>

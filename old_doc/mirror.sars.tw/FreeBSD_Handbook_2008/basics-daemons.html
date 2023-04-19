@@ -1,0 +1,257 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>Daemon、信號及終止程序</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.79" />
+<link rel="HOME" title="FreeBSD 使用手冊" href="index.html" />
+<link rel="UP" title="UNIX 基礎概念" href="basics.html" />
+<link rel="PREVIOUS" title="程序" href="basics-processes.html" />
+<link rel="NEXT" title="Shells" href="shells.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD 使用手冊</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="basics-processes.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 3 UNIX 基礎概念</td>
+<td width="10%" align="right" valign="bottom"><a href="shells.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="BASICS-DAEMONS" name="BASICS-DAEMONS">3.8
+Daemon、信號及終止程序</a></h1>
+
+<p>當在執行文書編輯器時，您可以很容易地使用它，叫它讀取檔案或是什麼的。
+可以這樣做是因為編輯器有提供這些功能， 還有就是編輯器依附在一個<i
+class="FIRSTTERM">終端機 (Terminal)</i> 之上。
+有些程式並不是設計成一直在接收使用者的輸入的，
+所以它們在一開始執行的時候就從終端機斷開了。 例如說，
+網頁伺服器整天都在回應網頁方面的要求，它通常不需要您輸入任何東西。
+另外，像是把信從一個站傳送到另一個站的程式，也是這種類型的應用程式。</p>
+
+<p>我們把這種程式稱作 <i class="FIRSTTERM">daemon</i>。 Daemon (惡魔、守護神)
+是希臘神話中的角色：祂們不屬於善良陣營或邪惡陣營，是守護的小精靈。
+大致上來說祂們就是在替人類做一些有用的事情， 跟今天的網頁伺服器或是郵件伺服器很像。
+這也就是為何 BSD 的吉祥物，長期以來都是一隻穿著帆布鞋拿著三叉耙的快樂小惡魔的原因。</p>
+
+<p>通常來說 deamon 程式的名字後面都會加一個字母 “d”。 <b class="APPLICATION">BIND</b>
+是 Berkeley Internet Name Domain 的縮寫 (但實際上執行的程式名稱是 <tt
+class="COMMAND">named</tt>)、Apache 網頁伺服器的程式名稱是 <tt
+class="COMMAND">httpd</tt>、印表機服務程式是 <tt class="COMMAND">lpd</tt>，依此類推。
+這是習慣用法，並沒有硬性規定，例如 <b class="APPLICATION">Sendmail</b> 主要的寄信 daemon
+是叫做 <tt class="COMMAND">sendmail</tt> 而不是 <tt
+class="COMMAND">maild</tt>，跟您想像的不一樣。</p>
+
+<p>有些時候會需要跟某個 daemon 程序溝通， 這些溝通是透過所謂的<i
+class="FIRSTTERM">信號(signal)</i>來傳遞給該 daemon 程序(或是其他執行中的程序)。
+藉由送出信號，您可以和一個 daemon (或是任何一個正在跑的程序) 溝通。
+信號有很多種——有些有特定的意義，有些則是會由應用程式來解讀。
+應用程式的說明文件會告訴您該程式是如何解讀信號的。 您只能送信號給您擁有的程序，送 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=kill&amp;sektion=1"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">kill</span>(1)</span></a> 或 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=kill&amp;sektion=2"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">kill</span>(2)</span></a>
+的信號給別人的程序是不被允許的。 不過 <tt class="USERNAME">root</tt>
+不受此限制，他可以送信號給任何人的程序。</p>
+
+<p>FreeBSD 本身在某些情況也會送信號給應用程式。
+假設有個應用程式寫得很爛，然後企圖要存取它不該碰的記憶體的時候，FreeBSD 會送一個 <i
+class="FIRSTTERM">Segmentation Violation</i> 信號 (<tt class="LITERAL">SIGSEGV</tt>)
+給這個程序。 又如果有一個應用程式用了 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=alarm&amp;sektion=3"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">alarm</span>(3)</span></a> 的 system
+call 要求系統在過一段時間之後叫他一下，時間到了的時候鬧鐘的信號 (<tt
+class="LITERAL">SIGALRM</tt>) 就會被送出了，其他的依此類推。</p>
+
+<p><tt class="LITERAL">SIGTERM</tt> and <tt class="LITERAL">SIGKILL</tt>
+這兩個信號可以拿來終止程序。 用 <tt class="LITERAL">SIGTERM</tt>
+結束程序是比較有禮貌的方式，該程序會<span class="emphasis"><b class="EMPHASIS">捕捉
+(catch)</b></span> 這個信號而了解到您想要把他關掉。
+接著下來它會把它自已開的記錄檔通通關掉， 然後在關掉程序之前結束掉手邊的工作。
+在某些情況下程序有可能會裝作沒看見 <tt
+class="LITERAL">SIGTERM</tt>，假如它正在做一些不能中斷的工作的話。</p>
+
+<p><tt class="LITERAL">SIGKILL</tt> 就沒有辦法被程序忽略了。
+這是一個“我管你正在幹嘛，現在就給我停下來”的信號。 如果您送了 <tt
+class="LITERAL">SIGKILL</tt> 信號給某個程序，FreeBSD 將會把它停掉<a id="AEN4579"
+name="AEN4579" href="#FTN.AEN4579"><span class="footnote">[1]</span></a>。</p>
+
+<p>這些是其他您有可能會要用到的信號： <tt class="LITERAL">SIGHUP</tt>，<tt
+class="LITERAL">SIGUSR1</tt>，以及 <tt class="LITERAL">SIGUSR2</tt>。
+這些是通用的信號，當送出時不同的應用程式會有不同的反應。</p>
+
+<p>假設您更動了您的網頁伺服器的設定檔—— 您想要叫網頁伺服器去重新讀取設定值。
+您可以關閉後再重新啟動 <tt
+class="COMMAND">httpd</tt>，但是這麼做會造成網頁伺服器暫停服務一段時間，
+這樣子可能不太好。 大部份的 daemon 都寫成會去回應 <tt class="LITERAL">SIGHUP</tt>。
+當收到這個信號之後，它們會去重新讀取自已的設定檔。 因此您可以用送 <tt
+class="LITERAL">SIGHUP</tt> 信號來取代關掉重開。
+又因為沒有標準在規範如何回應這些信號，不同的 daemon
+可能會有不同的行為，所以有疑問的話請先確認並翻閱 deamon 的說明文件。</p>
+
+<p>信號是由 <a href="http://www.FreeBSD.org/cgi/man.cgi?query=kill&amp;sektion=1"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">kill</span>(1)</span></a>
+指令送出的，如範例所示：</p>
+
+<div class="PROCEDURE">
+<p><b>送信號給程序</b></p>
+
+<p>這個範例將會示範如何送一個信號給 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=inetd&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">inetd</span>(8)</span></a>。 <tt
+class="COMMAND">inetd</tt> 的設定檔是 <tt class="FILENAME">/etc/inetd.conf</tt>，而 <tt
+class="COMMAND">inetd</tt> 會在收到 <tt class="LITERAL">SIGHUP</tt>
+的時候重新讀取這個設定檔。</p>
+
+<ol type="1">
+<li class="STEP">
+<p>找出您想要送信號的那個程序的 ID。 您會用到 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=ps&amp;sektion=1"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">ps</span>(1)</span></a> 以及 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=grep&amp;sektion=1"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">grep</span>(1)</span></a> 這兩個指令。
+<a href="http://www.FreeBSD.org/cgi/man.cgi?query=grep&amp;sektion=1"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">grep</span>(1)</span></a>
+是用來在輸出中搜尋， 找出您指定的字串。 這個指令是由一般使用者執行，而 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=inetd&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">inetd</span>(8)</span></a> 是由 <tt
+class="USERNAME">root</tt> 執行，所以在使用 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=ps&amp;sektion=1"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">ps</span>(1)</span></a> 時需要加上 <code
+class="OPTION">ax</code> 選項。</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">%</samp> <kbd class="USERINPUT">ps -ax | grep inetd</kbd>
+  198  ??  IWs    0:00.00 inetd -wW
+</pre>
+
+<p>因此可知 <a href="http://www.FreeBSD.org/cgi/man.cgi?query=inetd&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">inetd</span>(8)</span></a> 的 PID 為
+198。 在某些情況下 <tt class="LITERAL">grep inetd</tt> 這個指令本身也會出現在輸出裡。
+這是因為 <a href="http://www.FreeBSD.org/cgi/man.cgi?query=ps&amp;sektion=1"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">ps</span>(1)</span></a>
+乃是找所有執行中的程序的方式造成的。</p>
+</li>
+
+<li class="STEP">
+<p>用 <a href="http://www.FreeBSD.org/cgi/man.cgi?query=kill&amp;sektion=1"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">kill</span>(1)</span></a> 來送信號。
+又因為 <a href="http://www.FreeBSD.org/cgi/man.cgi?query=inetd&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">inetd</span>(8)</span></a> 是由 <tt
+class="USERNAME">root</tt> 執行的，您必須用 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=su&amp;sektion=1"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">su</span>(1)</span></a> 切換成 <tt
+class="USERNAME">root</tt>先。</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">%</samp> <kbd class="USERINPUT">su</kbd>
+<samp class="PROMPT">Password:</samp>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">/bin/kill -s HUP 198</kbd>
+</pre>
+
+<p>一般情況對大多數 <span class="TRADEMARK">UNIX</span>&reg; 指令來講，當 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=kill&amp;sektion=1"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">kill</span>(1)</span></a>
+執行成功時並不會輸出任何訊息。 假設您送一個信號給某個不是您所擁有的程序，
+那麼您就會吃到這個錯誤訊息： “<tt class="ERRORNAME">kill: <tt
+class="REPLACEABLE"><i>PID</i></tt>: Operation not permitted</tt>”。 而如果您打錯 PID
+的話，那就會把信號送給錯誤的程序。 這樣可能會很糟，
+不過如果您夠幸運的話，可能剛好就只是把信號送給一個非使用中的 PID，那您就只會看到 “<tt
+class="ERRORNAME">kill: <tt class="REPLACEABLE"><i>PID</i></tt>: No such process</tt>”
+而已。</p>
+
+<div class="NOTE">
+<blockquote class="NOTE">
+<p><b>為什麼用 <tt class="COMMAND">/bin/kill</tt>？:</b> 很多 shell 有提供內建的 <tt
+class="COMMAND">kill</tt> 指令。 也就是說這種 shell 會直接送信號，而不是執行 <tt
+class="FILENAME">/bin/kill</tt>。 這樣是蠻方便的沒錯啦，但是不同的 shell
+會有不同的語法來指定信號的名稱等。 與其嘗試去把它們通通學會，不如就單純的直接用 <tt
+class="COMMAND">/bin/kill <tt class="REPLACEABLE"><i>...</i></tt></tt> 吧。</p>
+</blockquote>
+</div>
+</li>
+</ol>
+</div>
+
+<p>要送其他的信號的話也是非常類似，就視需要把指令中的 <tt class="LITERAL">TERM</tt> 或
+<tt class="LITERAL">KILL</tt> 替換掉即可。</p>
+
+<div class="IMPORTANT">
+<blockquote class="IMPORTANT">
+<p><b>Important:</b> 隨便抓一個系統中的程序然後把他砍掉並不是個好主意。 特別是 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=init&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">init</span>(8)</span></a>， process ID
+1，一個非常特別的程序。 執行 <tt class="COMMAND">/bin/kill -s KILL 1</tt>
+的結果就是系統立刻關機。 因此在您按下 <b class="KEYCAP">Return</b> 要執行 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=kill&amp;sektion=1"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">kill</span>(1)</span></a><span
+class="emphasis"><b class="EMPHASIS">之前</b></span>， 請<span class="emphasis"><b
+class="EMPHASIS">一定</b></span>要記得再次確認您下的參數。</p>
+</blockquote>
+</div>
+</div>
+
+<h3 class="FOOTNOTES">Notes</h3>
+
+<table border="0" class="FOOTNOTES" width="100%">
+<tr>
+<td align="LEFT" valign="TOP" width="5%"><a id="FTN.AEN4579" name="FTN.AEN4579"
+href="basics-daemons.html#AEN4579"><span class="footnote">[1]</span></a></td>
+<td align="LEFT" valign="TOP" width="95%">
+<p>不完全正確——還是有少數東西不能被中斷。
+例如有個程序正在從網路上的別的電腦讀一個檔案， 而那部電腦因為某些理由連不到
+(機器被關掉，或是網路爛掉了)， 那這個程序我們就說他是一個“不能中斷的”程序。
+通常在經過兩分鐘左右之後這個程序會逾時。 當發生逾時的時候這個程序就會被結束掉了。</p>
+</td>
+</tr>
+</table>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="basics-processes.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="shells.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">程序</td>
+<td width="34%" align="center" valign="top"><a href="basics.html"
+accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">Shells</td>
+</tr>
+</table>
+</div>
+
+<p align="center"><small>本文及其他文件，可由此下載：<a
+href="ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/">ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/</a>。</small></p>
+
+<p align="center"><small>若有 FreeBSD 方面疑問，請先閱讀 <a
+href="http://www.FreeBSD.org/docs.html">FreeBSD 相關文件</a>，如不能解決的話，再洽詢
+&#60;<a href="mailto:questions@FreeBSD.org">questions@FreeBSD.org</a>&#62;。<br />
+關於本文件的問題，請洽詢 &#60;<a
+href="mailto:doc@FreeBSD.org">doc@FreeBSD.org</a>&#62;。</small></p>
+</body>
+</html>
+

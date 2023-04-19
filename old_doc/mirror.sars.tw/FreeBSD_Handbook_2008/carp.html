@@ -1,0 +1,199 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>Common Access Redundancy Protocol (CARP)</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.79" />
+<link rel="HOME" title="FreeBSD 使用手冊" href="index.html" />
+<link rel="UP" title="網路進階練功房" href="advanced-networking.html" />
+<link rel="PREVIOUS" title="Asynchronous Transfer Mode (ATM)" href="network-atm.html" />
+<link rel="NEXT" title="附錄" href="appendices.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD 使用手冊</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="network-atm.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 29 網路進階練功房</td>
+<td width="10%" align="right" valign="bottom"><a href="appendices.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="CARP" name="CARP">29.13 Common Access Redundancy Protocol
+(CARP)</a></h1>
+
+<i class="AUTHORGROUP"><span class="CONTRIB">Contributed by</span> Tom Rhodes.</i> 
+
+<p>The Common Access Redundancy Protocol, or <acronym class="ACRONYM">CARP</acronym>
+allows multiple hosts to share the same <acronym class="ACRONYM">IP</acronym> address. In
+some configurations, this may be used for availability or load balancing. Hosts may use
+separate <acronym class="ACRONYM">IP</acronym> addresses as well, as in the example
+provided here.</p>
+
+<p>To enable support for <acronym class="ACRONYM">CARP</acronym>, the FreeBSD kernel must
+be rebuilt with the following option:</p>
+
+<pre class="PROGRAMLISTING">
+device carp
+</pre>
+
+<p><acronym class="ACRONYM">CARP</acronym> functionality should now be available and may
+be tuned via several <tt class="COMMAND">sysctl</tt> <acronym
+class="ACRONYM">OID</acronym>s. Devices themselves may be loaded via the <tt
+class="COMMAND">ifconfig</tt> command:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">ifconfig carp0 create</kbd>
+</pre>
+
+<p>In a real environment, these interfaces will need unique identification numbers known
+as a <acronym class="ACRONYM">VHID</acronym>. This <acronym
+class="ACRONYM">VHID</acronym> or Virtual Host Identification will be used to distinguish
+the host on the network.</p>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN41591" name="AEN41591">29.13.1 Using CARP For Server
+Availability (CARP)</a></h2>
+
+<p>One use of <acronym class="ACRONYM">CARP</acronym>, as noted above, is for server
+availability. This example will provide failover support for three hosts, all with unique
+<acronym class="ACRONYM">IP</acronym> addresses and providing the same web content. These
+machines will act in conjunction with a Round Robin <acronym
+class="ACRONYM">DNS</acronym> configuration. The failover machine will have two
+additional <acronym class="ACRONYM">CARP</acronym> interfaces, one for each of the
+content server's <acronym class="ACRONYM">IP</acronym>s. When a failure occurs, the
+failover server should pick up the failed machine's <acronym class="ACRONYM">IP</acronym>
+address. This means the failure should go completely unnoticed to the user. The failover
+server requires identical content and services as the other content servers it is
+expected to pick up load for.</p>
+
+<p>The two machines should be configured identically other than their issued hostnames
+and <acronym class="ACRONYM">VHID</acronym>s. This example calls these machines <tt
+class="HOSTID">hosta.example.org</tt> and <tt class="HOSTID">hostb.example.org</tt>
+respectively. First, the required lines for a <acronym class="ACRONYM">CARP</acronym>
+configuration have to be added to <tt class="FILENAME">rc.conf</tt>. For <tt
+class="HOSTID">hosta.example.org</tt>, the <tt class="FILENAME">rc.conf</tt> file should
+contain the following lines:</p>
+
+<pre class="PROGRAMLISTING">
+hostname="hosta.example.org"
+ifconfig_fxp0="inet 192.168.1.3 netmask 255.255.255.0"
+cloned_interfaces="carp0"
+ifconfig_carp0="vhid 1 pass testpast 192.168.1.50/24"
+</pre>
+
+<p>On <tt class="HOSTID">hostb.example.org</tt> the following lines should be in <tt
+class="FILENAME">rc.conf</tt>:</p>
+
+<pre class="PROGRAMLISTING">
+hostname="hostb.example.org"
+ifconfig_fxp0="inet 192.168.1.4 netmask 255.255.255.0"
+cloned_interfaces="carp0"
+ifconfig_carp0="vhid 2 pass testpass 192.168.1.51/24"
+</pre>
+
+<div class="NOTE">
+<blockquote class="NOTE">
+<p><b>Note:</b> It is very important that the passwords, specified by the <code
+class="OPTION">pass</code> option to <tt class="COMMAND">ifconfig</tt>, are identical.
+The <tt class="DEVICENAME">carp</tt> devices will only listen to and accept
+advertisements from machines with the correct password. The <acronym
+class="ACRONYM">VHID</acronym> must also be different for each machine.</p>
+</blockquote>
+</div>
+
+<p>The third machine, <tt class="HOSTID">provider.example.org</tt>, should be prepared so
+that it may handle failover from either host. This machine will require two <tt
+class="DEVICENAME">carp</tt> devices, one to handle each host. The appropriate <tt
+class="FILENAME">rc.conf</tt> configuration lines will be similar to the following:</p>
+
+<pre class="PROGRAMLISTING">
+hostname="provider.example.org"
+ifconfig_fxp0="inet 192.168.1.5 netmask 255.255.255.0"
+cloned_interfaces="carp0 carp1"
+ifconfig_carp0="vhid 1 advskew 100 pass testpass 192.168.1.50/24"
+ifconfig_carp1="vhid 2 advskew 100 pass testpass 192.168.1.51/24"
+</pre>
+
+<p>Having the two <tt class="DEVICENAME">carp</tt> devices will allow <tt
+class="HOSTID">provider.example.org</tt> to notice and pick up the <acronym
+class="ACRONYM">IP</acronym> address of either machine should it stop responding.</p>
+
+<div class="NOTE">
+<blockquote class="NOTE">
+<p><b>Note:</b> The default FreeBSD kernel <span class="emphasis"><b
+class="EMPHASIS">may</b></span> have preemption enabled. If so, <tt
+class="HOSTID">provider.example.org</tt> may not relinquish the <acronym
+class="ACRONYM">IP</acronym> address back to the original content server. In this case,
+an administrator may “nudge” the interface. The following command should be issued on
+<tt class="HOSTID">provider.example.org</tt>:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">ifconfig carp0 down &#38;&#38; ifconfig carp0 up</kbd>
+</pre>
+
+<p>This should be done on the <tt class="DEVICENAME">carp</tt> interface which
+corresponds to the correct host.</p>
+</blockquote>
+</div>
+
+<p>At this point, <acronym class="ACRONYM">CARP</acronym> should be completely enabled
+and available for testing. For testing, either networking has to be restarted or the
+machines need to be rebooted.</p>
+
+<p>More information is always available in the <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=carp&amp;sektion=4"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">carp</span>(4)</span></a> manual
+page.</p>
+</div>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="network-atm.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="appendices.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">Asynchronous Transfer Mode (ATM)</td>
+<td width="34%" align="center" valign="top"><a href="advanced-networking.html"
+accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">附錄</td>
+</tr>
+</table>
+</div>
+
+<p align="center"><small>本文及其他文件，可由此下載：<a
+href="ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/">ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/</a>。</small></p>
+
+<p align="center"><small>若有 FreeBSD 方面疑問，請先閱讀 <a
+href="http://www.FreeBSD.org/docs.html">FreeBSD 相關文件</a>，如不能解決的話，再洽詢
+&#60;<a href="mailto:questions@FreeBSD.org">questions@FreeBSD.org</a>&#62;。<br />
+關於本文件的問題，請洽詢 &#60;<a
+href="mailto:doc@FreeBSD.org">doc@FreeBSD.org</a>&#62;。</small></p>
+</body>
+</html>
+

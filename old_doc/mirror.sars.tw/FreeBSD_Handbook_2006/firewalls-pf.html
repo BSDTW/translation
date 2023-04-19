@@ -1,0 +1,316 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>OpenBSD 封包過濾器 (Packet Filter, PF)及 ALTQ</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.79" />
+<link rel="HOME" title="FreeBSD 使用手冊" href="index.html" />
+<link rel="UP" title="防火牆" href="firewalls.html" />
+<link rel="PREVIOUS" title="防火牆軟體套件" href="firewalls-apps.html" />
+<link rel="NEXT" title="IPFILTER (IPF) 防火牆" href="firewalls-ipf.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD 使用手冊</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="firewalls-apps.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 26 防火牆</td>
+<td width="10%" align="right" valign="bottom"><a href="firewalls-ipf.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="FIREWALLS-PF" name="FIREWALLS-PF">26.4 OpenBSD 封包過濾器
+(Packet Filter, PF)及 <acronym class="ACRONYM">ALTQ</acronym></a></h1>
+
+<p>在 2003 年 6 月份，OpenBSD 的防火牆軟體 <acronym class="ACRONYM">PF</acronym> 被移植到
+FreeBSD 中，並且收錄於 Ports Collection 內。 而 2004 年 11 月份所發行的 FreeBSD&nbsp;5.3
+版也是第一次將 <acronym class="ACRONYM">PF</acronym> 整合為基礎系統的一部分。 <acronym
+class="ACRONYM">PF</acronym>是個完備、全功能的防火牆， 並且具有選擇性 <acronym
+class="ACRONYM">ALTQ</acronym> (交錯佇列，Alternate Queuing) 的功能。 <acronym
+class="ACRONYM">ALTQ</acronym>提供了「服務品質」(<acronym class="ACRONYM">QoS</acronym>，
+Quality of Service)的頻寬管理功能， 其提供了源於過濾規則的模式來保障不同服務的頻寬。
+OpenBSD 計劃中已經對 PF 的使用指南提供了詳盡的解說，
+因此在這本手冊中我們不會做重複的闡述，而只介紹概要。</p>
+
+<p>PF 在不同釋出版本之 FreeBSD 的可用情況摘錄於下：</p>
+
+<div class="INFORMALTABLE"><a id="AEN37285" name="AEN37285"></a>
+<table border="0" frame="void" width="100%" class="CALSTABLE">
+<col />
+<col />
+<thead>
+<tr>
+<th>FreeBSD 作業系統版本</th>
+<th>取得 PF</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>4.X 之前的版本</td>
+<td>早於 FreeBSD 4.X 之前的版本都不能使用 PF</td>
+</tr>
+
+<tr>
+<td>所有 4.X 的版本</td>
+<td>PF is available as part of KAME.</td>
+</tr>
+
+<tr>
+<td>在 5.3-RELEASE 之前的 5.X release</td>
+<td>在這些版本的 FreeBSD 中都可以透過 <a
+href="http://www.FreeBSD.org/cgi/url.cgi?ports/security/pf/pkg-descr"><tt
+class="FILENAME">security/pf</tt></a> port 來安裝
+PF。這些版本主要是針對開發者還有想要預覽早期 5.X 版本者。 強烈建議升級到 5.3-RELEASE
+或是更新的 FreeBSD 版本。</td>
+</tr>
+
+<tr>
+<td>5.3-RELEASE 以及之後的版本</td>
+<td>PF 已經是系統中的一部分。 在這些版本裡頭，<span class="emphasis"><i
+class="EMPHASIS">千萬不要</i></span>從 ports 裡頭安裝 <a
+href="http://www.FreeBSD.org/cgi/url.cgi?ports/security/pf/pkg-descr"><tt
+class="FILENAME">security/pf</tt></a>， 因為這是無法運作的。 請看系統中的 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=pf&amp;sektion=4"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">pf</span>(4)</span></a> 來支援。</td>
+</tr>
+</tbody>
+</table>
+</div>
+
+<br />
+<br />
+<p>更多關於 PF 的資訊可於下列網址查詢: <a href="http://pf4freebsd.love2party.net/"
+target="_top">http://pf4freebsd.love2party.net/</a>.</p>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN37312" name="AEN37312">26.4.1 啟用 PF</a></h2>
+
+<p>PF 在比 FreeBSD 5.3 還新的系統中，可以使用動態模組載入。 系統將會在你於 rc.conf 中加入
+<tt class="LITERAL">pf_enable="YES"</tt> 後動態地載入 PF 核心動態模組。
+可載入模組在建立時也啟用了 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=pflog&amp;sektion=4"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">pflog</span>(4)</span></a> 記錄。</p>
+
+<div class="NOTE">
+<blockquote class="NOTE">
+<p><b>Note:</b> 這個模組假設核心中有 <tt class="LITERAL">options INET</tt> 和 <tt
+class="LITERAL">device bpf</tt>。 除非編譯時在核心中定義 <tt class="LITERAL">NOINET6</tt>
+(FreeBSD 6.0 以後的版本為 <tt class="LITERAL">NO_INET6</tt>) (例如在 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=make.conf&amp;sektion=5"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">make.conf</span>(5)</span></a> 中)，否則
+pf 模組同時也需要 <tt class="LITERAL">options INET6</tt>。</p>
+</blockquote>
+</div>
+
+<p>一旦載入 PF 核心模組或靜態地編譯入核心中， 就可以使用 <tt class="COMMAND">pfctl</tt>
+來啟動或關閉 <b class="APPLICATION">pf</b>。</p>
+
+<p>這個例子示範了如何啟動 <b class="APPLICATION">pf</b>:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">pfctl -e</kbd>
+</pre>
+
+<p><tt class="COMMAND">pfctl</tt>指令提供了一個使用<b class="APPLICATION">pf</b>
+防火牆的方式。 要了解更多使用 <tt class="COMMAND">pfctl</tt> 的資訊， 查閱 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=pfctl&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">pfctl</span>(8)</span></a>
+的線上手冊會是個好方式。</p>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN37344" name="AEN37344">26.4.2 核心選項</a></h2>
+
+<p>在編譯 FreeBSD 核心時加入下列的選項並不是啟用 PF 強制的要求。
+在這裡只是要列出參考的背景資訊。 將 PF 編譯入核心中會讓可載入模組無法使用</p>
+
+<p>設定 PF 的核心選項範例在核心源碼中的 <tt
+class="FILENAME">/usr/src/sys/conf/NOTES</tt>， 並同時列舉如下：</p>
+
+<pre class="PROGRAMLISTING">
+device pf
+device pflog
+device pfsync
+</pre>
+
+<p><tt class="LITERAL">device pf</tt> 啟用了 「封包過濾(packet filter)」
+的防火牆支援.</p>
+
+<p><tt class="LITERAL">device pflog</tt> 啟動了選擇性的 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=pflog&amp;sektion=4"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">pflog</span>(4)</span></a> 虛擬網路設備
+pseudo network device)，它可以透過 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=bpf&amp;sektion=4"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">bpf</span>(4)</span></a>
+的描述符號來記錄流量。 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=pflogd&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">pflogd</span>(8)</span></a>
+服務可以用來儲存訊息，並可以用日誌的形式記錄在硬碟上。</p>
+
+<p><tt class="LITERAL">device pfsync</tt> 啟動了選擇性 的<a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=pfsync&amp;sektion=4"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">pfsync</span>(4)</span></a>
+虛擬網路設備，它可以用來監控「狀態的改變」。 <tt class="LITERAL">device
+pfsync</tt>並不是可載入模組， 要使用的話，必須要編入自訂的核心中才行。</p>
+
+<p>這些設定將會在你編譯及安裝好新核心後才會生效。</p>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN37379" name="AEN37379">26.4.3 rc.conf 可用的選項</a></h2>
+
+<p>你需要在 <tt class="FILENAME">/etc/rc.conf</tt>
+中加入下列的設定以便在啟動系統時同時啟用 PF：</p>
+
+<pre class="PROGRAMLISTING">
+pf_enable="YES"                 # 啟用 PF (如果需要的話載入模組)
+pf_rules="/etc/pf.conf"         # PF 的規則定義檔案
+pf_flags=""                     # pfctl 啟動時附加的選項
+pflog_enable="YES"              # 啟動 pflogd(8)
+pflog_logfile="/var/log/pflog"  # pflogd 儲存記錄檔案的地方
+pflog_flags=""                  # pflogd 啟動時附加的選項
+</pre>
+
+<p>如果在這個防火牆後方你有個區域網路，並透過它來轉送封包， 你就必須要設定下列選項：</p>
+
+<pre class="PROGRAMLISTING">
+gateway_enable="YES"            # 啟用作為區域網路閘道器
+</pre>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN37386" name="AEN37386">26.4.4 啟用 <acronym
+class="ACRONYM">ALTQ</acronym></a></h2>
+
+<p><acronym class="ACRONYM">ALTQ</acronym>的選項只有在編入 FreeBSD 核心中才能生效。
+不是所有的網路卡驅動程式都支援 <acronym class="ACRONYM">ALTQ</acronym>。 請看 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=altq&amp;sektion=4"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">altq</span>(4)</span></a>
+線上手冊來了解你使用的 FreeBSD 版本中支援驅動程式的清單。 下面列出的選項將會啟用 <acronym
+class="ACRONYM">ALTQ</acronym> 及加入其他附加的功能。</p>
+
+<pre class="PROGRAMLISTING">
+options         ALTQ
+options         ALTQ_CBQ        # Class Bases Queuing (CBQ)
+options         ALTQ_RED        # Random Early Detection (RED)
+options         ALTQ_RIO        # RED In/Out
+options         ALTQ_HFSC       # Hierarchical Packet Scheduler (HFSC)
+options         ALTQ_PRIQ       # Priority Queuing (PRIQ)
+options         ALTQ_NOPCC      # Required for SMP build
+</pre>
+
+<p><tt class="LITERAL">options ALTQ</tt> 啟用了 <acronym class="ACRONYM">ALTQ</acronym>
+主架構。</p>
+
+<p><tt class="LITERAL">options ALTQ_CBQ</tt> 啟用「基於分類的佇列」 (Class Based Queuing,
+<acronym class="ACRONYM">CBQ</acronym>)支援。 <acronym class="ACRONYM">CBQ</acronym>
+允許你 allows you to divide a connection's bandwidth into different classes or queues to
+prioritize traffic based on filter rules.</p>
+
+<p><tt class="LITERAL">options ALTQ_RED</tt> enables Random Early Detection (<acronym
+class="ACRONYM">RED</acronym>). <acronym class="ACRONYM">RED</acronym> is used to avoid
+network congestion. <acronym class="ACRONYM">RED</acronym> does this by measuring the
+length of the queue and comparing it to the minimum and maximum thresholds for the queue.
+If the queue is over the maximum all new packets will be dropped. True to its name,
+<acronym class="ACRONYM">RED</acronym> drops packets from different connections
+randomly.</p>
+
+<p><tt class="LITERAL">options ALTQ_RIO</tt> enables Random Early Detection In and
+Out.</p>
+
+<p><tt class="LITERAL">options ALTQ_HFSC</tt> enables the Hierarchical Fair Service Curve
+Packet Scheduler. For more information about <acronym class="ACRONYM">HFSC</acronym> see:
+<a href="http://www-2.cs.cmu.edu/~hzhang/HFSC/main.html"
+target="_top">http://www-2.cs.cmu.edu/~hzhang/HFSC/main.html</a>.</p>
+
+<p><tt class="LITERAL">options ALTQ_PRIQ</tt> enables Priority Queuing (<acronym
+class="ACRONYM">PRIQ</acronym>). <acronym class="ACRONYM">PRIQ</acronym> will always pass
+traffic that is in a higher queue first.</p>
+
+<p><tt class="LITERAL">options ALTQ_NOPCC</tt> enables <acronym
+class="ACRONYM">SMP</acronym> support for <acronym class="ACRONYM">ALTQ</acronym>. This
+option is required on <acronym class="ACRONYM">SMP</acronym> systems.</p>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN37425" name="AEN37425">26.4.5 Creating Filtering
+Rules</a></h2>
+
+<p>The Packet Filter reads its configuration rules from the <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=pf.conf&amp;sektion=5"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">pf.conf</span>(5)</span></a> file and it
+modifies, drops or passes packets according to the rules or definitions specified there.
+The FreeBSD installation comes with a default <tt class="FILENAME">/etc/pf.conf</tt>
+which contains useful examples and explanations.</p>
+
+<p>Although FreeBSD has its own <tt class="FILENAME">/etc/pf.conf</tt> the syntax is the
+same as one used in OpenBSD. A great resource for configuring the <b
+class="APPLICATION">pf</b> firewall has been written by OpenBSD team and is available at
+<a href="http://www.openbsd.org/faq/pf/"
+target="_top">http://www.openbsd.org/faq/pf/</a>.</p>
+
+<div class="WARNING">
+<blockquote class="WARNING">
+<p><b>Warning:</b> When browsing the pf user's guide, please keep in mind that different
+versions of FreeBSD contain different versions of pf. The <b class="APPLICATION">pf</b>
+firewall in FreeBSD 5.X is at the level of OpenBSD version 3.5 and in FreeBSD 6.X is at
+the level of OpenBSD version 3.7.</p>
+</blockquote>
+</div>
+
+<p>The <a href="http://lists.FreeBSD.org/mailman/listinfo/freebsd-pf"
+target="_top">FreeBSD packet filter mailing list</a> is a good place to ask questions
+about configuring and running the <b class="APPLICATION">pf</b> firewall. Do not forget
+to check the mailing list archives before asking questions.</p>
+</div>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="firewalls-apps.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="firewalls-ipf.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">防火牆軟體套件</td>
+<td width="34%" align="center" valign="top"><a href="firewalls.html"
+accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">IPFILTER (IPF) 防火牆</td>
+</tr>
+</table>
+</div>
+
+<p align="center"><small>This, and other documents, can be downloaded from <a
+href="ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/">ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/</a>.</small></p>
+
+<p align="center"><small>For questions about FreeBSD, read the <a
+href="http://www.FreeBSD.org/docs.html">documentation</a> before contacting &#60;<a
+href="mailto:questions@FreeBSD.org">questions@FreeBSD.org</a>&#62;.<br />
+For questions about this documentation, e-mail &#60;<a
+href="mailto:doc@FreeBSD.org">doc@FreeBSD.org</a>&#62;.</small></p>
+</body>
+</html>
+

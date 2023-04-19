@@ -1,0 +1,531 @@
+
+
+<!-- Vignette StoryServer 4 Sat Mar 11 15:43:24 2000 --> 
+<style type=text/css>
+<!--
+p,div {font-size:12pt; line-height:14pt; font-family:宋體;}
+.p1{font-size:12pt;font-family:宋體;}
+.p2{font-size:12pt;font-family:宋體;line-height:14pt;}
+.p3{font-size:14.8px;font-family:宋體;}
+.p4{font-size:14.8px;font-family:宋體;line-height:14pt;}
+.p5{font-size:1pt}
+a:hover{color:red;}
+a.t1:visited{color:red;}
+-->
+</style>
+<title>FreeBSD使用大全</title></head>
+
+<body bgcolor="#FFFFFF" text="#000000" link="#383098" vlink="#336699" alink="#FF0000" topmargin="0">
+<!-- Vignette StoryServer 4 Thu Mar 23 10:01:54 2000 --> <!-- Vignette StoryServer 4 Thu Mar 23 15:34:35 2000 --> 
+
+<!--開始：新聞內容-->
+<TABLE WIDTH=750 BORDER=0 CELLSPACING=0 CELLPADDING=0>
+
+<tr valign=top>
+
+
+
+<TD  valign=top>
+<CENTER><FONT COLOR=#000066 size=5><B>FreeBSD連載(78)：設置和使用ipfw/natd</B><br></FONT></CENTER>
+
+<HR  ALIGN="center" SIZE=1>
+<CENTER><FONT FACE="Arial" SIZE=2> 2000年1月19日 18:03 </FONT><FONT COLOR="#990000" SIZE=2>王波</FONT></CENTER><p>
+
+<h1 align=center>設置防火牆功能</h1>
+
+<p>　　通過設置，FreeBSD系統能夠具備更高的安全性，防止外界入侵者進入系統，即使入侵者利用人為的問題進入
+系統，FreeBSD嚴密的保護也將使他們無所作為，不能對系統造成嚴重的破壞。然而，除了用於保護系統本身的能力之
+外，FreeBSD還能用於保護同一個網路內的其他電腦。此時這個FreeBSD系統就必須作為內部網路的預設網關
+，擔負將內部網路連接到外部網路的任務。</p>
+
+<p>　　FreeBSD系統實現了包過濾能力與網路地址轉換能力，如果僅將這些能力用作保護系統本身，顯然不是這些功
+能的設計目的，保護本地系統只是保護本地網路的一部分功能。包過濾能力是針對路由器絨N舋董]備來設計的，而網路地址轉
+換也是重要的防火牆功能，這些設計就使得FreeBSD能被十分方便的設置為防火牆系統。此外，FreeBSD上也能
+運行其他類型的防火牆軟體，如代理型防火牆軟體fwtk等，作為代理伺服器來保護本地網路內的系統。</p>
+
+<p>　　即使FreeBSD系統不是用作防火牆，它所支持防火牆能力也同樣能用來保護本地系統的安全。</p>
+
+<P><LI><h2>設置和使用ipfw/natd</LI></P></h2>
+
+<p>　　在專用路由器系統開始流行之前，Internet上的路由器大部分是基於Unix的軟體路由器，其中多數是BSD
+ Unix。顯然這是由於BSD Unix在Internet上占據的重要地位決定的，即便是在專用硬體路由器流
+行的今天，當由於價格等因素不能考慮硬體路由器時，BSD系統仍然是用作軟體路由器的首選系統。</p>
+
+<p>　　由於路由器處於網路之間，所有網路間需要交換的數據包都要通過它轉發，因此就可以進行一定的限制，即按照預定
+義的一定規則處理每個數據包，符合要求的允許通過，不符合要求的就進行丟棄。這樣路由器就能用作一個簡單的防火牆系統
+，保護內部電腦。BSD系統中最早使用ipfw過濾器來定義不同的過濾規則，隨後ipfw也被移植到其他平台上，並
+根據開發者的理解不同而獨立發展。目前不同系統上的ipfw已經大不相同了，並出現了具備相同功能的其他過濾器，
+FreeBSD下的ipfw也經過了不斷發展，具備了更強的過濾能力，尤其是它能和natd守護進程相結合，提供網路地址
+轉換能力，具備更完善的防火牆能力。</p>
+
+<B><P><LI>使用ipfw設置過濾</LI></P></B>
+
+<p>　　由於包過濾要對每個數據包都進行判斷，因此在網路流量較大時需要較高的處理器處理能力，FreeBSD的包過
+濾能力是在核心中實現的，這樣才能具備最高的效率和性能。因此為了在FreeBSD上使用這個防火牆功能，需要在編譯
+核心時打開下面選項重新定制核心。</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>options IPFIREWALL
+options IPFIREWALL_VERBOSE
+options “IPFIREWALL_VERBOSE_LIMIT=100”
+options IPFIREWALL_DEFAULT_TO_ACCEPT
+
+options IPDIVERT</td></pre></tr></table>
+
+<p>　　其中第一項設置IPFIREWALL是用於打開基本的包過濾支持的，只有使用它才能在核心中支持包過濾。IPFIREWALL_VERBOSE
+和IPFIREWALL_VERBOSE_LIMIT設置記錄過濾日誌，及日誌記錄
+的限制。IPFIREWALL_DEFAULT_TO_ACCEPT是設置IPFIREWALL的預設行為，在數據包
+不符合所有的過濾規則的情況下進行轉發，顯然這是一種寬松的限制，此時系統主要用於屏蔽特定地址和特定服務，而提供其
+他的預設網路能力。如果沒有定義這個選項，系統就只能允許符合已定義規則的數據包通過，而屏蔽其他任何數據包，這樣在
+沒有定義過濾規則的情況下，系統不能和其他電腦相互通信。最後一個選項IPDIVERT是用於定義IPFIREWALL與natd的接口。</p>
+
+<p>　　當編譯安裝了核心之後，還需要設置核心具備數據包的轉發能力。需要在rc.conf中設置gateway_enable
+的值為YES，這樣就能在系統啟動時自動打開包轉發能力。也可以直接執行下面命令來打開核心包轉發能力。</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># sysctl -w net.inet.ip.forwarding=1</P>
+<P>  net.inet.ip.forwarding: 0 -&gt; 1</td></pre></tr></table>
+
+<B><P><LI>ipfw過濾規則</LI></P></B>
+
+<P>　　IPFIREWALL的過濾規則是由ipfw命令來設置的，例如下面的規則允許所有127.0.0.1的數據傳輸。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+# /sbin/ipfw add 1000 pass all from 127.0.0.1 to 127.0.0.1</td></tr></table>
+
+<p>　　ipfw命令中，首先指定對這個規則的處理方式，ipfw add為向核心中的過濾規則中添加，此外，ipfw
+ delete用於刪除一條規則，ipfw list用於顯示目前定義的所有過濾規則，ipfw flush將清除
+所有的過濾規則，而ipfw file用於從檔案file中讀取定義的過濾規則。</p>
+
+<p>　　此外，ipfw定義的規則都有自己的序號，其序號可以在處理方式之後指定，如ipfw delete 1000
+就是刪除第1000條過濾規則，核心中可以同時支持65535條過濾規則。有時可以不使用規則的序號，那麼ipfw
+就處理目前規則，而處理過一次規則之後，就立即將目前規則序號增加100，這樣就對於添加過濾規則時十分方便，不必指
+定序號，ipfw add將每隔100添加一條過濾規則。</p>
+
+<p>　　每個過濾規則中，要首先給出這條規則的處理指令，allow指令（或者使用同義詞pass, permit,accept）
+為許可某類數據包通過﹔deny指令（或同義詞drop）為不允許某類數據包通過，將該類數據包丟棄﹔
+reject指令與deny指令有所不同，但它不是簡單的將數據包丟棄，而是在丟棄原有數據包的同時，回應ICMP 
+host unreachable，通知發送電腦不能通過它與目的電腦進行通信，這樣就免得發起連接請求的電腦
+一直發送連接請求，造成不必要的數據流量。使用count指令能對該類數據包進行簡單記數，這個功能主要用於對網路使
+用進行記帳。log指令用於將連接發送到系統的日誌記錄中。</p>
+
+<p>　　其中count和log指令與其他指令不同，其他指令都是對數據包進行處理的指令，因此每個數據包只要匹配這
+個指令，就立即將數據包或轉發，或丟棄，不再進行其他處理，而count和log只是記錄指令，只是將記錄下這個數據
+包，而數據包本身還將繼續受到其他過濾規則的處理。</p>
+
+<p>　　過濾規則的第二部分是規定數據包的協議類型，指定規則是用於處理哪種數據包的，FreeBSD可以處理TCP,UCP,ICMP
+類型的數據，以及在/etc/protocols檔案中定義的其他數據包的類型，上例中使用all
+，匹配所有類型的數據包。對於TCP或UDP，還可以在後面定義地址時指定應用的端口號（可以使用數字或/etc/services
+中定義端口名字），進一步增加過濾能力。</p>
+
+<p>　　過濾規則的第三部分是規定過濾規則適用的地址範圍，這可以通過指定源和目的電腦的IP地址範圍或數據包通過
+的網路界面來進行指定。</p>
+
+<p>　　<LI>用from規定數據包的來源地址，可以是主機地址或網路﹔</LI></p>
+
+<p>　　<LI>用to規定數據包的目的地址，可以是主機地址或網路﹔</LI></p>
+
+<p>　　<LI>用in或out規定數據包是流向本機，還是向外發送的﹔</LI></p>
+
+<p>　　<LI>用via、recv、xmit規定數據包經過、接收、發送的網路介面，rece可以是接收本地發送的
+數據包，而xmit一定是向外發送，因此應該和out選項合用﹔</LI></p>
+
+<p>　　例如：屏蔽任何來自192.168.1.5的數據的指令為：</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># ipfw add deny all from 192.168.1.5</td></pre></tr></table>
+
+<P>　　而許可來自192.168.1.0網路上的遠程登錄的指令為：</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># ipfw add allow tcp from 192.168.1.0/24 telnet</td></pre></tr></table>
+
+<p>　　應用過濾規則的順序是按照過濾規則的序號，從小到大進行匹配，一旦一個數據包匹配一個過濾規則，就立即按照該
+規則轉發或丟棄，不再需要繼續考慮以下的規則（count和log規則除外）。因此在前面的例子中，192.168.1.5
+就不能使用telnet連接，因為首先碰到的是不允許的規則，如果兩個命令次序相反，則它就能夠進行telnet連接。</p>
+
+<p>　　最後一條過濾規則，第65535條規則，預設被設為”deny all from any to any”時
+，為不允許對任何連接，此時在沒有定義其他規則之前，不允許所有的網路連接。但是編譯核心時使用IPFIREWALL_DEFAULT_TO_ACCEPT
+選項，就能將這條規則改為”allow all from any to any”，允許轉發不符合其他規則的所有數據。這兩種不同的設
+置屬於兩種不同的考慮方式，一種適用於安全性要求較高的系統中，預設情況不允許外界連接，另一種主要限制
+部分節點的訪問，預設情況允許任意網路連接，普通系統使用這樣的設置更多些。</p>
+
+<ul><B><P><LI>rc.firewall</LI></P></B></ul>
+
+<p>　　當啟動了系統的包過濾能力之後，就需要在系統啟動時將這些過濾規則自動載入核心，可以將這些添加過濾規則的指
+令寫入啟動檔案rc.local或者其他啟動檔案中。但系統的啟動檔案中本來就具備載入這些過濾規則的相關啟動檔案
+rc.firewall，這個檔案中根據防火牆的基本要求，設置了常用的過濾規則，可以減輕防火牆管理員的設置工作。</p>
+
+<p>　　為了讓系統執行rc.firewall中的設置，需要在rc.conf中設置參數firewall為YES，
+以及設置firewall_type的值，這個參數值將傳遞給rc.firewall，使rc.firewall執行
+不同的設置。一般情況下可以將firewall_type設置為open，對網路訪問不進行限制，而client主要
+用於電腦不對外提供網路服務，保護本電腦只用於訪問外部系統而拒絕所有的訪問請求，設置為simple則定義了簡
+單的防火牆規則，可以使用這台電腦保護防火牆內部的電腦，這三個選項比較常用。下面為預設rc.firewall
+中的有關過濾規則的設置。</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre><font size=2>############
+# Define the firewall type in /etc/rc.conf.  Valid values are:
+#   open     - will allow anyone in
+#   client   - will try to protect just this machine
+#   simple   - will try to protect a whole network
+#   closed   - totally disables IP services except via lo0 interface
+#   UNKNOWN  - disables the loading of firewall rules.
+#   filename - will load the rules in the given filename (full path required)
+#
+# For ``client'' and ``simple'' the entries below should be customized
+# appropriately.</font></td></pre></tr></table>
+
+<p>　　這裡解釋了rc.conf中對firewall參數的可能設置值，可以設置為不同的設置值，或者可以使用一個
+檔案名作為firewall_type的值，指定一個包括了ipfw規則的檔案，而設置使用者自己定制的過濾規則。</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre><font size=2>############
+# Only in rare cases do you want to change these rules
+$fwcmd add 100 pass all from any to any via lo0
+$fwcmd add 200 deny all from any to 127.0.0.0/8</font></td></pre></tr></table>
+
+<p>　　這兩個規則用於設置本地網路lo0的數據包能進行傳輸，但屏蔽所有從其他網路界面通向本地網路lo0的通信。
+這是最基本的設置，防止在路由或IP地址設置不正確的情況下，外部電腦訪問127.0本地網路。</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre><font size=2># Prototype setups.
+if [ "${firewall_type}" = "open" -o "${firewall_type}" = "OPEN" ]; then
+ 
+        $fwcmd add 65000 pass all from any to any</font></td></pre></tr></table>
+
+<p>　　設置open為防火牆的類型時，即使沒有設置IPFIREWALL_DEFAULT_TO_ACCEPT核心
+選項，也允許對數據包進行轉發，因為這裡設置的規則序號為65000，小於預設的65535規則。</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre><font size=2>elif [ "${firewall_type}" = "client" ]; then
+ 
+    ############
+    # This is a prototype setup that will protect your system somewhat against
+    # people from outside your own network.
+    ############
+ 
+    # set these to your network and netmask and ip
+    net="192.168.4.0"
+    mask="255.255.255.0"
+    ip="192.168.4.17"</font></td></pre></tr></table>
+
+<p>　　當設置了client為防火牆的類型，那麼就需要更改這裡的IP地址和子網掩碼的設置，使其符合自己電腦的
+實際情況。client類型主要用於單機系統，保護本機不受外部電腦侵襲的設置。它的保護與tcpwrapper類
+似，但比tcpwrapper更為基本和高效，但是它不能提供詳細的連接記錄日誌。</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># Allow any traffic to or from my own net.
+$fwcmd add pass all from ${ip} to ${net}:${mask}
+$fwcmd add pass all from ${net}:${mask} to ${ip}</td></pre></tr></table>
+
+<P>　　這兩個規則用於許可電腦與本地網路的通信。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># Allow TCP through if setup succeeded
+$fwcmd add pass tcp from any to any established</td></pre></tr></table>
+
+<P>　　上面這兩個規則允許連接已經設定成功的TCP連接的數據包能夠保持連接，數據傳輸能夠繼續進行。
+established參數就用於說明數據包為已經設置成功的TCP連接數據包。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># Allow setup of incoming email
+$fwcmd add pass tcp from any to ${ip} 25 setup</td></pre></tr></table>
+
+<P>　　允許外部電腦能向內地smtp端口發起連接請求，setup用於說明定義的數據包為請求連接的數據包。</P>
+
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># Allow setup of outgoing TCP connections only
+$fwcmd add pass tcp from ${ip} to any setup</td></pre></tr></table>
+
+
+<P>　　允許本地電腦能向外部網路發起連接請求。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># Disallow setup of all other TCP connections
+$fwcmd add deny tcp from any to any setup</td></pre></tr></table>
+
+<P>　　此後屏蔽所有其他種類的TCP連接請求數據包，因此如果要打開其他TCP連接請求，就需要在這個規則之前
+進行定義。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># Allow DNS queries out in the world
+    $fwcmd add pass udp from any 53 to ${ip}
+    $fwcmd add pass udp from ${ip} to any 53
+ 
+    # Allow NTP queries out in the world
+    $fwcmd add pass udp from any 123 to ${ip}
+    $fwcmd add pass udp from ${ip} to any 123
+ 
+    # Everything else is denied as default.</td></pre></tr></table>
+
+
+<P>　　此後定義對UDP數據包的過濾規則，只許可DNS和NTP協議通過，而屏蔽其他UDP數據包。</P>
+
+<P>　　上面這些指令都是client類型的過濾規則，綜合上面的指令，這就表示為屏蔽外部電腦向本地除smtp之外
+的TCP連接請求，而允許本地電腦向外發起連接請求，屏蔽除DNS和NTP之外的其他UDP數據包。這些過濾規則可以
+有效的保護一個不對外提供服務的客戶系統。但是，如果要對外提供網路服務，就需要更改這裡的設置，打開需要
+提供服務的端口，例如打開TCP端口22，以使得ssh客戶能連接到系統中。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre><font size=2>elif [ "${firewall_type}" = "simple" ]; then
+ 
+    ############
+    # This is a prototype setup for a simple firewall.  Configure this machine
+    # as a named server and ntp server, and point all the machines on the inside
+    # at this machine for those services.
+    ############
+ 
+    # set these to your outside interface network and netmask and ip
+    oif="ed0"
+    onet="192.168.4.0"
+    omask="255.255.255.0"
+    oip="192.168.4.17"
+ 
+    # set these to your inside interface network and netmask and ip
+    iif="ed1"
+    inet="192.168.3.0"
+    imask="255.255.255.0"
+    iip="192.168.3.17"</font></td></pre></tr></table>
+
+
+<P>　　防火牆類型simple用於設置一個簡單的防火牆系統，用於保護內部網路中的電腦。由於防火牆系統需
+要連接多個網路界面，一個用於連接外部網路，而其他用於連接內部網路。這個簡單的防火牆只針對兩個網路界
+面進行了過濾規則的設置，內部網路的界面iif，外部網路的界面oif，因此它只適合只有兩個網路界面的防火牆
+系統。</P>
+
+<P>　　當真正要使用這個防火牆設置的時候，首先就要修改iif與oif的IP地址，網路掩碼等相關設置，與本地
+系統實際使用的設置相同。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre><font size=2># Stop spoofing
+$fwcmd add deny all from ${inet}:${imask} to any in via ${oif}
+$fwcmd add deny all from ${onet}:${omask} to any in via ${iif}</font></td></pre></tr></table>
+
+<P>　　這兩個過濾規則用於丟棄涉及IP地址欺騙的數據包，這包括來自於外部網路界面，但源地址為內部網
+絡地址，或者來自於內部網路界面，但源地址為外部網路地址的數據包。由於這些數據包涉及IP地址欺騙，每
+個路由器都應該丟棄這樣的數據包。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre><font size=2># Stop RFC1918 nets on the outside interface
+    $fwcmd add deny all from 192.168.0.0:255.255.0.0 to any via ${oif}
+    #$fwcmd add deny all from any to 192.168.0.0:255.255.0.0 via ${oif}
+    $fwcmd add deny all from 172.16.0.0:255.240.0.0 to any via ${oif}
+    $fwcmd add deny all from any to 172.16.0.0:255.240.0.0 via ${oif}
+    $fwcmd add deny all from 10.0.0.0:255.0.0.0 to any via ${oif}
+    $fwcmd add deny all from any to 10.0.0.0:255.0.0.0 via ${oif}</font></td></pre></tr></table>
+
+<P>　　RFC1918中定義了一些只用於內部網路的IP地址，這些地址不能用於Internet上的電腦，而只能用於內
+部網路中。這裡禁止從外部網路界面上向內部地址進行數據傳輸，以防止外部網路向內部網路的地址進行連接，
+也是防火牆的重要功能之一。</P>
+
+<P>　　注意，上例中與系統提供的預設設置是不同的，將其中對應於實際使用的內部地址的一行加上了注釋。這
+是因為該設置與natd相互衝突，使得natd發送的數據（具備內部網路地址）也被過濾。可以簡單的注釋對應本地網
+絡地址的設置項，以使得它們能夠相互協議，而將保護功能留給natd來完成。如果不使用natd，就不必使用上面
+的注釋。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre><font size=2># Allow TCP through if setup succeeded
+    $fwcmd add pass tcp from any to any established
+ 
+    # Allow setup of incoming email
+    $fwcmd add pass tcp from any to ${oip} 25 setup
+ 
+    # Allow access to our DNS
+    $fwcmd add pass tcp from any to ${oip} 53 setup
+ 
+    # Allow access to our WWW
+    $fwcmd add pass tcp from any to ${oip} 80 setup
+ 
+    # Reject&amp;Log all setup of incoming connections from the outside
+    $fwcmd add deny log tcp from any to any in via ${oif} setup
+ 
+    # Allow setup of any other TCP connection
+    $fwcmd add pass tcp from any to any setup</font></td></pre></tr></table>
+
+<P>　　此後屏蔽除了email，www，dns之外的其他向內部網路的TCP連接請求，而只允許向外進行連接。當實際
+內部網路要向外提供服務時，再添加連接許可。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># Allow DNS queries out in the world
+    $fwcmd add pass udp from any 53 to ${oip}
+    $fwcmd add pass udp from ${oip} to any 53
+ 
+    # Allow NTP queries out in the world
+    $fwcmd add pass udp from any 123 to ${oip}
+    $fwcmd add pass udp from ${oip} to any 123
+ 
+    # Everything else is denied as default.</td></pre></tr></table>
+
+<P>　　然後定義UDP連接的限制，同樣也只允許DNS和NTP數據包通過，這可以用於屏蔽類似BO之類的遠程操縱程序。</P>
+
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre><font size=2>elif [ "${firewall_type}" != "UNKNOWN" -a -r "${firewall_type}" ]; then
+        $fwcmd ${firewall_type}</P>
+fi</font></td></pre></tr></table>
+
+<P>　　如果使用者喜歡自己定制過濾規則，而不是在系統提供的規則基礎上更改，那麼可以將規則放入一個
+檔案中，在rc.conf檔案中設置firewall_enable=”YES”的基礎上，將firewall_type的值改為放置ipfw規則的文
+件名。這樣系統啟動時就能夠使用ipfw自動執行這些配置。但如果只是對過濾規則的少量更改，就可以直接修
+改rc.firewall檔案。</P>
+
+<ul><B><P><LI>使用natd設置地址轉換</LI></P></B></ul>
+
+<p>　　natd與ipfw相互配合，能夠實現網路地址翻譯的能力。核心通過一個特定的divert類型的端口，將需
+要轉換的數據包交給natd，而natd轉換之後，再發送回核心，由核心再進行轉發。它的好處不但是能提供防火牆能力
+，還能使得內部電腦能共享外部網路地址，這在IP地址空間比較緊張的目前是一個非常有用的技術。</p>
+
+<p>　　當應用網路地址翻譯時，可供選擇的內部IP有：10.0.0.0到10.255.255.255，172.16.0.0到
+172.31.255.255，192.168.0.0到192.168.255.255。這些地址由RFC1918中定義為內部地址，不會出現在Internet上。</p>
+
+<p>　　FreeBSD下有幾種軟體能實現部分或全部NAT功能，功能最簡單的是用戶級ppp提供的alias功能，
+使用alias參數啟動ppp將使ppp將所有來自其他網路介面的數據包中的源IP地址改變為tun0網路界面的IP
+，轉發到ppp連接上去。這種IP偽裝的方式雖然功能簡單，但對於撥號將內部網路和Internet連接的用戶非常適
+合。</p>
+
+<p>　　設置natd需要以下的步驟，首先設置好包過濾支持，包括核心中的IPFIREWALL和rc.conf中的
+gateway_enable參數設置。它需要核心支持IPDIVERT選項，如果沒有設置這個選項，就需要重新編譯
+支持這些選項的核心﹔然後需要為natd指定一個divert端口，用於接收和發送從核心轉發過來的包。這需要在/etc/services
+中增加一個divert端口的設置：</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>natd      8668/divert</td></pre></tr></table>
+
+<P>　　然後需要將所有的數據包都發送給相應的divert端口natd，然後由監聽這個端口的守護進程natd
+接收並轉換。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># /sbin/ipfw -f flush
+# /sbin/ipfw add divert natd all from any to any via fxp0
+# /sbin/ipfw add pass all from any to any</td></pre></tr></table>
+
+<p>　　上面的命令中使用了一個新的ipfw指令divert，這個指令就對符合這個規則的數據包通過divert規
+定的端口natd進行地址轉換。但是divert指令和log和count指令相似，它並沒有終止過濾規則，而是繼續
+進行數據包過濾，只是此後的過濾將是針對轉換後的數據包進行的了。</p>
+
+<p>　　執行了這些ipfw指令之後，而由於還沒有啟動natd守護進程，那麼網路的正常連接都不再能進行了，發送到
+divert的端口natd的數據包就被丟掉。直到啟動natd進程，通過它進行處理之後，數據包才會正常發送。</p>
+
+<p>　　最簡單的啟動natd的指令為：</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># natd -interface fxp1</td></pre></tr></table>
+
+<p>　　此時，natd將內部的向外連接中的內部地址轉換為fxp1上的IP地址，而內部網路的電腦必須設置這個防
+火牆為它們的路由器，以便將數據包交給它進行轉發。但由於整個網路對外只表現為一個地址，外部網路並不需要了解這台防
+火牆的路由能力。</p>
+
+<p>　　如果要在系統啟動時自動設置地址轉換，就需要將這些ipfw/natd的過濾規則與系統啟動檔案結合在一起。
+預設的啟動檔案已經支持了ipfw/natd，因而僅僅需要打開啟動檔案中相關設置就可以了。這不但需要在rc.conf
+中設置gateway_enable，firewall_enable，還需要設置natd_enable為YE
+S，以使得自動啟動natd守護進程，還需要指定natd使用的網路界面natd_interface的值，幫助將正
+確的數據包發送給natd，並使系統執行natd時使用正確的參數。而設置項natd_flags用來指定其他natd
+需要的參數，例如用於指定natd設置檔案等，簡單情況下不需要使用這個設置項。</p>
+
+<p>　　當打開natd_enable時，將在其他過濾規則之前添加這個過濾規則，但是其他規則同樣也會生效，因為當
+數據包從natd發送回系統之後，系統再對其應用過濾規則。</p>
+
+<p>　　不過，由於在natd轉換IP地址之後還應用過濾規則，因此這些數據包還有可能被過濾。尤其在同時設置了
+firewall_type為simple以執行rc.firewall中的防火牆過濾設置的時候，就需要注意其中與na
+td相衝突的設置。simple過濾規則中存在屏蔽外部電腦對RFC1918規定的IP地址進行訪問的設置，然而n
+atd將正常通信的數據包中的地址轉換為了內部IP地址，因而預設設置將阻止這些數據包發送到內部電腦中。</p>
+
+<p>　　為了和natd協作，必須修改其中過濾設置，以保証經natd轉換過的數據包能發到內部電腦上。一般情況下
+，可以簡單的rc.firewall將針對發送到本地網路的過濾規則設置注釋掉就可以了，而從本地網路發送到外部網路
+的數據包在應用過濾規則之前，就已經進行完地址轉換了，因此就不受規則影響。前一部分中介紹rc.firewall時
+，給出了進行注釋的例子。另一種方法是調整過濾規則和順序，將屏蔽這些內部地址的規則放置到divert指令之前。
+</p>
+
+<ul><B><P><LI>natd的高級設置</LI></P></B></ul>
+
+<p>　　使用-interface參數（或者使用其簡寫形式-n）啟動的natd，可將所有內部網路向外的請求轉換為
+該interface界面使用的IP地址，與外界進行通信。這種方式中，所有的連接中的內部地址不但轉換的IP地址，
+同時也要轉換端口地址，以避免地址衝突，並且外部網路只能連接到防火牆，而不能訪問內部電腦上的服務。natd還有
+種種高級設置，使得系統能使用更複雜的地址轉換功能。更複雜的情況是防火牆擁有一個合法子網，具有多個可利用的IP地
+址，此時防火牆對外表現為一個路由器，負責一個內部子網。</p>
+
+<p>　　使用natd時，電腦至少必須擁有一個合法的外部地址，用於將內部地址轉換為外部地址時使用，當使用
+-interface時，這個值被設置為該網路界面綁訂的IP地址，如果該網路界面上的IP地址可能改變（例如它被設置為d
+hcp客戶端，或者是PPP連接），-dynamic參數能使natd跟蹤該界面上的地址更改。如果不使用-interface
+參數指定網路界面，就必須直接使用-alias_address指定natd使用的外部IP地址。alias_address
+定義的地址可以是防火牆本身外部網路界面上擁有的合法IP地址之一，也可以是作為路由器的防火牆的
+內部網路所擁有的合法IP地址之一。</p>
+
+<p>　　natd可以使用-redirect_address參數，設置靜態IP地址轉換，例如使用參數”-redirect_address iip oip”，
+將內部地址iip與外部地址oip進行映射，則所有發送給oip的連接將被轉給內部的iip。</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre><font size=2># natd -alias_address 202.102.245.60 -redirect_address 192.168.3.2 202.102.245.17</font></td></pre></tr></table>
+
+<p>　　上面的命令將使得防火牆使用202.102.245.60作為內部電腦向外連接的預設地址，而192.168.3.2
+被映射為202.102.245.17，可以允許外部網路上的電腦對其進行訪問。</p>
+
+<p>　　此時外部網路應該將發送往這兩個ip地址的數據都發送到這個防火牆上，一般情況下這個防火牆應對外表現為一個
+路由器，負責將包括這兩個IP地址在內的網路連接到外部網路上，而外界網路上的路由器也具有達到它的正確路由。但也可
+以通過Proxy ARP或在防火牆外部網路界面上綁訂多個ip地址的方法來實現。</p>
+
+<p>　　為了讓外部路由器了解這個防火牆負責的網路，除了在外部路由器上設置靜態路由之外，還可以使用動態交換路由協
+議，將防火牆的路由數據與外部路由器動態交換。這就需要使用與外部路由器相同的路由交換協議，常用的內部路由交換協議
+有rip, rip 2，以及ospf，其中routed用於支持rip協議，而gated可以支持其他種類的協議。
+由於路由交換協議是整個網路統一規定的，因此必須根據統一使用。</p>
+
+<p>　　另一個非常有用的參數是-redirect-port，它是用於將對某個IP地址固定端口的連接請求，轉發至
+指定內部電腦中。這個參數非常靈活，針對tcp或udp進行設置。例如將對-alias_address定義地址的
+http請求轉發到內部地址192.168.3.3的另一個端口8080上。</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre><font size=2># natd -alias_address 202.102.245.60 -redirect_port tcp 192.168.3.3:8080 80</font></td></pre></tr></table>
+
+<P>　　當然也可以為其他地址，如202.102.245.17，設置映射。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># natd -alias_address 202.102.245.60    \
+-redirect_port tcp 192.168.3.3:8080 202.102.245.17:80</td></pre></tr></table>
+
+<p>　　進一步可以使用-redirect_port為特定的外部電腦的特定連接進行映射。</p>
+
+<p>　　還可以使用-f或-config參數指定natd的配置檔案，從檔案中而非從命令行讀取natd的設置，使得
+設置更為清晰明了。下面的設置檔案例子中使用了另外幾個很有用的參數。</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>alias_address &#9;&#9;202.102.245.60
+deny_incoming &#9;&#9;yes
+unregistered_only&#9;yes
+same_ports&#9;&#9;&#9;yes
+use_sockets&#9;&#9;&#9;yes</td></pre></tr></table>
+
+<p>　　deny_incoming用於拒絕向alias_address發起的所有連接請求，用來保護網路內部安全
+，這個參數可以和-redirect_port參數結合，控制提供的網路服務。</p>
+
+<p>　　unregistered_only用於只對RFC1918定義的內部網址進行地址轉換，防止出現錯誤設置影
+響正常的路由設置。</p>
+
+<p>　　same_ports在網路轉換時盡量選擇與原有數據包相同的端口，這樣來保証一些與端口相關的服務能夠被盡
+可能滿足，但這並不表示普通的地址轉換會百分之百使用同樣的端口，在將多個內部轉換為一個外部地址時，總會有端口衝突
+發生的可能，真正要避免衝突，還必須使用-redirect_port直接指定。</p>
+
+<p>　　use_sockets允許natd查看ftp、irc等連接的數據內部，以根據內容設置正確的端口，這將占
+用較多的系統資源，因此一般不要使用這個選項。然而和same_port協作使用，可以支持更複雜的客戶程序。</p>
+
+<p>　　其他還有一些設置選項，如log參數指定natd將日誌記錄到/var/log/alias.log檔案中，
+dynamic參數用於和interface參數協作，跟蹤網路界面的IP地址改變的信息，等等。</p>
+
+<p>　　在設置檔案中指定的參數，其形式與在命令行中使用的方式相似，不同之處在於有的參數在配置檔案中需指定yes
+或no，而在命令行中不需特別指定就意味著使用了yes屬性。如直接使用-log而非-log yes。設置好這個設
+置檔案之後，就可以啟動natd了。</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># natd -f filename</td></pre></tr></table>
+
+
+<BR>
+
+</TD>
+</TR></TABLE>
+
+
+
+</BODY>
+</HTML>

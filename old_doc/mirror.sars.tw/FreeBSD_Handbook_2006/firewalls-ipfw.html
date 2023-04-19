@@ -1,0 +1,1167 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>IPFW</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.79" />
+<link rel="HOME" title="FreeBSD 使用手冊" href="index.html" />
+<link rel="UP" title="防火牆" href="firewalls.html" />
+<link rel="PREVIOUS" title="IPFILTER (IPF) 防火牆" href="firewalls-ipf.html" />
+<link rel="NEXT" title="Advanced Networking" href="advanced-networking.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD 使用手冊</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="firewalls-ipf.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 26 防火牆</td>
+<td width="10%" align="right" valign="bottom"><a href="advanced-networking.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="FIREWALLS-IPFW" name="FIREWALLS-IPFW">26.6 IPFW</a></h1>
+
+<div class="NOTE">
+<blockquote class="NOTE">
+<p><b>Note:</b> This section is work in progress. The contents might not be accurate at
+all times.</p>
+</blockquote>
+</div>
+
+<p>The IPFIREWALL (IPFW) is a FreeBSD sponsored firewall software application authored
+and maintained by FreeBSD volunteer staff members. It uses the legacy stateless rules and
+a legacy rule coding technique to achieve what is referred to as Simple Stateful
+logic.</p>
+
+<p>The IPFW sample rule set (found in <tt class="FILENAME">/etc/rc.firewall</tt>) in the
+standard FreeBSD install is rather simple and it is not expected that it used directly
+without modifications. The example does not use stateful filtering, which is beneficial
+in most setups, so it will not be used as base for this section.</p>
+
+<p>The IPFW stateless rule syntax is empowered with technically sophisticated selection
+capabilities which far surpasses the knowledge level of the customary firewall installer.
+IPFW is targeted at the professional user or the advanced technical computer hobbyist who
+have advanced packet selection requirements. A high degree of detailed knowledge into how
+different protocols use and create their unique packet header information is necessary
+before the power of the IPFW rules can be unleashed. Providing that level of explanation
+is out of the scope of this section of the handbook.</p>
+
+<p>IPFW is composed of seven components, the primary component is the kernel firewall
+filter rule processor and its integrated packet accounting facility, the logging
+facility, the 'divert' rule which triggers the <acronym class="ACRONYM">NAT</acronym>
+facility, and the advanced special purpose facilities, the dummynet traffic shaper
+facilities, the 'fwd rule' forward facility, the bridge facility, and the ipstealth
+facility.</p>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="FIREWALLS-IPFW-ENABLE" name="FIREWALLS-IPFW-ENABLE">26.6.1
+Enabling IPFW</a></h2>
+
+<p>IPFW is included in the basic FreeBSD install as a separate run time loadable module.
+The system will dynamically load the kernel module when the <tt
+class="FILENAME">rc.conf</tt> statement <tt class="LITERAL">firewall_enable="YES"</tt> is
+used. You do not need to compile IPFW into the FreeBSD kernel unless you want <acronym
+class="ACRONYM">NAT</acronym> function enabled.</p>
+
+<p>After rebooting your system with <tt class="LITERAL">firewall_enable="YES"</tt> in <tt
+class="FILENAME">rc.conf</tt> the following white highlighted message is displayed on the
+screen as part of the boot process:</p>
+
+<pre class="SCREEN">
+ipfw2 initialized, divert disabled, rule-based forwarding disabled, default to deny, logging disabled
+</pre>
+
+<p>The loadable module does have logging ability compiled in. To enable logging and set
+the verbose logging limit, there is a knob you can set in <tt
+class="FILENAME">/etc/sysctl.conf</tt> by adding these statements, logging will be
+enabled on future reboots:</p>
+
+<pre class="PROGRAMLISTING">
+net.inet.ip.fw.verbose=1
+net.inet.ip.fw.verbose_limit=5
+</pre>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="FIREWALLS-IPFW-KERNEL" name="FIREWALLS-IPFW-KERNEL">26.6.2
+Kernel Options</a></h2>
+
+<p>It is not a mandatory requirement that you enable IPFW by compiling the following
+options into the FreeBSD kernel unless you need <acronym class="ACRONYM">NAT</acronym>
+function. It is presented here as background information.</p>
+
+<pre class="PROGRAMLISTING">
+options    IPFIREWALL
+</pre>
+
+<p>This option enables IPFW as part of the kernel</p>
+
+<pre class="PROGRAMLISTING">
+options    IPFIREWALL_VERBOSE
+</pre>
+
+<p>Enables logging of packets that pass through IPFW and have the 'log' keyword specified
+in the rule set.</p>
+
+<pre class="PROGRAMLISTING">
+options    IPFIREWALL_VERBOSE_LIMIT=5
+</pre>
+
+<p>Limits the number of packets logged through <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=syslogd&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">syslogd</span>(8)</span></a> on a per
+entry basis. You may wish to use this option in hostile environments which you want to
+log firewall activity. This will close a possible denial of service attack via syslog
+flooding.</p>
+
+<pre class="PROGRAMLISTING">
+options    IPFIREWALL_DEFAULT_TO_ACCEPT
+</pre>
+
+<p>This option will allow everything to pass through the firewall by default, which is a
+good idea when you are first setting up your firewall.</p>
+
+<pre class="PROGRAMLISTING">
+options    IPV6FIREWALL
+options    IPV6FIREWALL_VERBOSE
+options    IPV6FIREWALL_VERBOSE_LIMIT
+options    IPV6FIREWALL_DEFAULT_TO_ACCEPT
+</pre>
+
+<p>These options are exactly the same as the IPv4 options but they are for IPv6. If you
+do not use IPv6 you might want to use IPV6FIREWALL without any rules to block all
+IPv6</p>
+
+<pre class="PROGRAMLISTING">
+options    IPDIVERT
+</pre>
+
+<p>This enables the use of <acronym class="ACRONYM">NAT</acronym> functionality.</p>
+
+<div class="NOTE">
+<blockquote class="NOTE">
+<p><b>Note:</b> If you do not include IPFIREWALL_DEFAULT_TO_ACCEPT or set your rules to
+allow incoming packets you will block all packets going to and from this machine.</p>
+</blockquote>
+</div>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="FIREWALLS-IPFW-RC" name="FIREWALLS-IPFW-RC">26.6.3 <tt
+class="FILENAME">/etc/rc.conf</tt> Options</a></h2>
+
+<p>If you do not have IPFW compiled into your kernel you will need to load it with the
+following statement in your <tt class="FILENAME">/etc/rc.conf</tt>:</p>
+
+<pre class="PROGRAMLISTING">
+firewall_enable="YES"
+</pre>
+
+<p>Set the script to run to activate your rules:</p>
+
+<pre class="PROGRAMLISTING">
+firewall_script="/etc/ipfw.rules"
+</pre>
+
+<p>Enable logging:</p>
+
+<pre class="PROGRAMLISTING">
+firewall_logging="YES"
+</pre>
+
+<div class="WARNING">
+<blockquote class="WARNING">
+<p><b>Warning:</b> The only thing that the <code class="VARNAME">firewall_logging</code>
+variable will do is setting the <code class="VARNAME">net.inet.ip.fw.verbose</code>
+sysctl variable to the value of <tt class="LITERAL">1</tt> (see <a
+href="firewalls-ipfw.html#FIREWALLS-IPFW-ENABLE">Section 26.6.1</a>). There is no <tt
+class="FILENAME">rc.conf</tt> variable to set log limitations, but it can be set via
+sysctl variable, manually or from the <tt class="FILENAME">/etc/sysctl.conf</tt>
+file:</p>
+
+<pre class="PROGRAMLISTING">
+net.inet.ip.fw.verbose_limit=5
+</pre>
+</blockquote>
+</div>
+
+<p>If your machine is acting as a gateway, i.e. providing Network Address Translation
+(NAT) via <a href="http://www.FreeBSD.org/cgi/man.cgi?query=natd&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">natd</span>(8)</span></a>, please refer
+to <a href="network-natd.html">Section 27.8</a> for information regarding the required
+<tt class="FILENAME">/etc/rc.conf</tt> options.</p>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="FIREWALLS-IPFW-CMD" name="FIREWALLS-IPFW-CMD">26.6.4 The IPFW
+Command</a></h2>
+
+<p>The ipfw command is the normal vehicle for making manual single rule additions or
+deletions to the firewall active internal rules while it is running. The problem with
+using this method is once your system is shutdown or halted all the rules you added or
+changed or deleted are lost. Writing all your rules in a file and using that file to load
+the rules at boot time, or to replace in mass the currently running firewall rules with
+changes you made to the files content is the recommended method used here.</p>
+
+<p>The ipfw command is still a very useful to display the running firewall rules to the
+console screen. The IPFW accounting facility dynamically creates a counter for each rule
+that counts each packet that matches the rule. During the process of testing a rule,
+listing the rule with its counter is the one of the ways of determining if the rule is
+functioning.</p>
+
+<p>To list all the rules in sequence:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">ipfw list</kbd>
+</pre>
+
+<p>To list all the rules with a time stamp of when the last time the rule was
+matched:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">ipfw -t list</kbd>
+</pre>
+
+<p>To list the accounting information, packet count for matched rules along with the
+rules themselves. The first column is the rule number, followed by the number of outgoing
+matched packets, followed by the number of incoming matched packets, and then the rule
+itself.</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">ipfw -a list</kbd>
+</pre>
+
+<p>List the dynamic rules in addition to the static rules:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">ipfw -d list</kbd>
+</pre>
+
+<p>Also show the expired dynamic rules:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">ipfw -d -e list</kbd>
+</pre>
+
+<p>Zero the counters:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">ipfw zero</kbd>
+</pre>
+
+<p>Zero the counters for just rule <tt class="REPLACEABLE"><i>NUM</i></tt>:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">ipfw zero NUM</kbd>
+</pre>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="FIREWALLS-IPFW-RULES" name="FIREWALLS-IPFW-RULES">26.6.5 IPFW
+Rule Sets</a></h2>
+
+<p>A rule set is a group of ipfw rules coded to allow or deny packets based on the values
+contained in the packet. The bi-directional exchange of packets between hosts comprises a
+session conversation. The firewall rule set processes the packet twice: once on its
+arrival from the public Internet host and again as it leaves for its return trip back to
+the public Internet host. Each tcp/ip service (i.e. telnet, www, mail, etc.) is
+predefined by its protocol, and port number. This is the basic selection criteria used to
+create rules which will allow or deny services.</p>
+
+<p>When a packet enters the firewall it is compared against the first rule in the rule
+set and progress one rule at a time moving from top to bottom of the set in ascending
+rule number sequence order. When the packet matches a rule selection parameters, the
+rules action field value is executed and the search of the rule set terminates for that
+packet. This is referred to as 「the first match wins」 search method. If the packet does
+not match any of the rules, it gets caught by the mandatory ipfw default rule, number
+65535 which denies all packets and discards them without any reply back to the
+originating destination.</p>
+
+<div class="NOTE">
+<blockquote class="NOTE">
+<p><b>Note:</b> The search continues after <tt class="LITERAL">count</tt>, <tt
+class="LITERAL">skipto</tt> and <tt class="LITERAL">tee</tt> rules.</p>
+</blockquote>
+</div>
+
+<p>The instructions contained here are based on using rules that contain the stateful
+'keep state', 'limit', 'in'/'out', and via options. This is the basic framework for
+coding an inclusive type firewall rule set.</p>
+
+<p>An inclusive firewall only allows services matching the rules through. This way you
+can control what services can originate behind the firewall destine for the public
+Internet and also control the services which can originate from the public Internet
+accessing your private network. Everything else is denied by default design. Inclusive
+firewalls are much, much more secure than exclusive firewall rule sets and is the only
+rule set type covered here in.</p>
+
+<div class="WARNING">
+<blockquote class="WARNING">
+<p><b>Warning:</b> When working with the firewall rules be careful, you can end up
+locking your self out.</p>
+</blockquote>
+</div>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="FIREWALLS-IPFW-RULES-SYNTAX"
+name="FIREWALLS-IPFW-RULES-SYNTAX">26.6.5.1 Rule Syntax</a></h3>
+
+<p>The rule syntax presented here has been simplified to what is necessary to create a
+standard inclusive type firewall rule set. For a complete rule syntax description see the
+<a href="http://www.FreeBSD.org/cgi/man.cgi?query=ipfw&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">ipfw</span>(8)</span></a> manual
+page.</p>
+
+<p>Rules contain keywords: these keywords have to be coded in a specific order from left
+to right on the line. Keywords are identified in bold type. Some keywords have
+sub-options which may be keywords them selves and also include more sub-options.</p>
+
+<p><tt class="LITERAL">#</tt> is used to mark the start of a comment and may appear at
+the end of a rule line or on its own lines. Blank lines are ignored.</p>
+
+<p><tt class="REPLACEABLE"><i>CMD RULE_NUMBER ACTION LOGGING SELECTION
+STATEFUL</i></tt></p>
+
+<div class="SECT4">
+<h4 class="SECT4"><a id="AEN38274" name="AEN38274">26.6.5.1.1 CMD</a></h4>
+
+<p>Each new rule has to be prefixed with <code class="PARAMETER">add</code> to add the
+rule to the internal table.</p>
+</div>
+
+<div class="SECT4">
+<h4 class="SECT4"><a id="AEN38278" name="AEN38278">26.6.5.1.2 RULE_NUMBER</a></h4>
+
+<p>Each rule has to have a rule number to go with it.</p>
+</div>
+
+<div class="SECT4">
+<h4 class="SECT4"><a id="AEN38281" name="AEN38281">26.6.5.1.3 ACTION</a></h4>
+
+<p>A rule can be associated with one of the following actions, which will be executed
+when the packet matches the selection criterion of the rule.</p>
+
+<p><code class="PARAMETER">allow | accept | pass | permit</code></p>
+
+<p>These all mean the same thing which is to allow packets that match the rule to exit
+the firewall rule processing. The search terminates at this rule.</p>
+
+<p><code class="PARAMETER">check-state</code></p>
+
+<p>Checks the packet against the dynamic rules table. If a match is found, execute the
+action associated with the rule which generated this dynamic rule, otherwise move to the
+next rule. The check-state rule does not have selection criterion. If no check-state rule
+is present in the rule set, the dynamic rules table is checked at the first keep-state or
+limit rule.</p>
+
+<p><code class="PARAMETER">deny | drop</code></p>
+
+<p>Both words mean the same thing which is to discard packets that match this rule. The
+search terminates.</p>
+</div>
+
+<div class="SECT4">
+<h4 class="SECT4"><a id="AEN38293" name="AEN38293">26.6.5.1.4 Logging</a></h4>
+
+<p><code class="PARAMETER">log</code> or <code class="PARAMETER">logamount</code></p>
+
+<p>When a packet matches a rule with the log keyword, a message will be logged to syslogd
+with a facility name of SECURITY. The logging only occurs if the number of packets logged
+so far for that particular rule does not exceed the logamount parameter. If no logamount
+is specified, the limit is taken from the sysctl variable net.inet.ip.fw.verbose_limit.
+In both cases, a value of zero removes the logging limit. Once the limit is reached,
+logging can be re-enabled by clearing the logging counter or the packet counter for that
+rule, see the ipfw reset log command.</p>
+
+<div class="NOTE">
+<blockquote class="NOTE">
+<p><b>Note:</b> Logging is done after all other packet matching conditions have been
+successfully verified, and before performing the final action (accept, deny) on the
+packet. It is up to you to decide which rules you want to enable logging on.</p>
+</blockquote>
+</div>
+</div>
+
+<div class="SECT4">
+<h4 class="SECT4"><a id="AEN38301" name="AEN38301">26.6.5.1.5 Selection</a></h4>
+
+<p>The keywords described in this section are used to describe attributes of the packet
+to be interrogated when determining whether rules match the packet or not. The following
+general-purpose attributes are provided for matching, and must be used in this order:</p>
+
+<p><code class="PARAMETER">udp | tcp | icmp</code></p>
+
+<p>or any protocol names found in <tt class="FILENAME">/etc/protocols</tt> are recognized
+and may be used. The value specified is protocol to be matched against. This is a
+mandatory requirement.</p>
+
+<p><code class="PARAMETER">from src to dst</code></p>
+
+<p>The from and to keywords are used to match against IP addresses. Rules must specify
+BOTH source and destination parameters. <tt class="LITERAL">any</tt> is a special keyword
+that matches any IP address. <tt class="LITERAL">me</tt> is a special keyword that
+matches any IP address configured on an interface in your FreeBSD system to represent the
+PC the firewall is running on (i.e. this box) as in 'from me to any' or 'from any to me'
+or 'from 0.0.0.0/0 to any' or 'from any to 0.0.0.0/0' or 'from 0.0.0.0 to any' or 'from
+any to 0.0.0.0' or 'from me to 0.0.0.0'. IP addresses are specified as a dotted IP
+address numeric form/mask-length, or as single dotted IP address numeric form. This is a
+mandatory requirement. See this link for help on writing mask-lengths. <a
+href="http://jodies.de/ipcalc" target="_top">http://jodies.de/ipcalc</a></p>
+
+<p><code class="PARAMETER">port number</code></p>
+
+<p>For protocols which support port numbers (such as <acronym
+class="ACRONYM">TCP</acronym> and UDP). It is mandatory that you code the port number of
+the service you want to match on. Service names (from <tt
+class="FILENAME">/etc/services</tt>) may be used instead of numeric port values.</p>
+
+<p><code class="PARAMETER">in | out</code></p>
+
+<p>Matches incoming or outgoing packets, respectively. The in and out are keywords and it
+is mandatory that you code one or the other as part of your rule matching criterion.</p>
+
+<p><code class="PARAMETER">via IF</code></p>
+
+<p>Matches packets going through the interface specified by exact name. The <tt
+class="LITERAL">via</tt> keyword causes the interface to always be checked as part of the
+match process.</p>
+
+<p><code class="PARAMETER">setup</code></p>
+
+<p>This is a mandatory keyword that identifies the session start request for <acronym
+class="ACRONYM">TCP</acronym> packets.</p>
+
+<p><code class="PARAMETER">keep-state</code></p>
+
+<p>This is a mandatory&#62; keyword. Upon a match, the firewall will create a dynamic
+rule, whose default behavior is to match bidirectional traffic between source and
+destination IP/port using the same protocol.</p>
+
+<p><code class="PARAMETER">limit {src-addr | src-port | dst-addr | dst-port}</code></p>
+
+<p>The firewall will only allow <tt class="REPLACEABLE"><i>N</i></tt> connections with
+the same set of parameters as specified in the rule. One or more of source and
+destination addresses and ports can be specified. The 'limit' and 'keep-state' can not be
+used on same rule. Limit provides the same stateful function as 'keep-state' plus its own
+functions.</p>
+</div>
+</div>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="AEN38337" name="AEN38337">26.6.5.2 Stateful Rule Option</a></h3>
+
+<p>Stateful filtering treats traffic as a bi-directional exchange of packets comprising a
+session conversation. It has the interrogation abilities to determine if the session
+conversation between the originating sender and the destination are following the valid
+procedure of bi-directional packet exchange. Any packets that do not properly fit the
+session conversation template are automatically rejected as impostors.</p>
+
+<p>'check-state' is used to identify where in the IPFW rules set the packet is to be
+tested against the dynamic rules facility. On a match the packet exits the firewall to
+continue on its way and a new rule is dynamic created for the next anticipated packet
+being exchanged during this bi-directional session conversation. On a no match the packet
+advances to the next rule in the rule set for testing.</p>
+
+<p>The dynamic rules facility is vulnerable to resource depletion from a SYN-flood attack
+which would open a huge number of dynamic rules. To counter this attack, FreeBSD version
+4.5 added another new option named limit. This option is used to limit the number of
+simultaneous session conversations by interrogating the rules source or destinations
+fields as directed by the limit option and using the packet's IP address found there, in
+a search of the open dynamic rules counting the number of times this rule and IP address
+combination occurred, if this count is greater that the value specified on the limit
+option, the packet is discarded.</p>
+</div>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="AEN38345" name="AEN38345">26.6.5.3 Logging Firewall
+Messages</a></h3>
+
+<p>The benefits of logging are obvious: it provides the ability to review after the fact
+the rules you activated logging on which provides information like, what packets had been
+dropped, what addresses they came from, where they were going, giving you a significant
+edge in tracking down attackers.</p>
+
+<p>Even with the logging facility enabled, IPFW will not generate any rule logging on
+it's own. The firewall administrator decides what rules in the rule set he wants to log
+and adds the log verb to those rules. Normally only deny rules are logged, like the deny
+rule for incoming <acronym class="ACRONYM">ICMP</acronym> pings. It is very customary to
+duplicate the ipfw default deny everything rule with the log verb included as your last
+rule in the rule set. This way you get to see all the packets that did not match any of
+the rules in the rule set.</p>
+
+<p>Logging is a two edged sword, if you are not careful, you can lose yourself in the
+over abundance of log data and fill your disk up with growing log files. DoS attacks that
+fill up disk drives is one of the oldest attacks around. These log message are not only
+written to syslogd, but also are displayed on the root console screen and soon become
+very annoying.</p>
+
+<p>The <tt class="LITERAL">IPFIREWALL_VERBOSE_LIMIT=5</tt> kernel option limits the
+number of consecutive messages sent to the system logger syslogd, concerning the packet
+matching of a given rule. When this option is enabled in the kernel, the number of
+consecutive messages concerning a particular rule is capped at the number specified.
+There is nothing to be gained from 200 log messages saying the same identical thing. For
+instance, five consecutive messages concerning a particular rule would be logged to
+syslogd, the remainder identical consecutive messages would be counted and posted to the
+syslogd with a phrase like this:</p>
+
+<pre class="PROGRAMLISTING">
+last message repeated 45 times
+</pre>
+
+<p>All logged packets messages are written by default to <tt
+class="FILENAME">/var/log/security</tt> file, which is defined in the <tt
+class="FILENAME">/etc/syslog.conf</tt> file.</p>
+</div>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="FIREWALLS-IPFW-RULES-SCRIPT"
+name="FIREWALLS-IPFW-RULES-SCRIPT">26.6.5.4 Building a Rule Script</a></h3>
+
+<p>Most experienced IPFW users create a file containing the rules and code them in a
+manner compatible with running them as a script. The major benefit of doing this is the
+firewall rules can be refreshed in mass without the need of rebooting the system to
+activate the new rules. This method is very convenient in testing new rules as the
+procedure can be executed as many times as needed. Being a script, you can use symbolic
+substitution to code frequent used values and substitution them in multiple rules. You
+will see this in the following example.</p>
+
+<p>The script syntax used here is compatible with the 'sh', 'csh', 'tcsh' shells.
+Symbolic substitution fields are prefixed with a dollar sign $. Symbolic fields do not
+have the $ prefix. The value to populate the Symbolic field must be enclosed to "double
+quotes".</p>
+
+<p>Start your rules file like this:</p>
+
+<pre class="PROGRAMLISTING">
+############### start of example ipfw rules script #############
+#
+ipfw -q -f flush       # Delete all rules
+# Set defaults
+oif="tun0"             # out interface
+odns="192.0.2.11"      # ISP's DNS server IP address
+cmd="ipfw -q add "     # build rule prefix
+ks="keep-state"        # just too lazy to key this each time
+$cmd 00500 check-state
+$cmd 00502 deny all from any to any frag
+$cmd 00501 deny tcp from any to any established
+$cmd 00600 allow tcp from any to any 80 out via $oif setup $ks
+$cmd 00610 allow tcp from any to $odns 53 out via $oif setup $ks
+$cmd 00611 allow udp from any to $odns 53 out via $oif $ks
+################### End of example ipfw rules script ############
+</pre>
+
+<p>That is all there is to it. The rules are not important in this example, how the
+Symbolic substitution field are populated and used are.</p>
+
+<p>If the above example was in <tt class="FILENAME">/etc/ipfw.rules</tt> file, you could
+reload these rules by entering on the command line.</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">sh /etc/ipfw.rules</kbd>
+</pre>
+
+<p>The <tt class="FILENAME">/etc/ipfw.rules</tt> file could be located anywhere you want
+and the file could be named any thing you would like.</p>
+
+<p>The same thing could also be accomplished by running these commands by hand:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">ipfw -q -f flush</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">ipfw -q add check-state</kbd>
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">ipfw -q add deny all from any to any frag</kbd>
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">ipfw -q add deny tcp from any to any established</kbd>
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">ipfw -q add allow tcp from any to any 80 out via tun0 setup keep-state</kbd>
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">ipfw -q add allow tcp from any to 192.0.2.11 53 out via tun0 setup keep-state</kbd>
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">ipfw -q add 00611 allow udp from any to 192.0.2.11 53 out via tun0 keep-state</kbd>
+</pre>
+</div>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="AEN38390" name="AEN38390">26.6.5.5 Stateful Ruleset</a></h3>
+
+<p>The following non-<acronym class="ACRONYM">NAT</acronym>ed rule set is an example of
+how to code a very secure 'inclusive' type of firewall. An inclusive firewall only allows
+services matching pass rules through and blocks all other by default. All firewalls have
+at the minimum two interfaces which have to have rules to allow the firewall to
+function.</p>
+
+<p>All <span class="TRADEMARK">UNIX</span>&reg; flavored operating systems, FreeBSD
+included, are designed to use interface <tt class="DEVICENAME">lo0</tt> and IP address
+<tt class="HOSTID">127.0.0.1</tt> for internal communication with in the operating
+system. The firewall rules must contain rules to allow free unmolested movement of these
+special internally used packets.</p>
+
+<p>The interface which faces the public Internet, is the one which you code your rules to
+authorize and control access out to the public Internet and access requests arriving from
+the public Internet. This can be your ppp <tt class="DEVICENAME">tun0</tt> interface or
+your NIC that is connected to your DSL or cable modem.</p>
+
+<p>In cases where one or more than one NIC are connected to a private LANs behind the
+firewall, those interfaces must have rules coded to allow free unmolested movement of
+packets originating from those LAN interfaces.</p>
+
+<p>The rules should be first organized into three major sections, all the free unmolested
+interfaces, public interface outbound, and the public interface inbound.</p>
+
+<p>The order of the rules in each of the public interface sections should be in order of
+the most used rules being placed before less often used rules with the last rule in the
+section being a block log all packets on that interface and direction.</p>
+
+<p>The Outbound section in the following rule set only contains 'allow' rules which
+contain selection values that uniquely identify the service that is authorized for public
+Internet access. All the rules have the, proto, port, in/out, via and keep state option
+coded. The 'proto tcp' rules have the 'setup' option included to identify the start
+session request as the trigger packet to be posted to the keep state stateful table.</p>
+
+<p>The Inbound section has all the blocking of undesirable packets first for two
+different reasons. First is these things being blocked may be part of an otherwise valid
+packet which may be allowed in by the later authorized service rules. Second reason is
+that by having a rule that explicitly blocks selected packets that I receive on an
+infrequent bases and do not want to see in the log, this keeps them from being caught by
+the last rule in the section which blocks and logs all packets which have fallen through
+the rules. The last rule in the section which blocks and logs all packets is how you
+create the legal evidence needed to prosecute the people who are attacking your
+system.</p>
+
+<p>Another thing you should take note of, is there is no response returned for any of the
+undesirable stuff, their packets just get dropped and vanish. This way the attackers has
+no knowledge if his packets have reached your system. The less the attackers can learn
+about your system the more secure it is. When you log packets with port numbers you do
+not recognize, look the numbers up in <tt class="FILENAME">/etc/services/</tt> or go to
+<a href="http://www.securitystats.com/tools/portsearch.php"
+target="_top">http://www.securitystats.com/tools/portsearch.php</a> and do a port number
+lookup to find what the purpose of that port number is. Check out this link for port
+numbers used by Trojans: <a href="http://www.simovits.com/trojans/trojans.html"
+target="_top">http://www.simovits.com/trojans/trojans.html</a>.</p>
+</div>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="AEN38409" name="AEN38409">26.6.5.6 An Example Inclusive
+Ruleset</a></h3>
+
+<p>The following non-<acronym class="ACRONYM">NAT</acronym>ed rule set is a complete
+inclusive type ruleset. You can not go wrong using this rule set for you own. Just
+comment out any pass rules for services you do not want. If you see messages in your log
+that you want to stop seeing just add a deny rule in the inbound section. You have to
+change the 'dc0' interface name in every rule to the interface name of the NIC that
+connects your system to the public Internet. For user ppp it would be 'tun0'.</p>
+
+<p>You will see a pattern in the usage of these rules.</p>
+
+<ul>
+<li>
+<p>All statements that are a request to start a session to the public Internet use
+keep-state.</p>
+</li>
+
+<li>
+<p>All the authorized services that originate from the public Internet have the limit
+option to stop flooding.</p>
+</li>
+
+<li>
+<p>All rules use in or out to clarify direction.</p>
+</li>
+
+<li>
+<p>All rules use via interface name to specify the interface the packet is traveling
+over.</p>
+</li>
+</ul>
+
+<p>The following rules go into <tt class="FILENAME">/etc/ipfw.rules</tt>.</p>
+
+<pre class="PROGRAMLISTING">
+################ Start of IPFW rules file ###############################
+# Flush out the list before we begin.
+ipfw -q -f flush
+
+# Set rules command prefix
+cmd="ipfw -q add"
+pif="dc0"     # public interface name of NIC
+              # facing the public Internet
+
+#################################################################
+# No restrictions on Inside LAN Interface for private network
+# Not needed unless you have LAN.
+# Change xl0 to your LAN NIC interface name
+#################################################################
+#$cmd 00005 allow all from any to any via xl0
+
+#################################################################
+# No restrictions on Loopback Interface
+#################################################################
+$cmd 00010 allow all from any to any via lo0
+
+#################################################################
+# Allow the packet through if it has previous been added to the
+# the "dynamic" rules table by a allow keep-state statement.
+#################################################################
+$cmd 00015 check-state
+
+#################################################################
+# Interface facing Public Internet (Outbound Section)
+# Interrogate session start requests originating from behind the
+# firewall on the private network or from this gateway server
+# destine for the public Internet.
+#################################################################
+
+# Allow out access to my ISP's Domain name server.
+# x.x.x.x must be the IP address of your ISP.s DNS
+# Dup these lines if your ISP has more than one DNS server
+# Get the IP addresses from /etc/resolv.conf file
+$cmd 00110 allow tcp from any to x.x.x.x 53 out via $pif setup keep-state
+$cmd 00111 allow udp from any to x.x.x.x 53 out via $pif keep-state
+
+# Allow out access to my ISP's DHCP server for cable/DSL configurations.
+# This rule is not needed for .user ppp. connection to the public Internet.
+# so you can delete this whole group.
+# Use the following rule and check log for IP address.
+# Then put IP address in commented out rule &amp; delete first rule
+$cmd 00120 allow log udp from any to any 67 out via $pif keep-state
+#$cmd 00120 allow udp from any to x.x.x.x 67 out via $pif keep-state
+
+# Allow out non-secure standard www function
+$cmd 00200 allow tcp from any to any 80 out via $pif setup keep-state
+
+# Allow out secure www function https over TLS SSL
+$cmd 00220 allow tcp from any to any 443 out via $pif setup keep-state
+
+# Allow out send &amp; get email function
+$cmd 00230 allow tcp from any to any 25 out via $pif setup keep-state
+$cmd 00231 allow tcp from any to any 110 out via $pif setup keep-state
+
+# Allow out FBSD (make install &amp; CVSUP) functions
+# Basically give user root "GOD" privileges.
+$cmd 00240 allow tcp from me to any out via $pif setup keep-state uid root
+
+# Allow out ping
+$cmd 00250 allow icmp from any to any out via $pif keep-state
+
+# Allow out Time
+$cmd 00260 allow tcp from any to any 37 out via $pif setup keep-state
+
+# Allow out nntp news (i.e. news groups)
+$cmd 00270 allow tcp from any to any 119 out via $pif setup keep-state
+
+# Allow out secure FTP, Telnet, and SCP
+# This function is using SSH (secure shell)
+$cmd 00280 allow tcp from any to any 22 out via $pif setup keep-state
+
+# Allow out whois
+$cmd 00290 allow tcp from any to any 43 out via $pif setup keep-state
+
+# deny and log everything else that.s trying to get out.
+# This rule enforces the block all by default logic.
+$cmd 00299 deny log all from any to any out via $pif
+
+#################################################################
+# Interface facing Public Internet (Inbound Section)
+# Interrogate packets originating from the public Internet
+# destine for this gateway server or the private network.
+#################################################################
+
+# Deny all inbound traffic from non-routable reserved address spaces
+$cmd 00300 deny all from 192.168.0.0/16 to any in via $pif  #RFC 1918 private IP
+$cmd 00301 deny all from 172.16.0.0/12 to any in via $pif     #RFC 1918 private IP
+$cmd 00302 deny all from 10.0.0.0/8 to any in via $pif          #RFC 1918 private IP
+$cmd 00303 deny all from 127.0.0.0/8 to any in via $pif        #loopback
+$cmd 00304 deny all from 0.0.0.0/8 to any in via $pif            #loopback
+$cmd 00305 deny all from 169.254.0.0/16 to any in via $pif   #DHCP auto-config
+$cmd 00306 deny all from 192.0.2.0/24 to any in via $pif       #reserved for docs
+$cmd 00307 deny all from 204.152.64.0/23 to any in via $pif  #Sun cluster interconnect
+$cmd 00308 deny all from 224.0.0.0/3 to any in via $pif         #Class D &amp; E multicast
+
+# Deny public pings
+$cmd 00310 deny icmp from any to any in via $pif
+
+# Deny ident
+$cmd 00315 deny tcp from any to any 113 in via $pif
+
+# Deny all Netbios service. 137=name, 138=datagram, 139=session
+# Netbios is MS/Windows sharing services.
+# Block MS/Windows hosts2 name server requests 81
+$cmd 00320 deny tcp from any to any 137 in via $pif
+$cmd 00321 deny tcp from any to any 138 in via $pif
+$cmd 00322 deny tcp from any to any 139 in via $pif
+$cmd 00323 deny tcp from any to any 81 in via $pif
+
+# Deny any late arriving packets
+$cmd 00330 deny all from any to any frag in via $pif
+
+# Deny ACK packets that did not match the dynamic rule table
+$cmd 00332 deny tcp from any to any established in via $pif
+
+# Allow traffic in from ISP's DHCP server. This rule must contain
+# the IP address of your ISP.s DHCP server as it.s the only
+# authorized source to send this packet type.
+# Only necessary for cable or DSL configurations.
+# This rule is not needed for .user ppp. type connection to
+# the public Internet. This is the same IP address you captured
+# and used in the outbound section.
+#$cmd 00360 allow udp from any to x.x.x.x 67 in via $pif keep-state
+
+# Allow in standard www function because I have apache server
+$cmd 00400 allow tcp from any to me 80 in via $pif setup limit src-addr 2
+
+# Allow in secure FTP, Telnet, and SCP from public Internet
+$cmd 00410 allow tcp from any to me 22 in via $pif setup limit src-addr 2
+
+# Allow in non-secure Telnet session from public Internet
+# labeled non-secure because ID &amp; PW are passed over public
+# Internet as clear text.
+# Delete this sample group if you do not have telnet server enabled.
+$cmd 00420 allow tcp from any to me 23 in via $pif setup limit src-addr 2
+
+# Reject &amp; Log all incoming connections from the outside
+$cmd 00499 deny log all from any to any in via $pif
+
+# Everything else is denied by default
+# deny and log all packets that fell through to see what they are
+$cmd 00999 deny log all from any to any
+################ End of IPFW rules file ###############################
+</pre>
+</div>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="AEN38426" name="AEN38426">26.6.5.7 An Example <acronym
+class="ACRONYM">NAT</acronym> and Stateful Ruleset</a></h3>
+
+<p>There are some additional configuration statements that need to be enabled to activate
+the <acronym class="ACRONYM">NAT</acronym> function of IPFW. The kernel source needs
+'option divert' statement added to the other IPFIREWALL statements compiled into a custom
+kernel.</p>
+
+<p>In addition to the normal IPFW options in <tt class="FILENAME">/etc/rc.conf</tt>, the
+following are needed.</p>
+
+<pre class="PROGRAMLISTING">
+natd_enable="YES"                   # Enable <acronym
+class="ACRONYM">NAT</acronym>D function
+natd_interface="rl0"                # interface name of public Internet NIC
+natd_flags="-dynamic -m"            # -m = preserve port numbers if possible
+</pre>
+
+<p>Utilizing stateful rules with divert natd rule (Network Address Translation) greatly
+complicates the rule set coding logic. The positioning of the check-state, and 'divert
+natd' rules in the rule set becomes very critical. This is no longer a simple
+fall-through logic flow. A new action type is used, called 'skipto'. To use the skipto
+command it is mandatory that you number each rule so you know exactly where the skipto
+rule number is you are really jumping to.</p>
+
+<p>The following is an uncommented example of one coding method, selected here to explain
+the sequence of the packet flow through the rule sets.</p>
+
+<p>The processing flow starts with the first rule from the top of the rule file and
+progress one rule at a time deeper into the file until the end is reach or the packet
+being tested to the selection criteria matches and the packet is released out of the
+firewall. It is important to take notice of the location of rule numbers 100 101, 450,
+500, and 510. These rules control the translation of the outbound and inbound packets so
+their entries in the keep-state dynamic table always register the private LAN IP address.
+Next notice that all the allow and deny rules specified the direction the packet is going
+(IE outbound or inbound) and the interface. Also notice that all the start outbound
+session requests all skipto rule 500 for the network address translation.</p>
+
+<p>Lets say a LAN user uses their web browser to get a web page. Web pages use port 80 to
+communicate over. So the packet enters the firewall, It does not match 100 because it is
+headed out not in. It passes rule 101 because this is the first packet so it has not been
+posted to the keep-state dynamic table yet. The packet finally comes to rule 125 a
+matches. It is outbound through the NIC facing the public Internet. The packet still has
+it's source IP address as a private LAN IP address. On the match to this rule, two
+actions take place. The keep-state option will post this rule into the keep-state dynamic
+rules table and the specified action is executed. The action is part of the info posted
+to the dynamic table. In this case it is "skipto rule 500". Rule 500 <acronym
+class="ACRONYM">NAT</acronym>s the packet IP address and out it goes. Remember this, this
+is very important. This packet makes its way to the destination and returns and enters
+the top of the rule set. This time it does match rule 100 and has it destination IP
+address mapped back to its corresponding LAN IP address. It then is processed by the
+check-state rule, it's found in the table as an existing session conversation and
+released to the LAN. It goes to the LAN PC that sent it and a new packet is sent
+requesting another segment of the data from the remote server. This time it gets checked
+by the check-state rule and its outbound entry is found, the associated action, 'skipto
+500', is executed. The packet jumps to rule 500 gets <acronym
+class="ACRONYM">NAT</acronym>ed and released on it's way out.</p>
+
+<p>On the inbound side, everything coming in that is part of an existing session
+conversation is being automatically handled by the check-state rule and the properly
+placed divert natd rules. All we have to address is denying all the bad packets and only
+allowing in the authorized services. Lets say there is a apache server running on the
+firewall box and we want people on the public Internet to be able to access the local web
+site. The new inbound start request packet matches rule 100 and its IP address is mapped
+to LAN IP for the firewall box. The packet is them matched against all the nasty things
+we want to check for and finally matches against rule 425. On a match two things occur.
+The packet rule is posted to the keep-state dynamic table but this time any new session
+requests originating from that source IP address is limited to 2. This defends against
+DoS attacks of service running on the specified port number. The action is allow so the
+packet is released to the LAN. On return the check-state rule recognizes the packet as
+belonging to an existing session conversation sends it to rule 500 for <acronym
+class="ACRONYM">NAT</acronym>ing and released to outbound interface.</p>
+
+<p>Example Ruleset #1:</p>
+
+<pre class="PROGRAMLISTING">
+#!/bin/sh
+cmd="ipfw -q add"
+skip="skipto 500"
+pif=rl0
+ks="keep-state"
+good_tcpo="22,25,37,43,53,80,443,110,119"
+
+ipfw -q -f flush
+
+$cmd 002 allow all from any to any via xl0  # exclude LAN traffic
+$cmd 003 allow all from any to any via lo0  # exclude loopback traffic
+
+$cmd 100 divert natd ip from any to any in via $pif
+$cmd 101 check-state
+
+# Authorized outbound packets
+$cmd 120 $skip udp from any to xx.168.240.2 53 out via $pif $ks
+$cmd 121 $skip udp from any to xx.168.240.5 53 out via $pif $ks
+$cmd 125 $skip tcp from any to any $good_tcpo out via $pif setup $ks
+$cmd 130 $skip icmp from any to any out via $pif $ks
+$cmd 135 $skip udp from any to any 123 out via $pif $ks
+
+
+# Deny all inbound traffic from non-routable reserved address spaces
+$cmd 300 deny all from 192.168.0.0/16  to any in via $pif  #RFC 1918 private IP
+$cmd 301 deny all from 172.16.0.0/12   to any in via $pif  #RFC 1918 private IP
+$cmd 302 deny all from 10.0.0.0/8      to any in via $pif  #RFC 1918 private IP
+$cmd 303 deny all from 127.0.0.0/8     to any in via $pif  #loopback
+$cmd 304 deny all from 0.0.0.0/8       to any in via $pif  #loopback
+$cmd 305 deny all from 169.254.0.0/16  to any in via $pif  #DHCP auto-config
+$cmd 306 deny all from 192.0.2.0/24    to any in via $pif  #reserved for docs
+$cmd 307 deny all from 204.152.64.0/23 to any in via $pif  #Sun cluster
+$cmd 308 deny all from 224.0.0.0/3     to any in via $pif  #Class D &amp; E multicast
+
+# Authorized inbound packets
+$cmd 400 allow udp from xx.70.207.54 to any 68 in $ks
+$cmd 420 allow tcp from any to me 80 in via $pif setup limit src-addr 1
+
+
+$cmd 450 deny log ip from any to any
+
+# This is skipto location for outbound stateful rules
+$cmd 500 divert natd ip from any to any out via $pif
+$cmd 510 allow ip from any to any
+
+######################## end of rules  ##################
+</pre>
+
+<p>The following is pretty much the same as above, but uses a self documenting coding
+style full of description comments to help the inexperienced IPFW rule writer to better
+understand what the rules are doing.</p>
+
+<p>Example Ruleset #2:</p>
+
+<pre class="PROGRAMLISTING">
+#!/bin/sh
+################ Start of IPFW rules file ###############################
+# Flush out the list before we begin.
+ipfw -q -f flush
+
+# Set rules command prefix
+cmd="ipfw -q add"
+skip="skipto 800"
+pif="rl0"     # public interface name of NIC
+              # facing the public Internet
+
+#################################################################
+# No restrictions on Inside LAN Interface for private network
+# Change xl0 to your LAN NIC interface name
+#################################################################
+$cmd 005 allow all from any to any via xl0
+
+#################################################################
+# No restrictions on Loopback Interface
+#################################################################
+$cmd 010 allow all from any to any via lo0
+
+#################################################################
+# check if packet is inbound and nat address if it is
+#################################################################
+$cmd 014 divert natd ip from any to any in via $pif
+
+#################################################################
+# Allow the packet through if it has previous been added to the
+# the "dynamic" rules table by a allow keep-state statement.
+#################################################################
+$cmd 015 check-state
+
+#################################################################
+# Interface facing Public Internet (Outbound Section)
+# Interrogate session start requests originating from behind the
+# firewall on the private network or from this gateway server
+# destine for the public Internet.
+#################################################################
+
+# Allow out access to my ISP's Domain name server.
+# x.x.x.x must be the IP address of your ISP's DNS
+# Dup these lines if your ISP has more than one DNS server
+# Get the IP addresses from /etc/resolv.conf file
+$cmd 020 $skip tcp from any to x.x.x.x 53 out via $pif setup keep-state
+
+
+# Allow out access to my ISP's DHCP server for cable/DSL configurations.
+$cmd 030 $skip udp from any to x.x.x.x 67 out via $pif keep-state
+
+# Allow out non-secure standard www function
+$cmd 040 $skip tcp from any to any 80 out via $pif setup keep-state
+
+# Allow out secure www function https over TLS SSL
+$cmd 050 $skip tcp from any to any 443 out via $pif setup keep-state
+
+# Allow out send &amp; get email function
+$cmd 060 $skip tcp from any to any 25 out via $pif setup keep-state
+$cmd 061 $skip tcp from any to any 110 out via $pif setup keep-state
+
+# Allow out FreeBSD (make install &amp; CVSUP) functions
+# Basically give user root "GOD" privileges.
+$cmd 070 $skip tcp from me to any out via $pif setup keep-state uid root
+
+# Allow out ping
+$cmd 080 $skip icmp from any to any out via $pif keep-state
+
+# Allow out Time
+$cmd 090 $skip tcp from any to any 37 out via $pif setup keep-state
+
+# Allow out nntp news (i.e. news groups)
+$cmd 100 $skip tcp from any to any 119 out via $pif setup keep-state
+
+# Allow out secure FTP, Telnet, and SCP
+# This function is using SSH (secure shell)
+$cmd 110 $skip tcp from any to any 22 out via $pif setup keep-state
+
+# Allow out whois
+$cmd 120 $skip tcp from any to any 43 out via $pif setup keep-state
+
+# Allow ntp time server
+$cmd 130 $skip udp from any to any 123 out via $pif keep-state
+
+#################################################################
+# Interface facing Public Internet (Inbound Section)
+# Interrogate packets originating from the public Internet
+# destine for this gateway server or the private network.
+#################################################################
+
+# Deny all inbound traffic from non-routable reserved address spaces
+$cmd 300 deny all from 192.168.0.0/16  to any in via $pif  #RFC 1918 private IP
+$cmd 301 deny all from 172.16.0.0/12   to any in via $pif  #RFC 1918 private IP
+$cmd 302 deny all from 10.0.0.0/8      to any in via $pif  #RFC 1918 private IP
+$cmd 303 deny all from 127.0.0.0/8     to any in via $pif  #loopback
+$cmd 304 deny all from 0.0.0.0/8       to any in via $pif  #loopback
+$cmd 305 deny all from 169.254.0.0/16  to any in via $pif  #DHCP auto-config
+$cmd 306 deny all from 192.0.2.0/24    to any in via $pif  #reserved for docs
+$cmd 307 deny all from 204.152.64.0/23 to any in via $pif  #Sun cluster
+$cmd 308 deny all from 224.0.0.0/3     to any in via $pif  #Class D &amp; E multicast
+
+# 拒絕 ident
+$cmd 315 deny tcp from any to any 113 in via $pif
+
+# 拒絕所有的 Netbios 服務. 137=name, 138=datagram, 139=session
+# Netbios 是 MS/Windows 網路分享服務
+# 阻擋所有的 MS/Windows 主機名稱伺服器hosts2 name server requests 81
+$cmd 320 deny tcp from any to any 137 in via $pif
+$cmd 321 deny tcp from any to any 138 in via $pif
+$cmd 322 deny tcp from any to any 139 in via $pif
+$cmd 323 deny tcp from any to any 81  in via $pif
+
+# 拒絕任何的延遲到達之封包
+$cmd 330 deny all from any to any frag in via $pif
+
+# Deny ACK packets that did not match the dynamic rule table
+$cmd 332 deny tcp from any to any established in via $pif
+
+# Allow traffic in from ISP's DHCP server. This rule must contain
+# the IP address of your ISP's DHCP server as it's the only
+# authorized source to send this packet type.
+# Only necessary for cable or DSL configurations.
+# This rule is not needed for 'user ppp' type connection to
+# the public Internet. This is the same IP address you captured
+# and used in the outbound section.
+$cmd 360 allow udp from x.x.x.x to any 68 in via $pif keep-state
+
+# Allow in standard www function because I have Apache server
+$cmd 370 allow tcp from any to me 80 in via $pif setup limit src-addr 2
+
+# Allow in secure FTP, Telnet, and SCP from public Internet
+$cmd 380 allow tcp from any to me 22 in via $pif setup limit src-addr 2
+
+# Allow in non-secure Telnet session from public Internet
+# labeled non-secure because ID &amp; PW are passed over public
+# Internet as clear text.
+# Delete this sample group if you do not have telnet server enabled.
+$cmd 390 allow tcp from any to me 23 in via $pif setup limit src-addr 2
+
+# Reject &amp; Log all unauthorized incoming connections from the public Internet
+$cmd 400 deny log all from any to any in via $pif
+
+# Reject &amp; Log all unauthorized out going connections to the public Internet
+$cmd 450 deny log all from any to any out via $pif
+
+# This is skipto location for outbound stateful rules
+$cmd 800 divert natd ip from any to any out via $pif
+$cmd 801 allow ip from any to any
+
+# Everything else is denied by default
+# deny and log all packets that fell through to see what they are
+$cmd 999 deny log all from any to any
+################ End of IPFW rules file ###############################
+</pre>
+</div>
+</div>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="firewalls-ipf.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="advanced-networking.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">IPFILTER (IPF) 防火牆</td>
+<td width="34%" align="center" valign="top"><a href="firewalls.html"
+accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">Advanced Networking</td>
+</tr>
+</table>
+</div>
+
+<p align="center"><small>This, and other documents, can be downloaded from <a
+href="ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/">ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/</a>.</small></p>
+
+<p align="center"><small>For questions about FreeBSD, read the <a
+href="http://www.FreeBSD.org/docs.html">documentation</a> before contacting &#60;<a
+href="mailto:questions@FreeBSD.org">questions@FreeBSD.org</a>&#62;.<br />
+For questions about this documentation, e-mail &#60;<a
+href="mailto:doc@FreeBSD.org">doc@FreeBSD.org</a>&#62;.</small></p>
+</body>
+</html>
+

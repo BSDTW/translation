@@ -1,0 +1,121 @@
+
+
+<!-- Vignette StoryServer 4 Sat Mar 11 15:43:24 2000 --> 
+<style type=text/css>
+<!--
+p,div {font-size:12pt; line-height:14pt; font-family:宋體;}
+.p1{font-size:12pt;font-family:宋體;}
+.p2{font-size:12pt;font-family:宋體;line-height:14pt;}
+.p3{font-size:14.8px;font-family:宋體;}
+.p4{font-size:14.8px;font-family:宋體;line-height:14pt;}
+.p5{font-size:1pt}
+a:hover{color:red;}
+a.t1:visited{color:red;}
+-->
+</style>
+<title>FreeBSD使用大全</title></head>
+
+<body bgcolor="#FFFFFF" text="#000000" link="#383098" vlink="#336699" alink="#FF0000" topmargin="0">
+<!-- Vignette StoryServer 4 Thu Mar 23 10:01:54 2000 --> <!-- Vignette StoryServer 4 Thu Mar 23 15:34:35 2000 --> 
+
+<!--開始：新聞內容-->
+<TABLE WIDTH=750 BORDER=0 CELLSPACING=0 CELLPADDING=0>
+
+<tr valign=top>
+
+
+
+<TD  valign=top>
+<CENTER><FONT COLOR=#000066 size=5><B>FreeBSD連載(65)：SMB/CIFS協議</B><br></FONT></CENTER>
+
+<HR  ALIGN="center" SIZE=1>
+<CENTER><FONT FACE="Arial" SIZE=2> 2000年1月6日 13:05 </FONT><FONT COLOR="#990000" SIZE=2>王波</FONT></CENTER><p>
+
+<h1 align=center>SMB/CIFS協議</h1>
+
+<p>　　在NetBIOS出現之後，Microsoft就使用NetBIOS實現了一個網路檔案/打印服務系統，這個
+系統基於NetBIOS設定了一套檔案共享協議，Microsoft稱之為SMB（Server Message Block）
+協議。這個協議被Microsoft用於它們Lan Manager和Windows NT伺服器系統中，
+而Windows系統均包括這個協議的客戶軟體，因而這個協議在局域網系統中影響很大。</p>
+
+<p>　　隨著Internet的流行，Microsoft希望將這個協議擴展到Internet上去，成為Inter
+net上電腦之間相互共享數據的一種標準。因此它將原有的幾乎沒有多少技術文檔的SMB協議進行整理，重新命名為
+CIFS（Common Internet File System），並打算將它與NetBIOS相脫離，試圖使它成
+為Internet上的一個標準協議。</p>
+
+<p>　　因此，為了讓Windows和Unix電腦相集成，最好的辦法即是在Unix中安裝支持SMB/CIFS協
+議的軟體，這樣Windows客戶就不需要更改設置，就能如同使用Windows NT伺服器一樣，使用Unix計算
+機上的資源了。</p>
+
+<p>　　與其他標準的TCP/IP協議不同，SMB協議是一種複雜的協議，因為隨著Windows電腦的開發，越來
+越多的功能被加入到協議中去了，很難區分哪些概念和功能應該屬於Windows操作系統本身，哪些概念應該屬於SMB
+協議。其他網路協議由於是先有協議，實現相關的軟體，因此結構上就清晰簡潔一些，而SMB協議一直是與Microsoft
+的操作系統混在一起進行開發的，因此協議中就包含了大量的Windows系統中的概念。</p>
+
+<ul><h2><P><LI>瀏覽</LI></P></h2></ul>
+
+<p>　　在SMB協議中，電腦為了訪問網路資源，就需要了解網路上存在的資源列表（例如在Windows下使用網路
+鄰居查看可以訪問的電腦），這個機制就被稱為瀏覽（Browsing）。雖然SMB協議中經常使用廣播的方式，但如
+果每次都使用廣播的方式了解目前的網路資源（包括提供服務的電腦和各個電腦上的服務資源），就需要消耗大量的網路
+資源和浪費較長的查找時間，因此最好在網路中維護一個網路資源的列表，以方便查找網路資源。只有必要的時候，才重新查
+找資源，例如使用Windows下的查找電腦功能。</p>
+
+<p>　　但沒有必要每個電腦都維護整個資源列表，維護網路中目前資源列表的任務由網路上的幾個特殊電腦完成的，這
+些電腦被稱為Browser，這些Browser通過記錄廣播數據或查詢名字伺服器來記錄網路上的各種資源。</p>
+
+<p>　　Browser並不是事先指定的電腦，而是在普通電腦之間通過自動進行的推舉產生的。不同的電腦可以按
+照其提供服務的能力，設置在推舉時具備的不同權重。為了保証一個Browser停機時網路瀏覽仍然正常，網路中常常存
+在多個Browser，一個為主Browser（Master Browser），其他的為備份Browser。</p>
+
+<ul><h2><P><LI>工作組和域</LI></P></h2></ul>
+
+<p>　　工作組和域這兩個概念在進行瀏覽時具備同樣的用處，都是用於區分並維護同一組瀏覽數據的多個電腦。事實上他
+們的不同在於認証方式上，工作組中每台電腦都基本上是獨立的，獨立對客戶訪問進行認証，而域中將存在一個（或幾個）
+域控制器，保存對整個域中都有效的認証信息，包括用戶的認証信息以及域內成員電腦的認証信息。瀏覽數據的時候，並不
+需要認証信息，Microsoft將工作組擴展為域，只是為了形成一種分級的目錄結構，將原有的瀏覽和目錄服務相結合
+，以擴大Mircrosoft網路服務範圍的一種策略。</p>
+
+<p>　　工作組和域都可以跨越多個子網，因此網路中就存在兩種Browser，一種為Domain Master Browser
+，用於維護整個工作組或域內的瀏覽數據，另一種為Local Master Browser，用於維護本
+子網內的瀏覽數據，它和Domain Master Browser通信以獲得所有的可瀏覽數據。劃分這兩種Browser
+主要是由於瀏覽數據依賴於本地網廣播來獲得資源列表，不同子網之間只能通過瀏覽器之間的交流能力，才能互相交換
+資源列表。</p>
+
+<p>　　但是，為了瀏覽多個子網的資源，必須使用NBNS名字伺服器的解析方式，沒有NBNS的幫助，電腦將不能獲
+得子網外電腦的NetBIOS名字。Local Master Browser也需要查詢NetBIOS名字伺服器
+以獲得Domain Master Browser的名字，以相互交換網路資源信息。</p>
+
+<p>　　由於域控制器在域內的特殊性，因此域控制器傾向於被用做Browser，主域控制器應該被用作Domain 
+Master Browser，他們在推舉時設置的權重較大。</p>
+
+<ul><h2><P><LI>認証方式</LI></P></h2></ul>
+
+<p>　　在Windows 9x系統中，習慣上使用共享級認証的方式互相共享資源，主要原因是在這些Windows系
+統上不能提供真正的多用戶能力。一個共享級認証的資源只有一個密碼與其相聯繫，而沒有用戶數據。這個想法是適合於一小
+組人員相互共享很少的檔案資源的情況下，一旦需要共享的資源變多，需要進行的限制複雜化，那麼針對每個共享資源都設置
+一個密碼的做法就不再合適了。</p>
+
+<p>　　因此對於大型網路來講，更適合的方式是用戶級的認証方式，區分並認証每個訪問的用戶，並通過對不同用戶分配權
+限的方式共享資源。對於工作組方式的電腦，認証用戶是通過本機完成的，而域中的電腦能通過域控制器進行認証。當
+Windows電腦通過域控制器的認証時，它可以根據設置執行域控制器上的相應用戶的登錄腳本並桌面環境描述檔案。</p>
+
+
+<ul><h2><P><LI>共享資源</LI></P></h2></ul>
+
+<p>　　每個SMB伺服器能對外提供檔案或打印服務，每個共享資源需要被給予一個共享名，這個名字將顯示在這個伺服器
+的資源列表中。然而，如果一個資源的名字的最後一個字母為$，則這個名字就為隱藏名字，不能直接表現在瀏覽列表中，而
+只能通過直接訪問這個名字來進行訪問。</p>
+
+<p>　　在SMB協議中，為了獲得伺服器提供的資源列表，必須使用一個隱藏的資源名字IPC$來訪問伺服器，否則客戶
+無法獲得系統資源的列表。</p>
+
+
+<BR>
+
+</TD>
+</TR></TABLE>
+
+
+
+</BODY>
+</HTML>

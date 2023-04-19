@@ -1,0 +1,845 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>Chapter 35. Sensors</title>
+    <link rel="stylesheet" type="text/css" href="docbook-xsl-mymods.css" />
+    <meta name="generator" content="DocBook XSL Stylesheets V1.76.0" />
+    <link rel="home" href="index.html" />
+    <link rel="up" href="pt06.html" />
+    <link rel="prev" href="ch34.html" />
+    <link rel="next" href="pt07.html" />
+  </head>
+  <body>
+    <div class="mattnotice">
+      <p>As a courtesy, this is a <b>full free</b> rendering of my book, <i>Programming iOS 6</i>, by Matt Neuburg. Copyright 2013 Matt Neuburg. Please note that this book has now been completely superseded by two more recent books, <a href="http://shop.oreilly.com/product/0636920032465.do">iOS 7 Fundamentals</a> and <a href="http://shop.oreilly.com/product/0636920031017.do">Programming iOS 7</a>. If my work has been of help to you, please <b>consider purchasing</b> one or both of them. Thank you!
+	</p>
+    </div>
+    <div class="navfooter">
+      <table width="100%" summary="Navigation footer">
+        <tr>
+          <td width="40%" align="left"><a accesskey="p" href="ch34.html">Prev</a> </td>
+          <td width="20%" align="center">
+            <a accesskey="u" href="pt06.html">Up</a>
+          </td>
+          <td width="40%" align="right"> <a accesskey="n" href="pt07.html">Next</a></td>
+        </tr>
+        <tr>
+          <td width="40%" align="left" valign="top">Chapter 34. Maps </td>
+          <td width="20%" align="center">
+            <a accesskey="h" href="index.html">Table of Contents</a>
+          </td>
+          <td width="40%" align="right" valign="top"> Part VII. Final Topics</td>
+        </tr>
+      </table>
+    </div>
+    <div class="chapter">
+      <div class="titlepage">
+        <div>
+          <div>
+            <h2 class="title"><a id="chap_id35"></a>Chapter 35. Sensors</h2>
+          </div>
+        </div>
+      </div>
+      <p>A device may contain hardware for sensing the world around itself — where it is located, how it is oriented, how it is moving.</p>
+      <p>Information about the device’s current location and how that location is changing over time, using its Wi-Fi, cellular networking, and GPS capabilities, along with information about the device’s orientation relative to north, using its magnetometer, is provided through the Core Location framework. You’ll link to <span class="emphasis"><em>CoreLocation.framework</em></span> and import <code class="literal">&lt;CoreLocation/CoreLocation.h&gt;</code>.<a id="idm441640680656" class="indexterm"></a>
+<a id="idm441640679344" class="indexterm"></a></p>
+      <p>Information about the device’s change in speed and attitude using its accelerometer is provided through the UIEvent class (for device shake) and the Core Motion framework, which provides increased accuracy by incorporating the device’s gyroscope, if it has one, as well as the magnetometer; you’ll link to <span class="emphasis"><em>CoreMotion.framework</em></span> and import <code class="literal">&lt;CoreMotion/CoreMotion.h&gt;</code>.<a id="idm441640676432" class="indexterm"></a>
+<a id="idm441640675136" class="indexterm"></a></p>
+      <p>One of the major challenges associated with writing code that takes advantage of the sensors is that not all devices have all of this hardware. If you don’t want to impose stringent restrictions on what devices your app will run on in the first place (<code class="literal">UIRequiredDeviceCapabilities</code> in <span class="emphasis"><em>Info.plist</em></span>), your code must be prepared to fail gracefully and possibly provide a subset of its full capabilities when it discovers that the current device lacks certain features. Moreover, certain sensors may experience momentary inadequacy; for example, Core Location might not be able to get a fix on the device’s position because it can’t see cell towers, GPS satellites, or both. Also, some sensors take time to “warm up,” so that the values you’ll get from them initially will be invalid. You’ll want to respond to such changes in the external circumstances, in order to give the user a decent experience of your application regardless.</p>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_location"></a>Location</h2>
+            </div>
+          </div>
+        </div>
+        <p>Core Location provides facilities for the device to determine and report its location (<span class="emphasis"><em>location services</em></span>). It takes advantage of three sensors:</p>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+Wi-Fi
+</span>
+            </dt>
+            <dd>
+The device (if Wi-Fi is turned on) may scan for nearby Wi-Fi devices and compare these against an online database.
+</dd>
+            <dt>
+              <span class="term">
+Cell
+</span>
+            </dt>
+            <dd>
+The device (if it has cell capabilities) may compare nearby telephone cell towers against an online database.
+</dd>
+            <dt>
+              <span class="term">
+GPS
+</span>
+            </dt>
+            <dd>
+The device’s GPS (if it has one) may be able to obtain a position fix from GPS satellites.
+</dd>
+          </dl>
+        </div>
+        <p>Core Location will automatically use whatever facilities the device does have; all <span class="emphasis"><em>you</em></span> have to do is ask for the device’s location.<a id="idm441640663680" class="indexterm"></a><a id="idm441640662816" class="indexterm"></a><a id="idm441640661920" class="indexterm"></a> Core Location allows you to specify how accurate a position fix you want; more accurate fixes may require more time.</p>
+        <p>The notion of a location is encapsulated by the CLLocation class and its properties, which include:</p>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+<code class="literal">coordinate</code>
+</span>
+            </dt>
+            <dd>
+A CLLocationCoordinate2D; see <a class="xref" href="ch34.html">Chapter 34</a>.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">altitude</code>
+</span>
+            </dt>
+            <dd>
+A CLLocationDistance, which is a double representing a number of meters.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">speed</code>
+</span>
+            </dt>
+            <dd>
+A CLLocationSpeed, which is a double representing meters per second.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">heading</code>
+</span>
+            </dt>
+            <dd>
+A CLLocationDirection, which is a double representing degrees (<span class="emphasis"><em>not</em></span> radians!) clockwise from north.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">horizontalAccuracy</code>
+</span>
+            </dt>
+            <dd>
+A CLLocationAccuracy, which is a double representing meters.
+</dd>
+          </dl>
+        </div>
+        <p>In addition to the sensor-related considerations I mentioned a moment ago, use of Core Location poses the following challenges:</p>
+        <div class="itemizedlist">
+          <ul class="itemizedlist" type="disc">
+            <li class="listitem">
+Accuracy of a reported location may vary depending on a number of factors. The GPS is the most accurate location sensor, but it takes the longest to get a fix.
+</li>
+            <li class="listitem">
+Battery usage due to running the sensors is a serious concern. The GPS in particular is probably the most battery-intensive of all the onboard sensors.
+</li>
+            <li class="listitem">
+Behavior of your app may depend on the device’s physical location. To help you test, Xcode lets you pretend that the device is at a particular location on earth. The Simulator’s Debug → Location menu lets you enter a location; the Scheme editor lets you set a default location (under Options); and the Debug pane lets you switch among locations (using the Location pop-up menu in the bar at the top). You can set a built-in location or supply a standard GPX file containing a waypoint. You can also set the location to None; it’s important to test for what happens when no location information is available.<a id="idm441640628352" class="indexterm"></a>
+<a id="idm441640625888" class="indexterm"></a>
+</li>
+          </ul>
+        </div>
+        <p>To use Core Location and location services directly, you need a <a id="idm441640624272" class="indexterm"></a>location manager — a CLLocationManager instance. Use of a location manager typically operates along the following lines:</p>
+        <div class="orderedlist">
+          <ol class="orderedlist" type="1">
+            <li class="listitem">
+              <p class="simpara">
+You’ll confirm that the desired services are available. CLLocationManager class methods let you find out whether the user has switched on the device’s location services as a whole (<code class="literal">locationServicesEnabled</code>), whether the user has authorized <span class="emphasis"><em>this</em></span> app to use location services (<code class="literal">authorizedStatus</code>), and whether a particular service is available.
+</p>
+              <p class="simpara">If location services are switched off, you can start using a location manager anyway, as a way of getting the runtime to present the dialog asking the user to switch them on. Be prepared, though, for the possibility that the user won’t do so. You can modify the body of this alert by setting the “Privacy — Location Usage Description” key (<code class="literal">NSLocationUsageDescription</code>) in your app’s <span class="emphasis"><em>Info.plist</em></span> (superseding the location manager’s pre–iOS 6 <code class="literal">purpose</code> property) to tell the user <span class="emphasis"><em>why</em></span> you want to access the database. This is a kind of “elevator pitch”; you need to persuade the user in very few words.</p>
+            </li>
+            <li class="listitem">
+You’ll instantiate CLLocationManager and retain the instance somewhere, usually an instance variable.
+</li>
+            <li class="listitem">
+You’ll set yourself as the location manager’s delegate (CLLocationManagerDelegate).
+</li>
+            <li class="listitem">
+              <p class="simpara">
+You’ll configure the location manager. For example, set its <code class="literal">desiredAccuracy</code> if you don’t need best possible accuracy; it might be sufficient for your purposes to know very quickly but very roughly the device’s location (and recall that highest accuracy may also cause the highest battery drain). The accuracy setting is not a filter: the location manager will still send you whatever location information it has, and checking a location’s <code class="literal">horizontalAccuracy</code> is then up to you.
+</p>
+              <p class="simpara">The location manager’s <code class="literal">distanceFilter</code> lets you specify that you don’t need a location report unless the device has moved a certain distance since the previous report. This can help keep you from being bombarded with events you don’t need. Other configuration settings depend on the particular service you’re asking for, as I’ll explain later.</p>
+            </li>
+            <li class="listitem">
+You’ll tell the location manager to begin generating information; for example, you’ll call <code class="literal">startUpdatingLocation</code>. The location manager, in turn, will begin calling the appropriate delegate method repeatedly; in the case of <code class="literal">startUpdatingLocation</code>, it’s <code class="literal">locationManager:didUpdateToLocation:fromLocation:</code>. Your delegate will also always implement <code class="literal">locationManager:didFailWithError:</code>, to receive error messages. You’ll deal with each delegate method call in turn. Remember to call the corresponding <code class="literal">stop...</code> method when you no longer need delegate method calls.
+</li>
+          </ol>
+        </div>
+        <p>As a simple example, we’ll turn on location services manually, just long enough to see if we can determine our position. We begin by ascertaining that location services are in fact available and that we have or can get authorization. If all is well, we instantiate <a id="idm441640604240" class="indexterm"></a>CLLocationManager, set ourselves as the delegate, configure the location manager, set some instance variables so we can track what’s happening, and call <code class="literal">startUpdatingLocation</code> to turn on location services:</p>
+        <pre class="screen">BOOL ok = [CLLocationManager locationServicesEnabled];
+if (!ok) {
+    NSLog(@"oh well");
+    return;
+}
+CLAuthorizationStatus auth = [CLLocationManager authorizationStatus];
+if (auth == kCLAuthorizationStatusRestricted ||
+        auth == kCLAuthorizationStatusDenied) {
+    NSLog(@"sigh");
+    return;
+}
+CLLocationManager* lm = [CLLocationManager new];
+self.locman = lm;
+self.locman.delegate = self;
+self.locman.desiredAccuracy = kCLLocationAccuracyBest;
+self.locman.purpose = @"This app would like to tell you where you are.";
+self.startTime = [NSDate date]; // now
+self.gotloc = NO;
+[self.locman startUpdatingLocation];</pre>
+        <p>If something goes wrong, such as the user refusing to authorize this app, we’ll just turn location services back off:</p>
+        <pre class="screen">- (void)locationManager:(CLLocationManager *)manager
+       didFailWithError:(NSError *)error {
+    NSLog(@"error: %@", [error localizedDescription]);
+    // e.g., if user refuses to authorize...
+    // ..."The operation couldn't be completed."
+    [manager stopUpdatingLocation];
+}</pre>
+        <p>If things <span class="emphasis"><em>don’t</em></span> go wrong, we’ll be handed our location as soon as it is determined. In this case, I’ve decided to demand accuracy better than 70 meters. If I don’t get it, I wait for the next location, but I also compare each location’s timestamp to the timestamp I created at the outset, so that I won’t wait forever for an accuracy that might never arrive. If I get the desired accuracy within the desired time, I turn off location services and am ready to use the location information:</p>
+        <pre class="screen">- (void)locationManager:(CLLocationManager *)manager
+        didUpdateToLocation:(CLLocation *)newLocation
+        fromLocation:(CLLocation *)oldLocation {
+    if (!self.gotloc &amp;&amp;
+        ([newLocation.timestamp timeIntervalSinceDate:self.startTime] &gt; 20))
+            {
+                NSLog(@"this is just taking too long");
+                [self.locman stopUpdatingLocation];
+                return;
+            }
+    CLLocationAccuracy acc = newLocation.horizontalAccuracy;
+    NSLog(@"%f", acc);
+    if (acc &gt; 70)
+        return; // wait for better accuracy
+    // if we get here, we have an accurate location
+    [manager stopUpdatingLocation];
+    self.gotloc = YES;
+    // ... and now we could do something with newLocation ...
+}</pre>
+        <p>The first time that app runs, the log messages chart the increasing accuracy of the location reports. You can see that it was worth waiting a few seconds to get better accuracy:</p>
+        <pre class="screen">2013-02-09 09:02:29.569 p718p736location[407:707] 45383.659065
+2013-02-09 09:02:31.358 p718p736location[407:707] 1413.314191
+2013-02-09 09:02:32.154 p718p736location[407:707] 163.886905
+2013-02-09 09:02:36.137 p718p736location[407:707] 10.000000</pre>
+        <p>Core Location will also use the GPS to determine which way and how quickly the device is moving. This information, if available, is returned automatically as part of a CLLocation object in <code class="literal">locationManager:didUpdateToLocation:fromLocation:</code>, through its <code class="literal">speed</code> and <code class="literal">course</code> properties.<a id="idm441640593424" class="indexterm"></a><a id="idm441640592528" class="indexterm"></a> For information about the device’s heading (which way is north), see the next section.</p>
+        <p>You can also use Core Location when your app is not in the foreground.<a id="idm441640590736" class="indexterm"></a> There are two quite different ways to do this. The first is that your app can run in the background. Use of Core Location in the background is similar to production and recording of sound in the background (<a class="xref" href="ch27.html">Chapter 27</a>): you set the <code class="literal">UIBackgroundModes</code> key of your app’s <span class="emphasis"><em>Info.plist</em></span>, giving it a value of <code class="literal">location</code>. This tells the system that if you have turned on location services and the user clicks the Home button, your app should not be suspended, the use of location services should continue, and your delegate should keep receiving Core Location events. Background use of location services can cause a power drain, but if you want your app to function as a positional data logger, for instance, it may be the only way; you can also help conserve power by making judicious choices, such as setting a coarse <code class="literal">distanceFilter</code> value and not requiring high accuracy. Starting in iOS 6, Core Location can operate in deferred mode (<code class="literal">allowDeferredLocationUpdatesUntilTraveled:timeout:</code>) so that your background app doesn’t receive updates until the user has moved a specified amount or until a fixed time interval has elapsed; this, too, can help conserve power, as the device may be able to power down some its sensors temporarily.<a id="idm441640584464" class="indexterm"></a>
+<a id="idm441640583184" class="indexterm"></a></p>
+        <p>The second way of using of Core Location without being in the foreground <span class="emphasis"><em>doesn’t even require your app to be running</em></span>. You do <span class="emphasis"><em>not</em></span> have to set the <code class="literal">UIBackgroundModes</code> of your <span class="emphasis"><em>Info.plist</em></span>. You register with the system to receive a certain kind of notification, and when such a notification arrives, your app will be launched if it isn’t running. There are two notifications of this kind:</p>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+Significant location monitoring
+</span>
+            </dt>
+            <dd>
+If <code class="literal">significantLocationChangeMonitoringAvailable</code> is YES, you can call <code class="literal">startMonitoringSignificantLocationChanges</code>. The delegate’s <code class="literal">locationManager:didUpdateToLocation:fromLocation:</code> will be called when the device’s location has changed significantly.<a id="idm441640575504" class="indexterm"></a>
+</dd>
+            <dt>
+              <span class="term">
+Region monitoring
+</span>
+            </dt>
+            <dd>
+              <p class="simpara">
+If <code class="literal">regionMonitoringAvailable</code> and <code class="literal">regionMonitoringEnabled</code> are YES, you can call <code class="literal">startMonitoringForRegion:</code> or <code class="literal">startMonitoringForRegion:desiredAccuracy:</code> for each region in which you are interested. Regions are collected as an NSSet, which is the location manager’s <code class="literal">monitoredRegions</code>. A region is a CLRegion, initialized with <code class="literal">initCircularRegionWithCenter:radius:identifier:</code>; the <code class="literal">identifier</code> serves as a unique key, so that if you start monitoring for a region whose identifier matches that of a region already in the <code class="literal">monitoredRegions</code> set, the latter will be ejected from the set. The following delegate methods may be called:
+</p>
+              <div class="itemizedlist">
+                <ul class="itemizedlist" type="disc">
+                  <li class="listitem">
+<code class="literal">locationManager:didEnterRegion:</code>
+</li>
+                  <li class="listitem">
+<code class="literal">locationManager:didExitRegion:</code>
+</li>
+                  <li class="listitem">
+<code class="literal">locationManager:monitoringDidFailForRegion:withError:</code>
+</li>
+                </ul>
+              </div>
+              <p class="simpara">For example, a reminder alarm uses region monitoring to notify the user when approaching or leaving a specific place (<span class="emphasis"><em>geofencing</em></span>), as shown in <a class="xref" href="ch32.html">Chapter 32</a>.<a id="idm441640560800" class="indexterm"></a></p>
+            </dd>
+          </dl>
+        </div>
+        <p>Both significant location monitoring and region monitoring use cell tower position to estimate the device’s location. Since the cell is probably working anyway — for example, the device is a phone, so the cell is always on and is always concerned with what cell towers are available — little or no additional power is required. Apple says that the system will also take advantage of other clues (requiring no extra battery drain) to decide that there may have been a change in location: for example, the device may observe a change in the available Wi-Fi networks, strongly suggesting that the device has moved.</p>
+        <p>As I’ve already mentioned, notifications for location monitoring and region monitoring can arrive even if your app isn’t in the foreground. In that case, there are two possible states in which your app might find itself when an event arrives:</p>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+Your app is suspended in the background
+</span>
+            </dt>
+            <dd>
+Your app is woken up long enough to receive the normal delegate event and do something with it.
+</dd>
+            <dt>
+              <span class="term">
+Your app is not running at all
+</span>
+            </dt>
+            <dd>
+Your app is relaunched (remaining in the background), and your app delegate will be sent <code class="literal">application:didFinishLaunchingWithOptions:</code> with an NSDictionary containing <code class="literal">UIApplicationLaunchOptionsLocationKey</code>, thus allowing it to discern the special nature of the situation. At this point you probably have no location manager — your app has just launched from scratch. So you should get yourself a location manager and start up location services for long enough to receive the normal delegate event.
+</dd>
+          </dl>
+        </div>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_heading"></a>Heading</h2>
+            </div>
+          </div>
+        </div>
+        <p>For appropriately equipped devices, Core Location also supports use of the magnetometer to determine which way the device is facing (its <span class="emphasis"><em>heading</em></span>). Although this information is accessed through a location manager, you do <span class="emphasis"><em>not</em></span> need location services to be turned on, nor your app to be authorized, merely to use the magnetometer to report the device’s orientation with respect to <span class="emphasis"><em>magnetic</em></span> north; but you do need those things in order to report <span class="emphasis"><em>true</em></span> north, as this depends on the device’s location.<a id="idm441640548736" class="indexterm"></a><a id="idm441640547840" class="indexterm"></a><a id="idm441640546928" class="indexterm"></a><a id="idm441640546032" class="indexterm"></a></p>
+        <p>As with location, you’ll first check that the desired feature is available (<code class="literal">headingAvailable</code>); then you’ll instantiate and configure the location manager, and call <code class="literal">startUpdatingHeading</code>. The delegate will be sent <code class="literal">locationManager:didUpdateHeading:</code>. Heading values are reported as a CLHeading; recall that this involves degrees (<span class="emphasis"><em>not</em></span> radians) clockwise from the reference direction.</p>
+        <p>In this example, I’ll use the device as a compass. The <code class="literal">headingFilter</code> setting is to prevent us from being bombarded constantly with readings. For best results, the device should probably be held level (like a tabletop, or a compass); the reported heading will be the direction in which the top of the device (the end away from the Home button) is pointing:</p>
+        <pre class="screen">BOOL ok = [CLLocationManager headingAvailable];
+if (!ok) {
+    NSLog(@"drat");
+    return;
+}
+CLLocationManager* lm = [CLLocationManager new];
+self.locman = lm;
+self.locman.delegate = self;
+self.locman.headingFilter = 3;
+self.locman.headingOrientation = CLDeviceOrientationPortrait;
+[self.locman startUpdatingHeading];</pre>
+        <p>In the delegate, I’ll display our magnetic heading as a rough cardinal direction in a label in the interface (<code class="literal">lab</code>):</p>
+        <pre class="screen">- (void) locationManager:(CLLocationManager *)manager
+        didUpdateHeading:(CLHeading *)newHeading {
+    CGFloat h = newHeading.magneticHeading;
+    __block NSString* dir = @"N";
+    NSArray* cards = @[@"N", @"NE", @"E", @"SE",
+                      @"S", @"SW", @"W", @"NW"];
+    [cards enumerateObjectsUsingBlock:^(id obj, NSUInteger idx, BOOL *stop) {
+        if (h &lt; 45.0/2.0 + 45*idx) {
+            dir = obj;
+            *stop = YES;
+        }
+    }];
+    if (self.lab.hidden)
+        self.lab.hidden = NO;
+    if (![self.lab.text isEqualToString:dir])
+        self.lab.text = dir;
+    NSLog(@"%f %@", h, dir);
+}</pre>
+        <p>In that code, I asked only for the heading’s <code class="literal">magneticHeading</code>. I can freely ask for its <code class="literal">trueHeading</code>, but the resulting value will be invalid (a negative number) unless we are <span class="emphasis"><em>also</em></span> receiving location updates.</p>
+        <p>(Combining the magnetometer with the compass interface we developed in <a class="xref" href="ch16.html">Chapter 16</a> and <a class="xref" href="ch17.html">Chapter 17</a>, so as to simulate a physical compass, is left as an exercise for the reader.)</p>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_acceleration_and_attitude"></a>Acceleration and Attitude</h2>
+            </div>
+          </div>
+        </div>
+        <p>Acceleration results from the application of a force to the device, and is detected through the device’s accelerometer, supplemented by the gyroscope if it has one. Gravity is a force, so the accelerometer always has something to measure, even if the user isn’t consciously applying a force to the device; thus the device can report its attitude relative to the vertical.<a id="idm441640530784" class="indexterm"></a><a id="idm441640530016" class="indexterm"></a><a id="idm441640529104" class="indexterm"></a><a id="idm441640528192" class="indexterm"></a></p>
+        <p>Acceleration information can arrive in two ways:</p>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+As a prepackaged UIEvent
+</span>
+            </dt>
+            <dd>
+You can receive a UIEvent notifying you of a predefined gesture performed by accelerating the device. At present, the only such gesture is the user shaking the device.
+</dd>
+            <dt>
+              <span class="term">
+With the Core Motion framework
+</span>
+            </dt>
+            <dd>
+You instantiate CMMotionManager and then obtain information of a desired type. You can ask for accelerometer information, gyroscope information, or device motion information (and you can also use Core Motion to get magnetometer information); device motion combines the gyroscope data with data from the other sensors to give you the best possible description of the device’s attitude in space.
+</dd>
+          </dl>
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_shake_events"></a>Shake Events</h3>
+              </div>
+            </div>
+          </div>
+          <p>A shake event is a UIEvent (<a class="xref" href="ch18.html">Chapter 18</a>). Receiving shake events is rather like receiving remote events (<a class="xref" href="ch27.html">Chapter 27</a>), involving the notion of the first responder. To receive shake events, your app must contain a UIResponder which:<a id="idm441640519472" class="indexterm"></a><a id="idm441640518592" class="indexterm"></a></p>
+          <div class="itemizedlist">
+            <ul class="itemizedlist" type="disc">
+              <li class="listitem">
+Returns YES from <code class="literal">canBecomeFirstResponder</code>
+</li>
+              <li class="listitem">
+Is in fact first responder
+</li>
+            </ul>
+          </div>
+          <p>This responder, or a UIResponder further up the responder chain, should implement some or all of these methods:</p>
+          <div class="variablelist">
+            <dl>
+              <dt>
+                <span class="term">
+<code class="literal">motionBegan:withEvent:</code>
+</span>
+              </dt>
+              <dd>
+Something has started to happen that might or might not turn out to be a shake.
+</dd>
+              <dt>
+                <span class="term">
+<code class="literal">motionEnded:withEvent:</code>
+</span>
+              </dt>
+              <dd>
+The motion reported in <code class="literal">motionBegan:withEvent:</code> is over and has turned out to be a shake.
+</dd>
+              <dt>
+                <span class="term">
+<code class="literal">motionCancelled:withEvent:</code>
+</span>
+              </dt>
+              <dd>
+The motion reported in <code class="literal">motionBegan:withEvent:</code> wasn’t a shake after all.
+</dd>
+            </dl>
+          </div>
+          <p>Thus, it might be sufficient to implement <code class="literal">motionEnded:withEvent:</code>, because this arrives if and only if the user performs a shake gesture. The first parameter will be the event subtype, but at present this is guaranteed to be <code class="literal">UIEventSubtypeMotionShake</code>, so testing it is pointless.</p>
+          <p>The view controller in charge of the current view is a good candidate to receive shake events. Thus, a minimal implementation might look like this:</p>
+          <pre class="screen">- (BOOL) canBecomeFirstResponder {
+    return YES;
+}
+
+- (void) viewDidAppear: (BOOL) animated {
+    [super viewDidAppear: animated];
+    [self becomeFirstResponder];
+}
+
+- (void)motionEnded:(UIEventSubtype)motion withEvent:(UIEvent *)event {
+    NSLog(@"hey, you shook me!");
+}</pre>
+          <p>By default, if the first responder is of a type that supports undo (such as an NSTextField), and if <code class="literal">motionBegan:withEvent:</code> is sent up the responder chain, and if you have not set the shared UIApplication’s <code class="literal">applicationSupportsShakeToEdit</code> property to NO, a shake will be handled through an Undo or Redo alert. Your view controller might not want to rob any responders in its view of this capability. A simple way to prevent this is to test whether the view controller is itself the first responder; if it isn’t, we call <code class="literal">super</code> to pass the event on up the responder chain:<a id="idm441640498800" class="indexterm"></a><a id="idm441640497904" class="indexterm"></a></p>
+          <pre class="screen">- (void)motionEnded:(UIEventSubtype)motion withEvent:(UIEvent *)event {
+    if ([self isFirstResponder])
+        NSLog(@"hey, you shook me!");
+    else
+        [super motionEnded:motion withEvent:event];
+}</pre>
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_raw_acceleration"></a>Raw Acceleration</h3>
+              </div>
+            </div>
+          </div>
+          <p>If the device has an accelerometer but no gyroscope, you can learn about the forces being applied to it, but some compromises will be necessary. The chief problem is that, even if the device is completely motionless, its acceleration values will constitute a normalized vector pointing toward the center of the earth, popularly known as <span class="emphasis"><em>gravity</em></span>. The accelerometer is thus constantly reporting a combination of gravity and user-induced acceleration. This is good and bad. It’s good because it means that, with certain restrictions, you can use the accelerometer to detect the device’s attitude in space. It’s bad because gravity values and user-induced acceleration values are mixed together.<a id="idm441640493600" class="indexterm"></a> Fortunately, there are ways to separate these values mathematically:</p>
+          <div class="variablelist">
+            <dl>
+              <dt>
+                <span class="term">
+With a low-pass filter
+</span>
+              </dt>
+              <dd>
+A low-pass filter will damp out user acceleration so as to report gravity only.
+</dd>
+              <dt>
+                <span class="term">
+With a high-pass filter
+</span>
+              </dt>
+              <dd>
+A high-pass filter will damp out the effect of gravity so as to detect user acceleration only, reporting a motionless device as having zero acceleration.
+</dd>
+            </dl>
+          </div>
+          <p>In some situations, it is desirable to apply both a low-pass filter and a high-pass filter, so as to learn both the gravity values and the user acceleration values. A common additional technique is to run the output of the high-pass filter itself through a low-pass filter to reduce noise and small twitches. Apple provides some nice sample code for implementing a low-pass or a high-pass filter; see especially the AccelerometerGraph example, which is also very helpful for exploring how the accelerometer behaves.</p>
+          <p>The technique of applying filters to the accelerometer output has some serious downsides, which are inevitable in a device that lacks a gyroscope:</p>
+          <div class="itemizedlist">
+            <ul class="itemizedlist" type="disc">
+              <li class="listitem">
+It’s up to you to apply the filters; you have to implement boilerplate code and hope that you don’t make a mistake.
+</li>
+              <li class="listitem">
+Filters mean <span class="emphasis"><em>latency</em></span>. Your response to the accelerometer values will lag behind what the device is actually doing; this lag may be noticeable.
+</li>
+            </ul>
+          </div>
+          <p>There are actually two ways to read the raw accelerometer values: UIAccelerometer and Core Motion. UIAccelerometer is slated for deprecation, and its delegate method is in fact deprecated, so I’ll describe how to read the raw accelerometer values with Core Motion. The technique is really a subset of how you read <span class="emphasis"><em>any</em></span> values with Core Motion; in some ways it is similar to how you use Core Location:</p>
+          <div class="orderedlist">
+            <ol class="orderedlist" type="1">
+              <li class="listitem">
+You start by instantiating <a id="idm441640480688" class="indexterm"></a>CMMotionManager; retain the instance somewhere, typically as an instance variable.
+</li>
+              <li class="listitem">
+Confirm, using instance properties, that the desired hardware is available.
+</li>
+              <li class="listitem">
+Set the interval at which you wish the <a id="idm441640478080" class="indexterm"></a>motion manager to update itself with new sensor readings.
+</li>
+              <li class="listitem">
+Call the appropriate <code class="literal">start</code> method.
+</li>
+              <li class="listitem">
+                <p class="simpara">
+Poll the motion manager whenever you want data, asking for the appropriate <code class="literal">data</code> property. This step is surprising; you probably expected that the motion manager would call into a delegate, but in fact a motion manager has no delegate. The polling interval doesn’t have to be the same as the motion manager’s update interval; when you poll, you’ll obtain the motion manager’s <span class="emphasis"><em>current</em></span> data — that is, the data generated by its most recent update, whenever that was.
+</p>
+                <p class="simpara">If your app’s purpose is to collect all the data, then instead of calling a <code class="literal">start</code> method, you can call a <code class="literal">start...UpdatesToQueue:withHandler:</code> method and receive callbacks in a block, possibly on a background thread, managed by an NSOperationQueue (<a class="xref" href="ch38.html">Chapter 38</a>); but this is an advanced technique and you aren’t likely to need it, so I’m not going to talk about it.</p>
+              </li>
+              <li class="listitem">
+Don’t forget to call the corresponding <code class="literal">stop</code> method when you no longer need data.
+</li>
+            </ol>
+          </div>
+          <p>In this example, I will simply report whether the device is lying flat on its back. I start by creating and configuring my motion manager, and I launch a repeating timer to trigger polling:</p>
+          <pre class="screen">self.motman = [CMMotionManager new];
+if (!self.motman.accelerometerAvailable) {
+    NSLog(@"oh well");
+    return;
+}
+self.motman.accelerometerUpdateInterval = 1.0 / 30.0;
+[self.motman startAccelerometerUpdates];
+self.timer =
+    [NSTimer
+        scheduledTimerWithTimeInterval:self.motman.accelerometerUpdateInterval
+        target:self selector:@selector(pollAccel:) userInfo:nil repeats:YES];</pre>
+          <p>My <code class="literal">pollAccel:</code> method is now being called repeatedly. In <code class="literal">pollAccel:</code>, I ask the motion manager for its accelerometer data. This arrives as a CMAccelerometerData, which is a timestamp plus a CMAcceleration; a CMAcceleration is simply a struct of three values, one for each axis of the device, measured in Gs. The positive x-axis points to the right of the device. The positive y-axis points toward the top of the device, away from the Home button. The positive z-axis points out of the screen toward the user.</p>
+          <p>The two axes orthogonal to gravity, which are the x and y axes when the device is lying more or less on its back, are much more accurate and sensitive to small variation than the axis pointing toward or away from gravity. So our approach is to ask first whether the x and y values are close to zero; only then do we use the z value to learn whether the device is on its back or on its face. To keep from updating our interface constantly, we implement a crude state machine; the state (an instance variable) starts out at <code class="literal">-1</code>, and then switches between <code class="literal">0</code> (device on its back) and <code class="literal">1</code> (device not on its back), and we update the interface only when there is a state change:</p>
+          <pre class="screen">CMAccelerometerData* dat = self.motman.accelerometerData;
+CMAcceleration acc = dat.acceleration;
+CGFloat x = acc.x;
+CGFloat y = acc.y;
+CGFloat z = acc.z;
+CGFloat accu = 0.08; // feel free to experiment with this value
+if (fabs(x) &lt; accu &amp;&amp; fabs(y) &lt; accu &amp;&amp; z &lt; -0.5) {
+    if (state == -1 || state == 1) {
+        state = 0;
+        self.label.text = @"I'm lying on my back... ahhh...";
+    }
+} else {
+    if (state == -1 || state == 0) {
+        state = 1;
+        self.label.text = @"Hey, put me back down on the table!";
+    }
+}</pre>
+          <p>This works, but it’s sensitive to small motions of the device on the table. To damp this sensitivity, we can run our input through a low-pass filter. The low-pass filter code comes straight from Apple’s own examples, and involves maintaining the previously filtered reading as a set of instance variables:</p>
+          <pre class="screen">-(void)addAcceleration:(CMAcceleration)accel {
+    double alpha = 0.1;
+    self-&gt;oldX = accel.x * alpha + self-&gt;oldX * (1.0 - alpha);
+    self-&gt;oldY = accel.y * alpha + self-&gt;oldY * (1.0 - alpha);
+    self-&gt;oldZ = accel.z * alpha + self-&gt;oldZ * (1.0 - alpha);
+}</pre>
+          <p>Our polling code now starts out by passing the data through the filter:</p>
+          <pre class="screen">CMAccelerometerData* dat = self.motman.accelerometerData;
+CMAcceleration acc = dat.acceleration;
+[self addAcceleration: acc];
+CGFloat x = self-&gt;oldX;
+CGFloat y = self-&gt;oldY;
+CGFloat z = self-&gt;oldZ;
+// ... and the rest is as before ...</pre>
+          <p>In this next example, the user is allowed to slap the side of the device against an open hand — perhaps as a way of telling it to go to the next or previous image or whatever it is we’re displaying.<a id="idm441640458208" class="indexterm"></a> We pass the acceleration input through a high-pass filter to eliminate gravity (again, the filter code comes straight from Apple’s examples):</p>
+          <pre class="screen">-(void)addAcceleration:(CMAcceleration)accel {
+    double alpha = 0.1;
+    self-&gt;oldX = accel.x - ((accel.x * alpha) + (self-&gt;oldX * (1.0 - alpha)));
+    self-&gt;oldY = accel.y - ((accel.y * alpha) + (self-&gt;oldY * (1.0 - alpha)));
+    self-&gt;oldZ = accel.z - ((accel.z * alpha) + (self-&gt;oldZ * (1.0 - alpha)));
+}</pre>
+          <p>What we’re looking for, in our polling routine, is a high positive or negative <code class="literal">x</code> value. A single slap is likely to consist of several consecutive readings above our threshold, but we want to report each slap only once, sο we take advantage of the timestamp attached to a CMAccelerometerData, maintaining the timestamp of our previous high reading as an instance variable and ignoring readings that are too close to one another in time. Another problem is that a sudden jerk involves both an acceleration (as the user starts the device moving) and a deceleration (as the device stops moving); thus a left slap might be preceded by a high value in the opposite direction, which we might interpret wrongly as a right slap. We can compensate crudely, at the expense of some latency, with delayed performance (the <code class="literal">report:</code> method simply logs to the console):</p>
+          <pre class="screen">CMAccelerometerData* dat = self.motman.accelerometerData;
+CMAcceleration acc = dat.acceleration;
+[self addAcceleration: acc];
+CGFloat x = self-&gt;oldX;
+CGFloat thresh = 1.0;
+if ((x &lt; -thresh) || (x &gt; thresh))
+    NSLog(@"%f", x);
+if (x &lt; -thresh) {
+    if (dat.timestamp - self-&gt;oldTime &gt; 0.5 || self-&gt;lastSlap == 1) {
+        self-&gt;oldTime = dat.timestamp;
+        self-&gt;lastSlap = -1;
+        [NSObject cancelPreviousPerformRequestsWithTarget:self];
+        [self performSelector:@selector(report:)
+                   withObject:@"left" afterDelay:0.5];
+    }
+}
+if (x &gt; thresh) {
+    if (dat.timestamp - self-&gt;oldTime &gt; 0.5 || self-&gt;lastSlap == -1) {
+        self-&gt;oldTime = dat.timestamp;
+        self-&gt;lastSlap = 1;
+        [NSObject cancelPreviousPerformRequestsWithTarget:self];
+        [self performSelector:@selector(report:)
+                   withObject:@"right" afterDelay:0.5];
+    }
+}</pre>
+          <p>The gesture we’re detecting is a little tricky to make: the user must slap the device into an open hand <span class="emphasis"><em>and hold it there</em></span>; if the device jumps out of the open hand, that movement may be detected as the last in the series, resulting in the wrong report (left instead of right, or <span class="emphasis"><em>vice versa</em></span>). And the latency of our gesture detection is very high; here’s a typical successful detection of a leftward slap:</p>
+          <pre class="screen">2012-02-13 12:03:18.673 p724p742smackMe[4024:707] -1.204655
+2012-02-13 12:03:18.743 p724p742smackMe[4024:707] -1.153451
+2012-02-13 12:03:18.775 p724p742smackMe[4024:707] 1.168514
+2012-02-13 12:03:18.809 p724p742smackMe[4024:707] -1.426584
+2012-02-13 12:03:18.875 p724p742smackMe[4024:707] -1.297352
+2012-02-13 12:03:18.942 p724p742smackMe[4024:707] -1.072046
+2012-02-13 12:03:19.316 p724p742smackMe[4024:707] left</pre>
+          <p>The gesture started with an involuntary shake; then the rapid acceleration to the left was detected as a positive value; finally, the rapid deceleration was detected as a negative value, and it took several tenths of a second for our delayed performance to decide that this was the end of the gesture and report a leftward slap. Of course we might try tweaking some of the magic numbers in this code to improve accuracy and performance, but a more sophisticated analysis would probably involve storing a stream of all the most recent CMAccelerometerData objects and studying the entire stream to work out the overall trend.</p>
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_gyroscope"></a>Gyroscope</h3>
+              </div>
+            </div>
+          </div>
+          <p>The inclusion of an electronic <a id="idm441640444928" class="indexterm"></a>gyroscope in the panoply of onboard hardware in some devices has made a huge difference in the accuracy and speed of gravity and attitude reporting. A gyroscope has the property that its attitude in space remains constant; thus it can detect any change in the attitude of the containing device. This has two important consequences for accelerometer measurements:</p>
+          <div class="itemizedlist">
+            <ul class="itemizedlist" type="disc">
+              <li class="listitem">
+The accelerometer can be supplemented by the gyroscope to detect quickly the difference between gravity and user-induced acceleration.
+</li>
+              <li class="listitem">
+The gyroscope can observe pure rotation, where little or no acceleration is involved and so the accelerometer would not have been helpful. The extreme case is constant attitudinal rotation around the gravity axis, which the accelerometer alone would be completely unable to detect (because there is no user-induced force, and gravity remains constant).
+</li>
+            </ul>
+          </div>
+          <p>It is possible to track the raw gyroscope data: make sure the device has a gyroscope, and then call <code class="literal">startGyroUpdates</code>. What we get from the motion manager is a CMGyroData object, which combines a timestamp with a CMRotationRate that reports the <span class="emphasis"><em>rate of rotation</em></span> around each axis, measured in radians per second, where a positive value is <span class="emphasis"><em>counterclockwise</em></span> as seen by someone whose eye is pointed to by the positive axis. (This is the opposite of the direction graphed in <a class="xref" href="ch16.html#FIGrotationPlane">Figure 16.7</a>.) The problem, however, is that the gyroscope values are <span class="emphasis"><em>scaled</em></span> and <span class="emphasis"><em>biased</em></span>. This means that the values are based on an arbitrary scale and are increasing (or decreasing) at a roughly constant rate. Thus there is very little merit in the exercise of dealing with the raw gyroscope data.</p>
+          <p>What you are likely to be interested in is a combination of at least the gyroscope and the accelerometer. The mathematics required to combine the data from these sensors can be daunting. Fortunately, there’s no need to know anything about that. Core Motion will happily package up the calculated combination of data as a <a id="idm441640435824" class="indexterm"></a>CMDeviceMotion instance, with the effects of the sensors’ internal bias and scaling already factored out. CMDeviceMotion consists of the following properties, all of which provide a triple of values corresponding to the device’s natural 3D frame (x increasing to the right, y increasing to the top, z increasing out the front):</p>
+          <div class="variablelist">
+            <dl>
+              <dt>
+                <span class="term">
+<code class="literal">gravity</code>
+</span>
+              </dt>
+              <dd>
+A CMAcceleration expressing a vector with value <code class="literal">1</code> pointing to the center of the earth, measured in Gs.
+</dd>
+              <dt>
+                <span class="term">
+<code class="literal">userAcceleration</code>
+</span>
+              </dt>
+              <dd>
+A CMAcceleration describing user-induced acceleration, with no gravity component, measured in Gs.
+</dd>
+              <dt>
+                <span class="term">
+<code class="literal">rotationRate</code>
+</span>
+              </dt>
+              <dd>
+A CMRotationRate describing how the device is rotating around its own center. This is essentially the CMGyroData <code class="literal">rotationRate</code> with scale and bias accounted for.
+</dd>
+              <dt>
+                <span class="term">
+<code class="literal">magneticField</code>
+</span>
+              </dt>
+              <dd>
+                <p class="simpara">
+A CMCalibratedMagneticField describing (in its <code class="literal">field</code>) the magnetic forces acting on the device, measured in microteslas. The sensor’s internal bias has already been factored out. The CMMagneticField’s <code class="literal">accuracy</code> is one of the following:
+</p>
+                <div class="itemizedlist">
+                  <ul class="itemizedlist" type="disc">
+                    <li class="listitem">
+<code class="literal">CMMagneticFieldCalibrationAccuracyUncalibrated</code>
+</li>
+                    <li class="listitem">
+<code class="literal">CMMagneticFieldCalibrationAccuracyLow</code>
+</li>
+                    <li class="listitem">
+<code class="literal">CMMagneticFieldCalibrationAccuracyMedium</code>
+</li>
+                    <li class="listitem">
+<code class="literal">CMMagneticFieldCalibrationAccuracyHigh</code>
+</li>
+                  </ul>
+                </div>
+              </dd>
+              <dt>
+                <span class="term">
+<code class="literal">attitude</code>
+</span>
+              </dt>
+              <dd>
+                <p class="simpara">
+A <a id="idm441640414192" class="indexterm"></a>CMAttitude, descriptive of the device’s instantaneous attitude in space. When you ask the motion manager to start generating updates, you can ask for any of four reference systems for the <code class="literal">attitude</code> (having first called the class method <code class="literal">availableAttitudeReferenceFrames</code> to ascertain that the desired reference frame is available on this device):
+</p>
+                <div class="variablelist">
+                  <dl>
+                    <dt>
+                      <span class="term">
+<code class="literal">CMAttitudeReferenceFrameXArbitraryZVertical</code>
+</span>
+                    </dt>
+                    <dd>
+The negative z-axis points at the center of the earth, but the x-axis and y-axis, though orthogonal to the other axes, could be pointing anywhere.
+</dd>
+                    <dt>
+                      <span class="term">
+<code class="literal">CMAttitudeReferenceFrameXArbitraryCorrectedZVertical</code>
+</span>
+                    </dt>
+                    <dd>
+The same as in the previous option, but the magnetometer is used to improve accuracy.
+</dd>
+                    <dt>
+                      <span class="term">
+<code class="literal">CMAttitudeReferenceFrameXMagneticNorthZVertical</code>
+</span>
+                    </dt>
+                    <dd>
+The x-axis points toward magnetic north.
+</dd>
+                    <dt>
+                      <span class="term">
+<code class="literal">CMAttitudeReferenceFrameXTrueNorthZVertical</code>
+</span>
+                    </dt>
+                    <dd>
+The x-axis points toward true north. This value will be inaccurate unless you are also using Core Location to obtain the device’s location.
+</dd>
+                  </dl>
+                </div>
+                <p class="simpara">The <code class="literal">attitude</code> value’s numbers can be accessed through various CMAttitude properties corresponding to three different systems, each being convenient for a different purpose:</p>
+                <div class="variablelist">
+                  <dl>
+                    <dt>
+                      <span class="term">
+<code class="literal">pitch</code>, <code class="literal">roll</code>, and <code class="literal">yaw</code>
+</span>
+                    </dt>
+                    <dd>
+The device’s angle of offset from the reference frame, in radians, around the device’s natural x, y, and z-axis respectively.
+</dd>
+                    <dt>
+                      <span class="term">
+<code class="literal">rotationMatrix</code>
+</span>
+                    </dt>
+                    <dd>
+A CMRotationMatrix struct embodying a 3×3 matrix expressing a rotation in the reference frame.
+</dd>
+                    <dt>
+                      <span class="term">
+<code class="literal">quaternion</code>
+</span>
+                    </dt>
+                    <dd>
+A CMQuaternion describing an attitude. (Quaternions are commonly used in OpenGL.)
+</dd>
+                  </dl>
+                </div>
+              </dd>
+            </dl>
+          </div>
+          <p>In this example, we turn the device into a simple compass/clinometer, merely by asking for its <code class="literal">attitude</code> with reference to magnetic north and taking its <code class="literal">pitch</code>, <code class="literal">roll</code>, and <code class="literal">yaw</code>. We begin by making the usual preparations; notice the use of the <code class="literal">showsDeviceMovementDisplay</code> property, which will allow the runtime to prompt the user to move the device in a figure-of-eight if the magnetometer needs calibration:</p>
+          <pre class="screen">self.motman = [CMMotionManager new];
+if (!self.motman.deviceMotionAvailable) {
+    NSLog(@"oh well");
+    return;
+}
+CMAttitudeReferenceFrame f = CMAttitudeReferenceFrameXMagneticNorthZVertical;
+if (([CMMotionManager availableAttitudeReferenceFrames] &amp; f) == 0) {
+    NSLog(@"darn");
+    return;
+}
+self.motman.showsDeviceMovementDisplay = YES;
+self.motman.deviceMotionUpdateInterval = 1.0 / 30.0;
+[self.motman startDeviceMotionUpdatesUsingReferenceFrame:f];
+NSTimeInterval t = self.motman.deviceMotionUpdateInterval * 10;
+self.timer =
+    [NSTimer scheduledTimerWithTimeInterval:t target:self
+    selector:@selector(pollAttitude:) userInfo:nil repeats:YES];</pre>
+          <p>In <code class="literal">pollAttitude:</code>, we wait until the magnetometer is ready, and then we start taking attitude readings (converted to degrees):</p>
+          <pre class="screen">CMDeviceMotion* mot = self.motman.deviceMotion;
+if (mot.magneticField.accuracy &lt;= CMMagneticFieldCalibrationAccuracyLow)
+    return; // not ready yet
+CMAttitude* att = mot.attitude;
+CGFloat to_deg = 180.0 / M_PI; // I like degrees
+NSLog(@"%f %f %f", att.pitch * to_deg, att.roll * to_deg, att.yaw * to_deg);</pre>
+          <p>The values are all close to zero when the device is level with its top pointing to magnetic north, and each value increases as the device is rotated counterclockwise with respect to an eye that has the corresponding positive axis pointing at it. So, for example, a device held upright (top pointing at the sky) has a <code class="literal">pitch</code> approaching 90; a device lying on its right edge has a <code class="literal">roll</code> approaching 90; and a device lying on its back with its top pointing west has a <code class="literal">yaw</code> approaching 90.</p>
+          <p>There are some quirks to be aware of in the way that Euler angles operate mathematically:</p>
+          <div class="itemizedlist">
+            <ul class="itemizedlist" type="disc">
+              <li class="listitem">
+                <p class="simpara">
+<code class="literal">roll</code> and <code class="literal">yaw</code> increase with counterclockwise rotation from 0 to π (180 degrees) and then jump to -π (-180 degrees) and continue to increase to 0 as the rotation completes a circle; but <code class="literal">pitch</code> increases to π/2 (90 degrees) and then decreases to 0, then decreases to -π/2 (-90 degrees) and increases to 0. This means that <code class="literal">attitude</code> alone, if we are exploring it through <code class="literal">pitch</code>, <code class="literal">roll</code>, and <code class="literal">yaw</code>, is insufficient to describe the device’s attitude, since a <code class="literal">pitch</code> value of, say, π/4 (45 degrees) could mean two different things. To distinguish those two things, we can supplement <code class="literal">attitude</code> with the z-component of <code class="literal">gravity</code>:
+</p>
+                <pre class="screen">NSLog(@"%f %f %f", att.pitch * to_deg, att.roll * to_deg, att.yaw * to_deg);
+CMAcceleration g = mot.gravity;
+NSLog(@"pitch is tilted %@", g.z &gt; 0 ? @"forward" : @"back");</pre>
+              </li>
+              <li class="listitem">
+Values become inaccurate in certain orientations. In particular, when pitch is ±90 degrees (the device is upright or inverted), roll and yaw become erratic. (You may see this effect referred to as the “singularity” or as “gimbal lock.”) I believe that, depending on what you are trying to accomplish, you can solve this by using a different expression of the attitude, such as the <code class="literal">rotationMatrix</code>, which does not suffer from this limitation.
+</li>
+            </ul>
+          </div>
+          <p>This next (simple and very silly) example illustrates a use of CMAttitude’s <code class="literal">rotationMatrix</code> property. Our goal is to make a CALayer rotate in response to the current attitude of the device. We start as before, except that our reference frame is <code class="literal">CMAttitudeReferenceFrameXArbitraryZVertical</code>; we are interested in how the device moves from its initial attitude, without reference to any particular fixed external direction such as magnetic north. In <code class="literal">pollAttitude</code>, our first step is to store the device’s current attitude in a CMAttitude instance variable, <code class="literal">ref</code>:</p>
+          <pre class="screen">CMDeviceMotion* mot = self.motman.deviceMotion;
+CMAttitude* att = mot.attitude;
+if (!self.ref) {
+    self.ref = att;
+    return;
+}</pre>
+          <p>That code works correctly because on the first few polls, as the attitude-detection hardware warms up, <code class="literal">att</code> is nil, so we don’t get past the <code class="literal">return</code> call until we have a valid initial attitude. Our next step is highly characteristic of how CMAttitude is used: we call the CMAttitude method <code class="literal">multiplyByInverseOfAttitude:</code>, which transforms our attitude so that it is relative <span class="emphasis"><em>to the stored initial attitude</em></span>:</p>
+          <pre class="screen">[att multiplyByInverseOfAttitude:self.ref];</pre>
+          <p>Finally, we apply the attitude’s rotation matrix directly to a layer in our interface as a transform. Well, not quite directly: a rotation matrix is a 3×3 matrix, whereas a CATransform3D, which is what we need in order to set a layer’s <code class="literal">transform</code>, is a 4×4 matrix. However, it happens that the top left nine entries in a CATransform3D’s 4×4 matrix constitute its rotation component, so we start with an identity matrix and set those entries directly:</p>
+          <pre class="screen">CMRotationMatrix r = att.rotationMatrix;
+CATransform3D t = CATransform3DIdentity;
+t.m11 = r.m11;
+t.m12 = r.m12;
+t.m13 = r.m13;
+t.m21 = r.m21;
+t.m22 = r.m22;
+t.m23 = r.m23;
+t.m31 = r.m31;
+t.m32 = r.m32;
+t.m33 = r.m33;
+CALayer* lay = // whatever;
+[CATransaction setDisableActions:YES];
+lay.transform = t;</pre>
+          <p>The result is that the layer apparently tries to hold itself still as the device rotates. The example is rather crude because we aren’t using OpenGL to draw a three-dimensional object, but it illustrates the principle well enough.</p>
+          <p>There is a quirk to be aware of in this case as well: over time, the transform has a tendency to drift. Thus, even if we leave the device stationary, the layer will gradually rotate. That is the sort of effect that <code class="literal">CMAttitudeReferenceFrameXArbitraryCorrectedZVertical</code> is designed to help mitigate, by bringing the magnetometer into play.</p>
+          <p>Here are some additional considerations to be aware of when using Core Motion:</p>
+          <div class="itemizedlist">
+            <ul class="itemizedlist" type="disc">
+              <li class="listitem">
+The documentation warns that your app should create only one CMMotionManager instance. This is not a terribly onerous restriction, but it’s rather odd that, if this is important, the API doesn’t provide a shared singleton instance accessed through a class method.
+</li>
+              <li class="listitem">
+Use of Core Motion is legal while your app is running the background. To take advantage of this, your app would need to be running in the background for some <span class="emphasis"><em>other</em></span> reason; there is no Core Motion <code class="literal">UIBackgroundModes</code> setting in an <span class="emphasis"><em>Info.plist</em></span>. For example, you might run in the background because you’re using Core Location, and take advantage of this to employ Core Motion as well.
+</li>
+              <li class="listitem">
+Core Motion requires that various sensors be turned on, such as the magnetometer and the gyroscope. This can result in some increased battery drain, so try not to use any sensors you don’t have to, and remember to stop generating updates as soon as you no longer need them.
+</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="navfooter">
+      <table width="100%" summary="Navigation footer">
+        <tr>
+          <td width="40%" align="left"><a accesskey="p" href="ch34.html">Prev</a> </td>
+          <td width="20%" align="center">
+            <a accesskey="u" href="pt06.html">Up</a>
+          </td>
+          <td width="40%" align="right"> <a accesskey="n" href="pt07.html">Next</a></td>
+        </tr>
+        <tr>
+          <td width="40%" align="left" valign="top">Chapter 34. Maps </td>
+          <td width="20%" align="center">
+            <a accesskey="h" href="index.html">Table of Contents</a>
+          </td>
+          <td width="40%" align="right" valign="top"> Part VII. Final Topics</td>
+        </tr>
+      </table>
+    </div>
+  </body>
+</html>

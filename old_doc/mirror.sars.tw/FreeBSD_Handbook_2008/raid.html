@@ -1,0 +1,485 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>RAID</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.79" />
+<link rel="HOME" title="FreeBSD 使用手冊" href="index.html" />
+<link rel="UP" title="儲存設備篇" href="disks.html" />
+<link rel="PREVIOUS" title="新增磁碟" href="disks-adding.html" />
+<link rel="NEXT" title="USB 儲存裝置" href="usb-disks.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD 使用手冊</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="disks-adding.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 18 儲存設備篇</td>
+<td width="10%" align="right" valign="bottom"><a href="usb-disks.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="RAID" name="RAID">18.4 RAID</a></h1>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="RAID-SOFT" name="RAID-SOFT">18.4.1 軟體 RAID</a></h2>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="CCD" name="CCD">18.4.1.1 連接式磁碟裝置驅動程式(CCD,
+Concatenated Disk Driver) 設定</a></h3>
+
+<i class="AUTHORGROUP"><span class="CONTRIB">Original work by</span> Christopher
+Shumway.</i> <i class="AUTHORGROUP"><span class="CONTRIB">Revised by</span> Jim
+Brown.</i> 
+
+<p>對大容量儲存設備而言，最關鍵的要素乃是速度、可靠性及價格。
+然而這三者往往難以兼顧：快速可靠的設備通常很貴； 而降低成本通常也犧牲了速度或可靠性。</p>
+
+<p>接下來要介紹的系統，價格是最重要的考量，接下來是速度， 最後才是可靠性。
+順序如此是因為資料傳輸的速度最終取決於網路， 而儘管可靠性十分重要，卻有簡單的取代方案：
+將資料完整備份於 CD-R 中。</p>
+
+<p>選擇大容量儲存設備方案時，首先要定義您的需求。
+如果您重視速度或可靠性甚於價格，接下來的介紹恐非您所需。</p>
+
+<div class="SECT4">
+<h4 class="SECT4"><a id="CCD-INSTALLHW" name="CCD-INSTALLHW">18.4.1.1.1 安裝硬體</a></h4>
+
+<p>除了系統磁碟外，下面介紹的 CCD 磁碟陣列將使用到三顆 30GB、 5400 RPM 的 Western Digital
+IDE 磁碟，以提供約 90GB 的儲存空間。 最理想的情況是每個磁碟由獨立使用的排線連接獨立使用的
+IDE 控制器， 不過為了降低成本，利用 jumper 設定磁碟，使每個 IDE 控制器可連接
+一個主磁碟加一個副磁碟，如此可不必加裝額外的 IDE 控制器。</p>
+
+<p>開機後，BIOS 應該設定成自重偵測磁碟。更重要的是 FreeBSD 應該 要偵測到它們：</p>
+
+<pre class="PROGRAMLISTING">
+ad0: 19574MB &lt;WDC WD205BA&gt; [39770/16/63] at ata0-master UDMA33
+ad1: 29333MB &lt;WDC WD307AA&gt; [59598/16/63] at ata0-slave UDMA33
+ad2: 29333MB &lt;WDC WD307AA&gt; [59598/16/63] at ata1-master UDMA33
+ad3: 29333MB &lt;WDC WD307AA&gt; [59598/16/63] at ata1-slave UDMA33
+</pre>
+
+<div class="NOTE">
+<blockquote class="NOTE">
+<p><b>Note:</b> 如果 FreeBSD 沒有偵測到所有磁碟，請確認 jumper 都設定正確。 許多 IDE
+磁碟可以設定成 “Cable Select” (根據排線位置決定)，這<span class="emphasis"><b
+class="EMPHASIS">並非</b></span> master(主磁碟) 或 slave(副磁碟)。
+請參閱磁碟的說明文件以正確設定 jumper 。</p>
+</blockquote>
+</div>
+
+<p>接下來，考慮如何將它們變成檔案系統的一部份。您可以參考 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=vinum&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">vinum</span>(8)</span></a>(<a
+href="vinum-vinum.html">Chapter 20</a>) 及 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=ccd&amp;sektion=4"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">ccd</span>(4)</span></a>。 在此我們選擇
+<a href="http://www.FreeBSD.org/cgi/man.cgi?query=ccd&amp;sektion=4"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">ccd</span>(4)</span></a>。</p>
+</div>
+
+<div class="SECT4">
+<h4 class="SECT4"><a id="CCD-SETUP" name="CCD-SETUP">18.4.1.1.2 設定 CCD</a></h4>
+
+<p><a href="http://www.FreeBSD.org/cgi/man.cgi?query=ccd&amp;sektion=4"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">ccd</span>(4)</span></a>
+可以將多個磁碟接起來成為一個大磁碟。要使用 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=ccd&amp;sektion=4"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">ccd</span>(4)</span></a>，您的 kernel
+需要支援 <a href="http://www.FreeBSD.org/cgi/man.cgi?query=ccd&amp;sektion=4"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">ccd</span>(4)</span></a>。將這行加入到
+kernel 設定檔，並重編、重安裝 kernel：</p>
+
+<pre class="PROGRAMLISTING">
+device   ccd
+</pre>
+
+<p>也可以載入 kernel 動態模組來支援 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=ccd&amp;sektion=4"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">ccd</span>(4)</span></a>。</p>
+
+<p>使用 <a href="http://www.FreeBSD.org/cgi/man.cgi?query=ccd&amp;sektion=4"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">ccd</span>(4)</span></a> 請先用 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=bsdlabel&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">bsdlabel</span>(8)</span></a>
+來初始磁碟：</p>
+
+<pre class="PROGRAMLISTING">
+bsdlabel -r -w ad1 auto
+bsdlabel -r -w ad2 auto
+bsdlabel -r -w ad3 auto
+</pre>
+
+<p>上述指令會建立 <tt class="DEVICENAME">ad1c</tt>， <tt class="DEVICENAME">ad2c</tt> 和
+<tt class="DEVICENAME">ad3c</tt>， 這些 bsdlabel 都使用了整個磁碟。</p>
+
+<p>下一步是修改 label type，同樣用 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=bsdlabel&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">bsdlabel</span>(8)</span></a>
+來處理：</p>
+
+<pre class="PROGRAMLISTING">
+bsdlabel -e ad1
+bsdlabel -e ad2
+bsdlabel -e ad3
+</pre>
+
+<p>這個指令會打開一個編輯器(預設是 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=vi&amp;sektion=1"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">vi</span>(1)</span></a>，可以用 <tt
+class="ENVAR">EDITOR</tt> 環境變數來指定其它編輯器)，並將目前磁碟的 label
+資訊顯示在該編輯器裡。</p>
+
+<p>一個還未變動過的磁碟 label 資訊看起來會像這樣：</p>
+
+<pre class="PROGRAMLISTING">
+8 partitions:
+#        size   offset    fstype   [fsize bsize bps/cpg]
+  c: 60074784        0    unused        0     0     0   # (Cyl.    0 - 59597)
+</pre>
+
+<p>在此我們要新增一個 <tt class="LITERAL">e</tt> partition 給 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=ccd&amp;sektion=4"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">ccd</span>(4)</span></a> 使用。 通常複製
+<tt class="LITERAL">c</tt> partition 那一行， 再把 <code class="OPTION">fstype</code>
+那一行改成 <kbd class="USERINPUT">4.2BSD</kbd> 就可以了。
+改完之後看起來應該會像這樣：</p>
+
+<pre class="PROGRAMLISTING">
+8 partitions:
+#        size   offset    fstype   [fsize bsize bps/cpg]
+  c: 60074784        0    unused        0     0     0   # (Cyl.    0 - 59597)
+  e: 60074784        0    4.2BSD        0     0     0   # (Cyl.    0 - 59597)
+</pre>
+</div>
+
+<div class="SECT4">
+<h4 class="SECT4"><a id="CCD-BUILDINGFS" name="CCD-BUILDINGFS">18.4.1.1.3
+建立檔案系統</a></h4>
+
+<p>現在所有的磁碟都已經建好 bsdlabel 了，可以開始建立 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=ccd&amp;sektion=4"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">ccd</span>(4)</span></a>。 用 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=ccdconfig&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">ccdconfig</span>(8)</span></a> 來建立 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=ccd&amp;sektion=4"><span
+class="CITEREFENTRY"><span
+class="REFENTRYTITLE">ccd</span>(4)</span></a>，參考下面的指令：</p>
+
+<pre class="PROGRAMLISTING">
+ccdconfig ccd0<a id="CO-CCD-DEV" name="CO-CCD-DEV"><img src="./imagelib/callouts/1.png"
+hspace="0" vspace="0" border="0" alt="(1)" /></a> 32<a id="CO-CCD-INTERLEAVE"
+name="CO-CCD-INTERLEAVE"><img src="./imagelib/callouts/2.png" hspace="0" vspace="0"
+border="0" alt="(2)" /></a> 0<a id="CO-CCD-FLAGS" name="CO-CCD-FLAGS"><img
+src="./imagelib/callouts/3.png" hspace="0" vspace="0" border="0"
+alt="(3)" /></a> /dev/ad1e<a id="CO-CCD-DEVS" name="CO-CCD-DEVS"><img
+src="./imagelib/callouts/4.png" hspace="0" vspace="0" border="0"
+alt="(4)" /></a> /dev/ad2e /dev/ad3e
+</pre>
+
+<p>每個參數的作用如下：</p>
+
+<div class="CALLOUTLIST">
+<dl compact="COMPACT">
+<dt><a href="raid.html#CO-CCD-DEV"><img src="./imagelib/callouts/1.png" hspace="0"
+vspace="0" border="0" alt="(1)" /></a></dt>
+
+<dd>第一個參數是要設定的裝置名稱，在這個例子裡是 <tt
+class="FILENAME">/dev/ccd0c</tt>。其中 <tt class="FILENAME">/dev/</tt> 可有可無。</dd>
+
+<dt><a href="raid.html#CO-CCD-INTERLEAVE"><img src="./imagelib/callouts/2.png" hspace="0"
+vspace="0" border="0" alt="(2)" /></a></dt>
+
+<dd>「interleave」的大小。所謂 interleave 是指一排磁碟區塊 (disk block)的大小，通常以 512
+bytes 為單位，所以 interleave 設為 32 即為 16,384 bytes。</dd>
+
+<dt><a href="raid.html#CO-CCD-FLAGS"><img src="./imagelib/callouts/3.png" hspace="0"
+vspace="0" border="0" alt="(3)" /></a></dt>
+
+<dd><a href="http://www.FreeBSD.org/cgi/man.cgi?query=ccdconfig&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">ccdconfig</span>(8)</span></a>
+設定模式的參數。如果您打算啟用磁碟鏡設 (drive
+mirroring)，您可以在此指定參數。這個例子沒有使用鏡設， 所以設成 0。</dd>
+
+<dt><a href="raid.html#CO-CCD-DEVS"><img src="./imagelib/callouts/4.png" hspace="0"
+vspace="0" border="0" alt="(4)" /></a></dt>
+
+<dd><a href="http://www.FreeBSD.org/cgi/man.cgi?query=ccdconfig&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">ccdconfig</span>(8)</span></a>
+最後的參數是要加入到陣列的所有磁碟。 請使用完整的路徑。</dd>
+</dl>
+</div>
+
+<p>執行 <a href="http://www.FreeBSD.org/cgi/man.cgi?query=ccdconfig&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">ccdconfig</span>(8)</span></a> 之後，<a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=ccd&amp;sektion=4"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">ccd</span>(4)</span></a>
+已設定完成可供建立檔案系統。 請參考 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=newfs&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">newfs</span>(8)</span></a> 或輸入：</p>
+
+<pre class="PROGRAMLISTING">
+newfs /dev/ccd0c
+</pre>
+</div>
+
+<div class="SECT4">
+<h4 class="SECT4"><a id="CCD-AUTO" name="CCD-AUTO">18.4.1.1.4 讓一切自動完成</a></h4>
+
+<p>通常您會希望每次開機時都能自動掛上(mount) <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=ccd&amp;sektion=4"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">ccd</span>(4)</span></a>。
+用下面的指令將您目前的設定寫入 <tt class="FILENAME">/etc/ccd.conf</tt> ：</p>
+
+<pre class="PROGRAMLISTING">
+ccdconfig -g &gt; /etc/ccd.conf
+</pre>
+
+<p>如果 <tt class="FILENAME">/etc/ccd.conf</tt> 存在，每次開機時 <tt
+class="COMMAND">/etc/rc</tt> 都會執行 <tt class="COMMAND">ccdconfig -C</tt> 。
+如此便可自動設定 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=ccd&amp;sektion=4"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">ccd</span>(4)</span></a>
+以便之後掛上(mount)檔案系統。</p>
+
+<div class="NOTE">
+<blockquote class="NOTE">
+<p><b>Note:</b> 如果您開機時選擇進入單人模式(single mode)，在掛上 (<a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=mount&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">mount</span>(8)</span></a>) <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=ccd&amp;sektion=4"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">ccd</span>(4)</span></a>
+的檔案系統之前您得先執行設定的指令：</p>
+
+<pre class="PROGRAMLISTING">
+ccdconfig -C
+</pre>
+</blockquote>
+</div>
+
+<p>要在每次開機時自動掛上(mount) <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=ccd&amp;sektion=4"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">ccd</span>(4)</span></a>，請在 <tt
+class="FILENAME">/etc/fstab</tt> 加入 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=ccd&amp;sektion=4"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">ccd</span>(4)</span></a>：</p>
+
+<pre class="PROGRAMLISTING">
+/dev/ccd0c              /media       ufs     rw      2       2
+</pre>
+</div>
+</div>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="VINUM" name="VINUM">18.4.1.2 Vinum 容量管理系統</a></h3>
+
+<p>Vinum 容量管理系統(以下簡稱 Vinum) 可視為一種虛擬磁碟。 它將區塊裝置(block device)
+的介面與對應資料的方式切割開來，比起原本 slice 劃分的磁碟，Vinum
+可增加了彈性、效能和穩定度 <a id="AEN24133" name="AEN24133" href="#FTN.AEN24133"><span
+class="footnote">[1]</span></a> <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=vinum&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">vinum</span>(8)</span></a> 實作了
+RAID-0、RAID-1 和 RAID-5 等模組， 它們都可以單獨使用，也可以互相搭配使用。</p>
+
+<p>請見 <a href="vinum-vinum.html">Chapter 20</a> 以參考更多關於 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=vinum&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">vinum</span>(8)</span></a> 的資訊。</p>
+</div>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="RAID-HARD" name="RAID-HARD">18.4.2 硬體 RAID</a></h2>
+
+<p>FreeBSD 也支援許多硬體 <acronym class="ACRONYM">RAID</acronym> 控制器。
+這些控制器自行掌控一個小型的 <acronym class="ACRONYM">RAID</acronym> 系統，
+因此不需要特定軟體來管理。</p>
+
+<p>透過控制器上的 <acronym class="ACRONYM">BIOS</acronym> 幾乎能控制所有的操作。
+接下來將簡單介紹如何設定 Promise <acronym class="ACRONYM">IDE</acronym> <acronym
+class="ACRONYM">RAID</acronym> 控制卡。首先確認控制卡已安裝，接著開機。
+它應該會提示一些資訊<a id="AEN24155" name="AEN24155" href="#FTN.AEN24155"><span
+class="footnote">[2]</span></a>。依指示進入控制卡的設定畫面，
+從這裡您可以將全部的硬體結合成一個大磁碟。完成之後，FreeBSD
+將只會看到這個大磁碟。當然您也可以使用其它的 <acronym class="ACRONYM">RAID</acronym>
+模式。</p>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN24158" name="AEN24158">18.4.3 重建(rebuild) ATA RAID1
+陣列</a></h2>
+
+<p>FreeBSD 允許您熱插拔磁碟陣列裡壞掉的磁碟， 當然在重開機前就得先發現。</p>
+
+<p>也許您會在 <tt class="FILENAME">/var/log/messages</tt>(或 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=dmesg&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">dmesg</span>(8)</span></a> 的輸出)
+看到類似下面的訊息：</p>
+
+<pre class="PROGRAMLISTING">
+ad6 on monster1 suffered a hard error.
+ad6: READ command timeout tag=0 serv=0 - resetting
+ad6: trying fallback to PIO mode
+ata3: resetting devices .. done
+ad6: hard error reading fsbn 1116119 of 0-7 (ad6 bn 1116119; cn 1107 tn 4 sn 11)\\
+status=59 error=40
+ar0: WARNING - mirror lost
+</pre>
+
+<p>請用 <a href="http://www.FreeBSD.org/cgi/man.cgi?query=atacontrol&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">atacontrol</span>(8)</span></a>
+來得到更多資訊：</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">atacontrol list</kbd>
+ATA channel 0:
+    Master:      no device present
+    Slave:   acd0 &lt;HL-DT-ST CD-ROM GCR-8520B/1.00&gt; ATA/ATAPI rev 0
+
+ATA channel 1:
+    Master:      no device present
+    Slave:       no device present
+
+ATA channel 2:
+    Master:  ad4 &lt;MAXTOR 6L080J4/A93.0500&gt; ATA/ATAPI rev 5
+    Slave:       no device present
+
+ATA channel 3:
+    Master:  ad6 &lt;MAXTOR 6L080J4/A93.0500&gt; ATA/ATAPI rev 5
+    Slave:       no device present
+
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">atacontrol status ar0</kbd>
+ar0: ATA RAID1 subdisks: ad4 ad6 status: DEGRADED
+</pre>
+
+<div class="PROCEDURE">
+<ol type="1">
+<li class="STEP">
+<p>首先您得將損壞磁碟所在的 ata channel 卸載(detach)， 如此才能安全地移除：</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">atacontrol detach ata3</kbd>
+</pre>
+</li>
+
+<li class="STEP">
+<p>用好的磁碟換下損壞的。</p>
+</li>
+
+<li class="STEP">
+<p>重新載入(re-attach) ata channel：</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">atacontrol attach ata3</kbd>
+Master:  ad6 &lt;MAXTOR 6L080J4/A93.0500&gt; ATA/ATAPI rev 5
+Slave:   no device present
+</pre>
+</li>
+
+<li class="STEP">
+<p>將新的磁碟加入原本的磁碟陣列成為備援(spare) 磁碟：</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">atacontrol addspare ar0 ad6</kbd>
+</pre>
+</li>
+
+<li class="STEP">
+<p>重建磁碟陣列：</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">atacontrol rebuild ar0</kbd>
+</pre>
+</li>
+
+<li class="STEP">
+<p>可以用下面指定來確認重建的進度：</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">dmesg | tail -10</kbd>
+[output removed]
+ad6: removed from configuration
+ad6: deleted from ar0 disk1
+ad6: inserted into ar0 disk1 as spare
+
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">atacontrol status ar0</kbd>
+ar0: ATA RAID1 subdisks: ad4 ad6 status: REBUILDING 0% completed
+</pre>
+</li>
+
+<li class="STEP">
+<p>等重建完就完成了。</p>
+</li>
+</ol>
+</div>
+</div>
+</div>
+
+<h3 class="FOOTNOTES">Notes</h3>
+
+<table border="0" class="FOOTNOTES" width="100%">
+<tr>
+<td align="LEFT" valign="TOP" width="5%"><a id="FTN.AEN24133" name="FTN.AEN24133"
+href="raid.html#AEN24133"><span class="footnote">[1]</span></a></td>
+<td align="LEFT" valign="TOP" width="95%">
+<p>譯註：原文這裡是用「和」，但要視實際使用方式而定。 例如用 RAID-0 就不會增加穩定度
+:)。</p>
+</td>
+</tr>
+
+<tr>
+<td align="LEFT" valign="TOP" width="5%"><a id="FTN.AEN24155" name="FTN.AEN24155"
+href="raid.html#AEN24155"><span class="footnote">[2]</span></a></td>
+<td align="LEFT" valign="TOP" width="95%">
+<p>譯註：例如按 F1 可以進入控制卡 BIOS 之類的資訊。</p>
+</td>
+</tr>
+</table>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="disks-adding.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="usb-disks.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">新增磁碟</td>
+<td width="34%" align="center" valign="top"><a href="disks.html"
+accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">USB 儲存裝置</td>
+</tr>
+</table>
+</div>
+
+<p align="center"><small>本文及其他文件，可由此下載：<a
+href="ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/">ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/</a>。</small></p>
+
+<p align="center"><small>若有 FreeBSD 方面疑問，請先閱讀 <a
+href="http://www.FreeBSD.org/docs.html">FreeBSD 相關文件</a>，如不能解決的話，再洽詢
+&#60;<a href="mailto:questions@FreeBSD.org">questions@FreeBSD.org</a>&#62;。<br />
+關於本文件的問題，請洽詢 &#60;<a
+href="mailto:doc@FreeBSD.org">doc@FreeBSD.org</a>&#62;。</small></p>
+</body>
+</html>
+

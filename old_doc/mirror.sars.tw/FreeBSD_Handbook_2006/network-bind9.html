@@ -1,0 +1,244 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>BIND9 and FreeBSD</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.79" />
+<link rel="HOME" title="FreeBSD 使用手冊" href="index.html" />
+<link rel="UP" title="Network Servers" href="network-servers.html" />
+<link rel="PREVIOUS" title="Domain Name System (DNS)" href="network-dns.html" />
+<link rel="NEXT" title="Apache HTTP Server" href="network-apache.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD 使用手冊</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="network-dns.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 25 Network Servers</td>
+<td width="10%" align="right" valign="bottom"><a href="network-apache.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="NETWORK-BIND9" name="NETWORK-BIND9">25.7 <acronym
+class="ACRONYM">BIND</acronym>9 and FreeBSD</a></h1>
+
+<i class="AUTHORGROUP"><span class="CONTRIB">Written by</span> Tom Rhodes.</i> 
+
+<p>The release of FreeBSD&nbsp;5.3 brought the <acronym class="ACRONYM">BIND</acronym>9
+<acronym class="ACRONYM">DNS</acronym> server software into the distribution. New
+security features, a new file system layout and automated <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=chroot&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">chroot</span>(8)</span></a>
+configuration came with the import. This section has been written in two parts, the first
+will discuss new features and their configuration; the latter will cover upgrades to aid
+in move to FreeBSD&nbsp;5.3. From this moment on, the server will be referred to simply
+as <a href="http://www.FreeBSD.org/cgi/man.cgi?query=named&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">named</span>(8)</span></a> in place of
+<acronym class="ACRONYM">BIND</acronym>. This section skips over the terminology
+described in the previous section as well as some of the theoretical discussions; thus,
+it is recommended that the previous section be consulted before reading any further
+here.</p>
+
+<p>Configuration files for <b class="APPLICATION">named</b> currently reside in <tt
+class="FILENAME">/var/named/etc/namedb/</tt> and will need modification before use. This
+is where most of the configuration will be performed.</p>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN36501" name="AEN36501">25.7.1 Configuration of a Master
+Zone</a></h2>
+
+<p>To configure a master zone visit <tt class="FILENAME">/var/named/etc/namedb/</tt> and
+run the following command:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">sh make-localhost</kbd>
+</pre>
+
+<p>If all went well a new file should exist in the <tt class="FILENAME">master</tt>
+directory. The filenames should be <tt class="FILENAME">localhost.rev</tt> for the local
+domain name and <tt class="FILENAME">localhost-v6.rev</tt> for <acronym
+class="ACRONYM">IPv6</acronym> configurations. As the default configuration file,
+configuration for its use will already be present in the <tt
+class="FILENAME">named.conf</tt> file.</p>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN36514" name="AEN36514">25.7.2 Configuration of a Slave
+Zone</a></h2>
+
+<p>Configuration for extra domains or sub domains may be done properly by setting them as
+a slave zone. In most cases, the <tt class="FILENAME">master/localhost.rev</tt> file
+could just be copied over into the <tt class="FILENAME">slave</tt> directory and
+modified. Once completed, the files need to be properly added in <tt
+class="FILENAME">named.conf</tt> such as in the following configuration for <tt
+class="HOSTID">example.com</tt>:</p>
+
+<pre class="PROGRAMLISTING">
+zone "example.com" {
+        type slave;
+        file "slave/example.com";
+        masters {
+                10.0.0.1;
+        };
+};
+
+zone "0.168.192.in-addr.arpa" {
+        type slave;
+        file "slave/0.168.192.in-addr.arpa";
+        masters {
+                10.0.0.1;
+        };
+};
+</pre>
+
+<p>Note well that in this example, the master <acronym class="ACRONYM">IP</acronym>
+address is the primary domain server from which the zones are transferred; it does not
+necessary serve as <acronym class="ACRONYM">DNS</acronym> server itself.</p>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN36525" name="AEN36525">25.7.3 System Initialization
+Configuration</a></h2>
+
+<p>In order for the <b class="APPLICATION">named</b> daemon to start when the system is
+booted, the following option must be present in the <tt class="FILENAME">rc.conf</tt>
+file:</p>
+
+<pre class="PROGRAMLISTING">
+named_enable="YES"
+</pre>
+
+<p>While other options exist, this is the bare minimal requirement. Consult the <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=rc.conf&amp;sektion=5"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">rc.conf</span>(5)</span></a> manual page
+for a list of the other options. If nothing is entered in the <tt
+class="FILENAME">rc.conf</tt> file then <b class="APPLICATION">named</b> may be started
+on the command line by invoking:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">/etc/rc.d/named start</kbd>
+</pre>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN36540" name="AEN36540">25.7.4 <acronym
+class="ACRONYM">BIND</acronym>9 Security</a></h2>
+
+<p>While FreeBSD automatically drops <b class="APPLICATION">named</b> into a <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=chroot&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">chroot</span>(8)</span></a> environment;
+there are several other security mechanisms in place which could help to lure off
+possible <acronym class="ACRONYM">DNS</acronym> service attacks.</p>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="AEN36549" name="AEN36549">25.7.4.1 Query Access Control
+Lists</a></h3>
+
+<p>A query access control list can be used to restrict queries against the zones. The
+configuration works by defining the network inside of the <tt class="LITERAL">acl</tt>
+token and then listing <acronym class="ACRONYM">IP</acronym> addresses in the zone
+configuration. To permit domains to query the example host, just define it like this:</p>
+
+<pre class="PROGRAMLISTING">
+acl "example.com" {
+        192.168.0.0/24;
+};
+
+zone "example.com" {
+        type slave;
+        file "slave/example.com";
+        masters {
+                10.0.0.1;
+        };
+    allow-query { example.com; };
+};
+
+zone "0.168.192.in-addr.arpa" {
+        type slave;
+        file "slave/0.168.192.in-addr.arpa";
+        masters {
+                10.0.0.1;
+        };
+    allow-query { example.com; };
+};
+</pre>
+</div>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="AEN36555" name="AEN36555">25.7.4.2 Restrict Version</a></h3>
+
+<p>Permitting version lookups on the <acronym class="ACRONYM">DNS</acronym> server could
+be opening the doors for an attacker. A malicious user may use this information to hunt
+up known exploits or bugs to utilize against the host.</p>
+
+<div class="WARNING">
+<blockquote class="WARNING">
+<p><b>Warning:</b> Setting a false version will not protect the server from exploits.
+Only upgrading to a version that is not vulnerable will protect your server.</p>
+</blockquote>
+</div>
+
+<p>A false version string can be placed the <tt class="LITERAL">options</tt> section of
+<tt class="FILENAME">named.conf</tt>:</p>
+
+<pre class="PROGRAMLISTING">
+options {
+        directory       "/etc/namedb";
+        pid-file        "/var/run/named/pid";
+        dump-file       "/var/dump/named_dump.db";
+        statistics-file "/var/stats/named.stats";
+        version     "None of your business";
+};
+</pre>
+</div>
+</div>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="network-dns.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="network-apache.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">Domain Name System (DNS)</td>
+<td width="34%" align="center" valign="top"><a href="network-servers.html"
+accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">Apache HTTP Server</td>
+</tr>
+</table>
+</div>
+
+<p align="center"><small>This, and other documents, can be downloaded from <a
+href="ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/">ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/</a>.</small></p>
+
+<p align="center"><small>For questions about FreeBSD, read the <a
+href="http://www.FreeBSD.org/docs.html">documentation</a> before contacting &#60;<a
+href="mailto:questions@FreeBSD.org">questions@FreeBSD.org</a>&#62;.<br />
+For questions about this documentation, e-mail &#60;<a
+href="mailto:doc@FreeBSD.org">doc@FreeBSD.org</a>&#62;.</small></p>
+</body>
+</html>
+

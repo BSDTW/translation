@@ -1,0 +1,308 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<HTML
+><HEAD
+><TITLE
+>20. 讀取 DBF 檔</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="網路管理語言 Perl 入門與實作"
+HREF="book1.html"><LINK
+REL="PREVIOUS"
+TITLE="19. 套件自動更新"
+HREF="c1215.html"><LINK
+REL="NEXT"
+TITLE="21. 找尋大檔案"
+HREF="c1226.html"></HEAD
+><BODY
+CLASS="CHAPTER"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>網路管理語言 Perl 入門與實作: </TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="c1215.html"
+ACCESSKEY="P"
+>&#60;&#60;&#60; Previous</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="c1226.html"
+ACCESSKEY="N"
+>Next &#62;&#62;&#62;</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="CHAPTER"
+><H1
+><A
+NAME="CHK"
+></A
+>20. 讀取 DBF 檔</H1
+><P
+>Perl 可以讀取 DBF 的檔案喔!</P
+><P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+>#! /usr/bin/perl
+
+# $Id: chapK.sgml,v 1.1.1.1 2003/08/14 00:26:12 ols3 Exp $
+
+use Xbase;
+
+$db=new Xbase;
+
+system("clear");
+
+my $COPYRIGHT=&#60;&#60;C1;
+#---------------------------------------------------------
+# dbf2csv.pl --- SFS3 學務系統轉DBF檔工具 
+# Written by OLS3 ver 1.0.2 (ols3@www.tnc.edu.tw)
+# Copyright (C) 2003 OLS3 
+# 本程式是自由軟體，可以依與 Perl 相同的授權條款散佈。
+#
+# 這個小程式可以幫您，將以前省教育廳國中學務系統中
+# 的學生基本資料XBASIC??.DBF 轉成可以匯入 SFS3 學務系統的 
+# csv 檔，您只要將該 csv 檔，由：
+# 教務 -&#62; 註冊組 -&#62; 匯入資料 -&#62; 匯入萬豐版學生資料 ，
+# 便可以很輕鬆地轉入學生基本資料。
+# 往後會再增加其它轉入介面
+# TODOLIST : 擴增現有 "簡易匯入介面"
+#
+# 使用法：./dbf2csv.pl
+# 請將 xbasic??.dbf 和本程式放在同一目錄下。
+#---------------------------------------------------------
+C1
+
+print $COPYRIGHT;
+
+while (!$dbf) {
+	print "\n請輸入學生基本資料DBF檔名？\n(Please keyin xbasic file of students)
+\n格式: xbasic??.dbf 不計大小寫。\n(Format is xbasic??.dbf and do case-insensitive matching.) ";
+	$dbf=&#60;&#62;;
+	chomp $dbf;
+	if (! -f $dbf) { 
+		print "\n $dbf 這個檔案不存在喔!\n($dbf not found! Please try again!)\n"; 
+		$dbf=''; next;
+	}
+	unless ($dbf =~ /xbasic(\d\d)\.dbf/i) { 
+		print "\n $dbf 不是學生基資料檔喔!\n($dbf is not xbasic file of students! Please try again!)\n"; 
+		$dbf=''; 
+	}
+	$tmp_year=$1;
+}
+
+if ($tmp_year) {
+	while (lc($ans) ne 'y') {
+		print "\n這批學生的入學年是 $tmp_year 嗎(請回答y/n)？ (year=$tmp_year ? Please answer y/n ?)";
+		$ans=&#60;&#62;;
+		chomp $ans;
+		if (lc($ans) eq 'y') { 
+			$use_tmp_year=1; 
+		} else { $ans='y'; }
+	 }
+}
+
+
+if (!$use_tmp_year) {
+  while (!$in_year) {
+	print "\n請輸入這批學生的入學年？ (如 91 入學，請填入 91)\n(Please keyin year ?)";
+	$in_year=&#60;&#62;;
+	chomp $in_year;
+	if ($in_year &#38;&#38; ($in_year !~ /^\d{2,3}$/)) { 
+	  print "\n錯誤! 這裡只能輸入2~3位數 ! 請再來一次!
+\n(Error! year only can be 2 or 3 digits number.\nPlease try again.)\n";
+	  $in_year=''; 
+	} 
+  }
+} else { $in_year=$tmp_year; }
+
+
+my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst)=localtime(time);
+
+# 年級
+$now_year=$year-$in_year-11;
+
+if ($now_year &#60; 1 || $now_year &#62; 3) {
+	print "\n$in_year 入學年有誤，請再檢查一下!\n"; exit;
+}
+
+
+while (!$seme) {
+	print "\n請輸入要轉入的學期是第1學期或第2學期？\n(Please keyin seme number?)";
+	print "\n以上這項資訊用來決定要取上學期或下學的班級座號。 ";
+	$seme=&#60;&#62;;
+	chomp $seme;
+	if ($seme &#38;&#38; ($seme != 1 &#38;&#38; $seme != 2)) { 
+		print "\n錯誤! 這裡只能輸入 1 或 2 ! 請再來一次!
+\n(Error! seme only can be number 1 or 2.\nPlease try again.)\n";
+		$seme=''; 
+	} 
+}
+
+while (!$area_code) {
+	print "\n請輸入貴校當地所在的郵遞區號？\n(Please keyin area code number?) ";
+	$area_code=&#60;&#62;;
+	chomp $area_code;
+}
+
+while (!$town) {
+	print "\n貴校所在地為 鎮 或 鄉 或 區?\n請輸入 鎮/鄉/區 其中一個中文字： ";
+	$town=&#60;&#62;;
+	chomp $town;
+}
+
+$class=(25 + ($now_year-1)*4 + ($seme -1)*2);
+$seat =(26 + ($now_year-1)*4 + ($seme -1)*2);
+
+print "\n請按 Enter 鍵開始轉換 ....\n(Please press Enter key to continue ....)";
+my $ans=&#60;&#62;;
+
+my ($tmp_output, $nouse)=split(/\./, $dbf);
+
+$tmp_output .= ".csv";
+
+open(F, "&#62; $tmp_output") || die;
+
+print F "代號,姓名,性別,入學年,班級,座號,生日(西元),身份證字號,父親姓名,
+母親姓名,郵遞區號,電話,住址(不含縣市?鎮),緊急聯方式\n";
+
+$db-&#62;open_dbf("$dbf");
+print $db-&#62;dbf_type, "\n";
+
+while (!$db-&#62;eof) {
+	@fields=$db-&#62;get_record;
+
+	my $sex;
+	if (!$fields[3]) { $sex=2; } else { $sex=1; }
+
+	my ($y,$m,$d);
+	$y=substr $fields[4],0,4;
+	$m=substr $fields[4],4,2;
+	$d=substr $fields[4],6,2;
+
+	my ($father,$mother);
+
+	if ($fields[12] eq '父子' || $fields[12] eq '父女') { 
+		$father=$fields[11]; $mother=''; } else { $father=''; $mother=$fields[11];
+	} 
+
+	my ($nouse, $addr) = split(/$town/, $fields[8]);
+	if (!$addr) { $addr = $fields[8]; }
+
+	if ($fields[0]) {
+		print F "$fields[0],$fields[1],$sex,$in_year,$fields[$class],$fields[$seat],
+$y/$m/$d,$fields[2],$father,$mother,$area_code,$fields[10],$addr,$fields[14]\n";
+  	}
+	$db-&#62;go_next;
+}
+
+close(F);
+$db-&#62;close_dbf;
+
+print "\n完成! (OK!) --&#62; $tmp_output\n\n";&#13;</PRE
+></TD
+></TR
+></TABLE
+></P
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="c1215.html"
+ACCESSKEY="P"
+>&#60;&#60;&#60; Previous</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="book1.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="c1226.html"
+ACCESSKEY="N"
+>Next &#62;&#62;&#62;</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>19. 套件自動更新</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>21. 找尋大檔案</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

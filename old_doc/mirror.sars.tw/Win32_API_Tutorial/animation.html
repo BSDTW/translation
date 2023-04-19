@@ -1,0 +1,272 @@
+<HTML>
+
+<LINK HREF="style.css" REL="STYLESHEET" TYPE="text/css">
+
+<HEAD>
+<TITLE>Timers and Animation</TITLE>
+</HEAD>
+
+<BODY>
+<FONT SIZE="-1">
+[ <A HREF="./index.html">contents</A>
+| <A HREF="http://www.winprog.org/">#winprog</A>
+]
+</FONT>
+<HR>
+
+
+<H1>Timers and Animation</H1>
+
+<P>Example: anim_one</P>
+<IMG SRC="images/anim_one.gif" ALT="[images/anim_one.gif]" ALIGN="right">
+
+<H2>Setting up</H2>
+
+Before we get things animated, we need to set up a structure to store the position of
+the ball between updates.  This struct will store the current position and size of the ball,
+as well as the delta values, how much we want it to move each frame.
+
+<P>
+Once we have the structure type declared, we also declare a global instance of the struct.  This
+is ok since we only have one ball, if were were going to animate a bunch of them, you'd probably want
+to use an array or other container (such as a linked list in C++) to store them in a more convenient
+way.
+
+<PRE CLASS="SNIP">
+const int BALL_MOVE_DELTA = 2;
+
+typedef struct _BALLINFO 
+{
+    int width;
+    int height;
+    int x;
+    int y;
+
+    int dx;
+    int dy;
+}BALLINFO;
+
+BALLINFO g_ballInfo;
+</PRE>
+
+We've also defined a constant <CODE>BALL_MOVE_DELTA</CODE> which is how far we want the ball to move on
+each update.  The reason we store deltas in the <CODE>BALLINFO</CODE> structure as well is that we want
+to be able to move the ball left or right and up and down independantly, <CODE>BALL_MOVE_DELTA</CODE>
+is just a handy name to give the value so we can change it later if we want.
+
+<P>
+Now we need to initialize this structure after we load our bitmaps:
+
+<PRE CLASS="SNIP">
+    BITMAP bm;
+</PRE>
+<PRE CLASS="SNIP">
+    GetObject(g_hbmBall, sizeof(bm), &bm);
+
+    ZeroMemory(&g_ballInfo, sizeof(g_ballInfo));
+    g_ballInfo.width = bm.bmWidth;
+    g_ballInfo.height = bm.bmHeight;
+
+    g_ballInfo.dx = BALL_MOVE_DELTA;
+    g_ballInfo.dy = BALL_MOVE_DELTA;
+</PRE>
+
+<P>
+The ball starts off in the top left corner, moving to the right and down according to the <CODE>dx</CODE> and <CODE>dy</CODE> members 
+of <CODE>BALLINFO</CODE>.
+
+<H2>Setting the Timer</H2>
+
+The easiest way to add a simple timer into a window program is with <CODE>SetTimer()</CODE>, it's not the best, and it's
+not recommended for real multimedia or full games, however it's good enough for simple animations like this.  When you 
+need something better take a look at <CODE>timeSetEvent()</CODE> in MSDN; it's more accurate.
+
+<PRE CLASS="SNIP">
+const int ID_TIMER = 1;
+</PRE>
+<PRE CLASS="SNIP">
+    ret = SetTimer(hwnd, ID_TIMER, 50, NULL);
+    if(ret == 0)
+        MessageBox(hwnd, "Could not SetTimer()!", "Error", MB_OK | MB_ICONEXCLAMATION);
+</PRE>
+
+Here we've declared a timer id so that we can refer to it later (to kill it) and then set the timer
+in the <CODE>WM_CREATE</CODE> handler of our main window.  Each time the timer elapses, it will send
+a <CODE>WM_TIMER</CODE> message to the window, and pass us back the ID in <CODE>wParam</CODE>.  
+Since we only have one timer we don't need the ID, but it's useful if you set more than one timer
+and need to tell them apart.
+
+<P>
+We've set the timer to elapse every 50 milliseconds, which results in approximately 20 frames per second.  Approximately
+because like I said, <CODE>SetTimer()</CODE> is a little inaccurate, but this isn't critical code, and a few milliseconds
+here or there won't kill us.
+
+<H2>Animating in WM_TIMER</H2>
+
+Now when we get <CODE>WM_TIMER</CODE> we want to calculate the new position for the ball and draw it's updated
+position.
+
+<PRE CLASS="SNIP">
+    case WM_TIMER:
+    {
+        RECT rcClient;
+        HDC hdc = GetDC(hwnd);
+
+        GetClientRect(hwnd, &rcClient);
+
+        UpdateBall(&rcClient);
+        DrawBall(hdc, &rcClient);
+
+        ReleaseDC(hwnd, hdc);
+    }
+    break;
+</PRE>
+
+<P>
+I've put the code for updating and drawing the ball in their own functions.  This is good practice, and
+it lets us draw the ball from either <CODE>WM_TIMER</CODE> or <CODE>WM_PAINT</CODE> without duplicating code, note that the method
+we use to get the <CODE>HDC</CODE> in each case is different, so it's best to leave this code in the message handlers
+and pass the result into the <CODE>DrawBall()</CODE> function.
+
+<PRE CLASS="SNIP">
+void UpdateBall(RECT* prc)
+{
+    g_ballInfo.x += g_ballInfo.dx;
+    g_ballInfo.y += g_ballInfo.dy;
+
+    if(g_ballInfo.x < 0)
+    {
+        g_ballInfo.x = 0;
+        g_ballInfo.dx = BALL_MOVE_DELTA;
+    }
+    else if(g_ballInfo.x + g_ballInfo.width > prc->right)
+    {
+        g_ballInfo.x = prc->right - g_ballInfo.width;
+        g_ballInfo.dx = -BALL_MOVE_DELTA;
+    }
+
+    if(g_ballInfo.y < 0)
+    {
+        g_ballInfo.y = 0;
+        g_ballInfo.dy = BALL_MOVE_DELTA;
+    }
+    else if(g_ballInfo.y + g_ballInfo.height > prc->bottom)
+    {
+        g_ballInfo.y = prc->bottom - g_ballInfo.height;
+        g_ballInfo.dy = -BALL_MOVE_DELTA;
+    }
+}
+</PRE>
+
+All this does is some basic math, we add the delta value to the x position to move the ball.  If the ball goes
+outside the client area, move it back in range and change the delta value to the opposite direction so that the
+ball "bounces" off the sides.
+
+<PRE CLASS="SNIP">
+void DrawBall(HDC hdc, RECT* prc)
+{
+    HDC hdcBuffer = CreateCompatibleDC(hdc);
+    HBITMAP hbmBuffer = CreateCompatibleBitmap(hdc, prc->right, prc->bottom);
+    HBITMAP hbmOldBuffer = SelectObject(hdcBuffer, hbmBuffer);
+
+    HDC hdcMem = CreateCompatibleDC(hdc);
+    HBITMAP hbmOld = SelectObject(hdcMem, g_hbmMask);
+
+    FillRect(hdcBuffer, prc, GetStockObject(WHITE_BRUSH));
+
+    BitBlt(hdcBuffer, g_ballInfo.x, g_ballInfo.y, g_ballInfo.width, g_ballInfo.height, hdcMem, 0, 0, SRCAND);
+
+    SelectObject(hdcMem, g_hbmBall);
+    BitBlt(hdcBuffer, g_ballInfo.x, g_ballInfo.y, g_ballInfo.width, g_ballInfo.height, hdcMem, 0, 0, SRCPAINT);
+
+    BitBlt(hdc, 0, 0, prc->right, prc->bottom, hdcBuffer, 0, 0, SRCCOPY);
+
+    SelectObject(hdcMem, hbmOld);
+    DeleteDC(hdcMem);
+
+    SelectObject(hdcBuffer, hbmOldBuffer);
+    DeleteDC(hdcBuffer);
+    DeleteObject(hbmBuffer);
+}
+</PRE>
+
+This is essentially the same drawing code as the past few examples, with the exception that it gets the 
+position and dimentions of the ball from the <CODE>BALLINFO</CODE> structure.  There is however one important difference...
+
+<H2>Double Buffering</H2>
+
+When doing your drawing directly to the <CODE>HDC</CODE> of the window, it's entirely possible that the screen
+will get updated before you're done... for example after you draw the mask and before you draw the colour image
+over top, the user might see a flicker of the back background before your program has a chance to draw over it
+in colour.  The slower your computer and the more drawing operations that you do, the more flicker will be apparent
+and eventually it will look like a big jumbled mess.
+
+<P>
+This is terribly distracting, and we can solve it simply by doing all the drawing in memory first, and then
+copying the completed masterpiece to the screen in a single <CODE>BitBlt()</CODE> so that the screen is updated
+directly from the old image, to the complete new image with none of the individual operations visible.
+
+<P>
+To do this, we create a temporary <CODE>HBITMAP</CODE> in memory that is the exact size of the area we are going to 
+draw to on the screen.  We also need an <CODE>HDC</CODE> so that we can <CODE>BitBlt()</CODE> to the bitmap.
+
+<PRE CLASS="SNIP">
+    HDC hdcBuffer = CreateCompatibleDC(hdc);
+    HBITMAP hbmBuffer = CreateCompatibleBitmap(hdc, prc->right, prc->bottom);
+    HBITMAP hbmOldBuffer = SelectObject(hdcBuffer, hbmBuffer);
+</PRE>
+
+Now that we have a place to draw to in memory, all of the drawing operations use <CODE>hdcBuffer</CODE> instead of 
+<CODE>hdc</CODE> (the window) and the results are stored on the bitmap in memory untill we are complete.  We can now
+copy the whole thing over to the window in one shot.
+
+<PRE CLASS="SNIP">
+    BitBlt(hdc, 0, 0, prc->right, prc->bottom, hdcBuffer, 0, 0, SRCCOPY);
+</PRE>
+
+That's it, and we clean up our <CODE>HDC</CODE>s and <CODE>HBITMAP</CODE>s as usual.
+
+<H3>Faster Double Buffering</H3>
+
+In this example I am creating and destroying the bitmap used for double buffering each frame, I did this basically
+because I wanted to be able to size the window so it's easier to just always create a new buffer than to track
+when the window position changes and resize the buffer.  It would be more efficient to create a global double 
+buffer bitmap and either not allow the window to resize or only resize the bitmap when the window resized, instead
+of creating it and destroying it all the time.  It's up to you to implement this if you want to optimize the drawing
+for a game or something.
+
+<H2>Killing the Timer</H2>
+
+When our window is destroyed, it's a good idea to release all resources we used, and in this case that
+includes the timer we set.  To stop it, we simply call <CODE>KillTimer()</CODE> and pass in the ID that we used when
+we created it.
+
+<PRE CLASS="SNIP">
+    KillTimer(hwnd, ID_TIMER);
+</PRE>
+
+<HR>
+<FONT SIZE="-1">
+Copyright &copy; 1998-2003, Brook Miles (<A HREF="mailto:forger(nospam)winprog.org">theForger</A>).  All rights reserved.
+</FONT>
+
+<SCRIPT language="JavaScript">
+<!--
+   var re = /\(nospam\)/ig;
+   var str;
+
+   for(i = 0;i < document.links.length;i++) 
+   {
+      str = "" + document.links(i).href;
+      if(str.search(re) != -1)
+         document.links(i).href = str.replace(re, "@");
+
+      str = "" + document.links(i).innerHTML;
+      if(str.search(re) != -1)
+         document.links(i).innerHTML = str.replace(re, "@");
+   }
+-->
+</SCRIPT>
+
+</BODY>
+</HTML>

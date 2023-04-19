@@ -1,0 +1,170 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>The MAC bsdextended Module</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.79" />
+<link rel="HOME" title="FreeBSD 使用手冊" href="index.html" />
+<link rel="UP" title="Mandatory Access Control" href="mac.html" />
+<link rel="PREVIOUS" title="Module Configuration" href="mac-modules.html" />
+<link rel="NEXT" title="The MAC ifoff Module" href="mac-ifoff.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD 使用手冊</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="mac-modules.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 15 Mandatory Access Control</td>
+<td width="10%" align="right" valign="bottom"><a href="mac-ifoff.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="MAC-BSDEXTENDED" name="MAC-BSDEXTENDED">15.6 The MAC bsdextended
+Module</a></h1>
+
+<p>Module name: <tt class="FILENAME">mac_bsdextended.ko</tt></p>
+
+<p>Kernel configuration line: <tt class="LITERAL">options MAC_BSDEXTENDED</tt></p>
+
+<p>Boot option: <tt class="LITERAL">mac_bsdextended_load="YES"</tt></p>
+
+<p>The <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=mac_bsdextended&amp;sektion=4"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">mac_bsdextended</span>(4)</span></a>
+module enforces the file system firewall. This module's policy provides an extension to
+the standard file system permissions model, permitting an administrator to create a
+firewall-like ruleset to protect files, utilities, and directories in the file system
+hierarchy.</p>
+
+<p>The policy may be created using a utility, <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=ugidfw&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">ugidfw</span>(8)</span></a>, that has a
+syntax similar to that of <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=ipfw&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">ipfw</span>(8)</span></a>. More tools
+can be written by using the functions in the <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=libugidfw&amp;sektion=3"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">libugidfw</span>(3)</span></a>
+library.</p>
+
+<p>Extreme caution should be taken when working with this module; incorrect use could
+block access to certain parts of the file system.</p>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN22419" name="AEN22419">15.6.1 Examples</a></h2>
+
+<p>After the <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=mac_bsdextended&amp;sektion=4"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">mac_bsdextended</span>(4)</span></a>
+module has been loaded, the following command may be used to list the current rule
+configuration:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">ugidfw list</kbd>
+0 slots, 0 rules
+</pre>
+
+<p>As expected, there are no rules defined. This means that everything is still
+completely accessible. To create a rule which will block all access by users but leave
+<tt class="USERNAME">root</tt> unaffected, simply run the following command:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">ugidfw add subject not uid root new object not uid root mode n</kbd>
+</pre>
+
+<div class="NOTE">
+<blockquote class="NOTE">
+<p><b>Note:</b> In releases prior to FreeBSD&nbsp;5.3, the <code
+class="PARAMETER">add</code> parameter did not exist. In those cases the <code
+class="PARAMETER">set</code> should be used instead. See below for a command example.</p>
+</blockquote>
+</div>
+
+<p>This is a very bad idea as it will block all users from issuing even the most simple
+commands, such as <tt class="COMMAND">ls</tt>. A more patriotic list of rules might
+be:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">ugidfw set 2 subject uid <tt
+class="REPLACEABLE"><i>user1</i></tt> object uid <tt
+class="REPLACEABLE"><i>user2</i></tt> mode n</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">ugidfw set 3 subject uid <tt
+class="REPLACEABLE"><i>user1</i></tt> object gid <tt
+class="REPLACEABLE"><i>user2</i></tt> mode n</kbd>
+</pre>
+
+<p>This will block any and all access, including directory listings, to <tt
+class="USERNAME"><tt class="REPLACEABLE"><i>user2</i></tt></tt>'s home directory from the
+username <tt class="USERNAME">user1</tt>.</p>
+
+<p>In place of <tt class="USERNAME">user1</tt>, the <code class="OPTION">not uid <tt
+class="REPLACEABLE"><i>user2</i></tt></code> could be passed. This will enforce the same
+access restrictions above for all users in place of just one user.</p>
+
+<div class="NOTE">
+<blockquote class="NOTE">
+<p><b>Note:</b> The <tt class="USERNAME">root</tt> user will be unaffected by these
+changes.</p>
+</blockquote>
+</div>
+
+<p>This should give a general idea of how the <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=mac_bsdextended&amp;sektion=4"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">mac_bsdextended</span>(4)</span></a>
+module may be used to help fortify a file system. For more information, see the <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=mac_bsdextended&amp;sektion=4"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">mac_bsdextended</span>(4)</span></a> and
+the <a href="http://www.FreeBSD.org/cgi/man.cgi?query=ugidfw&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">ugidfw</span>(8)</span></a> manual
+pages.</p>
+</div>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="mac-modules.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="mac-ifoff.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">Module Configuration</td>
+<td width="34%" align="center" valign="top"><a href="mac.html" accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">The MAC ifoff Module</td>
+</tr>
+</table>
+</div>
+
+<p align="center"><small>This, and other documents, can be downloaded from <a
+href="ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/">ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/</a>.</small></p>
+
+<p align="center"><small>For questions about FreeBSD, read the <a
+href="http://www.FreeBSD.org/docs.html">documentation</a> before contacting &#60;<a
+href="mailto:questions@FreeBSD.org">questions@FreeBSD.org</a>&#62;.<br />
+For questions about this documentation, e-mail &#60;<a
+href="mailto:doc@FreeBSD.org">doc@FreeBSD.org</a>&#62;.</small></p>
+</body>
+</html>
+

@@ -1,0 +1,330 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>Troubleshooting</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.79" />
+<link rel="HOME" title="FreeBSD 使用手冊" href="index.html" />
+<link rel="UP" title="列印" href="printing.html" />
+<link rel="PREVIOUS" title="Alternatives to the Standard Spooler"
+href="printing-lpd-alternatives.html" />
+<link rel="NEXT" title="與 Linux Binary 的相容方面" href="linuxemu.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD 使用手冊</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="printing-lpd-alternatives.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 9 列印</td>
+<td width="10%" align="right" valign="bottom"><a href="linuxemu.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="PRINTING-TROUBLESHOOTING" name="PRINTING-TROUBLESHOOTING">9.7
+Troubleshooting</a></h1>
+
+<p>After performing the simple test with <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=lptest&amp;sektion=1"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">lptest</span>(1)</span></a>, you might
+have gotten one of the following results instead of the correct printout:</p>
+
+<div class="VARIABLELIST">
+<dl>
+<dt>It worked, after awhile; or, it did not eject a full sheet.</dt>
+
+<dd>
+<p>The printer printed the above, but it sat for awhile and did nothing. In fact, you
+might have needed to press a PRINT REMAINING or FORM FEED button on the printer to get
+any results to appear.</p>
+
+<p>If this is the case, the printer was probably waiting to see if there was any more
+data for your job before it printed anything. To fix this problem, you can have the text
+filter send a FORM FEED character (or whatever is necessary) to the printer. This is
+usually sufficient to have the printer immediately print any text remaining in its
+internal buffer. It is also useful to make sure each print job ends on a full sheet, so
+the next job does not start somewhere on the middle of the last page of the previous
+job.</p>
+
+<p>The following replacement for the shell script <tt
+class="FILENAME">/usr/local/libexec/if-simple</tt> prints a form feed after it sends the
+job to the printer:</p>
+
+<pre class="PROGRAMLISTING">
+#!/bin/sh
+#
+# if-simple - Simple text input filter for lpd
+# Installed in /usr/local/libexec/if-simple
+#
+# Simply copies stdin to stdout.  Ignores all filter arguments.
+# Writes a form feed character (\f) after printing job.
+
+/bin/cat &amp;&amp; printf "\f" &amp;&amp; exit 0
+exit 2
+</pre>
+</dd>
+
+<dt>It produced the “staircase effect.”</dt>
+
+<dd>
+<p>You got the following on paper:</p>
+
+<pre class="PROGRAMLISTING">
+!"#$%&amp;'()*+,-./01234
+                "#$%&amp;'()*+,-./012345
+                                 #$%&amp;'()*+,-./0123456
+</pre>
+
+<p>You have become another victim of the <span class="emphasis"><b
+class="EMPHASIS">staircase effect</b></span>, caused by conflicting interpretations of
+what characters should indicate a new line. <span class="TRADEMARK">UNIX</span>&reg;
+style operating systems use a single character: ASCII code 10, the line feed (LF). <span
+class="TRADEMARK">MS-DOS</span>&reg;, <span class="TRADEMARK">OS/2</span>&reg;, and
+others uses a pair of characters, ASCII code 10 <span class="emphasis"><b
+class="EMPHASIS">and</b></span> ASCII code 13 (the carriage return or CR). Many printers
+use the <span class="TRADEMARK">MS-DOS</span> convention for representing new-lines.</p>
+
+<p>When you print with FreeBSD, your text used just the line feed character. The printer,
+upon seeing a line feed character, advanced the paper one line, but maintained the same
+horizontal position on the page for the next character to print. That is what the
+carriage return is for: to move the location of the next character to print to the left
+edge of the paper.</p>
+
+<p>Here is what FreeBSD wants your printer to do:</p>
+
+<div class="INFORMALTABLE"><a id="AEN12374" name="AEN12374"></a>
+<table border="0" frame="void" width="90%" class="CALSTABLE">
+<col />
+<col />
+<tbody>
+<tr>
+<td>Printer received CR</td>
+<td>Printer prints CR</td>
+</tr>
+
+<tr>
+<td>Printer received LF</td>
+<td>Printer prints CR + LF</td>
+</tr>
+</tbody>
+</table>
+</div>
+
+<p>Here are some ways to achieve this:</p>
+
+<ul>
+<li>
+<p>Use the printer's configuration switches or control panel to alter its interpretation
+of these characters. Check your printer's manual to find out how to do this.</p>
+
+<div class="NOTE">
+<blockquote class="NOTE">
+<p><b>Note:</b> If you boot your system into other operating systems besides FreeBSD, you
+may have to <span class="emphasis"><b class="EMPHASIS">reconfigure</b></span> the printer
+to use a an interpretation for CR and LF characters that those other operating systems
+use. You might prefer one of the other solutions, below.</p>
+</blockquote>
+</div>
+</li>
+
+<li>
+<p>Have FreeBSD's serial line driver automatically convert LF to CR+LF. Of course, this
+works with printers on serial ports <span class="emphasis"><b
+class="EMPHASIS">only</b></span>. To enable this feature, use the <tt
+class="LITERAL">ms#</tt> capability and set the <tt class="LITERAL">onlcr</tt> mode in
+the <tt class="FILENAME">/etc/printcap</tt> file for the printer.</p>
+</li>
+
+<li>
+<p>Send an <span class="emphasis"><b class="EMPHASIS">escape code</b></span> to the
+printer to have it temporarily treat LF characters differently. Consult your printer's
+manual for escape codes that your printer might support. When you find the proper escape
+code, modify the text filter to send the code first, then send the print job.</p>
+
+<p>Here is an example text filter for printers that understand the Hewlett-Packard PCL
+escape codes. This filter makes the printer treat LF characters as a LF and CR; then it
+sends the job; then it sends a form feed to eject the last page of the job. It should
+work with nearly all Hewlett Packard printers.</p>
+
+<pre class="PROGRAMLISTING">
+#!/bin/sh
+#
+# hpif - Simple text input filter for lpd for HP-PCL based printers
+# Installed in /usr/local/libexec/hpif
+#
+# Simply copies stdin to stdout.  Ignores all filter arguments.
+# Tells printer to treat LF as CR+LF.  Ejects the page when done.
+
+printf "\033&amp;k2G" &amp;&amp; cat &amp;&amp; printf "\033&amp;l0H" &amp;&amp; exit 0
+exit 2
+</pre>
+
+<p>Here is an example <tt class="FILENAME">/etc/printcap</tt> from a host called <tt
+class="HOSTID">orchid</tt>. It has a single printer attached to its first parallel port,
+a Hewlett Packard LaserJet 3Si named <tt class="LITERAL">teak</tt>. It is using the above
+script as its text filter:</p>
+
+<pre class="PROGRAMLISTING">
+#
+#  /etc/printcap for host orchid
+#
+teak|hp|laserjet|Hewlett Packard LaserJet 3Si:\
+        :lp=/dev/lpt0:sh:sd=/var/spool/lpd/teak:mx#0:\
+        :if=/usr/local/libexec/hpif:
+</pre>
+</li>
+</ul>
+</dd>
+
+<dt>It overprinted each line.</dt>
+
+<dd>
+<p>The printer never advanced a line. All of the lines of text were printed on top of
+each other on one line.</p>
+
+<p>This problem is the “opposite” of the staircase effect, described above, and is much
+rarer. Somewhere, the LF characters that FreeBSD uses to end a line are being treated as
+CR characters to return the print location to the left edge of the paper, but not also
+down a line.</p>
+
+<p>Use the printer's configuration switches or control panel to enforce the following
+interpretation of LF and CR characters:</p>
+
+<div class="INFORMALTABLE"><a id="AEN12415" name="AEN12415"></a>
+<table border="0" frame="void" width="90%" class="CALSTABLE">
+<col />
+<col />
+<thead>
+<tr>
+<th>Printer receives</th>
+<th>Printer prints</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>CR</td>
+<td>CR</td>
+</tr>
+
+<tr>
+<td>LF</td>
+<td>CR + LF</td>
+</tr>
+</tbody>
+</table>
+</div>
+</dd>
+
+<dt>The printer lost characters.</dt>
+
+<dd>
+<p>While printing, the printer did not print a few characters in each line. The problem
+might have gotten worse as the printer ran, losing more and more characters.</p>
+
+<p>The problem is that the printer cannot keep up with the speed at which the computer
+sends data over a serial line (this problem should not occur with printers on parallel
+ports). There are two ways to overcome the problem:</p>
+
+<ul>
+<li>
+<p>If the printer supports XON/XOFF flow control, have FreeBSD use it by specifying the
+<tt class="LITERAL">ixon</tt> mode in the <tt class="LITERAL">ms#</tt> capability.</p>
+</li>
+
+<li>
+<p>If the printer supports carrier flow control, specify the <tt
+class="LITERAL">crtscts</tt> mode in the <tt class="LITERAL">ms#</tt> capability. Make
+sure the cable connecting the printer to the computer is correctly wired for carrier flow
+control.</p>
+</li>
+</ul>
+</dd>
+
+<dt>It printed garbage.</dt>
+
+<dd>
+<p>The printer printed what appeared to be random garbage, but not the desired text.</p>
+
+<p>This is usually another symptom of incorrect communications parameters with a serial
+printer. Double-check the bps rate in the <tt class="LITERAL">br</tt> capability, and the
+parity setting in the <tt class="LITERAL">ms#</tt> capability; make sure the printer is
+using the same settings as specified in the <tt class="FILENAME">/etc/printcap</tt>
+file.</p>
+</dd>
+
+<dt>Nothing happened.</dt>
+
+<dd>
+<p>If nothing happened, the problem is probably within FreeBSD and not the hardware. Add
+the log file (<tt class="LITERAL">lf</tt>) capability to the entry for the printer you
+are debugging in the <tt class="FILENAME">/etc/printcap</tt> file. For example, here is
+the entry for <tt class="LITERAL">rattan</tt>, with the <tt class="LITERAL">lf</tt>
+capability:</p>
+
+<pre class="PROGRAMLISTING">
+rattan|line|diablo|lp|Diablo 630 Line Printer:\
+        :sh:sd=/var/spool/lpd/rattan:\
+        :lp=/dev/lpt0:\
+        :if=/usr/local/libexec/if-simple:\
+        :lf=/var/log/rattan.log
+</pre>
+
+<p>Then, try printing again. Check the log file (in our example, <tt
+class="FILENAME">/var/log/rattan.log</tt>) to see any error messages that might appear.
+Based on the messages you see, try to correct the problem.</p>
+
+<p>If you do not specify a <tt class="LITERAL">lf</tt> capability, <b
+class="APPLICATION">LPD</b> uses <tt class="FILENAME">/dev/console</tt> as a default.</p>
+</dd>
+</dl>
+</div>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="printing-lpd-alternatives.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="linuxemu.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">Alternatives to the Standard Spooler</td>
+<td width="34%" align="center" valign="top"><a href="printing.html"
+accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">與 Linux Binary 的相容方面</td>
+</tr>
+</table>
+</div>
+
+<p align="center"><small>本文及其他文件，可由此下載：<a
+href="ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/">ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/</a>。</small></p>
+
+<p align="center"><small>若有 FreeBSD 方面疑問，請先閱讀 <a
+href="http://www.FreeBSD.org/docs.html">FreeBSD 相關文件</a>，如不能解決的話，再洽詢
+&#60;<a href="mailto:questions@FreeBSD.org">questions@FreeBSD.org</a>&#62;。<br />
+關於本文件的問題，請洽詢 &#60;<a
+href="mailto:doc@FreeBSD.org">doc@FreeBSD.org</a>&#62;。</small></p>
+</body>
+</html>
+

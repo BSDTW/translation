@@ -1,0 +1,462 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>Chapter 37. Basic Networking</title>
+    <link rel="stylesheet" type="text/css" href="docbook-xsl-mymods.css" />
+    <meta name="generator" content="DocBook XSL Stylesheets V1.76.0" />
+    <link rel="home" href="index.html" />
+    <link rel="up" href="pt07.html" />
+    <link rel="prev" href="ch36.html" />
+    <link rel="next" href="ch38.html" />
+  </head>
+  <body>
+    <div class="mattnotice">
+      <p>As a courtesy, this is a <b>full free</b> rendering of my book, <i>Programming iOS 6</i>, by Matt Neuburg. Copyright 2013 Matt Neuburg. Please note that this book has now been completely superseded by two more recent books, <a href="http://shop.oreilly.com/product/0636920032465.do">iOS 7 Fundamentals</a> and <a href="http://shop.oreilly.com/product/0636920031017.do">Programming iOS 7</a>. If my work has been of help to you, please <b>consider purchasing</b> one or both of them. Thank you!
+	</p>
+    </div>
+    <div class="navfooter">
+      <table width="100%" summary="Navigation footer">
+        <tr>
+          <td width="40%" align="left"><a accesskey="p" href="ch36.html">Prev</a> </td>
+          <td width="20%" align="center">
+            <a accesskey="u" href="pt07.html">Up</a>
+          </td>
+          <td width="40%" align="right"> <a accesskey="n" href="ch38.html">Next</a></td>
+        </tr>
+        <tr>
+          <td width="40%" align="left" valign="top">Chapter 36. Persistent Storage </td>
+          <td width="20%" align="center">
+            <a accesskey="h" href="index.html">Table of Contents</a>
+          </td>
+          <td width="40%" align="right" valign="top"> Chapter 38. Threads</td>
+        </tr>
+      </table>
+    </div>
+    <div class="chapter">
+      <div class="titlepage">
+        <div>
+          <div>
+            <h2 class="title"><a id="chap_id37"></a>Chapter 37. Basic Networking</h2>
+          </div>
+        </div>
+      </div>
+      <p>Networking is difficult and complicated, chiefly because it’s ultimately out of your control. My motto with regard to the network is, “There’s many a slip ’twixt the cup and the lip.” You can ask for a resource from across the network, but at that point anything can happen: the resource might not be found (the server is down, perhaps), it might take a while to arrive, it might never arrive, the network itself might vanish after the resource has partially arrived. iOS, however, makes at least the <span class="emphasis"><em>basics</em></span> of networking very easy, so that’s what this chapter will deal with.</p>
+      <p>Many earlier chapters have described interface and frameworks that network for you automatically. Put a UIWebView in your interface (<a class="xref" href="ch24.html">Chapter 24</a>) and poof, you’re networking; the UIWebView does all the grunt work, and it does it a lot better than you’d be likely to do it from scratch. The same is true of MPMovieViewController (<a class="xref" href="ch28.html">Chapter 28</a>), MFMailComposeViewController (<a class="xref" href="ch33.html">Chapter 33</a>), and MKMapView (<a class="xref" href="ch37.html">Chapter 37</a>).</p>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_http_requests"></a>HTTP Requests</h2>
+            </div>
+          </div>
+        </div>
+        <p>A simple HTTP request is made through an <a id="idm441639779360" class="indexterm"></a>NSURLConnection object.<a id="idm441639778560" class="indexterm"></a><a id="idm441639777664" class="indexterm"></a> You hand it an <a id="idm441639776592" class="indexterm"></a>NSURLRequest describing what you’d like to do, and start the download. The actual network operations happen asynchronously (unless you specifically demand that they happen synchronously, which you’d never do); in other words, the NSURLConnection object does all its work in the background. Data received from the network in response to your request will arrive as an NSData object.</p>
+        <p>For the very simplest cases, you can download a resource asynchronously without using a delegate: call the class method <code class="literal">sendAsynchronousRequest:queue:completionHandler:</code>. This creates an NSURLConnection and starts the download immediately. When the download ends, whether in failure or success, the completion handler block is called on the NSOperationQueue you specified, with three parameters: an NSURLResponse, an NSData (which will be the entire download if the download succeeded), and an NSError object. Here’s an example of downloading a JPEG image file and displaying it in the interface; I specify the main queue (the queue of the main thread), because my completion handler is going to talk directly to my app’s interface (see also <a class="xref" href="ch38.html">Chapter 38</a>):</p>
+        <pre class="screen">NSString* s = @"http://www.someserver.com/somefolder/someimage.jpg";
+NSURL* url = [NSURL URLWithString:s];
+NSURLRequest* req = [NSURLRequest requestWithURL:url];
+NSOperationQueue* q = [NSOperationQueue mainQueue];
+[NSURLConnection sendAsynchronousRequest:req queue:q
+   completionHandler:^(NSURLResponse *resp, NSData *d, NSError *err) {
+       if (d) {
+           UIImage* im = [UIImage imageWithData:d];
+           self.iv.image = im;
+       }
+   }];</pre>
+        <p>The more formal and comprehensive approach is to specify the NSURLRequest along with a delegate. When the download starts, you stand back and let delegate messages arrive. To obtain and initialize an NSURLConnection object using this approach, call one of the following:</p>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+<code class="literal">connectionWithRequest:delegate:</code>
+<br /></span>
+              <span class="term">
+<code class="literal">initWithRequest:delegate:</code>
+</span>
+            </dt>
+            <dd>
+The download begins immediately.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">initWithRequest:delegate:startImmediately:</code>
+</span>
+            </dt>
+            <dd>
+This is the designated initializer; the other two methods call it. If the last argument is NO, the download does not begin until you send the connection the <code class="literal">start</code> message. You can specify an NSOperationQueue (<a class="xref" href="ch38.html">Chapter 38</a>) with <code class="literal">setDelegateQueue:</code> if you’d like the delegate messages to arrive on a background thread.
+</dd>
+          </dl>
+        </div>
+        <p>The data will arrive piecemeal, so you have to maintain state; in particular, you’ll prepare an NSMutableData object (probably as an instance variable, as it needs to persist while different methods refer to it) to which you’ll keep appending each new chunk of NSData until you’re told that the entire data has arrived — or that the request has failed. (The whole process is somewhat reminiscent of what we did with an NSXMLParser in <a class="xref" href="ch36.html">Chapter 36</a>.)</p>
+        <p>All the real work happens in four delegate methods:</p>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+<code class="literal">connection:didReceiveResponse:</code>
+</span>
+            </dt>
+            <dd>
+The server is responding. We can now hope that our data will start to arrive, so get ready. If you like, you can interrogate the NSURLResponse object that is handed to you, to learn things from the response headers such as the data’s expected size and MIME type. You can also ask for the <code class="literal">originalRequest</code> and the <code class="literal">currentRequest</code> to learn whether redirects or other forces have altered the NSURLRequest that is now being fulfilled.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">connection:didReceiveData:</code>
+</span>
+            </dt>
+            <dd>
+Some data has arrived. Append it to the NSMutableData object.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">connectiondidFinishLoading:</code>
+</span>
+            </dt>
+            <dd>
+All of the data has arrived; the NSMutableData object presumably contains it. Clean up as needed.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">connection:didFailWithError:</code>
+</span>
+            </dt>
+            <dd>
+Something went wrong. Clean up as needed.
+</dd>
+          </dl>
+        </div>
+        <p>Here’s an example of initiating a download of a JPEG image file:</p>
+        <pre class="screen">self.receivedData = [NSMutableData data];
+NSString* s = @"http://www.someserver.com/somefolder/someimage.jpg";
+NSURL* url = [NSURL URLWithString:s];
+NSURLRequest* req = [NSURLRequest requestWithURL:url];
+NSURLConnection* conn =
+    [NSURLConnection connectionWithRequest:req delegate:self];</pre>
+        <p>Here are the corresponding delegate method implementations:</p>
+        <pre class="screen">- (void) connection:(NSURLConnection *)connection
+        didReceiveResponse:(NSURLResponse *)response {
+    // connection is starting, clear buffer
+    [self.receivedData setLength:0];
+}
+
+- (void) connection:(NSURLConnection *)connection
+        didReceiveData:(NSData *)data {
+    // data is arriving, add it to the buffer
+    [self.receivedData appendData:data];
+}
+
+- (void)connection:(NSURLConnection*)connection
+        didFailWithError:(NSError *)error {
+    // something went wrong, clean up interface as needed
+}
+
+- (void)connectionDidFinishLoading:(NSURLConnection *)connection {
+    // all done, we are ready to rock and roll
+    // do something with self.receivedData
+}</pre>
+        <p>You should be wondering at this point how memory management works for an NSURLConnection. We don’t retain the NSURLConnection, so how does it live long enough to do any downloading? The answer is that NSURLConnection memory management works like NSTimer memory management (<a class="xref" href="ch12.html">Chapter 12</a>): as the download starts, the run loop retains it (and doesn’t release it until the connection fails, finishes, or is canceled). Both <code class="literal">connectionWithRequest:delegate:</code> and <code class="literal">initWithRequest:delegate:</code> begin the download immediately, so the connection object that they return is retained by the run loop and doesn’t need to be retained elsewhere.</p>
+        <p>On the other hand, an NSURLConnection initialized with <code class="literal">initWithRequest:delegate:startImmediately:</code>, as I mentioned earlier, does not start immediately if the third argument is NO, and you’ll want to keep a reference to it in order to send it the <code class="literal">start</code> message later; so, in the general case, we ought to have an NSURLConnection property with a retain policy. If we’re going to do that, we should probably wrap the entire connection process in a dedicated object to hold this instance variable, because otherwise keeping track of multiple simultaneous NSURLConnections would be a nightmare. Here’s the complete implementation for such a wrapper object, MyDownloader:</p>
+        <pre class="screen">// MyDownloader.h:
+
+@interface MyDownloader : NSObject
+@property (nonatomic, strong, readonly) NSURLConnection* connection;
+@property (nonatomic, strong, readonly) NSData* receivedData;
+- (id) initWithRequest: (NSURLRequest*) req;
+- (void) cancel;
+@end
+
+// MyDownloader.m:
+
+@interface MyDownloader ()
+@property (nonatomic, strong, readwrite) NSURLConnection* connection;
+@property (nonatomic, copy, readwrite) NSURLRequest* request;
+@property (nonatomic, strong, readwrite) NSMutableData* mutableReceivedData;
+@end
+
+@implementation MyDownloader
+
+- (NSData*) receivedData {
+    return [self.mutableReceivedData copy];
+}
+
+- (id) initWithRequest: (NSURLRequest*) req {
+    self = [super init];
+    if (self) {
+        self-&gt;_request = [req copy];
+        self-&gt;_connection =
+            [[NSURLConnection alloc] initWithRequest:req
+                delegate:self startImmediately:NO];
+        self-&gt;_mutableReceivedData = [NSMutableData new];
+    }
+    return self;
+}
+
+- (void) connection:(NSURLConnection *)connection
+        didReceiveResponse:(NSURLResponse *)response {
+    [self.mutableReceivedData setLength:0];
+}
+
+- (void) connection:(NSURLConnection *)connection
+        didReceiveData:(NSData *)data {
+    [self.mutableReceivedData appendData:data];
+}
+
+- (void)connection:(NSURLConnection *)connection
+        didFailWithError:(NSError *)error {
+    [[NSNotificationCenter defaultCenter]
+        postNotificationName:@"connectionFinished"
+        object:self userInfo:@{@"error": error}];
+}
+
+- (void)connectionDidFinishLoading:(NSURLConnection *)connection {
+    [[NSNotificationCenter defaultCenter]
+        postNotificationName:@"connectionFinished" object:self];
+}
+
+- (void) cancel {
+    // cancel download in progress, replace connection, start over
+    [self.connection cancel];
+    self-&gt;_connection =
+        [[NSURLConnection alloc] initWithRequest:self-&gt;_request
+            delegate:self startImmediately:NO];
+}
+@end</pre>
+        <p>The class uses a combination of private and redeclared properties along with an explicit getter to make certain that clients have read-only access to instance variables (and, in the case of our NSMutableData object, access only to an immutable copy). Communication back to the client when the download finishes is through a notification; it is up to the client to register for this notification beforehand.</p>
+        <p>In the line that creates the NSURLConnection, we have used the designated initializer with a <code class="literal">startImmediately:</code> argument value of NO. Thus, a MyDownloader object can exist and be ready for action before doing any actual downloading. To set the download into motion, we tell the MyDownloader’s <code class="literal">connection</code> to <code class="literal">start</code>. (Sending <code class="literal">start</code> to an NSURLConnection that is already downloading has no effect.) In the past, there have been complaints that sending <code class="literal">start</code> to an NSURLConnection that does not start immediately can cause a crash. I have not seen this myself, so perhaps it has been fixed in more recent iOS versions, but the solution is to schedule the connection on a run loop explicitly just before starting it:</p>
+        <pre class="screen">[connection scheduleInRunLoop:[NSRunLoop currentRunLoop]
+                      forMode:NSDefaultRunLoopMode];
+[connection start];</pre>
+        <p>The following sentence in the NSURLConnection header file may cause some concern: “The delegate is retained by the NSURLConnection until a terminal condition is encountered.” MyDownloader retains the NSURLConnection and is its delegate, which raises a worry that a retain cycle may be looming in our future. However, in practice this should cause no difficulty; as that sentence implies, the delegate is released when the NSURLConnection is no longer downloading, so one way or another a leak will be avoided with no special action on our part. The delegate is retained for the same reason that an NSTimer’s target is retained: if the delegate were to go out of existence while the download is ongoing, the attempt to send it delegate messages could cause a nasty crash. In any case we cannot set an NSURLConnection’s delegate to nil, as it has no <code class="literal">delegate</code> property. If a download needs to be abandoned in midflight, the client should send us the <code class="literal">cancel</code> message, and the download will be stopped in the background in good order.</p>
+        <p>An NSURLConnection that has started downloading can be canceled by sending it the <code class="literal">cancel</code> message, and MyDownloader’s implementation of <code class="literal">cancel</code> does this. However, an NSURLConnection that has been canceled is then good for nothing; it cannot be reused to try to start a connection ever again. Therefore, MyDownloader’s <code class="literal">cancel</code> implementation also replaces its NSURLConnection with a fresh NSURLConnection configured in the same way, in case the client wants to try again later. The same thing is true of an NSURLConnection that has failed or that has finished in good order: it, too, is then good for nothing. However, MyDownloader does not replace its NSURLConnection in that case, because the client is expected to abandon the MyDownload instance completely at that point.</p>
+        <p>How would we use MyDownloader if we have several objects to download? We might, for example, keep a mutable array of MyDownloader objects. To initiate a download, we create a MyDownloader object, register for its <code class="literal">@"connectionFinished"</code> notification, stuff it into the array, and set its connection going:</p>
+        <pre class="screen">if (!self.connections)
+    self.connections = [NSMutableArray array];
+NSString* s = @"http://www.someserver.com/somefolder/someimage.jpg";
+NSURL* url = [NSURL URLWithString:s];
+NSURLRequest* req = [NSURLRequest requestWithURL:url];
+MyDownloader* d = [[MyDownloader alloc] initWithRequest:req];
+[self.connections addObject:d];
+[[NSNotificationCenter defaultCenter] addObserver:self
+    selector:@selector(finished:) name:@"connectionFinished" object:d];
+[d.connection start];</pre>
+        <p>When the notification arrives, either we’ve failed with an error or we’ve finished in good order. In the latter case, we grab the received data; either way, we remove the MyDownloader from the array, thus releasing it, along with its connection and its data:</p>
+        <pre class="screen">- (void) finished: (NSNotification*) n {
+    MyDownloader* d = [n object];
+    NSData* data = nil;
+    if ([n userInfo]) {
+        // ... error of some kind! ...
+    } else {
+        data = d.receivedData;
+        // ... and do something with the data right now ...
+    }
+    [[NSNotificationCenter defaultCenter]
+        removeObserver:self name:@"connectionFinished" object:d];
+    [self.connections removeObject:d];
+}</pre>
+        <p>In real life, you’d probably subclass MyDownloader to fit some particular task, and incorporate your downloaders directly into your application’s model, letting them fetch the data on demand. Suppose, for example, you need to download images to serve as thumbnails in the cells of a UITableView. Let’s consider how these images can be supplied lazily on demand.<a id="idm441639723520" class="indexterm"></a>
+<a id="idm441639720048" class="indexterm"></a> The model, as we saw in <a class="xref" href="ch21.html">Chapter 21</a>, might be an array of dictionaries. In this case, the dictionary might contain some text and a downloader whose job is to supply the image. So what I’m proposing is a model like this:</p>
+        <pre class="screen">array
+    dictionary
+        text: @"Manny"
+        pic: Downloader whose job is to supply an image of Manny
+    dictionary
+        text: @"Moe"
+        pic: Downloader whose job is to supply an image of Moe
+    dictionary
+        text: @"Jack"
+        pic: Downloader whose job is to supply an image of Jack
+    ....</pre>
+        <p>When the table turns to the data source for data, the data source will turn to the dictionary corresponding to the requested row, and ask that dictionary’s downloader for its image. At that point, either the downloader has an image, in which case it supplies it, or it hasn’t, in which case it returns nil (or some placeholder) and begins the download.</p>
+        <p>Here’s the key point. When a downloader succeeds in downloading its image, it notifies the data source. If the corresponding row is visible, the data source immediately tells the table to reload the corresponding row; the table once again asks the data source for the data, the data source once again turns to the dictionary corresponding to the requested row and once again asks that dictionary’s downloader for its image, and this time it obtains the image! Moreover, once an image is downloaded, the downloader continues to hold on to it and to supply it on request, so as the user scrolls, previously downloaded images just appear as part of the table.</p>
+        <p>The downloader we’re imagining here is a MyDownloader subclass, MyImageDownloader, with an <code class="literal">image</code> property so that the data source can request the image. MyImageDownloader’s implementation is straightforward. The data source is <span class="emphasis"><em>not</em></span> going to abandon a MyImageDownloader that has failed — it isn’t going to abandon <span class="emphasis"><em>any</em></span> MyImageDownloader, because a MyImageDownloader either knows how to fetch the image or is the vendor of the fetched image — so we override <code class="literal">connection:didFailWithError:</code> to replace the now useless NSURLConnection, allowing the download to be attempted again later. We also override <code class="literal">cancel</code> to do nothing if the download is complete:</p>
+        <pre class="screen">- (UIImage*) image {
+    if (self-&gt;_image)
+        return self-&gt;_image;
+    [self.connection start];
+    return nil; // or a placeholder
+}
+
+- (void)connectionDidFinishLoading:(NSURLConnection *)connection {
+    UIImage* im = [UIImage imageWithData:self.receivedData];
+    if (im) {
+        self.image = im;
+        [[NSNotificationCenter defaultCenter]
+            postNotificationName:@"imageDownloaded" object:self];
+    }
+}
+
+- (void)connection:(NSURLConnection *)connection
+        didFailWithError:(NSError *)error {
+    // prepare to try again
+    self.connection =
+        [[NSURLConnection alloc] initWithRequest:self.request
+            delegate:self startImmediately:NO];
+}
+
+- (void) cancel {
+    if (!self.image) // no point canceling if we finished the download
+        [super cancel];
+}</pre>
+        <p>The data source looks perfectly normal:</p>
+        <pre class="screen">- (UITableViewCell *)tableView:(UITableView *)tableView
+         cellForRowAtIndexPath:(NSIndexPath *)indexPath {
+    UITableViewCell *cell =
+        [tableView dequeueReusableCellWithIdentifier:@"Cell"];
+    NSDictionary* d = (self.model)[indexPath.row];
+    cell.textLabel.text = d[@"text"];
+    MyImageDownloader* imd = d[@"pic"];
+    cell.imageView.image = imd.image;
+    return cell;
+}</pre>
+        <p>Now for the key point. The data source is also registered for an <code class="literal">@"imageDownloaded"</code> notification. When such a notification arrives, it works out the table row corresponding to the MyImageDownloader that posted the notification and reloads that row:</p>
+        <pre class="screen">- (void) imageDownloaded: (NSNotification*) n {
+    MyImageDownloader* d = [n object];
+    NSUInteger row = [self.model indexOfObjectPassingTest:
+                      ^BOOL(id obj, NSUInteger idx, BOOL *stop) {
+                          return (((NSDictionary*)obj)[@"pic"] == d);
+                      }];
+    if (row == NSNotFound) return; // shouldn't happen
+    NSIndexPath* ip = [NSIndexPath indexPathForRow:row inSection:0];
+    NSArray* ips = [self.tableView indexPathsForVisibleRows];
+    if ([ips indexOfObject:ip] != NSNotFound) {
+        [self.tableView reloadRowsAtIndexPaths:@[ip]
+                              withRowAnimation:UITableViewRowAnimationFade];
+    }
+}</pre>
+        <p>A new feature in iOS 6 is that the table view delegate is notified when a cell scrolls out of view. We can take advantage of this to increase our efficiency and reduce our demands for bandwidth; if that cell’s MyImageDownloader was still downloading its image, we can stop it, thus limiting the maximum number of images that will ever be requested simultaneously to the number of visible rows:<a id="idm441639704512" class="indexterm"></a>
+<a id="idm441639702656" class="indexterm"></a>
+<a id="idm441639701360" class="indexterm"></a></p>
+        <pre class="screen">-(void)tableView:(UITableView *)tableView
+        didEndDisplayingCell:(UITableViewCell *)cell
+        forRowAtIndexPath:(NSIndexPath *)indexPath {
+    NSDictionary* d = (self.model)[indexPath.row];
+    MyImageDownloader* imd = d[@"pic"];
+    [imd cancel];
+}</pre>
+        <p>The only missing piece of the puzzle is what should happen when a cell’s downloader fails. If the user scrolls the failed cell out of view and later scrolls it back into view, the table will ask the data source for its data and the MyImageDownloader will try again to download its image. But that won’t happen for a failed cell that’s never scrolled out of view. How you deal with this is up to you; it’s a matter of providing the best user experience without having an undue impact upon performance, battery, and so forth. In this instance, because these images are fairly unimportant, I might arrange that when an NSTimer with a fairly large interval fires (every 60 seconds, say), we reload the visible rows; this will cause any failed MyImageDownloader whose corresponding row is visible to try again.</p>
+        <p>In planning your interface, it is useful to draw a distinction as to whether the user will experience a particular networking session explicitly or implicitly. This changes nothing about <span class="emphasis"><em>how</em></span> you network; it’s a matter of presentation. Downloading images to be slotted into the cells of an existing table view would presumably be implicit networking: it happens regardless of whether the user wants it, and it doesn’t seriously affect overall functionality, even if some or all of the images fail to arrive. In the TidBITS News app, on the other hand, everything displayed comes from a downloaded RSS feed: no feed, no data. This is explicit networking; the user needs to know when we are using the network, and needs to be informed of failure. The app preserves the previously downloaded feed, so the user has something to read even in the absence of the network, but the feed is explicitly refreshed when the user summons the table’s UIRefreshControl, along with the spinning network activity indicator (<a class="xref" href="ch25.html">Chapter 25</a>); if the download fails, we put up an alert.</p>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_bonjour"></a>Bonjour</h2>
+            </div>
+          </div>
+        </div>
+        <p>Bonjour is the ingenious technology, originated at Apple and now becoming a universal standard, for allowing network devices to advertise services they provide and to discover dynamically other devices offering such services. Once an appropriate service is detected, a client device can resolve it to get a network address and can then begin communicating with the server device. Actually communicating is outside the scope of this book, but device discovery via Bonjour is easy.<a id="idm441639695552" class="indexterm"></a></p>
+        <p>In this example, we’ll look to see whether any device, such as a Mac, is running iTunes with library sharing turned on. We can search for domains or for a particular service; here, we’ll pass the empty string as the domain to signify “any domain,” and concentrate on the service, which is <code class="literal">@"_daap._tcp"</code>. We maintain two instance variables, the NSNetServiceBrowser that will look for devices, and a mutable array in which to store any services it discovers:<a id="idm441639692992" class="indexterm"></a></p>
+        <pre class="screen">self.services = [NSMutableArray array];
+NSNetServiceBrowser* browser = [NSNetServiceBrowser new];
+self.nsb = browser;
+self.nsb.delegate = self;
+[self.nsb searchForServicesOfType:@"_daap._tcp" inDomain:@""];</pre>
+        <p>The NSNetServiceBrowser is now searching for devices advertising iTunes sharing and will keep doing so until we destroy it or tell it to <code class="literal">stop</code>. It is common to leave the service browser running, because devices can come and go very readily. As they do, the service browser’s delegate (NSNetServiceBrowserDelegate) will be informed. For purposes of this example, I’ll simply maintain a list of services, and update the app’s interface when the situation changes:</p>
+        <pre class="screen">- (void)netServiceBrowser:(NSNetServiceBrowser *)netServiceBrowser
+           didFindService:(NSNetService *)netService
+               moreComing:(BOOL)moreServicesComing {
+    [self.services addObject:netService];
+    if (!moreServicesComing)
+        [self updateInterface];
+}
+
+- (void)netServiceBrowser:(NSNetServiceBrowser *)netServiceBrowser
+         didRemoveService:(NSNetService *)netService
+               moreComing:(BOOL)moreServicesComing {
+    [self.services removeObject:netService];
+    if (!moreServicesComing)
+        [self updateInterface];
+}</pre>
+        <p>The delegate messages very kindly tell me whether they have finished listing a series of changes, so I can wait to update the interface until after a full batch of changes has ended. In this example, I don’t really have any interface to update; I’ll just log the list of services, each of which is an NSNetService instance:</p>
+        <pre class="screen">- (void) updateInterface {
+    for (NSNetService* service in self.services) {
+        if (service.port == -1) {
+            NSLog(@"service %@ of type %@, not yet resolved",
+                service.name, service.type);
+        }
+    }
+}</pre>
+        <p>To connect to a service, we would first need to <span class="emphasis"><em>resolve</em></span> it, thus obtaining an address and other useful information. An unresolved service has port <code class="literal">-1</code>, as shown in the previous code. To resolve a service, you tell it to resolve (<code class="literal">resolveWithTimeout:</code>); you will probably also set a delegate on the service (NSNetServiceDelegate), so as to be notified when the resolution succeeds (or fails). Here, I’ll have the delegate call my <code class="literal">updateInterface</code> method again if a resolution succeeds, and I’ll extend <code class="literal">updateInterface</code> to show the port number for any resolved services:</p>
+        <pre class="screen">- (void) updateInterface {
+    for (NSNetService* service in self.services) {
+        if (service.port == -1) {
+            NSLog(@"service %@ of type %@, not yet resolved",
+                service.name, service.type);
+            [service setDelegate:self];
+            [service resolveWithTimeout:10];
+        } else {
+            NSLog(@"service %@ of type %@, port %i, addresses %@",
+                service.name, service.type, service.port, service.addresses);
+        }
+    }
+}
+
+- (void)netServiceDidResolveAddress:(NSNetService *)sender {
+    [self updateInterface];
+}</pre>
+        <p>The <code class="literal">addresses</code> of a resolved service constitute an array of NSData. Logging an address like this is largely pointless, as it is not human-readable, but it’s useful for handing to a CFSocket. In general you’ll call the service’s <code class="literal">getInputStream:outputStream:</code> to start talking over the connection; that’s outside the scope of this discussion. See Apple’s WiTap example for more.</p>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_push_notifications"></a>Push Notifications</h2>
+            </div>
+          </div>
+        </div>
+        <p>If your app uses a server on the network that’s under your control, you can arrange for the user to be notified when a significant event takes place on the server. This is called a <span class="emphasis"><em>push notification</em></span> (or <span class="emphasis"><em>remote notification</em></span>). The user interface for a push notification is the same as for a local notification, and the user can disable your app’s notifications altogether (<a class="xref" href="ch26.html">Chapter 26</a>).<a id="idm441639675872" class="indexterm"></a><a id="idm441639674976" class="indexterm"></a></p>
+        <p>For example, the TidBITS News app is about news stories on the TidBITS website. The app’s data comes from an RSS feed, which is refreshed on the server side whenever something changes on the site, such as a new news story being posted. It might be appropriate (and cool) if we were to add push notifications to the server code that refreshes the RSS feed, so that users could be alerted to the fact that they might like to launch TidBITS News and read a newly posted story.</p>
+        <p>Implementing push notifications is not trivial, and requires cooperation across the network between your app and your server, and between your server and Apple’s push notification server. I’ve never actually tried this, so I’m just describing what the architecture is like; for details, read Apple’s <span class="emphasis"><em>Local and Push Notification Programming Guide</em></span>.</p>
+        <p>When developing your app, you obtain from the iOS Provisioning Portal (<a class="xref" href="ch09.html">Chapter 9</a>) credentials identifying your app, and allowing communication between your server and Apple’s push notification server, and between Apple’s push notification server and your app running on the user’s device. When your app launches, it calls the UIApplication method <code class="literal">registerForRemoteNotificationTypes:</code>, which communicates asynchronously with Apple’s push notification server to obtain a token identifying this instance of your app. If successful, the token comes back in the app delegate method <code class="literal">application:didRegisterForRemoteNotificationsWithDeviceToken:</code>. At that point, your app must communicate with your server to provide it with this token.</p>
+        <p>The server is now maintaining two pieces of information: its credentials and a list of tokens effectively representing users. When an event occurs at your server for which the server wishes to push a notification out to users, the server uses its credentials to connect with Apple’s push notification server and — for <span class="emphasis"><em>every individual user</em></span> whom the server wishes to notify — streams a message to Apple’s push notification server, providing the user token plus a “payload” that describes the notification, much as a UILocalNotification does (<a class="xref" href="ch26.html">Chapter 26</a>). The payload is written in JSON (<a class="xref" href="ch36.html">Chapter 36</a>).</p>
+        <p>Meanwhile, the user’s device, if it is still on, is (with luck) connected to the network in a low-power mode that allows it to hear from Apple’s push notification server. The push notification server sends the message to the user’s device, where the system treats it much like a local notification. If the user summons your app through the notification interface, your app can learn what has happened through either the app delegate message <code class="literal">application:didReceiveRemoteNotification:</code> or (if the app had to be launched from scratch) through <code class="literal">application:didFinishLaunchingWithOptions:</code>, whose dictionary will contain <code class="literal">UIApplicationLaunchOptionsRemoteNotificationKey</code>. The notification itself, instead of being a UILocalNotification object, is an NSDictionary corresponding to the original JSON payload.</p>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_beyond_basic_networking"></a>Beyond Basic Networking</h2>
+            </div>
+          </div>
+        </div>
+        <p>There are many aspects of basic networking that I haven’t gone into in this chapter. For example:</p>
+        <div class="itemizedlist">
+          <ul class="itemizedlist" type="disc">
+            <li class="listitem">
+An NSURLRequest has a cache policy, which you can set to determine whether the request might be satisfied without freshly downloading previously downloaded data.
+</li>
+            <li class="listitem">
+An NSURLRequest to be handed to an NSURLConnection can specify that it wants to use the FTP, HTTP, or HTTPS scheme, including POST requests.
+</li>
+            <li class="listitem">
+An NSURLConnection can handle redirects and authentication.
+</li>
+          </ul>
+        </div>
+        <p>See the <span class="emphasis"><em>URL Loading System Programming Guide</em></span>.</p>
+        <p>You can also get as deep into the details of networking as you like; see in particular the <span class="emphasis"><em>CFNetwork Programming Guide</em></span>.</p>
+        <p>Apple provides a generous amount of sample code. See in particular SimpleURLConnections, AdvancedURLConnections, SimpleNetworkStreams, SimpleFTPSample, and MVCNetworking.</p>
+      </div>
+    </div>
+    <div class="navfooter">
+      <table width="100%" summary="Navigation footer">
+        <tr>
+          <td width="40%" align="left"><a accesskey="p" href="ch36.html">Prev</a> </td>
+          <td width="20%" align="center">
+            <a accesskey="u" href="pt07.html">Up</a>
+          </td>
+          <td width="40%" align="right"> <a accesskey="n" href="ch38.html">Next</a></td>
+        </tr>
+        <tr>
+          <td width="40%" align="left" valign="top">Chapter 36. Persistent Storage </td>
+          <td width="20%" align="center">
+            <a accesskey="h" href="index.html">Table of Contents</a>
+          </td>
+          <td width="40%" align="right" valign="top"> Chapter 38. Threads</td>
+        </tr>
+      </table>
+    </div>
+  </body>
+</html>

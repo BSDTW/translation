@@ -1,0 +1,106 @@
+
+
+<!-- Vignette StoryServer 4 Sat Mar 11 15:43:24 2000 --> 
+<style type=text/css>
+<!--
+p,div {font-size:12pt; line-height:14pt; font-family:宋體;}
+.p1{font-size:12pt;font-family:宋體;}
+.p2{font-size:12pt;font-family:宋體;line-height:14pt;}
+.p3{font-size:14.8px;font-family:宋體;}
+.p4{font-size:14.8px;font-family:宋體;line-height:14pt;}
+.p5{font-size:1pt}
+a:hover{color:red;}
+a.t1:visited{color:red;}
+-->
+</style>
+<title>FreeBSD使用大全</title></head>
+
+<body bgcolor="#FFFFFF" text="#000000" link="#383098" vlink="#336699" alink="#FF0000" topmargin="0">
+<!-- Vignette StoryServer 4 Thu Mar 23 10:01:54 2000 --> <!-- Vignette StoryServer 4 Thu Mar 23 15:34:35 2000 --> 
+
+<!--開始：新聞內容-->
+<TABLE WIDTH=750 BORDER=0 CELLSPACING=0 CELLPADDING=0>
+
+<tr valign=top>
+
+
+
+<TD  valign=top>
+<CENTER><FONT COLOR=#000066 size=5><B>FreeBSD連載(21)：管理交換設備</B><br></FONT></CENTER>
+
+<HR  ALIGN="center" SIZE=1>
+<CENTER><FONT FACE="Arial" SIZE=2> 1999年11月23日 13:03 </FONT><FONT COLOR="#990000" SIZE=2>王波</FONT></CENTER><p>
+
+<h1 align=center>管理交換設備</h1>
+
+<p>　　在FreeBSD系統中，交換設備的作用非常大，需要為FreeBSD留下足夠的交換空間。在系統負載非常大
+的時候，交換空間不夠也會影響系統的執行進程。通常應該將系統交換空間的大小設置為物理內存的1-2.5倍。由於交換
+空間是用作虛擬存儲器，和物理內存進行交換數據的，因此應該設置到高速硬碟上，或者將交換空間分布到多個硬碟中，以均
+衡負載。FreeBSD是以交錯的方式使用各個不同的交換分區，因此如果在不同的硬碟上分布交換分區，就能提高交換設
+備的存取速度。通常FreeBSD使用disklabel為b的設備用做交換設備，在系統運行過程中可以為FreeBSD
+增加其他磁碟上的交換設備，或者使用檔案用做交換。</p>
+
+<p>　　要增加交換設備，首先要沿著上面的過程創建一個新的disklabel，按照習慣做法，使用b作交換空間的
+disklabel。再修改/etc/fstab檔案，加入一行有關這個交換設備的描述。或者使用swapon立即使分
+配的交換空間生效。</p>
+
+<p>　　如果要使用檔案來用做交換空間，首先要在系統中產生一個用作交換的檔案，然後更改/etc/rc.conf，
+將swapfile參數指向這個檔案即可。
+</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># dd  if=/dev/zero of=swapfile bs=10240 count=1024</td></pre></tr></table>
+
+<p>　　事實上，交換檔案要首先映射為偽存儲設備vn，然後才能安裝到系統中的。因此要使用交換檔案，就需要核心支持
+偽存儲設備vn，預設核心支持一個vn設備vn0。可以直接訪問這個偽存儲設備，手工完成增加交換檔案的工作。首先要
+將交換檔案和偽設備相聯繫，然後就能像處理真實設備一樣處理這個偽設備了。將檔案和偽設備聯繫起來需要使用vncon
+fig命令。
+</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># vnconfig /dev/vn0c swapfile
+<br># vnconfig -u /dev/vn0c</td></pre></tr></table>
+
+<p>　　可以再次使用使用-u參數的vnconfig將已經與檔案相聯繫的偽存儲設備，脫離與現有檔案的聯繫，首先要
+求這個偽設備不被系統使用，如vn0c沒有用作交換設備或已經從系統中卸載了。通過在vnconfig命令中使用-e
+參數，就可以直接使用vnconfig加入交換，而沒有必要再次使用swapon命令：
+</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># vnconfig -e /dev/vn0c swapfile swap</td></pre></tr></table>
+
+
+<P>偽存儲設備的用處不止用於交換檔案，也可以用來安裝虛擬檔案系統。因此就可以使用它來管理軟碟或光碟的
+鏡象檔案。</P>
+
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># dd if=/dev/rfd0 of=imgfile
+<br># vnconfig vn0c imgfile
+<br># mount -t msdos /dev/vn0c /mnt</td></pre></tr></table>
+
+
+<p>　　如果不是象上面例子那樣從軟碟中生成的鏡象檔案，而是而是要重新建立檔案系統，那麼需要注意的是磁碟的類型。
+由於偽設備的大小是由生成的檔案決定的，那麼這個偽設備對應的磁碟種類顯然不是標準磁碟種類，系統顯然也無法從偽設備
+中檢測到磁碟類型，因此在生成磁碟的disklabel和進行newfs格式化時就需要指定磁碟類型。一般由於鏡象文
+件的大小與標準磁碟數據對應的大小不一定一致，那麼為了充分利用偽設備的大小，就需要在/etc/disktab中生
+成新磁碟類型的數據。
+</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># vnconfig /dev/vn0c imgfile
+<br># disklabel -r -w vn0 fd1440
+<br># newfs -T fd1440 vn0c
+<br># mount /dev/vn0c /mnt
+</td></pre></tr></table>
+
+
+
+<BR>
+
+</TD>
+</TR></TABLE>
+
+
+</BODY>
+</HTML>

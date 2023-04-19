@@ -1,0 +1,407 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<!-- saved from url=(0074)manual_Porting.html -->
+<html>
+
+<head>
+<title>MySQL Reference Manual for version 3.23.7-alpha. - G Comments on porting to other 
+systems</title>
+<meta content="text/html; charset=big5" http-equiv="Content-Type">
+<!-- This HTML file has been created by texi2html 1.52 (hacked by david@detron.se)
+     from /dr1/my/masters/mysql-3.23/Docs/manual.texi on 9 December 1999 -->
+<meta content="Microsoft FrontPage 3.0" name="GENERATOR">
+</head>
+
+<body bgColor="#ffffff" link="#101090" text="#000000" vLink="#7030b0">
+
+<p>Go to the <a href="manual_Introduction.html">first</a>, <a href="manual_TODO.html">previous</a>, 
+<a href="manual_Regexp.html">next</a>, <a href="manual_Concept_Index.html">last</a> 
+section, <a href="manual_toc.html">table of contents</a>. </p>
+
+<hr>
+
+<h1><a href="manual_toc.html#Porting" name="Porting">G Comments on porting to other 
+systems</a></h1>
+
+<p>A working Posix thread library is needed for the server. On Solaris 2.5 we use SUN 
+PThreads (the native thread support in 2.4 and earlier versions are not good enough) and 
+on Linux we use LinuxThreads by Xavier Leroy, <a href="mailto:Xavier.Leroy@inria.fr">Xavier.Leroy@inria.fr</a>. 
+</p>
+
+<p>The hard part of porting to a new Unix variant without good native thread support is 
+probably to port MIT-pthreads. See <tt>`mit-pthreads/README'</tt> and <a
+href="http://www.humanfactor.com/pthreads/">Programming POSIX Threads</a>. </p>
+
+<p>The <strong>MySQL</strong> distribution includes a patched version of Provenzano's 
+Pthreads from MIT (see <a href="http://www.mit.edu:8001/people/proven/pthreads.html">MIT 
+Pthreads web page</a>). This can be used for some operating systems that do not have POSIX 
+threads. </p>
+
+<p>It is also possible to use another user level thread package named FSU Pthreads (see <a
+href="http://www.informatik.hu-berlin.de/~mueller/pthreads.html">FSU Pthreads home page</a>). 
+This implementation is being used for the SCO port. </p>
+
+<p>See the <tt>`thr_lock.c'</tt> and <tt>`thr_alarm.c'</tt> programs in the <tt>`mysys'</tt> 
+directory for some tests/examples of these problems. </p>
+
+<p>Both the server and the client need a working C++ compiler (we use <code>gcc</code> and 
+have tried SparcWorks). Another compiler that is known to work is the Irix <code>cc</code>. 
+</p>
+
+<p>To compile only the client use <code>./configure --without-server</code>. </p>
+
+<p>There is currently no support for only compiling the server. Nor is it likly to be 
+added unless someone has a good reason for it. </p>
+
+<p>If you want/need to change any <tt>`Makefile'</tt> or the configure script you must get 
+Automake and Autoconf. We have used the <code>automake-1.2</code> and <code>autoconf-2.12</code> 
+distributions. </p>
+
+<p>All steps needed to remake everything from the most basic files. </p>
+
+<pre>/bin/rm */.deps/*.P
+/bin/rm -f config.cache
+aclocal
+autoheader
+aclocal
+automake
+autoconf
+./configure --with-debug --prefix='your installation directory'
+
+# The makefiles generated above need GNU make 3.75 or newer.
+# (called gmake below)
+gmake clean all install init-db
+</pre>
+
+<p>If you run into problems with a new port, you may have to do some debugging of <strong>MySQL</strong>! 
+See section <a href="manual_Porting.html#Debugging_server">G.1 Debugging a MySQL server</a>. 
+</p>
+
+<p><strong>Note:</strong> Before you start debugging <code>mysqld</code>, first get the 
+test programs <code>mysys/thr_alarm</code> and <code>mysys/thr_lock</code> to work. This 
+will ensure that your thread installation has even a remote chance to work! </p>
+
+<h2><a href="manual_toc.html#Debugging_server" name="Debugging_server">G.1 Debugging a 
+MySQL server</a></h2>
+
+<p>If you are using some functionality that is very new in <strong>MySQL</strong>, you can 
+try to run mysqld with the <code>--skip-new</code> (which will disable all new, 
+potentially unsafe functionality) or with <code>--safe-mode</code> which disables a lot of 
+optimization that may cause problems. See section <a href="manual_Problems.html#Crashing">18.1 
+What to do if MySQL keeps crashing</a>. </p>
+
+<p>If <code>mysqld</code> doesn't want to start, you should check that you don't have any <code>my.cnf</code> 
+file that interferes with your setup! You can check your <code>my.cnf</code> arguments 
+with <code>mysqld --print-defaults</code> and avoid using them by starting with <code>mysqld 
+--no-defaults ...</code>. </p>
+
+<p>If you have some very specific problem, you can always try to debug <strong>MySQL</strong>. 
+To do this you must configure <strong>MySQL</strong> with the option <code>--with-debug</code>. 
+You can check whether or not <strong>MySQL</strong> was compiled with debugging by doing: <code>mysqld 
+--help</code>. If the <code>--debug</code> flag is listed with the options then you have 
+debugging enabled. <code>mysqladmin ver</code> also lists the <code>mysqld</code> version 
+as <code>mysql ... -debug</code> in this case. </p>
+
+<p>If you are using gcc or egcs, the recommended configure line is: </p>
+
+<pre>CC=gcc CFLAGS=&quot;-O6&quot; CXX=gcc CXXFLAGS=&quot;-O6 -felide-constructors -fno-exceptions -fno-rtti&quot; ./configure --prefix=/usr/local/mysql --with-debug
+</pre>
+
+<p>This will avoid problems with the libstdc++ library and with C++ exceptions. </p>
+
+<p>If you can cause the <code>mysqld</code> server to crash quickly, you can try to create 
+a trace file of this: </p>
+
+<p>Start the <code>mysqld</code> server with a trace log in <tt>`/tmp/mysql.trace'</tt>. 
+The log file will get very <em>BIG</em>. </p>
+
+<p><code>mysqld --debug --log</code> </p>
+
+<p>or you can start it with </p>
+
+<p><code>mysqld --debug=d,info,error,query,general,where:O,/tmp/mysql.trace</code> </p>
+
+<p>which only prints information with the most interesting tags. </p>
+
+<p>When you configure <strong>MySQL</strong> for debugging you automatically enable a lot 
+of extra safety check functions that monitor the health of <code>mysqld</code>. If they 
+find something ``unexpected,'' an entry will be written to <code>stderr</code>, which <code>safe_mysqld</code> 
+directs to the error log! This also means that if you are having some unexpected problems 
+with <strong>MySQL</strong> and are using a source distribution, the first thing you 
+should do is to configure <strong>MySQL</strong> for debugging! (The second thing, of 
+course, is to send mail to <a href="mailto:mysql@lists.mysql.com">mysql@lists.mysql.com</a> 
+and ask for help. Please use the <code>mysqlbug</code> script for all bug reports or 
+questions regarding the <strong>MySQL</strong> version you are using! </p>
+
+<p>On most system you can also start <code>mysqld</code> from <code>gdb</code> to get more 
+information if <code>mysqld</code> crashes. </p>
+
+<p>With some <code>gdb</code> versions on Linux you must use <code>run --one-thread</code> 
+if you want to be able to debug <code>mysqld</code> threads. In this case you can only 
+have one thread active at a time. </p>
+
+<p>If you are using gdb 4.17.x on Linux, you should install a <tt>`.gdb'</tt> file, with 
+the following information, in your current directory: </p>
+
+<pre>set print sevenbit off
+handle SIGUSR1 nostop noprint
+handle SIGUSR2 nostop noprint
+handle SIGWAITING nostop noprint
+handle SIGLWP nostop noprint
+handle SIGPIPE nostop
+handle SIGALRM nostop
+handle SIGHUP nostop
+handle SIGTERM nostop noprint
+</pre>
+
+<p>Here follows an example how to debug mysqld: </p>
+
+<pre>shell&gt; gdb /usr/local/libexec/mysqld
+gdb&gt; run
+...
+back   # Do this when mysqld crashes
+info locals
+up
+info locals
+up
+...
+(until you get some information about local variables)
+
+quit
+</pre>
+
+<p>Include the above output in a mail generated with <code>mysqlbug</code> and mail this 
+to <code>mysql@lists.mysql.com</code>. </p>
+
+<p>If <code>mysqld</code> hangs you can try to use some system tools like <code>strace</code> 
+or <code>/usr/proc/bin/pstack</code> to examine where <code>mysqld</code> has hanged. </p>
+
+<p>If <code>mysqld</code> starts to eat up CPU or memory or if it ``hangs'', you can use <code>mysqladmin 
+processlist status</code> to find out if someone is executing some query that takes a long 
+time. It may be a good idea to run <code>mysqladmin -i10 processlist status</code> in some 
+window if you are experiencing performance problems or problems when new clients can't 
+connect. </p>
+
+<p>If <code>mysqld</code> dies or hangs, you should start <code>mysqld</code> with <code>--log</code>. 
+When <code>mysqld</code> dies again, you can check in the log file for the query that 
+killed <code>mysqld</code>. Note that before starting <code>mysqld</code> with <code>--log</code> 
+you should check all your tables with <code>myisamchk</code>. See section <a
+href="manual_Maintenance.html#Maintenance">13 Maintaining a MySQL installation</a>. </p>
+
+<p>If you are using a log file, <code>mysqld --log</code>, you should check the 'hostname' 
+log files, that you can find in the database directory, for any queries that could cause a 
+problem. Try the command <code>EXPLAIN</code> on all <code>SELECT</code> statements that 
+takes a long time to ensure that mysqld are using indexes properly. See section <a
+href="manual_Reference.html#EXPLAIN">7.22 <code>EXPLAIN</code> syntax (Get information 
+about a <code>SELECT</code>)</a>. You should also test complicated queries that didn't 
+complete within the <code>mysql</code> command line tool. </p>
+
+<p>If you find the text <code>mysqld restarted</code> in the error log file (normally 
+named <tt>`hostname.err'</tt>) you have probably found a query that causes <code>mysqld</code> 
+to fail. If this happens you should check all your tables with <code>myisamchk</code> (see 
+section <a href="manual_Maintenance.html#Maintenance">13 Maintaining a MySQL installation</a>), 
+and test the queries in the <strong>MySQL</strong> log files if someone doesn't work. If 
+you find such a query, try first upgrading to the newest <strong>MySQL</strong> version. 
+If this doesn't help and you can't find anything in the <code>mysql</code> mail archive, 
+you should report the bug to <a href="mailto:mysql@lists.mysql.com">mysql@lists.mysql.com</a>. 
+Links to mail archives are available at the online <a href="http://www.mysql.com/doc.html"><strong>MySQL</strong> 
+documentation page</a>. </p>
+
+<p>If you get corrupted tables or if <code>mysqld</code> always fails after some update 
+commands, you can test if this bug is reproducible by doing the following: 
+
+<ul>
+  <li>Stop the mysqld daemon (with <code>mysqladmin shutdown</code>) </li>
+  <li>Check all tables with <code>myisamchk -s database/*.MYI</code>. Repair any wrong tables 
+    with <code>myisamchk -r database/table.MYI</code>. </li>
+  <li>Start <code>mysqld</code> with <code>--log-update</code> </li>
+  <li>When you have got a crashed table, stop the <code>mysqld server</code>. </li>
+  <li>Restore the backup. </li>
+  <li>Restart the <code>mysqld</code> server <strong>without</strong> <code>--log-update</code> 
+  </li>
+  <li>Re-execute the commands with <code>mysql &lt; update-log</code>. The update log is saved 
+    in the <strong>MySQL</strong> database directory with the name <code>your-hostname.#</code>. 
+  </li>
+  <li>If the tables are now again corrupted, you have found reproducible bug in the <code>ISAM</code> 
+    code! FTP the tables and the update log to <a href="ftp://www.mysql.com/pub/mysql/secret">ftp://www.mysql.com/pub/mysql/secret</a> 
+    and we will fix this as soon as possible! </li>
+</ul>
+
+<p>The command <code>mysqladmin debug</code> will dump some information about locks in 
+use, used memory and query usage to the mysql log file. This may help solve some problems. 
+This command also provides some useful information even if you haven't compiled <strong>MySQL</strong> 
+for debugging! </p>
+
+<p>If the problem is that some tables are getting slower and slower you should try to 
+optimize the table with <code>OPTIMIZE TABLE</code> or <code>myisamchk</code>. See section 
+<a href="manual_Maintenance.html#Maintenance">13 Maintaining a MySQL installation</a>. You 
+should also check the slow queries with <code>EXPLAIN</code>. </p>
+
+<p>You should also read the OS-specific section in this manual for problems that may be 
+unique to your environment. See section <a
+href="manual_Installing.html#Source_install_system_issues">4.11 System-specific issues</a>. 
+</p>
+
+<p><a name="IDX839"></a><a name="IDX840"></a><a name="IDX841"></a><a name="IDX842"></a>If 
+you are using the Perl <code>DBI</code> interface, you can turn on debugging information 
+by using the <code>trace</code> method or by setting the <code>DBI_TRACE</code> 
+environment variable. See section <a href="manual_Clients.html#Perl_DBI_Class">20.5.2 The <code>DBI</code> 
+interface</a>. </p>
+
+<h2><a href="manual_toc.html#Debugging_client" name="Debugging_client">G.2 Debugging a 
+MySQL client</a></h2>
+
+<p>To be able to debug a <strong>MySQL</strong> client with the integrated debug package, 
+you should configure <strong>MySQL</strong> with <code>--with-debug</code>. See section <a
+href="manual_Installing.html#configure_options">4.7.3 Typical <code>configure</code> 
+options</a>. </p>
+
+<p><a name="IDX843"></a><a name="IDX844"></a>Before running a client, you should set the <code>MYSQL_DEBUG</code> 
+environment variable: </p>
+
+<pre>shell&gt; MYSQL_DEBUG=d:t:O,/tmp/client.trace
+shell&gt; export MYSQL_DEBUG
+</pre>
+
+<p>This causes clients to generate a trace file in <tt>`/tmp/client.trace'</tt>. </p>
+
+<p>If you have problems with your own client code, you should attempt to connect to the 
+server and run your query using a client that is known to work. Do this by running <code>mysql</code> 
+in debugging mode (assuming you have compiled <strong>MySQL</strong> with debugging on): </p>
+
+<pre>shell&gt; mysql --debug=d:t:O,/tmp/client.trace
+</pre>
+
+<p>This will provide useful information in case you mail a bug report. See section <a
+href="manual_Questions.html#Bug_reports">2.3 How to report bugs or problems</a>. </p>
+
+<p>If your client crashes at some 'legal' looking code, you should check that your <tt>`mysql.h'</tt> 
+include file matches your mysql library file. A very common mistake is to use an old <tt>`mysql.h'</tt> 
+file from an old <strong>MySQL</strong> installation with new <strong>MySQL</strong> 
+library. </p>
+
+<h2><a href="manual_toc.html#RTS-threads" name="RTS-threads">G.3 Comments about RTS 
+threads</a></h2>
+
+<p>I have tried to use the RTS thread packages with <strong>MySQL</strong> but stumbled on 
+the following problems: </p>
+
+<p>They use old version of a lot of POSIX calls and it is very tedious to make wrappers 
+for all functions. I am inclined to think that it would be easier to change the thread 
+libraries to the newest POSIX specification. </p>
+
+<p>Some wrappers are already written. See <tt>`mysys/my_pthread.c'</tt> for more info. </p>
+
+<p>At least the following should be changed: </p>
+
+<p><code>pthread_get_specific</code> should use one argument. <code>sigwait</code> should 
+take two arguments. A lot of functions (at least <code>pthread_cond_wait</code>, <code>pthread_cond_timedwait</code>) 
+should return the error code on error. Now they return -1 and set <code>errno</code>. </p>
+
+<p>Another problem is that user-level threads use the <code>ALRM</code> signal and this 
+aborts a lot of functions (<code>read</code>, <code>write</code>, <code>open</code>...). <strong>MySQL</strong> 
+should do a retry on interrupt on all of these but it is not that easy to verify it. </p>
+
+<p>The biggest unsolved problem is the following: </p>
+
+<p>To get thread-level alarms I changed <tt>`mysys/thr_alarm.c'</tt> to wait between 
+alarms with <code>pthread_cond_timedwait()</code>, but this aborts with error <code>EINTR</code>. 
+I tried to debug the thread library as to why this happens, but couldn't find any easy 
+solution. </p>
+
+<p>If someone wants to try <strong>MySQL</strong> with RTS threads I suggest the 
+following: 
+
+<ul>
+  <li>Change functions <strong>MySQL</strong> uses from the thread library to POSIX. This 
+    shouldn't take that long. </li>
+  <li>Compile all libraries with the <code>-DHAVE_rts_threads</code>. </li>
+  <li>Compile <code>thr_alarm</code>. </li>
+  <li>If there are some small differences in the implementation, they may be fixed by changing 
+    <tt>`my_pthread.h'</tt> and <tt>`my_pthread.c'</tt>. </li>
+  <li>Run <code>thr_alarm</code>. If it runs without any ``warning'', ``error'' or aborted 
+    messages, you are on the right track. Here follows a successful run on Solaris: <pre>Main thread: 1
+Tread 0 (5) started
+Thread: 5  Waiting
+process_alarm
+Tread 1 (6) started
+Thread: 6  Waiting
+process_alarm
+process_alarm
+thread_alarm
+Thread: 6  Slept for 1 (1) sec
+Thread: 6  Waiting
+process_alarm
+process_alarm
+thread_alarm
+Thread: 6  Slept for 2 (2) sec
+Thread: 6  Simulation of no alarm needed
+Thread: 6  Slept for 0 (3) sec
+Thread: 6  Waiting
+process_alarm
+process_alarm
+thread_alarm
+Thread: 6  Slept for 4 (4) sec
+Thread: 6  Waiting
+process_alarm
+thread_alarm
+Thread: 5  Slept for 10 (10) sec
+Thread: 5  Waiting
+process_alarm
+process_alarm
+thread_alarm
+Thread: 6  Slept for 5 (5) sec
+Thread: 6  Waiting
+process_alarm
+process_alarm
+
+...
+thread_alarm
+Thread: 5  Slept for 0 (1) sec
+end
+</pre>
+  </li>
+</ul>
+
+<h2><a href="manual_toc.html#Thread_packages" name="Thread_packages">G.4 Differences 
+between different thread packages</a></h2>
+
+<p><strong>MySQL</strong> is very dependent on the thread package used. So when choosing a 
+good platform for <strong>MySQL</strong>, the thread package is very important. </p>
+
+<p>There are at least three types of thread packages: 
+
+<ul>
+  <li>User threads in a single process. Thread switching is managed with alarms and the 
+    threads library manages all non-thread-safe functions with locks. Read, write and select 
+    operations are usually managed with a thread-specific select that switches to another 
+    thread if the running threads have to wait for data. If the user thread packages are 
+    integrated in the standard libs (FreeBSD and BSDI threads) the thread package requires 
+    less overhead than thread packages that have to map all unsafe calls (MIT-pthreads, FSU 
+    Pthreads and RTS threads). In some environments (for example, SCO), all system calls are 
+    thread-safe so the mapping can be done very easily (FSU Pthreads on SCO). Downside: All 
+    mapped calls take a little time and it's quite tricky to be able to handle all situations. 
+    There are usually also some system calls that are not handled by the thread package (like 
+    MIT-pthreads and sockets). Thread scheduling isn't always optimal. </li>
+  <li>User threads in separate processes. Thread switching is done by the kernel and all data 
+    are shared between threads. The thread package manages the standard thread calls to allow 
+    sharing data between threads. LinuxThreads is using this method. Downside: Lots of 
+    processes. Thread creating is slow. If one thread dies the rest are usually left hanging 
+    and you must kill them all before restarting. Thread switching is somewhat expensive. </li>
+  <li>Kernel threads. Thread switching is handled by the thread library or the kernel and is 
+    very fast. Everything is done in one process, but on some systems, <code>ps</code> may 
+    show the different threads. If one thread aborts the whole process aborts. Most system 
+    calls are thread-safe and should require very little overhead. Solaris, HP-UX, AIX and 
+    OSF1 have kernel threads. </li>
+</ul>
+
+<p>In some systems kernel threads are managed by integrating user level threads in the 
+system libraries. In such cases, the thread switching can only be done by the thread 
+library and the kernel isn't really ``thread aware''. </p>
+
+<hr>
+
+<p>Go to the <a href="manual_Introduction.html">first</a>, <a href="manual_TODO.html">previous</a>, 
+<a href="manual_Regexp.html">next</a>, <a href="manual_Concept_Index.html">last</a> 
+section, <a href="manual_toc.html">table of contents</a>. </p>
+</body>
+</html>

@@ -1,0 +1,296 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>Chapter 39. Undo</title>
+    <link rel="stylesheet" type="text/css" href="docbook-xsl-mymods.css" />
+    <meta name="generator" content="DocBook XSL Stylesheets V1.76.0" />
+    <link rel="home" href="index.html" />
+    <link rel="up" href="pt07.html" />
+    <link rel="prev" href="ch38.html" />
+    <link rel="next" href="ch40.html" />
+  </head>
+  <body>
+    <div class="mattnotice">
+      <p>As a courtesy, this is a <b>full free</b> rendering of my book, <i>Programming iOS 6</i>, by Matt Neuburg. Copyright 2013 Matt Neuburg. Please note that this book has now been completely superseded by two more recent books, <a href="http://shop.oreilly.com/product/0636920032465.do">iOS 7 Fundamentals</a> and <a href="http://shop.oreilly.com/product/0636920031017.do">Programming iOS 7</a>. If my work has been of help to you, please <b>consider purchasing</b> one or both of them. Thank you!
+	</p>
+    </div>
+    <div class="navfooter">
+      <table width="100%" summary="Navigation footer">
+        <tr>
+          <td width="40%" align="left"><a accesskey="p" href="ch38.html">Prev</a> </td>
+          <td width="20%" align="center">
+            <a accesskey="u" href="pt07.html">Up</a>
+          </td>
+          <td width="40%" align="right"> <a accesskey="n" href="ch40.html">Next</a></td>
+        </tr>
+        <tr>
+          <td width="40%" align="left" valign="top">Chapter 38. Threads </td>
+          <td width="20%" align="center">
+            <a accesskey="h" href="index.html">Table of Contents</a>
+          </td>
+          <td width="40%" align="right" valign="top"> Chapter 40. Epilogue</td>
+        </tr>
+      </table>
+    </div>
+    <div class="chapter">
+      <div class="titlepage">
+        <div>
+          <div>
+            <h2 class="title"><a id="chap_id39"></a>Chapter 39. Undo</h2>
+          </div>
+        </div>
+      </div>
+      <p>The ability to undo the most recent action is familiar from Mac OS X. The idea is that, provided the user realizes soon enough that a mistake has been made, that mistake can be reversed. Typically, a Mac application will maintain an internal stack of undoable actions; choosing Edit → Undo or pressing Command-Z will reverse the action at the top of the stack, and will also make that action available for Redo.
+<a id="idxundo" class="indexterm"></a></p>
+      <p>Some iOS apps, too, may benefit from at least a limited Undo facility, and this is not difficult to implement. Some built-in views — in particular, those that involve text entry, UITextField and UITextView (<a class="xref" href="ch23.html">Chapter 23</a>) — implement Undo already. And you can add it in other areas of your app.</p>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_the_undo_manager"></a>The Undo Manager</h2>
+            </div>
+          </div>
+        </div>
+        <p>Undo is provided through an instance of <a id="idm441639290576" class="indexterm"></a>NSUndoManager, which basically just maintains a stack of undoable actions, along with a secondary stack of redoable actions. The goal in general is to work with the NSUndoManager so as to handle both Undo and Redo in the standard manner: when the user chooses to undo the most recent action, the action at the top of the Undo stack is popped off and reversed and is pushed onto the top of the Redo stack.</p>
+        <p>To illustrate, I’ll use an artificially simple app in which the user can drag a small square around the screen. We’ll start with an instance of a UIView subclass, MyView, to which has been attached a UIPanGestureRecognizer to make it draggable, as described in <a class="xref" href="ch18.html">Chapter 18</a>. The gesture recognizer’s action target is the MyView instance itself:</p>
+        <pre class="screen">- (void) dragging: (UIPanGestureRecognizer*) p {
+    if (p.state == UIGestureRecognizerStateBegan ||
+            p.state == UIGestureRecognizerStateChanged) {
+        CGPoint delta = [p translationInView: self.superview];
+        CGPoint c = self.center;
+        c.x += delta.x; c.y += delta.y;
+        self.center = c;
+        [p setTranslation: CGPointZero inView: self.superview];
+    }
+}</pre>
+        <p>To make dragging of this view undoable, we need an NSUndoManager instance. Let’s store this in an instance variable of MyView itself, accessible through a property, <code class="literal">undoer</code>.</p>
+        <p>There are two ways to register an action as undoable. The one we’ll use involves the NSUndoManager method <code class="literal">registerUndoWithTarget:selector:object:</code>. This method uses a target–action architecture: you provide a target, a selector for a method that takes one parameter, and the object value to be passed as argument when the method is called. Then, later, if the NSUndoManager is sent the <code class="literal">undo</code> message, it simply sends to that target that action with that argument.</p>
+        <p>What we want to undo here is the setting of our <code class="literal">center</code> property. This can’t expressed directly using a target–action architecture: we can call <code class="literal">setCenter:</code>, but its parameter needs to be a CGPoint, which isn’t an object. This means we’re going to have to provide a secondary method that <span class="emphasis"><em>does</em></span> take an object parameter. This is neither bad nor unusual; it is quite common for actions to have a special representation just for the purpose of making them undoable.</p>
+        <p>So, in our <code class="literal">dragging:</code> method, instead of setting <code class="literal">self.center</code> to <code class="literal">c</code> directly, we now call a secondary method (let’s call it <code class="literal">setCenterUndoably:</code>):</p>
+        <pre class="screen">[self setCenterUndoably: [NSValue valueWithCGPoint:c]];</pre>
+        <p>At a minimum, <code class="literal">setCenterUndoably:</code> should do the job that setting <code class="literal">self.center</code> used to do:</p>
+        <pre class="screen">- (void) setCenterUndoably: (NSValue*) newCenter {
+    self.center = [newCenter CGPointValue];
+}</pre>
+        <p>This works in the sense that the view is draggable exactly as before, but we have not yet made this action undoable. To do so, we must ask ourselves what message the NSUndoManager would need to send in order to undo the action we are about to perform. We would want the NSUndoManager to set <code class="literal">self.center</code> back to the value it has <span class="emphasis"><em>now</em></span>, before we change it as we are about to do. And what method would NSUndoManager call in order to do that? It would call <code class="literal">setCenterUndoably:</code>, the very method we are implementing; that’s <span class="emphasis"><em>why</em></span> we are implementing it. So:</p>
+        <pre class="screen">- (void) setCenterUndoably: (NSValue*) newCenter {
+    [self.undoer registerUndoWithTarget:self
+        selector:@selector(setCenterUndoably:)
+          object:[NSValue valueWithCGPoint:self.center]];
+    self.center = [newCenter CGPointValue];
+}</pre>
+        <p>This not only makes our action undoable, it also makes it redoable. Why? Consider what happens when we want to undo this action:</p>
+        <div class="orderedlist">
+          <ol class="orderedlist" type="1">
+            <li class="listitem">
+We send <code class="literal">undo</code> to the NSUndoManager.
+</li>
+            <li class="listitem">
+The NSUndoManager calls <code class="literal">setCenterUndoably:</code> with the new value, which is the old value that we passed in earlier when we called <code class="literal">registerUndoWithTarget:selector:object:</code>.
+</li>
+            <li class="listitem">
+In our implementation of <code class="literal">setCenterUndoably:</code>, we send <code class="literal">registerUndoWithTarget:selector:object:</code> to the NSUndoManager — and there’s a rule that, if the NSUndoManager is sent this message <span class="emphasis"><em>while it is undoing</em></span>, it puts the target–action information on the Redo stack instead of the Undo stack (because Redo <span class="emphasis"><em>is</em></span> the Undo of an Undo, if you see what I mean). That’s one of the chief tricks to working with an NSUndoManager: it will respond differently to <code class="literal">registerUndoWithTarget:selector:object:</code> depending on its state.
+</li>
+          </ol>
+        </div>
+        <p>So far, so good. But our implementation of Undo is very annoying, because we are adding a single object to the Undo stack every time <code class="literal">dragging:</code> is called — and it is called many times during the course of a single drag. Thus, undoing merely undoes the tiny increment corresponding to one individual <code class="literal">dragging:</code> call. What we’d like, surely, is for undoing to undo an <span class="emphasis"><em>entire</em></span> dragging gesture. We can implement this through <span class="emphasis"><em>undo grouping</em></span>. As the gesture begins, we start a group; when the gesture ends, we end the group:<a id="idm441639255840" class="indexterm"></a></p>
+        <pre class="screen">- (void) dragging: (UIPanGestureRecognizer*) p {
+    if (p.state == UIGestureRecognizerStateBegan)
+        [self.undoer beginUndoGrouping];
+    if (p.state == UIGestureRecognizerStateBegan ||
+            p.state == UIGestureRecognizerStateChanged) {
+        CGPoint delta = [p translationInView: self.superview];
+        CGPoint c = self.center;
+        c.x += delta.x; c.y += delta.y;
+        [self setCenterUndoably: [NSValue valueWithCGPoint:c]];
+        [p setTranslation: CGPointZero inView: self.superview];
+    }
+    if (p.state == UIGestureRecognizerStateEnded ||
+            p.state == UIGestureRecognizerStateCancelled)
+        [self.undoer endUndoGrouping];
+}</pre>
+        <p>This works: each complete gesture of dragging MyView, from the time the user’s finger contacts the view to the time it leaves, is now undoable (and then redoable) as a single unit.</p>
+        <p>A further refinement would be to animate the “drag” that the NSUndoManager performs when it undoes or redoes a user drag gesture. To do so, we take advantage of the fact that we, too, can examine the NSUndoManager’s state; we animate the <code class="literal">center</code> change when the NSUndoManager is “dragging,” but not when the user is dragging:</p>
+        <pre class="screen">- (void) setCenterUndoably: (NSValue*) newCenter {
+    [self.undoer registerUndoWithTarget:self
+        selector:@selector(setCenterUndoably:)
+          object:[NSValue valueWithCGPoint:self.center]];
+    if (self.undoer.isUndoing || self.undoer.isRedoing) { // animate
+        UIViewAnimationOptions opt =
+            UIViewAnimationOptionBeginFromCurrentState;
+        [UIView animateWithDuration:0.4 delay:0.1 options:opt animations:^{
+            self.center = [newCenter CGPointValue];
+        } completion:nil];
+    } else { // just do it
+        self.center = [newCenter CGPointValue];
+    }
+}</pre>
+        <p>Earlier I said that <code class="literal">registerUndoWithTarget:selector:object:</code> was one of two ways to register an action as undoable. The other is <code class="literal">prepareWithInvocationTarget:</code>. In general, the advantage of <code class="literal">prepareWithInvocationTarget:</code> is that it lets you specify a method with any number of parameters, and those parameters needn’t be objects. You provide the target and, <span class="emphasis"><em>in the same line of code</em></span>, send to the object returned from this call the message and arguments you want sent when the NSUndoManager is sent <code class="literal">undo</code> (or, if we are undoing now, <code class="literal">redo</code>). So, in our example, instead of this line:</p>
+        <pre class="screen">[self.undoer registerUndoWithTarget:self
+    selector:@selector(setCenterUndoably:)
+      object:[NSValue valueWithCGPoint:self.center]];</pre>
+        <p>You’d say this:</p>
+        <pre class="screen">[[self.undoer prepareWithInvocationTarget:self]
+    setCenterUndoably: [NSValue valueWithCGPoint:self.center]];</pre>
+        <p>That code seems impossible: how can we send <code class="literal">setCenterUndoably:</code> without <span class="emphasis"><em>calling</em></span> <code class="literal">setCenterUndoably:</code>? Either we are sending it to <code class="literal">self</code>, in which case it should actually be called at this moment, or we are sending it to some other object that doesn’t implement <code class="literal">setCenterUndoably:</code>, in which case our app should crash. However, under the hood, the NSUndoManager is cleverly using Objective-C’s dynamism (similarly to the message-forwarding example in <a class="xref" href="ch25.html">Chapter 25</a>) to capture this call as an <a id="idm441639239648" class="indexterm"></a>NSInvocation object, which it can use later to send the same message with the same arguments to the specified target.</p>
+        <p>If we’re going to use <code class="literal">prepareWithInvocationTarget:</code>, there’s no need to wrap the CGPoint value representing the old and new <code class="literal">center</code> of our view as an NSNumber. So our complete implementation now looks like this:</p>
+        <pre class="screen">- (void) setCenterUndoably: (CGPoint) newCenter {
+    [[self.undoer prepareWithInvocationTarget:self]
+        setCenterUndoably: self.center];
+    if (self.undoer.isUndoing || self.undoer.isRedoing) { // animate
+        UIViewAnimationOptions opt =
+            UIViewAnimationOptionBeginFromCurrentState;
+        [UIView animateWithDuration:0.4 delay:0.1 options:opt animations:^{
+            self.center = newCenter;
+        } completion:nil];
+    } else { // just do it
+        self.center = newCenter;
+    }
+}
+
+- (void) dragging: (UIPanGestureRecognizer*) p {
+    [self becomeFirstResponder];
+    if (p.state == UIGestureRecognizerStateBegan)
+        [self.undoer beginUndoGrouping];
+    if (p.state == UIGestureRecognizerStateBegan ||
+            p.state == UIGestureRecognizerStateChanged) {
+        CGPoint delta = [p translationInView: self.superview];
+        CGPoint c = self.center;
+        c.x += delta.x; c.y += delta.y;
+        [self setCenterUndoably: c];
+        [p setTranslation: CGPointZero inView: self.superview];
+    }
+    if (p.state == UIGestureRecognizerStateEnded ||
+        p.state == UIGestureRecognizerStateCancelled)
+        [self.undoer endUndoGrouping];
+}</pre>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_the_undo_interface"></a>The Undo Interface</h2>
+            </div>
+          </div>
+        </div>
+        <p>We must now decide how to let the user <span class="emphasis"><em>request</em></span> Undo and Redo. In developing the code from the preceding section, I used two buttons: an Undo button that sent <code class="literal">undo</code> to the NSUndoManager, and a Redo button that sent <code class="literal">redo</code> to the NSUndoManager. This can be a perfectly reasonable interface, but let’s talk about some others.</p>
+        <p>By default, your application supports <span class="emphasis"><em>shake-to-edit</em></span>. This means the user can shake the device to bring up an undo/redo interface. We discussed this briefly in <a class="xref" href="ch35.html">Chapter 35</a>. If you don’t turn off this feature by setting the shared UIApplication’s <code class="literal">applicationSupportsShakeToEdit</code> property to NO, then when the user shakes the device, the framework walks up the responder chain, starting with the first responder, looking for a responder whose inherited <code class="literal">undoManager</code> property returns an actual NSUndoManager instance. If it finds one, it puts up the undo/redo interface, allowing the user to communicate with that NSUndoManager.<a id="idm441639229120" class="indexterm"></a><a id="idm441639228224" class="indexterm"></a><a id="idm441639227328" class="indexterm"></a></p>
+        <p>You will recall what it takes for a UIResponder to be first responder in this sense: it must return YES from <code class="literal">canBecomeFirstResponder</code>, and it must actually be made first responder through a call to <code class="literal">becomeFirstResponder</code>. Let’s make MyView satisfy these requirements. For example, we might call <code class="literal">becomeFirstResponder</code> at the end of <code class="literal">dragging:</code>, like this:</p>
+        <pre class="screen">- (BOOL) canBecomeFirstResponder {
+    return YES;
+}
+
+- (void) dragging: (UIPanGestureRecognizer*) p {
+    // ... the rest as before ...
+    if (p.state == UIGestureRecognizerStateEnded ||
+        p.state == UIGestureRecognizerStateCancelled) {
+        [self.undoer endUndoGrouping];
+        [self becomeFirstResponder];
+    }
+}</pre>
+        <p>Then, to make shake-to-edit work, we have only to provide a getter for the <code class="literal">undoManager</code> property that returns our undo manager, <code class="literal">undoer</code>:</p>
+        <pre class="screen">- (NSUndoManager*) undoManager {
+    return self.undoer;
+}</pre>
+        <p>This works: shaking the device now brings up the undo/redo interface, and its buttons work correctly. However, I don’t like the way the buttons are labeled; they just say Undo and Redo. To make them more expressive, we should provide a string describing each undoable action by calling <code class="literal">setActionName:</code>. We can appropriately and conveniently do this in <code class="literal">setCenterUndoably:</code>, as follows:<a id="idm441639216256" class="indexterm"></a></p>
+        <pre class="screen">[[self.undoer prepareWithInvocationTarget:self]
+    setCenterUndoably: self.center];
+[self.undoer setActionName: @"Move"];
+// ... and so on ...</pre>
+        <p>Now the buttons say Undo Move and Redo Move, which is a nice touch (<a class="xref" href="ch39.html#FIGundoShake">Figure 39.1</a>).</p>
+        <div class="figure">
+          <a id="FIGundoShake"></a>
+          <div class="figure-contents">
+            <div class="mediaobject">
+              <img src="figs/pios_3901.png" alt="figs/pios_3901.png" />
+            </div>
+          </div>
+          <p class="title">Figure 39.1. The shake-to-edit undo/redo interface</p>
+        </div>
+        <br class="figure-break" />
+        <p>Another possible interface is through a menu (<a class="xref" href="ch39.html#FIGundoMenu">Figure 39.2</a>).<a id="idm441639209296" class="indexterm"></a> Personally, I prefer this approach, as I am not fond of shake-to-edit (it seems both violent and unreliable). This is the same menu used by a UITextField or UITextView for displaying the Copy and Paste menu items (<a class="xref" href="ch23.html">Chapter 23</a>). The requirements for summoning this menu are effectively the same as those for shake-to-edit: we need a responder chain with a first responder at the bottom of it. So the code we’ve just supplied for making MyView first responder remains applicable.</p>
+        <div class="figure">
+          <a id="FIGundoMenu"></a>
+          <div class="figure-contents">
+            <div class="mediaobject">
+              <img src="figs/pios_3902.png" alt="figs/pios_3902.png" />
+            </div>
+          </div>
+          <p class="title">Figure 39.2. The shared menu as an undo/redo interface</p>
+        </div>
+        <br class="figure-break" />
+        <p>We can make a menu appear, for example, in response to a long press on our MyView instance. So let’s attach another gesture recognizer to MyView. This will be a UILongPressGestureRecognizer, whose action handler is called <code class="literal">longPress:</code>. Recall from <a class="xref" href="ch23.html">Chapter 23</a> how to implement the menu: we get the singleton global <a id="idm441639201600" class="indexterm"></a>UIMenuController object and specify an array of custom UIMenuItems as its <code class="literal">menuItems</code> property.<a id="idm441639200112" class="indexterm"></a> We can make the menu appear by sending the UIMenuController the <code class="literal">setMenuVisible:animated:</code> message. But a particular menu item will appear in the menu only if we also return YES from <code class="literal">canPerformAction:withSender:</code> for that menu item’s action:</p>
+        <pre class="screen">- (void) longPress: (UIGestureRecognizer*) g {
+    if (g.state == UIGestureRecognizerStateBegan) {
+        UIMenuController *m = [UIMenuController sharedMenuController];
+        [m setTargetRect:self.bounds inView:self];
+        UIMenuItem *mi1 =
+            [[UIMenuItem alloc] initWithTitle:[self.undoer undoMenuItemTitle]
+                                       action:@selector(undo:)];
+        UIMenuItem *mi2 =
+            [[UIMenuItem alloc] initWithTitle:[self.undoer redoMenuItemTitle]
+                                       action:@selector(redo:)];
+        [m setMenuItems:@[mi1, mi2]];
+        [m setMenuVisible:YES animated:YES];
+    }
+}
+
+- (BOOL)canPerformAction:(SEL)action withSender:(id)sender {
+    if (action == @selector(undo:))
+        return [self.undoer canUndo];
+    if (action == @selector(redo:))
+        return [self.undoer canRedo];
+    return [super canPerformAction:action withSender:sender];
+}
+
+- (void) undo: (id) dummy {
+    [self.undoer undo];
+}
+
+- (void) redo: (id) dummy {
+    [self.undoer redo];
+}</pre>
+        <p>Observe how we consult our NSUndoManager throughout. We get the titles for our custom menu items from the NSUndoManager (there might, after all, be more than one undoable kind of action, and therefore more than one title), and we know whether to display the Undo menu item or the Redo menu item (or both, or neither) by calling our NSUndoManager’s <code class="literal">canUndo</code> and <code class="literal">canRedo</code>, which essentially asks whether there’s anything on the respective stack.</p>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_the_undo_architecture"></a>The Undo Architecture</h2>
+            </div>
+          </div>
+        </div>
+        <p>Implementing basic Undo is not particularly difficult. But maintaining an appropriate Undo stack at the right point (or points) in your responder hierarchy, so that the right thing happens at every moment, can require some planning.</p>
+        <p>In general, your chief concern will be maintaining a consistent state in your app and in the Undo and Redo stacks of any NSUndoManager instances. You don’t want an Undo stack to contain a method call that, if actually sent, would be impossible to obey, or if obeyed, would make nonsense of your app’s state, because of things that have happened in the meantime. To prevent this, you have to make sure you are not implementing Undo only partially.</p>
+        <p>Suppose, for example, your app presents a To-Do list in which the user can add items, edit items, and so forth. And suppose you implemented Undo and Redo for inserting an item but not for editing an item. Then if the user inserted an item and then edited it, and then did an Undo of an item insertion followed by a Redo of that item insertion, this would fail to restore the state of the app, because the editing has been omitted from the Redo.</p>
+        <p>That is why you typically want each undoable action to pass consistently through a bottleneck method that will register this action with the NSUndoManager. And you will usually want this bottleneck method to be the same method that is registered with the NSUndoManager, so that the Undo and Redo stacks are kept synchronized properly (as with our simple example earlier in this chapter). The sole exception involves independent constructive and destructive actions, such as insertion into a list and deletion from that list; in that case, the Undo method for insertion will be the deletion method, and the Undo method for deletion will be the insertion method. (You can customize the arrangement of bottlenecks further and in more complex ways, but it’s easy to become confused.)</p>
+        <p>Not all aspects of communication with an NSUndoManager need to be performed in the same place, however. We already saw this in the examples earlier in this chapter: <code class="literal">setCenterUndoably:</code>, the bottleneck method, knows what method to register with the NSUndoManager, but <code class="literal">dragging:</code> knows what a complete gesture is and therefore knows where to place the boundaries of a group. Similarly, it happens that our bottleneck method is the one that called <code class="literal">setActionName:</code>, but in real life it will often be some other method that knows best what name should be attached to a particular action. You will thus end up with a single NSUndoManager being bombarded with messages from various places in your code. Indeed, NSUndoManager accomodates exactly this sort of design; this is why it accepts methods describing features of an action <span class="emphasis"><em>before</em></span> that action is actually registered. Also, NSUndoManager emits many notifications for which you can register, to help tie together operations that are performed at disparate locations in your code.</p>
+        <p>Then there are the larger architectural questions of how many NSUndoManager objects your app needs and how long each one needs to live. There’s typically nothing wrong with an iOS app having occasional short-lived, short-depth Undo stacks and no Undo the rest of the time. Apple’s SimpleUndo example constructs an app with an Edit interface, where the user makes changes and then taps either Cancel or Save, returning to the main interface. Here, the user can shake to undo what happened during that edit session. And that’s all that’s undoable within this app. If the user taps Edit again, it would make sense to clear the existing Undo stack; there’s no point in letting the user return to an earlier Edit session’s state. If the user switches away to a different view controller, it would make sense to release the NSUndoManager completely and start with a clean slate when we come back; if the user had any intention of undoing, the time to do so was before abandoning this part of the interface.</p>
+        <p>Your architectural decisions will often be closely tied to the actual functionality and nature of your app. For example, consider again the MyView instance that the user can move, and whose movements the user can undo. Suppose our app has <span class="emphasis"><em>two</em></span> MyView instances in the same window. In our earlier examples, we’ve implemented Undo at the level of the individual MyView instance. Is this right when there are multiple MyView instances, or should we move the implementation to a higher point in the responder chain that effectively contains them both — for example, to the view controller of whose view they are subviews? There’s no single right answer. It depends on what makes sense for what our app actually does. If these are fairly independent objects, in terms of the app’s functionality and the mental world it creates, then it might make sense to be able to undo a move of either view, independently of the other. But if these are, say, two playing cards in a deck, then obviously it isn’t up to an individual card whether it can be put back into the place it was before; the only undoable card is the most recently moved of <span class="emphasis"><em>all</em></span> cards.</p>
+        <p>In a document based-app, the document itself is the natural locus of Undo: as long as the user is working in a document, it’s that document’s state that needs to be undoable and redoable. As I mentioned in <a class="xref" href="ch36.html">Chapter 36</a>, UIDocument has an undo manager (its <code class="literal">undoManager</code> property), and you can mark a file as dirty by using it. Instead of calling <code class="literal">updateChangeCount:</code>, as we did in that chapter, you register undoable actions with the UIDocument’s undo manager, as in <span class="emphasis"><em>this</em></span> chapter, and the UIDocument uses this information to know when a file is dirty and needs autosaving. You do not have to use the default NSUndoManager object returned from <code class="literal">undoManager</code>; this property is settable, so you can supply your own NSUndoManager subclass if the needs and nature of your document require specialized behaviors. An action can be marked as discardable by sending the NSUndoManager the <code class="literal">setActionIsDiscardable:</code> message before registering an action as undoable; the idea, apparently, is that UIDocument might be unable to save the document, and a discardable action is one that can be harmlessly ejected from the stack.</p>
+        <p>For more about the NSUndoManager class and how to use it, read Apple’s <span class="emphasis"><em>Undo Architecture</em></span> as well as the documentation for the class itself.
+<a id="idm441639178192" class="indexterm"></a></p>
+      </div>
+    </div>
+    <div class="navfooter">
+      <table width="100%" summary="Navigation footer">
+        <tr>
+          <td width="40%" align="left"><a accesskey="p" href="ch38.html">Prev</a> </td>
+          <td width="20%" align="center">
+            <a accesskey="u" href="pt07.html">Up</a>
+          </td>
+          <td width="40%" align="right"> <a accesskey="n" href="ch40.html">Next</a></td>
+        </tr>
+        <tr>
+          <td width="40%" align="left" valign="top">Chapter 38. Threads </td>
+          <td width="20%" align="center">
+            <a accesskey="h" href="index.html">Table of Contents</a>
+          </td>
+          <td width="40%" align="right" valign="top"> Chapter 40. Epilogue</td>
+        </tr>
+      </table>
+    </div>
+  </body>
+</html>

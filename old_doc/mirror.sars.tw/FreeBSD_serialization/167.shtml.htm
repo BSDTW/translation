@@ -1,0 +1,496 @@
+
+
+<!-- Vignette StoryServer 4 Sat Mar 11 15:43:24 2000 --> 
+<style type=text/css>
+<!--
+p,div {font-size:12pt; line-height:14pt; font-family:宋體;}
+.p1{font-size:12pt;font-family:宋體;}
+.p2{font-size:12pt;font-family:宋體;line-height:14pt;}
+.p3{font-size:14.8px;font-family:宋體;}
+.p4{font-size:14.8px;font-family:宋體;line-height:14pt;}
+.p5{font-size:1pt}
+a:hover{color:red;}
+a.t1:visited{color:red;}
+-->
+</style>
+<title>FreeBSD使用大全</title></head>
+
+<body bgcolor="#FFFFFF" text="#000000" link="#383098" vlink="#336699" alink="#FF0000" topmargin="0">
+<!-- Vignette StoryServer 4 Thu Mar 23 10:01:54 2000 --> <!-- Vignette StoryServer 4 Thu Mar 23 15:34:35 2000 --> 
+
+<!--開始：新聞內容-->
+<TABLE WIDTH=750 BORDER=0 CELLSPACING=0 CELLPADDING=0>
+
+<tr valign=top>
+
+
+
+<TD  valign=top>
+<CENTER><FONT COLOR=#000066 size=5><B>FreeBSD連載(61)：其他核心設置選項</B><br></FONT></CENTER>
+
+<HR  ALIGN="center" SIZE=1>
+<CENTER><FONT FACE="Arial" SIZE=2> 2000年1月3日 13:39 </FONT><FONT COLOR="#990000" SIZE=2>王波</FONT></CENTER><p>
+
+<h1 align=center>其他核心設置選項</h1>
+
+<p>　　了解了最基本的GENERIC設置檔案的內容，使用者就能根據實際情況，將不必要的設置刪除，配置一個適合自
+己硬體的核心。然而GENERIC核心並不能包括更豐富的設置，包括很多支持的硬體種類，或者特定的核心特性等。</p>
+
+<p>　　除了上面提到的這些較常用到的選項之外，FreeBSD中還支持一些不常使用的設備和選項，例如一些老式的連
+接到聲卡上的光驅、遊戲杆等，FreeBSD甚至也支持IP over ATM協議和ATM網卡，千兆以太網卡等最新
+的網路設備和協議。</p>
+
+<p>　　所有的選項均可以在LINT檔案中找到對應配置的例子，就需要根據具體硬體將配置增加到用戶自己的配置檔案中
+。</p>
+
+<p>　　無論增加哪種硬體設備之後，都要檢查系統中是否有相應的設備檔案存在。通用核心中不存在的設備，預設也沒有生
+成對應的設備檔案。因此需要進入/dev目錄中，使用/dev/MAKEDEV命令來產生相應的設備檔案。
+</p>
+
+<ul><h2><P><LI>調整核心性能</LI></P></h2></ul>
+
+<P>　　當運行一台高性能伺服器的時候，預設設置並不能充分發揮核心的所有能力。為了調整系統性能，便需要考慮
+更多的設置選項。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>maxusers&#9;&#9;256
+options         "MAXMEM=(256*1024)"
+options         "MAXDSIZ=(256*1024*1024)"
+options         "DFLDSIZ=(256*1024*1024)"
+options         NMBCLUSTERS=4096        
+options         CHILD_MAX=512           
+options         OPEN_MAX=512          
+options&#9;&#9;SMP
+options&#9;&#9;APIC_IO
+options&#9;&#9;SOFTUPDATES</td></pre></tr></table>
+
+<p>　　由於伺服器系統運行在高負載下，需要產生數量巨大的進程數目，並打開相當多的檔案。為了提供更好的支持就需要
+增加系統中表格的大小，這應該增加maxusers設置參數。</p>
+
+<p>　　系統啟動時首先通過BIOS來檢測系統中的內存，但是一般的BIOS最多只能報告64M內存，因此FreeB
+SD需要自己檢測系統中的內存數量。然而系統內存檢測並不一定檢測到系統中的所有內存，因此需要在核心設置中指定內存
+大小，MAXMEM選項就用來指定系統物理內存的容量。上例中將系統內存設置為256MB。</p>
+
+<p>　　此外，預設情況下FreeBSD限制每個應用程序使用128MB的內存，這對於一般的應用程序是滿足的。但是
+對於特定的應用程序的伺服器，如大容量的新聞組伺服器，將占用大量內存，因此就需要增加相應的參數。核心選項MAXD
+SIZ為最大限制，DFLDSIZ為這個限制的預設值，那麼將應用程序的內存使用限制設為256MB的配置項為上例所
+示。</p>
+
+<p>　　為了增加FreeBSD的網路性能，可以增加NMBCLUSTERS的值，這個設置決定網路界面接收數據時的
+緩衝mbuf的大小，增加這個值就能使系統能同時響應更多的並發請求，這對於Web等高負載伺服器特別重要。CHIL
+D_MAX定義一個進程能打開的最多子進程數數目，而OPEN_MAX定義一個進程能同時打開的檔案描述字的數目，這
+三個參數為繼承自4.4BSD中的設置參數，在FreeBSD下一般不需要調整，因此並沒有寫在LINT配置檔案中，
+一般情況下，NMBCLUSTERS的預設值對於高負載伺服器略小一些，而CHILD_MAC和OPEN_MAX的缺
+省值能滿足一般的高負載伺服器的要求。</p>
+
+<p>　　通常這些數值參數需要根據實際情況進行調整，而不應該一味的增大。使用vmstat，netstat，top
+等系統工具可以觀察系統在實際情況下的運行狀態，以決定需要進行哪些調整。</p>
+
+<p>　　SOFTUPDATES選項能增加UFS類型的檔案系統存取速度，對於大部分種類的網路伺服器，系統瓶頸在於
+磁碟訪問速度，而使用這個選項可以改善檔案系統的存取性能。這個選項之所以沒有被作為預設設置，主要是因為版權原因。
+然而為了編譯帶有SOFTUPDATES選項的核心，還必須手工建立一些符號連接，因為SOFTUPDATES使用的
+原始碼並不直接位於正確的編譯路徑下，而是位於一個非標準路徑下，FreeBSD使用這種方法提醒FreeBSD用戶
+，表示這個部分的版權與BSD版權許可不同，需要單獨處理。</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># cd /usr/src/sys/ufs/ffs
+# ln -s /usr/src/contrib/sys/softupdates/*.[ch] .</td></pre></tr></table>
+
+<P>　　當建立了上述連接之後，帶有SOFTUPDATES選項的核心才能被正確編譯，然而即使核心支持這個選項，
+還需要在檔案系統中設置softupdate選項，相應檔案系統才能真正使用這個功能，這需要對相應的檔案系統
+使用tunefs命令：</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># tunefs -n enable /dev/rda0s1d</td></pre></tr></table>
+
+<p>　　這個命令只需執行一次就行了，為了避免出現問題，請在系統的單用戶模式下執行這個命令。同樣可以使用tune
+fs -n disable可以屏蔽這個功能。</p>
+
+<p>　　此外，對於多處理器的伺服器系統，還可以使用SMP選項和APIC_IO選項以支持多處理器。</p>
+
+<p>　　可以在編譯核心時打開更多的優化選項，預設情況的只能提供十分基本的優化，而且是使用標準版本的gcc 2.
+7.2.1來編譯系統的。可以安裝egcc，並指定更高的優化選項，如-O6和-mPentium，來獲得更高級別的
+優化和利用Pentium芯片專用指令。由於egcc僅僅支持ELF格式的執行檔案，因此不能用於3.0之前（包括3
+.0-REKLEASE）使用a.out格式核心的系統。</p>
+
+<p>　　當使用egcc編譯核心時，需要更改執行config後產生的核心目錄下的Makefile，需要重新定義C
+C選項為/usr/local/bin/egcc，並更改優化選項-O為-O -mpentium，但是由於egcc
+不支持gcc的編譯選項-fformat_externsion，因此還需要更改Makefile引用的/usr/s
+rc/share/mk/bsd.kern.mk檔案，刪除這個檔案中這個編譯選項的定義。</p>
+
+<p>　　雖然理論上編譯器優化不影響編譯結果，但是編譯器本身也會存在問題，使得在某些情況下發生錯誤。尤其對於系統
+核心，它決定系統的穩定性。因而在編譯時採用過高的優化時就要特別小心，極其偶然的情況下會過高優化的核心會造成系統
+崩潰。因此在正式使用一個優化核心之前，應該保留一個原有的、使用普通優化選項的核心。新核心經過一定時間實際運行的
+考驗，確認沒有問題之後才能放心用於正式使用。</p>
+
+<ul><h2><P><LI>聲卡設備</LI></P></h2></ul>
+
+<P>　　通常對於SoundBlaster兼容的聲卡，可以使用的以下配置選項：</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>controller     pnp0
+controller     snd0
+device sb0 at isa? port 0x220 irq 7 conflicts drq 1 vector sbintr
+options  SBC_IRQ=5
+device   sbxvi0  at isa? drq 5
+device   sbmidi0  at isa? port 0x330
+device   opl0     at isa? port 0x38a</td></pre></tr></table>
+
+<p>　　其中pnp0控制器是幫助設置ISA接口的PNP聲卡的資源，這主要用於使用BIOS為ISA PNP設備分
+配資源的情況下。但如果不是ISA PNP的聲卡，就不需要這個設置，而且如果ISA PNP聲卡能設置為非PNP類
+型，最好將其設置為非PNP類型，ISA總線下的PNP聲卡比較難以設置。</p>
+
+<p>　　如果系統中安裝有DOS的話，可以啟動到DOS下，使用該卡的設置程序或一些系統硬體分析軟體尋找BIOS分
+配給ISA PNP卡的資源。</p>
+
+<p>　　snd0提供最基本的聲卡支持代碼，sb0為SoundBlaster兼容聲卡驅動程序，要根據聲卡的配置參
+數更改sb0驅動程序的IRQ、DMA以及port數值。改變IRQ值的時候，不僅應該在sb0的配置行中改變，還應
+該使用SBC_IRQ配置選項。</p>
+
+<p>　　sbvxi0也是SoundBlaster 16所需的代碼，大部分聲稱與SoundBlaster兼容的聲
+卡並不能做到完全兼容SoundBlaster 16，最多兼容SoundBlaster或SoundBlaster
+Pro，因此就不能支持這個設備，只有真正的SoundBlaster 16才能使它發揮作用。sbmidi0為So
+undBlaster聲卡的MIDI接口的驅動程序，很多兼容聲卡也不支持這個設備。opl0為SoundBlast
+er兼容聲卡使用的Yamaha OPL-2和OPL-3芯片使用的驅動。</p>
+
+<p>　　使用上面的配置選項，設置正確的資源參數，就可以支持soundblaster兼容聲卡。但是不同聲卡對So
+undblaster的兼容性不同，因此系統檢測時就不能檢測到所有的設備，如midi設備或sbvxio0設備，但
+一般都可以檢測到sb0設備，這就能提供基本的聲卡設備支持。</p>
+
+<p>　　聲卡設備還需要相應設備檔案snd0的支持：</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># cd /dev
+# ./MAKEDEV snd0</td></pre></tr></table>
+
+<P>　　當使用這些選項重新編譯好核心，並啟動之後，就可以查看聲卡系統是否工作正常。首先應使用
+dmesg命令查看系統是否偵測出了聲卡設備，如果沒有偵測出，就可能是硬體參數配置的問題，需要使用
+UserConfig更改配置。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># dmesg | grep snb0
+snd0: &lt;SoundBlaster 16 4.16&gt; 
+snd0: &lt;SoundBlaster 16 4.16&gt; 
+snd0: &lt;SoundBlaster MPU-401&gt; 
+snd0: &lt;Yamaha OPL3 FM&gt; </td></pre></tr></table>
+
+<P>　　通過直接讀取設備檔案sndstat可以查看出目前聲卡的狀態，根據系統檢測出的設備不同，sndstat
+報告的系統中安裝的驅動也不同，至少應該報告一個soundBlaster設備：</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># cat /dev/sndstat
+VoxWare Sound Driver:3.5-alpha15-970902 
+(Wed Aug  6 22:58:35 PDT 1997 Amancio Hasty@rah.star-gate.com)
+Config options: 
+
+Installed drivers: 
+Type 1: OPL-2/OPL-3 FM
+Type 2: SoundBlaster
+Type 6: SoundBlaster16
+Type 7: SB16 MIDI
+
+Card config: 
+SoundBlaster at 0x220 irq 5 drq 1
+SoundBlaster16 at 0xffffffff irq 1 drq 5
+SB16 MIDI at 0x330 irq 1
+OPL-2/OPL-3 FM at 0x388 irq 1
+
+Audio devices:
+0: SoundBlaster 16 4.16
+
+Synth devices:
+0: Yamaha OPL-3
+
+Midi devices:
+0: SoundBlaster 16 Midi
+
+Timers:
+0: System clock
+
+Mixers:
+0: SoundBlaster</td></pre></tr></table>
+
+<P>　　設備檔案audio用於聲音的輸入、輸出，如果聲卡沒有IRQ/DRQ衝突，就能正常使用這
+個設備，從而可以通過這個設備進行錄音和播放聲音檔案，可以通過標準的操作命令來操作這
+個設備檔案。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># dd if=/dev/audio of=out.au bs=1024 count=10
+# cat out.au &gt; /dev/audio</td></pre></tr></table>
+
+<P>　　此後就可以安裝相關的聲音應用軟體了，這些軟體通常位於ports的軟體包目錄下，例
+如播放mp3格式的音樂檔案的軟體mpg123：</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># cd /usr/ports/audio/mpg123
+# make install
+# mpg123 test.mp3</td></pre></tr></table>
+
+
+<ul><h2><P><LI>其他的聲卡驅動程序</LI></P></h2></ul>
+
+<p>　　除了SoundBlaster聲卡之外，FreeBSD還可以支持SoundBlaster AWE 32/
+64、Gravis Ultrasound、Microsoft Sound System、Roland MPU 
+401、ProAudioSpectrum等聲卡。支持這些聲卡的驅動也在LINT檔案中給出了范例，但這些驅動程序
+不是單獨使用的，需要與上面提到的基本設備sb0相互合作。</p>
+
+<p>　　如果電腦上沒有聲卡，也可以使用個人電腦的喇叭模擬聲卡。這樣的音響效果並不令人滿意，而且也會消耗大量
+處理器時間，因此應該盡量使用，模擬聲卡的設備驅動為pca0。</p>
+
+<p>　　有些情況下某些soundblaster聲卡使用以上的sd0聲卡設備選項並不能正常工作，會遇到IRQ/D
+RQ的衝突問題。此外還可以使用另一個驅動程序pcm0，這個驅動程序能支持一些sb0不支持的SoundBlast
+er兼容聲卡。當然pcm0的功能相對弱一些，不能支持midi功能。設備sb0能和其他幾個設備同時發揮作用，而p
+cm0設備不能和前面提到的其他設備相互協作，使用pcm0的配置檔案應該為：
+</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>controller     pnp0
+controller     snd0
+device pcm0 at isa? port 0x220 irq 7 drq 1 vector pcmintr</td></pre></tr></table>
+
+<P>　　有時由於pnp設置資源的問題，使得pcm驅動將聲卡識別為第二個設備pcm1，而報告pcm0與pcm1存
+在衝突，此時可以簡單的建立設備snd1，而忽略pcm0的衝突信息，此後就一直使用snd1作為聲卡設備。</P>
+
+<ul><h2><P><LI>設置ISA PNP聲卡</LI></P></h2></ul>
+
+<P>　　為了給PNP聲卡設置正確的資源值，可以在UserConfig中的命令行方式下搜尋PNP設備、配置PNP
+設備的硬體參數。如同在前面提到的，對PNP設備需要在UserConfig的命令行方式下使用pnp命令進行設
+置。為了保留這個設置，每次啟動時都自動進行設置，就需要將設置寫入根檔案系統中的一個設置檔案
+中，例如/kernel.config，例如對於Soundblaster Vibrx16，執行的pnp命令及寫入kernel.config的內
+容包括：</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre><font size=2>pnp 1 0 os enable irq0 5 drq0 0 drq1 1 port0 0x220 port1 0x300 port2 0x388
+pnp 1 1 os enable port0 0x201
+quit</font></td></pre></tr></table>
+
+<P>　　由於pnp命令就為pnp設備分配了資源，那麼核心配置檔案中的pcm0使用的參數設置就要與它相一致。</P>
+
+<P>　　當設置完kernel.config中，還需要設置Boot Loader的資源檔案/boot/boot.rc檔案，使其能在啟動時自動執行設置命令。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>load /kernel</P>
+load -t userconfig_script /kernel.config
+autoboot</td></pre></tr></table>
+
+<P>　　由於個人電腦上的聲卡種類相當多，而FreeBSD支持的聲卡類型相對較少，如果用戶
+電腦使用的聲卡與FreeBSD支持的類型都不兼容，也可以考慮使用FreeBSD下的商業聲卡驅動
+，商業驅動程序能夠支持更多類型的硬體。Opensound是FreeBSD下的一種商業聲卡支持驅動，
+其主頁是http://www.4front.com。</P>
+
+<ul><h2><P><LI>磁碟設置</LI></P></h2></ul>
+
+<P>　　FreeBSD提供了對磁碟上的檔案系統和交換空間的管理能力，可以供使用者進行設置。
+FreeBSD的使用者可以設置對用戶的磁碟空間設置，建立偽磁碟設備等，以更好的方式管理磁
+碟和檔案。</P>
+
+<ul><h2><P><LI>磁碟空間限制</LI></P></h2></ul>
+
+<P>　　FreeBSD提供了強大的系統管理功能，除了可以在/etc/login.conf中使用登錄類別對
+用戶占用的處理器資源進行限制之外，還可以對用戶占用的磁碟資源進行限制。用戶磁碟空間
+的限制是通過quota來完成的。這樣就可以控制用戶對硬碟資源的使用，防止硬碟空間被無意
+或惡意用光而造成系統故障。這對於提供公共訪問的電腦比較重要。quota需要核心支持，
+在編譯核心時必須加入選項：</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>options  QUOTA</td></pre></tr></table>
+
+<P>　　接下來是決定對哪個檔案系統使用quota來限制用戶磁碟資源，要更改/etc/fstab中該文
+件系統對應的行，從而更改分區安裝時使用的參數，例如要對wd0s1e進行限制，則更改fstab中
+的對應行為：</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre><font size=2>/dev/wd0s1e&#9; /usr&#9;&#9;ufs  rw,userquota,groupquota&#9;&#9;1 &#9;1</font></td></pre></tr></table>
+
+<P>　　然後更改/etc/rc.conf中的有關quota的設置check_quotas的值為”YES”，使用新核心重新
+啟動電腦之後，就可以使用下列命令打開用戶磁碟設置。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># quotacheck  -av
+# repquota  -a</td></pre></tr></table>
+
+<P>　　這些命令在第一次啟動支持quota的系統時使用，用來檢查磁碟上的quota狀態。如果一
+切正常，就可以使用edquota來更改每個用戶的磁碟限制了。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># edquota  -u user1
+# edquota  -p user1  user2  user3</td></pre></tr></table>
+
+<P>　　第一個命令就為更改user1的磁碟空間限制，第二行將user1的quota限制復制給user2和user3。</P>
+
+<P>　　日常維護要使用quota命令，例如來檢查user1的quota設置可以使用下面的命令。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># quota -v user1</td></pre></tr></table>
+
+<P>　　為了避免出現問題，需要每天執行一次quotacheck命令，來檢查全部設定是否正常，
+因此這個命令可以放入/etc/daily或crontab中，定期執行。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># quotacheck -a</td></pre></tr></table>
+
+<ul><h2><P><LI>偽磁碟設備</LI></P></h2></ul>
+
+<P>　　交換設備的數量是受核心設置的限制，核心中的NSWAPDEV的值就確定了最多可使用的
+交換設備的數量，而NO_SWAPPING選項可以用來屏蔽任何交換設備。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>options  NSWAPDEV=20
+#options&#9;NO_SWAPPING
+pseudo-device&#9;vn&#9;4
+pseudo-device&#9;ccd&#9;4</td></pre></tr></table>
+
+<p>　　當增加了交換設備的數量之後，就能增加交換空間，更好的發揮FreeBSD的虛擬內存機制。</p>
+
+<p>　　FreeBSD支持的vn偽磁碟設備可用於設置交換檔案。預設核心支持的vn偽設備數量為一個，因此僅可以設
+置一個交換檔案。一般僅需要更改/etc/rc.conf檔案中的swapfile選項為交換檔案的名字，系統自動使
+用vnconfig命令來將檔案和虛擬設備聯繫在一起。</p>
+
+<p>　　為了增加對多個交換檔案或多個鏡像檔案的支持，可以增加核心中偽設備vn的數量，然後還需要創建相應數量的v
+n設備。此後就可以使用這多個偽磁碟設備，並使用vnconfig命令管理多個磁碟鏡像檔案或交換檔案。</p>
+
+<p>　　除了偽磁碟設備vn之外，FreeBSD系統還提供一個將多個磁碟檔案系統映射為一個磁碟的偽設備ccd，這
+樣原有的小磁碟分區就能聯合起來，形成一個大的檔案系統。ccd要求核心中支持ccd這個偽設備，當核心中支持了cc
+d偽設備之後，就可以通過設備檔案/dev/ccd0c等來使用這個偽磁碟了（預設/dev下只有ccd0的設備檔案
+，可以根據需要建立其他的設備檔案）。</p>
+
+<p>　　將多個磁碟分區與單一的ccd設備聯繫起來，還需要使用ccdconfig進行配置，最基本的ccdconf
+ig使用例子為：</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># ccdcofnig -c ccd1 0 0 /dev/da0s2g /dev/da1s2e</td></pre></tr></table>
+
+<P>　　這個例子使用-c參數對ccd1設備進行配置，指出ccd1由/dev/da0s2g和/dev/da1s2e兩個分區聯合組
+成。如果這兩個磁碟分區都是100M大小，那麼新的設備/dev/ccd1c就有200M大小。然後就可以在ccd1設備
+上建立檔案系統，並使用這個設備了。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># newfs /dev/ccd1c</P>
+<P># mount /dev/ccd1c /mnt</td></pre></tr></table>
+
+<p>　　這是一個對ccd進行配置並使用的最簡單的例子，這裡沒有對ccdconfig命令中緊跟ccd設備的兩個數
+字參數的意義進行解釋。而通過選擇這兩個參數的不同數值，能將多個磁碟檔案系統採用不同的RAID方式映射為單個設備
+。</p>
+
+<p>　　RAID為冗余磁碟陣列的簡稱，它意味著物理上使用多個磁碟，而邏輯上卻只有一個磁碟設備。RAID之所以流
+行，是因為它使用了分段（strip）和冗余的概念，就是說通過RAID映射的邏輯磁碟上的數據是以分段的方式保存的
+，例如一個檔案的第一段數據保存在第一個物理磁碟上，第二段數據保存在第二個物理磁碟上，依次類推。這樣在存取這一個
+檔案上的連續數據時，多個磁碟可以同時進行存取操作，因此增加了磁碟訪問速度。而冗余則是物理磁碟的空間大於邏輯磁碟
+的大小，通過物理磁碟上多余的磁碟空間，保存冗余信息，這樣一旦多個磁碟中的某一些出現問題，數據能通過冗余數據得到
+恢復，而不會丟失。</p>
+
+<p>　　按照不同的冗余組織方式，RAID被分為不同的級別。最簡單的RAID稱為RAID 0，這個級別中沒有冗余
+，多個磁碟只是以分段的方式組織起來，由於使用分段的方式存取，可以同時訪問這兩個磁碟，因此存取單個檔案的速度會有
+所改善。更高一級的RAID級別為RAID 1，它同時使用兩個磁碟，每個磁碟都是另一個磁碟的鏡像，這樣一旦一個磁
+碟出現問題，還可以在另一個磁碟找到數據，保証了數據完整性，但這樣設置，有一半的磁碟空間都用做了冗余，浪費了磁碟
+空間。此外還有RAID 3級別，至少要使用3個物理磁碟，前兩個磁碟中分段存儲數據，第三個磁碟的冗余空間中並不是
+直接保存原有的數據，而是保存根據前兩個磁碟中對應分段中的數據進行計算得到一個校驗和。在前面某一個磁碟被破壞後能
+通過冗余磁碟中保存的校驗和來恢復原有數據。由於RAID 3中校驗和是單獨保存在一個物理磁碟上的，不能充分發揮分
+段存取的優勢，因此RAID 5中將校驗和與其他數據一起分段、分布保存在各個磁碟上，提供了更好冗余效果。因此目前
+常用的RAID級別為RAID 0, RAID 1和RAID 5，可根據不同的需要進行選擇使用。</p>
+
+<p>　　當在ccdconfig中使用兩個0作為參數來設置ccd偽設備時，ccd是以最普通的直接連接方式來連接多
+個磁碟的，當數據寫滿第一個磁碟後，才接著寫入第二個磁碟，這裡沒有使用任何分段存儲策略，因此這是一種不完善的RA
+ID 0方式。然而也可以設置ccd以使用分段存儲策略，以大來存取速度的優勢，這就需要設置分段存儲中的段的大小，
+即設置交錯因子的大小，因此就需要改變第一個數字參數，例如：
+</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># umount /mnt
+# ccdconfig -u ccd1
+# ccdconfig -c ccd1 32 0 /dev/da0s2e /dev/da1s2g</td></pre></tr></table>
+
+<p>　　上面第一條命令是卸載已安裝的ccd檔案系統，第二條命令是將原有的ccd1設備釋放出來，使用這兩條命令是
+因為前面操作中已經將ccd1設置過並安裝到檔案系統中了。第三條命令為重新設置ccd1的命令，其參數中緊隨ccd
+1設備的參數設置為32，這個參數代表交錯因子為32個磁碟塊，即數據每隔32個磁碟塊大小，進行分段保存到不同的磁
+碟上，顯然前面的參數設置為0表示不進行分段存儲。</p>
+
+<p>　　由於ccd使用的磁碟設備為預分配的磁碟分區空間，那麼這些分區的大小很可能不一致。當一個磁碟設備用光，而
+另一個較大的設備還有空余的時候，分段策略就不再有效了。此時ccd可以有兩種選擇，一個是盡量利用磁碟空間，必要時
+不再進行分段存儲，順序存儲數據﹔另一種選擇是不使用這些不能進行分段存儲的空間，以保証分段存儲帶來的優勢。當cc
+d命令的第二個數字參數設置為0時，將盡量利用磁碟空間，因此就ccd偽設備就混合使用分段存儲和順序存儲。但也可以
+將其設置為2，這樣ccd只使用分段存儲策略，忽略分區不一致的空間。推荐在建立磁碟檔案系統時為ccd劃分大致相等
+的空間，這樣就可以充分利用分段帶來的好處，並且不浪費磁碟空間。</p>
+
+<p>　　當使用分段存儲之後，理論上在兩個磁碟上同時分段存儲，存取速度可以加快。這種速度的提高是針對單次數據存取
+而言的，例如在讀取一個大檔案時，ccd可以同時從兩個磁碟讀取。可以看出ccd所作只是改變數據存取的位置，通過將
+可能會同時訪問的數據放置到可以同時訪問的多個磁碟上，來提高存取速度。然而而由於ccd是使用軟體方式實現的分段，
+軟體方式不能提高磁碟I/O的硬體限制，而高負荷的伺服器，同時會有多個進程對多個磁碟進行I/O操作，ccd的作用
+就不太明顯了。此時使用硬體RAID的方式更為有效。</p>
+
+<p>　　FreeBSD支持DPT的硬體RAID卡，很多伺服器附帶的RAID卡均是OEM這家廠商的產品，雖然它們
+使用其他廠商的商標，但實質還是同一個廠家的產品。因此在使用RAID卡時，需要檢查其手冊或卡上的芯片標識，判斷其
+是否為OEM產品，以獲得RAID卡的真實型號。</p>
+
+<p>　　此外，還有一些SCSI-to-SCSI的RAID卡，因此只要該卡使用SCSI控制芯片為FreeBSD所
+支持，該卡就能在FreeBSD下使用。</p>
+
+<p>　　雖然ccd設備能夠提高存取速度，但對於建立交換磁碟空間意義不大，一般也並沒有必要將交換空間建立在ccd
+設備上。這是因為FreeBSD對交換設備本身也採用了交錯存取的策略，如果在多個磁碟上設定了多個交換空間，系統會
+自動使用交錯方式使用交換空間，而不必依賴ccd設備的幫助。</p>
+
+<p>　　對於IDE磁碟，尤其對於連接在同一條IDE線上的IDE磁碟，使用分段策略是無益的。因為同一條IDE總線
+上不能進行並發存取數據，分段存儲反而影響速度。即使是連接在兩個IDE總線上的兩個IDE磁碟，由於IDE磁碟的存
+取十分占用CPU的處理時間，因此分段存儲帶來的益處也極為有限，只有SCSI磁碟才能充分發揮分段存儲的帶來的好處
+。</p>
+
+<p>　　ccd也支持RAID 1，這種方式又稱為磁碟鏡像方式，主要用於保護磁碟數據不會因為偶然損壞而丟失數據，
+但同時多使用一倍的磁碟空間。此時需要將ccdconfig中的第二個數字參數設置為4，它將強制使用相同大小的各個
+物理磁碟的空間並使用RAID 1方式。目前的ccd還不支持RAID 5。</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># ccdconfig -c ccd1 32 4 /dev/da0s2e /dev/da1s2g</td></pre></tr></table>
+
+<p>　　雖然ccd能夠支持RAID 1，但通常並不使用它來進行RAID 1。主要原因是ccd並沒有提供相應的軟
+件工具，使得能夠在系統出現問題時，能從鏡像磁碟中恢復出數據。由於ccd設備和物理磁碟的存儲格式存在差異，並不能
+直接安裝上ccd鏡像磁碟其中的一個，要恢復存儲的數據就需要其他工具的幫助。由於ccd本身並沒有提供這種工具，就
+只能依靠從原始磁碟上讀取數據的方式恢復，就使得恢復數據比較困難，所以很少有使用者真正利用ccd來進行磁碟鏡像。
+</p>
+<p>　　如果需要使用RAID 1以增強系統的可靠性，可以考慮使用vinum，這個軟體使用一個核心可加載模塊，能
+提供RAID 0、RAID 1和RAID 5，但由於版權的原因（產生校驗和的算法被其專利保護），其中的RAID
+5代碼沒有被直接放入FreeBSD系統中，隨同FreeBSD一起提供的vinum只提供RAID 0和RAID 
+1能力。由於ccd用於RAID 0更容易，而vinum提供了相當完善的RAID 1功能，因此習慣上使用ccd來
+提供RAID 0，而使用vinum提供RAID 1。具備RAID 5能力的vinum版本可以從Cybernet
+公司獲得(http://www.cybernet.com)，或者與vinum的開發者聯繫獲得測試版。vinum
+是一個相當複雜的軟體，這裡就不再討論其設置和使用方法了。</p>
+
+<p>　　當設置好ccd之後，就可以將其配置放入配置檔案中。使用ccdconfig -g命令可以將目前的配置顯示
+出來，把這些設置放入/etc/ccd.conf中之後，使用ccdconfig -C將直接讀取這個設置檔案，來設
+置ccd的各個設備，啟動時也將自動執行這個設置任務。</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># ccdconfig -g &gt; /etc/ccd.conf</td></pre></tr></table>
+
+<p>　　由於ccdconfig及vinum會直接和核心中的偽設備交談，因此使用它們具備一定的危險性,對它們進行
+設置時就有造成系統當機的可能性。因此進行設置不要運行其他進程，最好進入單用戶狀態進行操作，在設置完畢之後，系統
+就會正常運行了。如果在設置時連續出現當機問題，可以嘗試改變設置時使用的ccd設備及其順序，例如本來使用ccd0
+的改變為使用ccd1，再進行重新配置，以避開ccd驅動中可能存在的問題。</p>
+
+
+<ul><h2><P><LI>非標準配置</LI></P></h2></ul>
+
+<p>　　標準系統核心配置均列在配置檔案LINT中，這對於絕大多數情況是足夠的。然而很多新特性並沒有包括在這些標
+準核心配置中，如果要使用這些獨立特性，就需要單獨安裝這些非標準配置。</p>
+
+<p>　　在FreeBSD的開發模式中，可以有任意多個項目組，這些項目組開發的結果要合並到正式的FreeBSD源
+碼中的時候，就必須被FreeBSD core team認可。與Linux的開發方式相比，這種方式較為保守。因此
+雖然FreeBSD中能夠支持很多種特性，但很多都沒有包括在FreeBSD的正式版本中。因此使用者要了解Free
+BSD具備的其他新特性，就必須檢查標準配置之外的各種配置。今天的非標準配置，可能就是明天的標準配置。</p>
+
+<p>　　在FreeBSD的主頁中，介紹了基於FreeBSD的各種商業和自由的開發計劃，例如System V系統
+防真功能、實現IPv6和IPSec的KAME計劃等。</p>
+
+<p>　　除了正在開發的功能之外，新特性不能被合並到標準配置中的另一個原因是版權原因，很多軟體有較嚴格的版權聲明
+，不能直接放到FreeBSD系統中。另一個原因是FreeBSD的核心小組認為這個特性沒有太大的需求，不需要被支
+持。</p>
+
+
+<BR>
+
+</TD>
+</TR></TABLE>
+
+
+
+</BODY>
+</HTML>

@@ -1,0 +1,230 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>File System Access Control Lists</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.79" />
+<link rel="HOME" title="FreeBSD 使用手冊" href="index.html" />
+<link rel="UP" title="系統安全" href="security.html" />
+<link rel="PREVIOUS" title="OpenSSH" href="openssh.html" />
+<link rel="NEXT" title="Monitoring Third Party Security Issues"
+href="security-portaudit.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD 使用手冊</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="openssh.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 14 系統安全</td>
+<td width="10%" align="right" valign="bottom"><a href="security-portaudit.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="FS-ACL" name="FS-ACL">14.12 File System Access Control
+Lists</a></h1>
+
+<i class="AUTHORGROUP"><span class="CONTRIB">Contributed by</span> Tom Rhodes.</i> 
+
+<p>In conjunction with file system enhancements like snapshots, FreeBSD 5.0 and later
+offers the security of File System Access Control Lists (<acronym
+class="ACRONYM">ACLs</acronym>).</p>
+
+<p>Access Control Lists extend the standard <span class="TRADEMARK">UNIX</span>&reg;
+permission model in a highly compatible (<span class="TRADEMARK">POSIX</span>&reg;.1e)
+way. This feature permits an administrator to make use of and take advantage of a more
+sophisticated security model.</p>
+
+<p>To enable <acronym class="ACRONYM">ACL</acronym> support for <acronym
+class="ACRONYM">UFS</acronym> file systems, the following:</p>
+
+<pre class="PROGRAMLISTING">
+options UFS_ACL
+</pre>
+
+<p>must be compiled into the kernel. If this option has not been compiled in, a warning
+message will be displayed when attempting to mount a file system supporting <acronym
+class="ACRONYM">ACLs</acronym>. This option is included in the <tt
+class="FILENAME">GENERIC</tt> kernel. <acronym class="ACRONYM">ACLs</acronym> rely on
+extended attributes being enabled on the file system. Extended attributes are natively
+supported in the next generation <span class="TRADEMARK">UNIX</span> file system,
+<acronym class="ACRONYM">UFS2</acronym>.</p>
+
+<div class="NOTE">
+<blockquote class="NOTE">
+<p><b>Note:</b> A higher level of administrative overhead is required to configure
+extended attributes on <acronym class="ACRONYM">UFS1</acronym> than on <acronym
+class="ACRONYM">UFS2</acronym>. The performance of extended attributes on <acronym
+class="ACRONYM">UFS2</acronym> is also substantially higher. As a result, <acronym
+class="ACRONYM">UFS2</acronym> is generally recommended in preference to <acronym
+class="ACRONYM">UFS1</acronym> for use with access control lists.</p>
+</blockquote>
+</div>
+
+<p><acronym class="ACRONYM">ACLs</acronym> are enabled by the mount-time administrative
+flag, <code class="OPTION">acls</code>, which may be added to <tt
+class="FILENAME">/etc/fstab</tt>. The mount-time flag can also be automatically set in a
+persistent manner using <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=tunefs&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">tunefs</span>(8)</span></a> to modify a
+superblock <acronym class="ACRONYM">ACLs</acronym> flag in the file system header. In
+general, it is preferred to use the superblock flag for several reasons:</p>
+
+<ul>
+<li>
+<p>The mount-time <acronym class="ACRONYM">ACLs</acronym> flag cannot be changed by a
+remount (<a href="http://www.FreeBSD.org/cgi/man.cgi?query=mount&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">mount</span>(8)</span></a> <code
+class="OPTION">-u</code>), only by means of a complete <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=umount&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">umount</span>(8)</span></a> and fresh <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=mount&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">mount</span>(8)</span></a>. This means
+that <acronym class="ACRONYM">ACLs</acronym> cannot be enabled on the root file system
+after boot. It also means that you cannot change the disposition of a file system once it
+is in use.</p>
+</li>
+
+<li>
+<p>Setting the superblock flag will cause the file system to always be mounted with
+<acronym class="ACRONYM">ACLs</acronym> enabled even if there is not an <tt
+class="FILENAME">fstab</tt> entry or if the devices re-order. This prevents accidental
+mounting of the file system without <acronym class="ACRONYM">ACLs</acronym> enabled,
+which can result in <acronym class="ACRONYM">ACLs</acronym> being improperly enforced,
+and hence security problems.</p>
+</li>
+</ul>
+
+<div class="NOTE">
+<blockquote class="NOTE">
+<p><b>Note:</b> We may change the <acronym class="ACRONYM">ACLs</acronym> behavior to
+allow the flag to be enabled without a complete fresh <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=mount&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">mount</span>(8)</span></a>, but we
+consider it desirable to discourage accidental mounting without <acronym
+class="ACRONYM">ACLs</acronym> enabled, because you can shoot your feet quite nastily if
+you enable <acronym class="ACRONYM">ACLs</acronym>, then disable them, then re-enable
+them without flushing the extended attributes. In general, once you have enabled <acronym
+class="ACRONYM">ACLs</acronym> on a file system, they should not be disabled, as the
+resulting file protections may not be compatible with those intended by the users of the
+system, and re-enabling <acronym class="ACRONYM">ACLs</acronym> may re-attach the
+previous <acronym class="ACRONYM">ACLs</acronym> to files that have since had their
+permissions changed, resulting in other unpredictable behavior.</p>
+</blockquote>
+</div>
+
+<p>File systems with <acronym class="ACRONYM">ACLs</acronym> enabled will show a <tt
+class="LITERAL">+</tt> (plus) sign in their permission settings when viewed. For
+example:</p>
+
+<pre class="PROGRAMLISTING">
+drwx------  2 robert  robert  512 Dec 27 11:54 private
+drwxrwx---+ 2 robert  robert  512 Dec 23 10:57 directory1
+drwxrwx---+ 2 robert  robert  512 Dec 22 10:20 directory2
+drwxrwx---+ 2 robert  robert  512 Dec 27 11:57 directory3
+drwxr-xr-x  2 robert  robert  512 Nov 10 11:54 public_html
+</pre>
+
+<p>Here we see that the <tt class="FILENAME">directory1</tt>, <tt
+class="FILENAME">directory2</tt>, and <tt class="FILENAME">directory3</tt> directories
+are all taking advantage of <acronym class="ACRONYM">ACLs</acronym>. The <tt
+class="FILENAME">public_html</tt> directory is not.</p>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN21693" name="AEN21693">14.12.1 Making Use of <acronym
+class="ACRONYM">ACL</acronym>s</a></h2>
+
+<p>The file system <acronym class="ACRONYM">ACL</acronym>s can be viewed by the <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=getfacl&amp;sektion=1"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">getfacl</span>(1)</span></a> utility.
+For instance, to view the <acronym class="ACRONYM">ACL</acronym> settings on the <tt
+class="FILENAME">test</tt> file, one would use the command:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">%</samp> <kbd class="USERINPUT">getfacl <tt
+class="FILENAME">test</tt></kbd>
+    #file:test
+    #owner:1001
+    #group:1001
+    user::rw-
+    group::r--
+    other::r--
+</pre>
+
+<p>To change the <acronym class="ACRONYM">ACL</acronym> settings on this file, invoke the
+<a href="http://www.FreeBSD.org/cgi/man.cgi?query=setfacl&amp;sektion=1"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">setfacl</span>(1)</span></a> utility.
+Observe:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">%</samp> <kbd class="USERINPUT">setfacl -k <tt
+class="FILENAME">test</tt></kbd>
+</pre>
+
+<p>The <code class="OPTION">-k</code> flag will remove all of the currently defined
+<acronym class="ACRONYM">ACL</acronym>s from a file or file system. The more preferable
+method would be to use <code class="OPTION">-b</code> as it leaves the basic fields
+required for <acronym class="ACRONYM">ACL</acronym>s to work.</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">%</samp> <kbd
+class="USERINPUT">setfacl -m u:trhodes:rwx,group:web:r--,o::--- <tt
+class="FILENAME">test</tt></kbd>
+</pre>
+
+<p>In the aforementioned command, the <code class="OPTION">-m</code> option was used to
+modify the default <acronym class="ACRONYM">ACL</acronym> entries. Since there were no
+pre-defined entries, as they were removed by the previous command, this will restore the
+default options and assign the options listed. Take care to notice that if you add a user
+or group which does not exist on the system, an “<tt class="ERRORNAME">Invalid
+argument</tt>” error will be printed to <tt class="DEVICENAME">stdout</tt>.</p>
+</div>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="openssh.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="security-portaudit.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">OpenSSH</td>
+<td width="34%" align="center" valign="top"><a href="security.html"
+accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">Monitoring Third Party Security Issues</td>
+</tr>
+</table>
+</div>
+
+<p align="center"><small>This, and other documents, can be downloaded from <a
+href="ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/">ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/</a>.</small></p>
+
+<p align="center"><small>For questions about FreeBSD, read the <a
+href="http://www.FreeBSD.org/docs.html">documentation</a> before contacting &#60;<a
+href="mailto:questions@FreeBSD.org">questions@FreeBSD.org</a>&#62;.<br />
+For questions about this documentation, e-mail &#60;<a
+href="mailto:doc@FreeBSD.org">doc@FreeBSD.org</a>&#62;.</small></p>
+</body>
+</html>
+

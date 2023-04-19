@@ -1,0 +1,241 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>JSP / Servlet 怎樣才能處理中文？</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.7" />
+<link rel="HOME" title="FreeBSD Chinese HOWTO" href="index.html" />
+<link rel="UP" title="中文程式設計" href="devel.html" />
+<link rel="PREVIOUS" title="中文程式設計" href="devel.html" />
+<link rel="NEXT" title="Java 連結到 MySql 如何使用中文？" href="java-mysql.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD Chinese HOWTO</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="devel.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 14. 中文程式設計</td>
+<td width="10%" align="right" valign="bottom"><a href="java-mysql.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="JSP-SERVLET" name="JSP-SERVLET">14.2. JSP / Servlet
+怎樣才能處理中文？</a></h1>
+
+<p>鄭原真 Yuan-Chen Cheng <code class="EMAIL">&#60;<a
+href="mailto:ycheng@sinica.edu.tw">ycheng@sinica.edu.tw</a>&#62;</code> Copyright
+2000.</p>
+
+<p>本文版權 : GPL or BSD style，請保留作者姓名。</p>
+
+<p>本文假設您已經會使用 JSP 或是 Servlet 撰寫英文的 Web-Page。
+如果您還不會，或是根本不知道 JSP 或是 Servlet 是幹什麼的， 那這篇文章不是寫給您看的。</p>
+
+<p>在 Java Servlet Spec v2.0 中，對於多國語言的支援，並不足。 您必須找到 Java Servlet
+Spec v2.2 的實作才行，筆者試過的 是 Apache Jakarta Tomcat 3.1 軟體(註一）。</p>
+
+<p>本文測試平台是 Debian Woody, Sun jdk1.2.2, Tomcat 3.1, mm.mysql-2.0.2</p>
+
+<p>Java Server 如何處理中文。</p>
+
+<p>前言</p>
+
+<p>首先，如何正確的了解您一個 Big5 中文在 Java 中是正確的 中文 Unicode 呢？</p>
+
+<p>輸出一個 String("今").length() 吧 ! 由於 "今" 在 Big5 是由兩個 byte 組成，但對 java
+來說，java 的字元是 unicode，也就是說， 無論是一個英文字或是一個中文字，其 length() 都是
+1. 也就是說， (new String("今")).length() ==&gt; 1。才是正確的。</p>
+
+<p>Servlet 輸出中文的一個例子。</p>
+
+<p>下面是一個典型的 Java Servlet。</p>
+
+<pre class="PROGRAMLISTING">
+HelloWorldExample.java =&gt;
+----------- cut here -----------------
+import java.io.*;
+import java.text.*;
+import java.util.*;
+import javax.servlet.*;
+import javax.servlet.http.*;
+
+public class HelloWorldExample extends HttpServlet {
+
+    public void doGet(HttpServletRequest request,
+                      HttpServletResponse response)
+        throws IOException, ServletException
+    {
+        response.setLocale(new Locale(new String("zh"), new String("TW")));
+        response.setContentType("text/html");
+        PrintWriter out = response.getWriter();
+
+        out.println("&lt;html&gt;");
+        out.println("&lt;head&gt;");
+
+        String title = new String("hello 大家好");
+
+        out.println("&lt;title&gt;" + title + "&lt;/title&gt;");
+        out.println("&lt;/head&gt;");
+        out.println("&lt;body bgcolor=\"white\"&gt;");
+        out.println("&lt;body&gt;");
+
+        out.println("&lt;p&gt;");
+
+        out.println("&lt;h1&gt;" + title + "&lt;/h1&gt;");
+        out.println("&lt;/body&gt;");
+        out.println("&lt;/html&gt;");
+    }
+}
+----------- cut here -----------------
+</pre>
+
+<p>可以正常輸出中文的關鍵是：</p>
+
+<pre class="PROGRAMLISTING">
+        response.setLocale(new Locale(new String("zh"), new String("TW")));
+</pre>
+
+<p>注意這一行應該要放在</p>
+
+<pre class="PROGRAMLISTING">
+        PrintWriter out = response.getWriter();
+</pre>
+
+<p>之前執行。另外編譯時注意</p>
+
+<pre class="PROGRAMLISTING">
+        javac -encoding Big5 HelloWorldExample.java
+</pre>
+
+<p>或是 (linux 上的 jdk1.2.2)</p>
+
+<pre class="PROGRAMLISTING">
+        export LANG=zh_TW.Big5
+        export LC_CTYPE=zh_TW.Big5
+        javac HelloWorldExample.java
+</pre>
+
+<p>注意，這個例子在 jserv v1.1.2 並不能 work，因為該版本實做的 JavaSoft Java Servlet APIs
+2.0, 而 setLocale 是到 Servlet APIs 2.2 才有。</p>
+
+<p>Java Server Page 如何處理中文</p>
+
+<p>在此簡略說明，先看下面的例子：</p>
+
+<pre class="PROGRAMLISTING">
+test.jsp
+----------------------
+&lt;%@ page contentType="text/html; charset=big5" %&gt;
+&lt;html&gt;
+&lt;body bgcolor="white"&gt;
+    中文TEST.&lt;p&gt;
+    &lt;%= (new String("今天")).length() %&gt;
+    out.println("大家好");
+&lt;/body&gt;
+&lt;/html&gt;
+----------------------
+</pre>
+
+<p>關鍵在第一行。有了這一行就行了。</p>
+
+<p>而如果使用 POST 時，要使用中文就先看下面的例子</p>
+
+<pre class="PROGRAMLISTING">
+test2.jsp
+----------------------
+&lt;html&gt;
+&lt;head&gt;
+    &lt;title&gt;Instropection&lt;/title&gt;
+&lt;/head&gt;
+&lt;meta http-equiv="Content-Type" content="text/html; charset=big5"&gt;
+&lt;body&gt;
+&lt;body bgcolor="#FFFFFF" text="#000000"&gt;
+&lt;form name="form1" action="test3.jsp" method="post"  &gt;
+  &lt;p&gt; 姓名：
+    &lt;input type="text" name="name"&gt;
+  &lt;/p&gt;
+  &lt;p&gt;編號：
+    &lt;input type="text" name="number"&gt;
+  &lt;/p&gt;
+  &lt;p&gt;
+    &lt;input type="submit" value="傳送"&gt;
+    &lt;input type="reset" value="清除"&gt;
+  &lt;/p&gt;
+&lt;/form&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+----------------------
+
+test3.jsp
+----------------------
+&lt;%@ page language="java" contentType="text/html;charset=Big5" %&gt;
+&lt;html&gt;
+&lt;head&gt;
+    &lt;title&gt;Instropection&lt;/title&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;%
+    String name = new String(request.getParameter("name").getBytes("ISO-8859-1"), "Big5");
+    String number = request.getParameter("number");
+%&gt;
+姓名：&lt;%= name %&gt;
+&lt;br&gt;編號：&lt;%= number %&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+----------------------
+</pre>
+
+<p>關鍵在於 String(str.getBytes("ISO-8859-1"), "Big5")， java.lang.String
+的建構函式可以產生指定特定語系的 String， 透過這個範例，可以使 String
+正確地轉換中文。</p>
+
+<p>For Hacker：</p>
+
+<p>理論上這一行可以放在文件的任何地方，但由於 Java 時做上 開檔案後通常就必須指定
+encoding，當 java jsp engine 發現 charset 跟 default
+不同時，通常必須重新開檔案。所以實做上 這一行放在越前面越好。不過話是這樣說，由於通常 jsp
+會在 run time 被 compile 成 java bytecode，也就是說只有在 .jsp 更新時才需要
+recompile。overhead 實在有限。</p>
+
+<p>註一：請到 http://jakarta.apache.org/ 下去 Download。</p>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="devel.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="java-mysql.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">中文程式設計</td>
+<td width="34%" align="center" valign="top"><a href="devel.html"
+accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">Java 連結到 MySql 如何使用中文？</td>
+</tr>
+</table>
+</div>
+</body>
+</html>
+

@@ -1,0 +1,1792 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><title>Chapter 23. Stored Procedures and Functions</title><link rel="stylesheet" href="mysql-html.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.69.1"><link rel="start" href="index.html" title="MySQL 5.1 Reference Manual"><link rel="up" href="index.html" title="MySQL 5.1 Reference Manual"><link rel="prev" href="spatial-extensions.html" title="Chapter 22. Spatial Extensions"><link rel="next" href="triggers.html" title="Chapter 24. Triggers"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">Chapter 23. Stored Procedures and Functions</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="spatial-extensions.html">Prev</a> </td><th width="60%" align="center"> </th><td width="20%" align="right"> <a accesskey="n" href="triggers.html">Next</a></td></tr></table><hr></div><div class="chapter" lang="en"><div class="titlepage"><div><div><h2 class="title"><a name="stored-procedures"></a>Chapter 23. Stored Procedures and Functions</h2></div></div></div><div class="toc"><p><b>Table of Contents</b></p><dl><dt><span class="section"><a href="stored-procedures.html#stored-procedure-privileges">23.1. Stored Routines and the Grant Tables</a></span></dt><dt><span class="section"><a href="stored-procedures.html#stored-procedure-syntax">23.2. Stored Routine Syntax</a></span></dt><dd><dl><dt><span class="section"><a href="stored-procedures.html#create-function">23.2.1. <code class="literal">CREATE FUNCTION</code> Syntax</a></span></dt><dt><span class="section"><a href="stored-procedures.html#create-procedure">23.2.2. <code class="literal">CREATE PROCEDURE</code> and <code class="literal">CREATE
+        FUNCTION</code> Syntax</a></span></dt><dt><span class="section"><a href="stored-procedures.html#alter-procedure">23.2.3. <code class="literal">ALTER PROCEDURE</code> and <code class="literal">ALTER FUNCTION</code>
+        Syntax</a></span></dt><dt><span class="section"><a href="stored-procedures.html#drop-function">23.2.4. <code class="literal">DROP FUNCTION</code> Syntax</a></span></dt><dt><span class="section"><a href="stored-procedures.html#drop-procedure">23.2.5. <code class="literal">DROP PROCEDURE</code> and <code class="literal">DROP FUNCTION</code>
+        Syntax</a></span></dt><dt><span class="section"><a href="stored-procedures.html#call">23.2.6. <code class="literal">CALL</code> Statement Syntax</a></span></dt><dt><span class="section"><a href="stored-procedures.html#begin-end">23.2.7. <code class="literal">BEGIN ... END</code> Compound Statement Syntax</a></span></dt><dt><span class="section"><a href="stored-procedures.html#declare">23.2.8. <code class="literal">DECLARE</code> Statement Syntax</a></span></dt><dt><span class="section"><a href="stored-procedures.html#variables-in-stored-procedures">23.2.9. Variables in Stored Routines</a></span></dt><dt><span class="section"><a href="stored-procedures.html#conditions-and-handlers">23.2.10. Conditions and Handlers</a></span></dt><dt><span class="section"><a href="stored-procedures.html#cursors">23.2.11. Cursors</a></span></dt><dt><span class="section"><a href="stored-procedures.html#flow-control-constructs">23.2.12. Flow Control Constructs</a></span></dt><dt><span class="section"><a href="stored-procedures.html#return">23.2.13. <code class="literal">RETURN</code> Statement Syntax</a></span></dt></dl></dd><dt><span class="section"><a href="stored-procedures.html#stored-procedure-last-insert-id">23.3. Stored Procedures, Functions, Triggers, and
+      <code class="literal">LAST_INSERT_ID()</code></a></span></dt><dt><span class="section"><a href="stored-procedures.html#stored-procedure-logging">23.4. Binary Logging of Stored Routines and Triggers</a></span></dt></dl></div><a class="indexterm" name="id2428885"></a><a class="indexterm" name="id2428894"></a><p>
+    Stored routines (procedures and functions) are supported in MySQL
+    5.1. A stored procedure is a set of SQL statements that
+    can be stored in the server. Once this has been done, clients don't
+    need to keep reissuing the individual statements but can refer to
+    the stored procedure instead.
+  </p><p>
+    Answers to some questions that are commonly asked regarding stored
+    routines in MySQL can be found in
+    <a href="faqs.html#faqs-stored-procs" title="A.4. MySQL 5.1 FAQ — Stored Procedures">Section A.4, “MySQL 5.1 FAQ — Stored Procedures”</a>.
+  </p><p class="mnmas"><b>MySQL Enterprise</b>
+      For expert advice on using stored procedures and functions
+      subscribe to the MySQL Enterprise Monitor. For more information,
+      see <a href="http://www.mysql.com/products/enterprise/advisors.html" target="_top">http://www.mysql.com/products/enterprise/advisors.html</a>.
+    </p><p>
+    Some situations where stored routines can be particularly useful:
+  </p><div class="itemizedlist"><ul type="disc"><li><p>
+        When multiple client applications are written in different
+        languages or work on different platforms, but need to perform
+        the same database operations.
+      </p></li><li><p>
+        When security is paramount. Banks, for example, use stored
+        procedures and functions for all common operations. This
+        provides a consistent and secure environment, and routines can
+        ensure that each operation is properly logged. In such a setup,
+        applications and users would have no access to the database
+        tables directly, but can only execute specific stored routines.
+      </p></li></ul></div><p>
+    Stored routines can provide improved performance because less
+    information needs to be sent between the server and the client. The
+    tradeoff is that this does increase the load on the database server
+    because more of the work is done on the server side and less is done
+    on the client (application) side. Consider this if many client
+    machines (such as Web servers) are serviced by only one or a few
+    database servers.
+  </p><p>
+    Stored routines also allow you to have libraries of functions in the
+    database server. This is a feature shared by modern application
+    languages that allow such design internally (for example, by using
+    classes). Using these client application language features is
+    beneficial for the programmer even outside the scope of database
+    use.
+  </p><p>
+    MySQL follows the SQL:2003 syntax for stored routines, which is also
+    used by IBM's DB2.
+  </p><p>
+    The MySQL implementation of stored routines is still in progress.
+    All syntax described in this chapter is supported and any
+    limitations and extensions are documented where appropriate. Further
+    discussion of restrictions on use of stored routines is given in
+    <a href="restrictions.html#routine-restrictions" title="D.1. Restrictions on Stored Routines, Triggers, and Events">Section D.1, “Restrictions on Stored Routines, Triggers, and Events”</a>.
+  </p><p>
+    Binary logging for stored routines takes place as described in
+    <a href="stored-procedures.html#stored-procedure-logging" title="23.4. Binary Logging of Stored Routines and Triggers">Section 23.4, “Binary Logging of Stored Routines and Triggers”</a>.
+  </p><p>
+    Recursive stored procedures are disabled by default, but can be
+    enabled on the server by setting the
+    <code class="literal">max_sp_recursion_depth</code> server system variable to
+    a nonzero value. Stored procedure recursion increases the demand on
+    thread stack space. If you increase the value of
+    <code class="literal">max_sp_recursion_depth</code>, it may be necessary to
+    increase thread stack size by increasing the value of
+    <code class="literal">thread_stack</code> at server startup. See
+    <a href="server-administration.html#server-system-variables" title="5.1.3. System Variables">Section 5.1.3, “System Variables”</a>, for more information.
+  </p><p>
+    Stored functions cannot be recursive. See
+    <a href="restrictions.html#routine-restrictions" title="D.1. Restrictions on Stored Routines, Triggers, and Events">Section D.1, “Restrictions on Stored Routines, Triggers, and Events”</a>.
+  </p><div class="section" lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="stored-procedure-privileges"></a>23.1. Stored Routines and the Grant Tables</h2></div></div></div><p>
+      Stored routines require the <code class="literal">proc</code> table in the
+      <code class="literal">mysql</code> database. This table is created during
+      the MySQL 5.1 installation procedure. If you are
+      upgrading to MySQL 5.1 from an earlier version, be
+      sure to update your grant tables to make sure that the
+      <code class="literal">proc</code> table exists. See
+      <a href="programs.html#mysql-upgrade" title="4.4.8. mysql_upgrade — Check Tables for MySQL Upgrade">Section 4.4.8, “<span><strong class="command">mysql_upgrade</strong></span> — Check Tables for MySQL Upgrade”</a>.
+    </p><p>
+      The server manipulates the <code class="literal">mysql.proc</code> table in
+      response to statements that create, alter, or drop stored
+      routines. It is not supported that the server will notice manual
+      manipulation of this table.
+    </p><p>
+      The MySQL grant system takes stored routines into account as
+      follows:
+    </p><div class="itemizedlist"><ul type="disc"><li><p>
+          The <code class="literal">CREATE ROUTINE</code> privilege is needed to
+          create stored routines.
+        </p></li><li><p>
+          The <code class="literal">ALTER ROUTINE</code> privilege is needed to
+          alter or drop stored routines. This privilege is granted
+          automatically to the creator of a routine if necessary, and
+          dropped when the routine creator drops the routine.
+        </p></li><li><p>
+          The <code class="literal">EXECUTE</code> privilege is required to
+          execute stored routines. However, this privilege is granted
+          automatically to the creator of a routine if necessary (and
+          dropped when the creator drops the routine). Also, the default
+          <code class="literal">SQL SECURITY</code> characteristic for a routine
+          is <code class="literal">DEFINER</code>, which enables users who have
+          access to the database with which the routine is associated to
+          execute the routine.
+        </p></li><li><p>
+          If the <code class="literal">automatic_sp_privileges</code> system
+          variable is 0, the <code class="literal">EXECUTE</code> and
+          <code class="literal">ALTER ROUTINE</code> privileges are not
+          automatically granted and dropped.
+        </p></li></ul></div></div><div class="section" lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="stored-procedure-syntax"></a>23.2. Stored Routine Syntax</h2></div></div></div><div class="toc"><dl><dt><span class="section"><a href="stored-procedures.html#create-function">23.2.1. <code class="literal">CREATE FUNCTION</code> Syntax</a></span></dt><dt><span class="section"><a href="stored-procedures.html#create-procedure">23.2.2. <code class="literal">CREATE PROCEDURE</code> and <code class="literal">CREATE
+        FUNCTION</code> Syntax</a></span></dt><dt><span class="section"><a href="stored-procedures.html#alter-procedure">23.2.3. <code class="literal">ALTER PROCEDURE</code> and <code class="literal">ALTER FUNCTION</code>
+        Syntax</a></span></dt><dt><span class="section"><a href="stored-procedures.html#drop-function">23.2.4. <code class="literal">DROP FUNCTION</code> Syntax</a></span></dt><dt><span class="section"><a href="stored-procedures.html#drop-procedure">23.2.5. <code class="literal">DROP PROCEDURE</code> and <code class="literal">DROP FUNCTION</code>
+        Syntax</a></span></dt><dt><span class="section"><a href="stored-procedures.html#call">23.2.6. <code class="literal">CALL</code> Statement Syntax</a></span></dt><dt><span class="section"><a href="stored-procedures.html#begin-end">23.2.7. <code class="literal">BEGIN ... END</code> Compound Statement Syntax</a></span></dt><dt><span class="section"><a href="stored-procedures.html#declare">23.2.8. <code class="literal">DECLARE</code> Statement Syntax</a></span></dt><dt><span class="section"><a href="stored-procedures.html#variables-in-stored-procedures">23.2.9. Variables in Stored Routines</a></span></dt><dt><span class="section"><a href="stored-procedures.html#conditions-and-handlers">23.2.10. Conditions and Handlers</a></span></dt><dt><span class="section"><a href="stored-procedures.html#cursors">23.2.11. Cursors</a></span></dt><dt><span class="section"><a href="stored-procedures.html#flow-control-constructs">23.2.12. Flow Control Constructs</a></span></dt><dt><span class="section"><a href="stored-procedures.html#return">23.2.13. <code class="literal">RETURN</code> Statement Syntax</a></span></dt></dl></div><p>
+      A stored routine is either a procedure or a function. Stored
+      routines are created with <code class="literal">CREATE PROCEDURE</code> and
+      <code class="literal">CREATE FUNCTION</code> statements. A procedure is
+      invoked using a <code class="literal">CALL</code> statement, and can only
+      pass back values using output variables. A function can be called
+      from inside a statement just like any other function (that is, by
+      invoking the function's name), and can return a scalar value.
+      Stored routines may call other stored routines.
+    </p><p>
+      A stored procedure or function is associated with a particular
+      database. This has several implications:
+    </p><div class="itemizedlist"><ul type="disc"><li><p>
+          When the routine is invoked, an implicit <code class="literal">USE
+          <em class="replaceable"><code>db_name</code></em></code> is performed (and
+          undone when the routine terminates). <code class="literal">USE</code>
+          statements within stored routines are disallowed.
+        </p></li><li><p>
+          You can qualify routine names with the database name. This can
+          be used to refer to a routine that is not in the current
+          database. For example, to invoke a stored procedure
+          <code class="literal">p</code> or function <code class="literal">f</code> that is
+          associated with the <code class="literal">test</code> database, you can
+          say <code class="literal">CALL test.p()</code> or
+          <code class="literal">test.f()</code>.
+        </p></li><li><p>
+          When a database is dropped, all stored routines associated
+          with it are dropped as well.
+        </p></li></ul></div><p>
+      MySQL supports the very useful extension that allows the use of
+      regular <code class="literal">SELECT</code> statements (that is, without
+      using cursors or local variables) inside a stored procedure. The
+      result set of such a query is simply sent directly to the client.
+      Multiple <code class="literal">SELECT</code> statements generate multiple
+      result sets, so the client must use a MySQL client library that
+      supports multiple result sets. This means the client must use a
+      client library from a version of MySQL at least as recent as 4.1.
+      The client should also specify the
+      <code class="literal">CLIENT_MULTI_RESULTS</code> option when it connects.
+      For C programs, this can be done with the
+      <a href="apis.html#mysql-real-connect" title="29.2.3.52. mysql_real_connect()"><code class="literal">mysql_real_connect()</code></a> C API
+      function. See <a href="apis.html#mysql-real-connect" title="29.2.3.52. mysql_real_connect()">Section 29.2.3.52, “<code class="literal">mysql_real_connect()</code>”</a>, and
+      <a href="apis.html#c-api-multiple-queries" title="29.2.9. C API Handling of Multiple Statement Execution">Section 29.2.9, “C API Handling of Multiple Statement Execution”</a>.
+    </p><p class="mnmas-kb"><b>MySQL Enterprise</b>
+        MySQL Enterprise subscribers will find numerous articles about
+        stored routines in the MySQL Enterprise Knowledge Base. Access
+        to this collection of articles is one of the advantages of
+        subscribing to MySQL Enterprise. For more information, see
+        <a href="http://www.mysql.com/products/enterprise/advisors.html" target="_top">http://www.mysql.com/products/enterprise/advisors.html</a>.
+      </p><p>
+      The following sections describe the syntax used to create, alter,
+      drop, and invoke stored procedures and functions.
+    </p><div class="section" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="create-function"></a>23.2.1. <code class="literal">CREATE FUNCTION</code> Syntax</h3></div></div></div><p>
+        The <code class="literal">CREATE FUNCTION</code> statement is used to
+        create stored functions and user-defined functions (UDFs):
+      </p><div class="itemizedlist"><ul type="disc"><li><p>
+            For information about creating stored functions, see
+            <a href="stored-procedures.html#create-procedure" title="23.2.2. CREATE PROCEDURE and CREATE
+        FUNCTION Syntax">Section 23.2.2, “<code class="literal">CREATE PROCEDURE</code> and <code class="literal">CREATE
+        FUNCTION</code> Syntax”</a>.
+          </p></li><li><p>
+            For information about creating user-defined functions, see
+            <a href="sql-syntax.html#create-function-udf" title="12.5.3.1. CREATE FUNCTION Syntax">Section 12.5.3.1, “<code class="literal">CREATE FUNCTION</code> Syntax”</a>.
+          </p></li></ul></div></div><div class="section" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="create-procedure"></a>23.2.2. <code class="literal">CREATE PROCEDURE</code> and <code class="literal">CREATE
+        FUNCTION</code> Syntax</h3></div></div></div><a class="indexterm" name="id2429450"></a><a class="indexterm" name="id2429458"></a><pre class="programlisting">CREATE
+    [DEFINER = { <em class="replaceable"><code>user</code></em> | CURRENT_USER }]
+    PROCEDURE <em class="replaceable"><code>sp_name</code></em> ([<em class="replaceable"><code>proc_parameter</code></em>[,...]])
+    [<em class="replaceable"><code>characteristic</code></em> ...] <em class="replaceable"><code>routine_body</code></em>
+
+CREATE
+    [DEFINER = { <em class="replaceable"><code>user</code></em> | CURRENT_USER }]
+    FUNCTION <em class="replaceable"><code>sp_name</code></em> ([<em class="replaceable"><code>func_parameter</code></em>[,...]])
+    RETURNS <em class="replaceable"><code>type</code></em>
+    [<em class="replaceable"><code>characteristic</code></em> ...] <em class="replaceable"><code>routine_body</code></em>
+    
+<em class="replaceable"><code>proc_parameter</code></em>:
+    [ IN | OUT | INOUT ] <em class="replaceable"><code>param_name</code></em> <em class="replaceable"><code>type</code></em>
+    
+<em class="replaceable"><code>func_parameter</code></em>:
+    <em class="replaceable"><code>param_name</code></em> <em class="replaceable"><code>type</code></em>
+
+<em class="replaceable"><code>type</code></em>:
+    <em class="replaceable"><code>Any valid MySQL data type</code></em>
+
+<em class="replaceable"><code>characteristic</code></em>:
+    LANGUAGE SQL
+  | [NOT] DETERMINISTIC
+  | { CONTAINS SQL | NO SQL | READS SQL DATA | MODIFIES SQL DATA }
+  | SQL SECURITY { DEFINER | INVOKER }
+  | COMMENT '<em class="replaceable"><code>string</code></em>'
+
+<em class="replaceable"><code>routine_body</code></em>:
+    <em class="replaceable"><code>Valid SQL procedure statement</code></em>
+</pre><p>
+        These statements create stored routines. By default, a routine
+        is associated with the default database. To associate the
+        routine explicitly with a given database, specify the name as
+        <em class="replaceable"><code>db_name.sp_name</code></em> when you create it.
+      </p><p>
+        To execute these statements, it is necessary to have the
+        <code class="literal">CREATE ROUTINE</code> privilege. If binary logging
+        is enabled, the <code class="literal">CREATE FUNCTION</code> statement
+        might also require the <code class="literal">SUPER</code> privilege, as
+        described in <a href="stored-procedures.html#stored-procedure-logging" title="23.4. Binary Logging of Stored Routines and Triggers">Section 23.4, “Binary Logging of Stored Routines and Triggers”</a>. MySQL
+        automatically grants the <code class="literal">ALTER ROUTINE</code> and
+        <code class="literal">EXECUTE</code> privileges to the routine creator.
+      </p><p>
+        The <code class="literal">DEFINER</code> and <code class="literal">SQL
+        SECURITY</code> clauses specify the security context to be
+        used when checking access privileges at routine execution time,
+        as described later.
+      </p><p>
+        If the routine name is the same as the name of a built-in SQL
+        function, you must use a space between the name and the
+        following parenthesis when defining the routine, or a syntax
+        error occurs. This is also true when you invoke the routine
+        later. For this reason, we suggest that it is better to avoid
+        re-using the names of existing SQL functions for your own stored
+        routines.
+      </p><p>
+        The <code class="literal">IGNORE_SPACE</code> SQL mode applies to built-in
+        functions, not to stored routines. It is always allowable to
+        have spaces after a routine name, regardless of whether
+        <code class="literal">IGNORE_SPACE</code> is enabled.
+      </p><p>
+        The parameter list enclosed within parentheses must always be
+        present. If there are no parameters, an empty parameter list of
+        <code class="literal">()</code> should be used.
+      </p><p>
+        Each parameter can be declared to use any valid data type,
+        except that the <code class="literal">COLLATE</code> attribute cannot be
+        used.
+      </p><p>
+        Each parameter is an <code class="literal">IN</code> parameter by default.
+        To specify otherwise for a parameter, use the keyword
+        <code class="literal">OUT</code> or <code class="literal">INOUT</code> before the
+        parameter name.
+      </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Note</h3><p>
+          Specifying a parameter as <code class="literal">IN</code>,
+          <code class="literal">OUT</code>, or <code class="literal">INOUT</code> is valid
+          only for a <code class="literal">PROCEDURE</code>.
+          (<code class="literal">FUNCTION</code> parameters are always regarded as
+          <code class="literal">IN</code> parameters.)
+        </p></div><p>
+        An <code class="literal">IN</code> parameter passes a value into a
+        procedure. The procedure might modify the value, but the
+        modification is not visible to the caller when the procedure
+        returns. An <code class="literal">OUT</code> parameter passes a value from
+        the procedure back to the caller. Its initial value is
+        <code class="literal">NULL</code> within the procedure, and its value is
+        visible to the caller when the procedure returns. An
+        <code class="literal">INOUT</code> parameter is initialized by the caller,
+        can be modified by the procedure, and any change made by the
+        procedure is visible to the caller when the procedure returns.
+      </p><p>
+        For each <code class="literal">OUT</code> or <code class="literal">INOUT</code>
+        parameter, pass a user-defined variable so that you can obtain
+        its value when the procedure returns. (For an example, see
+        <a href="stored-procedures.html#call" title="23.2.6. CALL Statement Syntax">Section 23.2.6, “<code class="literal">CALL</code> Statement Syntax”</a>.) If you are calling the procedure from
+        within another stored procedure or function, you can also pass a
+        routine parameter or local routine variable as an
+        <code class="literal">IN</code> or <code class="literal">INOUT</code> parameter.
+      </p><p>
+        The <code class="literal">RETURNS</code> clause may be specified only for
+        a <code class="literal">FUNCTION</code>, for which it is mandatory. It
+        indicates the return type of the function, and the function body
+        must contain a <code class="literal">RETURN
+        <em class="replaceable"><code>value</code></em></code> statement. If the
+        <code class="literal">RETURN</code> statement returns a value of a
+        different type, the value is coerced to the proper type. For
+        example, if a function specifies an <code class="literal">ENUM</code> or
+        <code class="literal">SET</code> value in the <code class="literal">RETURNS</code>
+        clause, but the <code class="literal">RETURN</code> statement returns an
+        integer, the value returned from the function is the string for
+        the corresponding <code class="literal">ENUM</code> member of set of
+        <code class="literal">SET</code> members.
+      </p><p>
+        The <em class="replaceable"><code>routine_body</code></em> consists of a valid
+        SQL procedure statement. This can be a simple statement such as
+        <code class="literal">SELECT</code> or <code class="literal">INSERT</code>, or it
+        can be a compound statement written using
+        <code class="literal">BEGIN</code> and <code class="literal">END</code>. Compound
+        statement syntax is described in <a href="stored-procedures.html#begin-end" title="23.2.7. BEGIN ... END Compound Statement Syntax">Section 23.2.7, “<code class="literal">BEGIN ... END</code> Compound Statement Syntax”</a>.
+        Compound statements can contain declarations, loops, and other
+        control structure statements. The syntax for these statements is
+        described later in this chapter. See, for example,
+        <a href="stored-procedures.html#declare" title="23.2.8. DECLARE Statement Syntax">Section 23.2.8, “<code class="literal">DECLARE</code> Statement Syntax”</a>, and
+        <a href="stored-procedures.html#flow-control-constructs" title="23.2.12. Flow Control Constructs">Section 23.2.12, “Flow Control Constructs”</a>.
+      </p><p>
+        Some statements are not allowed in stored routines; see
+        <a href="restrictions.html#routine-restrictions" title="D.1. Restrictions on Stored Routines, Triggers, and Events">Section D.1, “Restrictions on Stored Routines, Triggers, and Events”</a>.
+      </p><p>
+        MySQL stores the <code class="literal">sql_mode</code> system variable
+        setting that is in effect at the time a routine is created, and
+        always executes the routine with this setting in force,
+        <span class="emphasis"><em>regardless of the current server SQL mode</em></span>.
+      </p><p>
+        The <code class="literal">CREATE FUNCTION</code> statement was used in
+        earlier versions of MySQL to support UDFs (user-defined
+        functions). See <a href="extending-mysql.html#adding-functions" title="31.3. Adding New Functions to MySQL">Section 31.3, “Adding New Functions to MySQL”</a>. UDFs
+        continue to be supported, even with the existence of stored
+        functions. A UDF can be regarded as an external stored function.
+        However, do note that stored functions share their namespace
+        with UDFs. See <a href="language-structure.html#function-resolution" title="8.2.4. Function Name Parsing and Resolution">Section 8.2.4, “Function Name Parsing and Resolution”</a>, for the
+        rules describing how the server interprets references to
+        different kinds of functions.
+      </p><p>
+        A procedure or function is considered
+        “<span class="quote">deterministic</span>” if it always produces the same
+        result for the same input parameters, and “<span class="quote">not
+        deterministic</span>” otherwise. If neither
+        <code class="literal">DETERMINISTIC</code> nor <code class="literal">NOT
+        DETERMINISTIC</code> is given in the routine definition, the
+        default is <code class="literal">NOT DETERMINISTIC</code>.
+      </p><p>
+        A routine that contains the
+        <a href="functions.html#function_now"><code class="literal">NOW()</code></a> function (or its synonyms)
+        or <a href="functions.html#function_rand"><code class="literal">RAND()</code></a> is non-deterministic,
+        but it might still be replication-safe. For
+        <a href="functions.html#function_now"><code class="literal">NOW()</code></a>, the binary log includes
+        the timestamp and replicates correctly.
+        <a href="functions.html#function_rand"><code class="literal">RAND()</code></a> also replicates correctly
+        as long as it is invoked only once within a routine. (You can
+        consider the routine execution timestamp and random number seed
+        as implicit inputs that are identical on the master and slave.)
+      </p><p>
+        In versions prior to 5.1.21-beta, the
+        <code class="literal">DETERMINISTIC</code> characteristic is accepted, but
+        not used by the optimizer. However, if binary logging is
+        enabled, this characteristic always affects which routine
+        definitions MySQL accepts. See
+        <a href="stored-procedures.html#stored-procedure-logging" title="23.4. Binary Logging of Stored Routines and Triggers">Section 23.4, “Binary Logging of Stored Routines and Triggers”</a>.
+      </p><p>
+        Several characteristics provide information about the nature of
+        data use by the routine. In MySQL, these characteristics are
+        advisory only. The server does not use them to constrain what
+        kinds of statements a routine will be allowed to execute.
+      </p><div class="itemizedlist"><ul type="disc"><li><p>
+            <code class="literal">CONTAINS SQL</code> indicates that the routine
+            does not contain statements that read or write data. This is
+            the default if none of these characteristics is given
+            explicitly. Examples of such statements are <code class="literal">SET @x
+            = 1</code> or <code class="literal">DO RELEASE_LOCK('abc')</code>,
+            which execute but neither read nor write data.
+          </p></li><li><p>
+            <code class="literal">NO SQL</code> indicates that the routine
+            contains no SQL statements.
+          </p></li><li><p>
+            <code class="literal">READS SQL DATA</code> indicates that the routine
+            contains statements that read data (for example,
+            <code class="literal">SELECT</code>), but not statements that write
+            data.
+          </p></li><li><p>
+            <code class="literal">MODIFIES SQL DATA</code> indicates that the
+            routine contains statements that may write data (for
+            example, <code class="literal">INSERT</code> or
+            <code class="literal">DELETE</code>).
+          </p></li></ul></div><p>
+        The <code class="literal">SQL SECURITY</code> characteristic can be used
+        to specify whether the routine should be executed using the
+        permissions of the user who creates the routine or the user who
+        invokes it. The default value is <code class="literal">DEFINER</code>.
+        This feature is new in SQL:2003. The creator or invoker must
+        have permission to access the database with which the routine is
+        associated. It is necessary to have the
+        <code class="literal">EXECUTE</code> privilege to be able to execute the
+        routine. The user that must have this privilege is either the
+        definer or invoker, depending on how the <code class="literal">SQL
+        SECURITY</code> characteristic is set.
+      </p><p>
+        The optional <code class="literal">DEFINER</code> clause specifies the
+        MySQL account to be used when checking access privileges at
+        routine execution time for routines that have the <code class="literal">SQL
+        SECURITY DEFINER</code> characteristic. The
+        <code class="literal">DEFINER</code> clause was added in MySQL 5.1.8.
+      </p><p>
+        If a <em class="replaceable"><code>user</code></em> value is given for the
+        <code class="literal">DEFINER</code> clause, it should be a MySQL account
+        in
+        <code class="literal">'<em class="replaceable"><code>user_name</code></em>'@'<em class="replaceable"><code>host_name</code></em>'</code>
+        format (the same format used in the <code class="literal">GRANT</code>
+        statement). The <em class="replaceable"><code>user_name</code></em> and
+        <em class="replaceable"><code>host_name</code></em> values both are required.
+        The definer can also be given as
+        <a href="functions.html#function_current-user"><code class="literal">CURRENT_USER</code></a> or
+        <a href="functions.html#function_current-user"><code class="literal">CURRENT_USER()</code></a>. The default
+        <code class="literal">DEFINER</code> value is the user who executes the
+        <code class="literal">CREATE PROCEDURE</code> or <code class="literal">CREATE
+        FUNCTION</code> or statement. (This is the same as
+        <code class="literal">DEFINER = CURRENT_USER</code>.)
+      </p><p>
+        If you specify the <code class="literal">DEFINER</code> clause, these
+        rules determine the legal <code class="literal">DEFINER</code> user
+        values:
+      </p><div class="itemizedlist"><ul type="disc"><li><p>
+            If you do not have the <code class="literal">SUPER</code> privilege,
+            the only legal <em class="replaceable"><code>user</code></em> value is your
+            own account, either specified literally or by using
+            <a href="functions.html#function_current-user"><code class="literal">CURRENT_USER</code></a>. You cannot set
+            the definer to some other account.
+          </p></li><li><p>
+            If you have the <code class="literal">SUPER</code> privilege, you can
+            specify any syntactically legal account name. If the account
+            does not actually exist, a warning is generated.
+          </p><p>
+            Although it is possible to create routines with a
+            non-existent <code class="literal">DEFINER</code> value, an error
+            occurs if the routine executes with definer privileges but
+            the definer does not exist at execution time.
+          </p></li></ul></div><p>
+        When the routine is invoked, an implicit <code class="literal">USE
+        <em class="replaceable"><code>db_name</code></em></code> is performed (and
+        undone when the routine terminates). <code class="literal">USE</code>
+        statements within stored routines are disallowed.
+      </p><p>
+        The server uses the data type of a routine parameter or function
+        return value as follows. These rules also apply to local routine
+        variables created with the <code class="literal">DECLARE</code> statement
+        (<a href="stored-procedures.html#declare-local-variables" title="23.2.9.1. DECLARE Local Variables">Section 23.2.9.1, “<code class="literal">DECLARE</code> Local Variables”</a>).
+      </p><div class="itemizedlist"><ul type="disc"><li><p>
+            Assignments are checked for data type mismatches and
+            overflow. Conversion and overflow problems result in
+            warnings, or errors in strict mode.
+          </p></li><li><p>
+            Only scalar values can be assigned to parameters or
+            variables. For example, a statement such as <code class="literal">SET x =
+            (SELECT 1, 2)</code> is invalid.
+          </p></li><li><p>
+            For character data types, if there is a <code class="literal">CHARACTER
+            SET</code> clause in the declaration, the specified
+            character set and its default collation are used. If there
+            is no such clause, the database character set and collation
+            that are in effect at the time the routine is created are
+            used. (These are given by the values of the
+            <code class="literal">character_set_database</code> and
+            <code class="literal">collation_database</code> system variables.) The
+            <code class="literal">COLLATE</code> attribute is not supported. (This
+            includes use of <code class="literal">BINARY</code>, because in this
+            context <code class="literal">BINARY</code> specifies the binary
+            collation of the character set.)
+          </p></li></ul></div><p>
+        The <code class="literal">COMMENT</code> clause is a MySQL extension, and
+        may be used to describe the stored routine. This information is
+        displayed by the <code class="literal">SHOW CREATE PROCEDURE</code> and
+        <code class="literal">SHOW CREATE FUNCTION</code> statements.
+      </p><p>
+        MySQL allows routines to contain DDL statements, such as
+        <code class="literal">CREATE</code> and <code class="literal">DROP</code>. MySQL
+        also allows stored procedures (but not stored functions) to
+        contain SQL transaction statements such as
+        <code class="literal">COMMIT</code>. Stored functions may not contain
+        statements that do explicit or implicit commit or rollback.
+        Support for these statements is not required by the SQL
+        standard, which states that each DBMS vendor may decide whether
+        to allow them.
+      </p><p>
+        Statements that return a result set cannot be used within a
+        stored function. This includes <code class="literal">SELECT</code>
+        statements that do not use <code class="literal">INTO</code> to fetch
+        column values into variables, <code class="literal">SHOW</code>
+        statements, and other statements such as
+        <code class="literal">EXPLAIN</code>. For statements that can be
+        determined at function definition time to return a result set, a
+        <code class="literal">Not allowed to return a result set from a
+        function</code> error occurs
+        (<code class="literal">ER_SP_NO_RETSET</code>). For statements that can be
+        determined only at runtime to return a result set, a
+        <code class="literal">PROCEDURE %s can't return a result set in the given
+        context</code> error occurs
+        (<code class="literal">ER_SP_BADSELECT</code>).
+      </p><p>
+        The following is an example of a simple stored procedure that
+        uses an <code class="literal">OUT</code> parameter. The example uses the
+        <span><strong class="command">mysql</strong></span> client <code class="literal">delimiter</code>
+        command to change the statement delimiter from
+        <code class="literal">;</code> to <code class="literal">//</code> while the
+        procedure is being defined. This allows the <code class="literal">;</code>
+        delimiter used in the procedure body to be passed through to the
+        server rather than being interpreted by <span><strong class="command">mysql</strong></span>
+        itself.
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>delimiter //</code></strong>
+
+mysql&gt; <strong class="userinput"><code>CREATE PROCEDURE simpleproc (OUT param1 INT)</code></strong>
+    -&gt; <strong class="userinput"><code>BEGIN</code></strong>
+    -&gt;   <strong class="userinput"><code>SELECT COUNT(*) INTO param1 FROM t;</code></strong>
+    -&gt; <strong class="userinput"><code>END;</code></strong>
+    -&gt; <strong class="userinput"><code>//</code></strong>
+Query OK, 0 rows affected (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>delimiter ;</code></strong>
+
+mysql&gt; <strong class="userinput"><code>CALL simpleproc(@a);</code></strong>
+Query OK, 0 rows affected (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>SELECT @a;</code></strong>
++------+
+| @a   |
++------+
+| 3    |
++------+
+1 row in set (0.00 sec)
+</pre><p>
+        When using the <code class="literal">delimiter</code> command, you should
+        avoid the use of the backslash
+        (“<span class="quote"><code class="literal">\</code></span>”) character because that is
+        the escape character for MySQL.
+      </p><p>
+        The following is an example of a function that takes a
+        parameter, performs an operation using an SQL function, and
+        returns the result. In this case, it is unnecessary to use
+        <code class="literal">delimiter</code> because the function definition
+        contains no internal <code class="literal">;</code> statement delimiters:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>CREATE FUNCTION hello (s CHAR(20))</code></strong>
+mysql&gt; <strong class="userinput"><code>RETURNS CHAR(50) DETERMINISTIC</code></strong>
+    -&gt; <strong class="userinput"><code>RETURN CONCAT('Hello, ',s,'!');</code></strong>
+Query OK, 0 rows affected (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>SELECT hello('world');</code></strong>
++----------------+
+| hello('world') |
++----------------+
+| Hello, world!  |
++----------------+
+1 row in set (0.00 sec)
+</pre><p>
+        For information about invoking stored procedures from within
+        programs written in a language that has a MySQL interface, see
+        <a href="stored-procedures.html#call" title="23.2.6. CALL Statement Syntax">Section 23.2.6, “<code class="literal">CALL</code> Statement Syntax”</a>.
+      </p></div><div class="section" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="alter-procedure"></a>23.2.3. <code class="literal">ALTER PROCEDURE</code> and <code class="literal">ALTER FUNCTION</code>
+        Syntax</h3></div></div></div><a class="indexterm" name="id2430802"></a><a class="indexterm" name="id2430811"></a><pre class="programlisting">ALTER {PROCEDURE | FUNCTION} <em class="replaceable"><code>sp_name</code></em> [<em class="replaceable"><code>characteristic</code></em> ...]
+
+<em class="replaceable"><code>characteristic</code></em>:
+    { CONTAINS SQL | NO SQL | READS SQL DATA | MODIFIES SQL DATA }
+  | SQL SECURITY { DEFINER | INVOKER }
+  | COMMENT '<em class="replaceable"><code>string</code></em>'
+</pre><p>
+        This statement can be used to change the characteristics of a
+        stored procedure or function. You must have the <code class="literal">ALTER
+        ROUTINE</code> privilege for the routine. (That privilege is
+        granted automatically to the routine creator.) If binary logging
+        is enabled, the <code class="literal">ALTER FUNCTION</code> statement
+        might also require the <code class="literal">SUPER</code> privilege, as
+        described in <a href="stored-procedures.html#stored-procedure-logging" title="23.4. Binary Logging of Stored Routines and Triggers">Section 23.4, “Binary Logging of Stored Routines and Triggers”</a>.
+      </p><p>
+        More than one change may be specified in an <code class="literal">ALTER
+        PROCEDURE</code> or <code class="literal">ALTER FUNCTION</code>
+        statement.
+      </p></div><div class="section" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="drop-function"></a>23.2.4. <code class="literal">DROP FUNCTION</code> Syntax</h3></div></div></div><p>
+        The <code class="literal">DROP FUNCTION</code> statement is used to drop
+        stored functions and user-defined functions (UDFs):
+      </p><div class="itemizedlist"><ul type="disc"><li><p>
+            For information about dropping stored functions, see
+            <a href="stored-procedures.html#drop-procedure" title="23.2.5. DROP PROCEDURE and DROP FUNCTION
+        Syntax">Section 23.2.5, “<code class="literal">DROP PROCEDURE</code> and <code class="literal">DROP FUNCTION</code>
+        Syntax”</a>.
+          </p></li><li><p>
+            For information about dropping user-defined functions, see
+            <a href="sql-syntax.html#drop-function-udf" title="12.5.3.2. DROP FUNCTION Syntax">Section 12.5.3.2, “<code class="literal">DROP FUNCTION</code> Syntax”</a>.
+          </p></li></ul></div></div><div class="section" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="drop-procedure"></a>23.2.5. <code class="literal">DROP PROCEDURE</code> and <code class="literal">DROP FUNCTION</code>
+        Syntax</h3></div></div></div><a class="indexterm" name="id2431010"></a><a class="indexterm" name="id2431019"></a><pre class="programlisting">DROP {PROCEDURE | FUNCTION} [IF EXISTS] <em class="replaceable"><code>sp_name</code></em>
+</pre><p>
+        This statement is used to drop a stored procedure or function.
+        That is, the specified routine is removed from the server. You
+        must have the <code class="literal">ALTER ROUTINE</code> privilege for the
+        routine. (That privilege is granted automatically to the routine
+        creator.)
+      </p><p>
+        The <code class="literal">IF EXISTS</code> clause is a MySQL extension. It
+        prevents an error from occurring if the procedure or function
+        does not exist. A warning is produced that can be viewed with
+        <code class="literal">SHOW WARNINGS</code>.
+      </p><p>
+        <code class="literal">DROP FUNCTION</code> is also used to drop
+        user-defined functions (see
+        <a href="sql-syntax.html#drop-function-udf" title="12.5.3.2. DROP FUNCTION Syntax">Section 12.5.3.2, “<code class="literal">DROP FUNCTION</code> Syntax”</a>).
+      </p></div><div class="section" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="call"></a>23.2.6. <code class="literal">CALL</code> Statement Syntax</h3></div></div></div><a class="indexterm" name="id2431119"></a><pre class="programlisting">CALL <em class="replaceable"><code>sp_name</code></em>([<em class="replaceable"><code>parameter</code></em>[,...]])
+CALL <em class="replaceable"><code>sp_name</code></em>[()]
+</pre><p>
+        The <code class="literal">CALL</code> statement invokes a procedure that
+        was defined previously with <code class="literal">CREATE PROCEDURE</code>.
+      </p><p>
+        <code class="literal">CALL</code> can pass back values to its caller using
+        parameters that are declared as <code class="literal">OUT</code> or
+        <code class="literal">INOUT</code> parameters. It also
+        “<span class="quote">returns</span>” the number of rows affected, which a
+        client program can obtain at the SQL level by calling the
+        <a href="functions.html#function_row-count"><code class="literal">ROW_COUNT()</code></a> function and from C
+        by calling the
+        <a href="apis.html#mysql-affected-rows" title="29.2.3.1. mysql_affected_rows()"><code class="literal">mysql_affected_rows()</code></a> C API
+        function.
+      </p><p>
+        As of MySQL 5.1.13, stored procedures that take no arguments can
+        be invoked without parentheses. That is, <code class="literal">CALL
+        p()</code> and <code class="literal">CALL p</code> are equivalent.
+      </p><p>
+        To get back a value from a procedure using an
+        <code class="literal">OUT</code> or <code class="literal">INOUT</code> parameter,
+        pass the parameter by means of a user variable, and then check
+        the value of the variable after the procedure returns. (If you
+        are calling the procedure from within another stored procedure
+        or function, you can also pass a routine parameter or local
+        routine variable as an <code class="literal">IN</code> or
+        <code class="literal">INOUT</code> parameter.) For an
+        <code class="literal">INOUT</code> parameter, initialize its value before
+        passing it to the procedure. The following procedure has an
+        <code class="literal">OUT</code> parameter that the procedure sets to the
+        current server version, and an <code class="literal">INOUT</code> value
+        that the procedure increments by one from its current value:
+      </p><pre class="programlisting">CREATE PROCEDURE p (OUT ver_param VARCHAR(25), INOUT incr_param INT)
+BEGIN
+  # Set value of OUT parameter
+  SELECT VERSION() INTO ver_param;
+  # Increment value of INOUT parameter
+  SET incr_param = incr_param + 1;
+END;
+</pre><p>
+        Before calling the procedure, initialize the variable to be
+        passed as the <code class="literal">INOUT</code> parameter. After calling
+        the procedure, the values of the two variables will have been
+        set or modified:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SET @increment = 10;</code></strong>
+mysql&gt; <strong class="userinput"><code>CALL p(@version, @increment);</code></strong>
+mysql&gt; <strong class="userinput"><code>SELECT @version, @increment;</code></strong>
++-----------------+------------+
+| @version        | @increment |
++-----------------+------------+
+| 5.1.12-beta-log | 11         | 
++-----------------+------------+
+</pre><p>
+        If you write C programs that use the <code class="literal">CALL</code> SQL
+        statement to execute stored procedures that produce result sets,
+        you <span class="emphasis"><em>must</em></span> set the
+        <code class="literal">CLIENT_MULTI_RESULTS</code> flag, either explicitly,
+        or implicitly by setting
+        <code class="literal">CLIENT_MULTI_STATEMENTS</code> when you call
+        <a href="apis.html#mysql-real-connect" title="29.2.3.52. mysql_real_connect()"><code class="literal">mysql_real_connect()</code></a>. This is
+        because each such stored procedure produces multiple results:
+        the result sets returned by statements executed within the
+        procedure, as well as a result to indicate the call status. To
+        process the result of a <code class="literal">CALL</code> statement, use a
+        loop that calls
+        <a href="apis.html#mysql-next-result" title="29.2.3.46. mysql_next_result()"><code class="literal">mysql_next_result()</code></a> to
+        determine whether there are more results. For an example, see
+        <a href="apis.html#c-api-multiple-queries" title="29.2.9. C API Handling of Multiple Statement Execution">Section 29.2.9, “C API Handling of Multiple Statement Execution”</a>.
+      </p><p>
+        For programs written in a language that provides a MySQL
+        interface, there is no native method for directly retrieving the
+        results of <code class="literal">OUT</code> or <code class="literal">INOUT</code>
+        parameters from <code class="literal">CALL</code> statements. To get the
+        parameter values, pass user-defined variables to the procedure
+        in the <code class="literal">CALL</code> statement and then execute a
+        <code class="literal">SELECT</code> statement to produce a result set
+        containing the variable values. The following example
+        illustrates the technique (without error checking) for a stored
+        procedure <code class="literal">p1</code> that has two
+        <code class="literal">OUT</code> parameters.
+      </p><pre class="programlisting">mysql_query(mysql, "CALL p1(@param1, @param2)");
+mysql_query(mysql, "SELECT @param1, @param2");
+result = mysql_store_result(mysql);
+row = mysql_fetch_row(result);
+mysql_free_result(result);
+</pre><p>
+        After the preceding code executes, <code class="literal">row[0]</code> and
+        <code class="literal">row[1]</code> contain the values of
+        <code class="literal">@param1</code> and <code class="literal">@param2</code>,
+        respectively.
+      </p><p>
+        To handle <code class="literal">INOUT</code> parameters, execute a
+        statement prior to the <code class="literal">CALL</code> that sets the
+        user variables to the values to be passed to the procedure.
+      </p></div><div class="section" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="begin-end"></a>23.2.7. <code class="literal">BEGIN ... END</code> Compound Statement Syntax</h3></div></div></div><a class="indexterm" name="id2431505"></a><a class="indexterm" name="id2431514"></a><pre class="programlisting">[<em class="replaceable"><code>begin_label</code></em>:] BEGIN
+    [<em class="replaceable"><code>statement_list</code></em>]
+END [<em class="replaceable"><code>end_label</code></em>]
+</pre><p>
+        <code class="literal">BEGIN ... END</code> syntax is used for writing
+        compound statements, which can appear within stored routines and
+        triggers. A compound statement can contain multiple statements,
+        enclosed by the <code class="literal">BEGIN</code> and
+        <code class="literal">END</code> keywords.
+        <em class="replaceable"><code>statement_list</code></em> represents a list of
+        one or more statements. Each statement within
+        <em class="replaceable"><code>statement_list</code></em> must be terminated by
+        a semicolon (<code class="literal">;</code>) statement delimiter. Note
+        that <em class="replaceable"><code>statement_list</code></em> is optional,
+        which means that the empty compound statement (<code class="literal">BEGIN
+        END</code>) is legal.
+      </p><p>
+        Use of multiple statements requires that a client is able to
+        send statement strings containing the <code class="literal">;</code>
+        statement delimiter. This is handled in the
+        <span><strong class="command">mysql</strong></span> command-line client with the
+        <code class="literal">delimiter</code> command. Changing the
+        <code class="literal">;</code> end-of-statement delimiter (for example, to
+        <code class="literal">//</code>) allows <code class="literal">;</code> to be used in
+        a routine body. For an example, see
+        <a href="stored-procedures.html#create-procedure" title="23.2.2. CREATE PROCEDURE and CREATE
+        FUNCTION Syntax">Section 23.2.2, “<code class="literal">CREATE PROCEDURE</code> and <code class="literal">CREATE
+        FUNCTION</code> Syntax”</a>.
+      </p><p>
+        A compound statement can be labeled.
+        <em class="replaceable"><code>end_label</code></em> cannot be given unless
+        <em class="replaceable"><code>begin_label</code></em> also is present. If both
+        are present, they must be the same.
+      </p><p>
+        The optional <code class="literal">[NOT] ATOMIC</code> clause is not yet
+        supported. This means that no transactional savepoint is set at
+        the start of the instruction block and the
+        <code class="literal">BEGIN</code> clause used in this context has no
+        effect on the current transaction.
+      </p></div><div class="section" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="declare"></a>23.2.8. <code class="literal">DECLARE</code> Statement Syntax</h3></div></div></div><a class="indexterm" name="id2431699"></a><p>
+        The <code class="literal">DECLARE</code> statement is used to define
+        various items local to a routine:
+      </p><div class="itemizedlist"><ul type="disc"><li><p>
+            Local variables. See
+            <a href="stored-procedures.html#variables-in-stored-procedures" title="23.2.9. Variables in Stored Routines">Section 23.2.9, “Variables in Stored Routines”</a>.
+          </p></li><li><p>
+            Conditions and handlers. See
+            <a href="stored-procedures.html#conditions-and-handlers" title="23.2.10. Conditions and Handlers">Section 23.2.10, “Conditions and Handlers”</a>.
+          </p></li><li><p>
+            Cursors. See <a href="stored-procedures.html#cursors" title="23.2.11. Cursors">Section 23.2.11, “Cursors”</a>.
+          </p></li></ul></div><p>
+        The <code class="literal">SIGNAL</code> and <code class="literal">RESIGNAL</code>
+        statements are not currently supported.
+      </p><p>
+        <code class="literal">DECLARE</code> is allowed only inside a
+        <code class="literal">BEGIN ... END</code> compound statement and must be
+        at its start, before any other statements.
+      </p><p>
+        Declarations must follow a certain order. Cursors must be
+        declared before declaring handlers, and variables and conditions
+        must be declared before declaring either cursors or handlers.
+      </p></div><div class="section" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="variables-in-stored-procedures"></a>23.2.9. Variables in Stored Routines</h3></div></div></div><div class="toc"><dl><dt><span class="section"><a href="stored-procedures.html#declare-local-variables">23.2.9.1. <code class="literal">DECLARE</code> Local Variables</a></span></dt><dt><span class="section"><a href="stored-procedures.html#set-statement">23.2.9.2. Variable <code class="literal">SET</code> Statement</a></span></dt><dt><span class="section"><a href="stored-procedures.html#select-into-statement">23.2.9.3. <code class="literal">SELECT ... INTO</code> Statement</a></span></dt></dl></div><p>
+        You may declare and use variables within a routine.
+      </p><div class="section" lang="en"><div class="titlepage"><div><div><h4 class="title"><a name="declare-local-variables"></a>23.2.9.1. <code class="literal">DECLARE</code> Local Variables</h4></div></div></div><pre class="programlisting">DECLARE <em class="replaceable"><code>var_name</code></em>[,...] <em class="replaceable"><code>type</code></em> [DEFAULT <em class="replaceable"><code>value</code></em>]
+</pre><p>
+          This statement is used to declare local variables. To provide
+          a default value for the variable, include a
+          <code class="literal">DEFAULT</code> clause. The value can be specified
+          as an expression; it need not be a constant. If the
+          <code class="literal">DEFAULT</code> clause is missing, the initial
+          value is <code class="literal">NULL</code>.
+        </p><p>
+          Local variables are treated like routine parameters with
+          respect to data type and overflow checking. See
+          <a href="stored-procedures.html#create-procedure" title="23.2.2. CREATE PROCEDURE and CREATE
+        FUNCTION Syntax">Section 23.2.2, “<code class="literal">CREATE PROCEDURE</code> and <code class="literal">CREATE
+        FUNCTION</code> Syntax”</a>.
+        </p><p>
+          The scope of a local variable is within the <code class="literal">BEGIN ...
+          END</code> block where it is declared. The variable can be
+          referred to in blocks nested within the declaring block,
+          except those blocks that declare a variable with the same
+          name.
+        </p></div><div class="section" lang="en"><div class="titlepage"><div><div><h4 class="title"><a name="set-statement"></a>23.2.9.2. Variable <code class="literal">SET</code> Statement</h4></div></div></div><a class="indexterm" name="id2431920"></a><pre class="programlisting">SET <em class="replaceable"><code>var_name</code></em> = <em class="replaceable"><code>expr</code></em> [, <em class="replaceable"><code>var_name</code></em> = <em class="replaceable"><code>expr</code></em>] ...
+</pre><p>
+          The <code class="literal">SET</code> statement in stored routines is an
+          extended version of the general <code class="literal">SET</code>
+          statement. Referenced variables may be ones declared inside a
+          routine, or global system variables.
+        </p><p>
+          The <code class="literal">SET</code> statement in stored routines is
+          implemented as part of the pre-existing <code class="literal">SET</code>
+          syntax. This allows an extended syntax of <code class="literal">SET a=x,
+          b=y, ...</code> where different variable types (locally
+          declared variables and global and session server variables)
+          can be mixed. This also allows combinations of local variables
+          and some options that make sense only for system variables; in
+          that case, the options are recognized but ignored.
+        </p></div><div class="section" lang="en"><div class="titlepage"><div><div><h4 class="title"><a name="select-into-statement"></a>23.2.9.3. <code class="literal">SELECT ... INTO</code> Statement</h4></div></div></div><a class="indexterm" name="id2432028"></a><pre class="programlisting">SELECT <em class="replaceable"><code>col_name</code></em>[,...] INTO <em class="replaceable"><code>var_name</code></em>[,...] <em class="replaceable"><code>table_expr</code></em>
+</pre><p>
+          This <code class="literal">SELECT</code> syntax stores selected columns
+          directly into variables. Therefore, only a single row may be
+          retrieved.
+        </p><pre class="programlisting">SELECT id,data INTO x,y FROM test.t1 LIMIT 1;
+</pre><p>
+          User variable names are not case sensitive. See
+          <a href="language-structure.html#user-variables" title="8.4. User-Defined Variables">Section 8.4, “User-Defined Variables”</a>.
+        </p><div class="important" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Important</h3><p>
+            SQL variable names should not be the same as column names.
+            If an SQL statement, such as a <code class="literal">SELECT ...
+            INTO</code> statement, contains a reference to a column
+            and a declared local variable with the same name, MySQL
+            currently interprets the reference as the name of a
+            variable. For example, in the following statement,
+            <code class="literal">xname</code> is interpreted as a reference to
+            the <code class="literal">xname</code> <span class="emphasis"><em>variable</em></span>
+            rather than the <code class="literal">xname</code>
+            <span class="emphasis"><em>column</em></span>:
+          </p></div><pre class="programlisting">CREATE PROCEDURE sp1 (x VARCHAR(5))
+  BEGIN
+    DECLARE xname VARCHAR(5) DEFAULT 'bob';
+    DECLARE newname VARCHAR(5);
+    DECLARE xid INT;
+    
+    SELECT xname,id INTO newname,xid 
+      FROM table1 WHERE xname = xname;
+    SELECT newname;
+  END;
+</pre><p>
+          When this procedure is called, the <code class="literal">newname</code>
+          variable returns the value <code class="literal">'bob'</code> regardless
+          of the value of the <code class="literal">table1.xname</code> column.
+        </p><p>
+          See also <a href="restrictions.html#routine-restrictions" title="D.1. Restrictions on Stored Routines, Triggers, and Events">Section D.1, “Restrictions on Stored Routines, Triggers, and Events”</a>.
+        </p></div></div><div class="section" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="conditions-and-handlers"></a>23.2.10. Conditions and Handlers</h3></div></div></div><div class="toc"><dl><dt><span class="section"><a href="stored-procedures.html#declare-conditions">23.2.10.1. <code class="literal">DECLARE</code> Conditions</a></span></dt><dt><span class="section"><a href="stored-procedures.html#declare-handlers">23.2.10.2. <code class="literal">DECLARE</code> Handlers</a></span></dt></dl></div><p>
+        Certain conditions may require specific handling. These
+        conditions can relate to errors, as well as to general flow
+        control inside a routine.
+      </p><div class="section" lang="en"><div class="titlepage"><div><div><h4 class="title"><a name="declare-conditions"></a>23.2.10.1. <code class="literal">DECLARE</code> Conditions</h4></div></div></div><a class="indexterm" name="id2432215"></a><pre class="programlisting">DECLARE <em class="replaceable"><code>condition_name</code></em> CONDITION FOR <em class="replaceable"><code>condition_value</code></em>
+
+<em class="replaceable"><code>condition_value</code></em>:
+    SQLSTATE [VALUE] <em class="replaceable"><code>sqlstate_value</code></em>
+  | <em class="replaceable"><code>mysql_error_code</code></em>
+</pre><p>
+          This statement specifies conditions that need specific
+          handling. It associates a name with a specified error
+          condition. The name can subsequently be used in a
+          <code class="literal">DECLARE HANDLER</code> statement. See
+          <a href="stored-procedures.html#declare-handlers" title="23.2.10.2. DECLARE Handlers">Section 23.2.10.2, “<code class="literal">DECLARE</code> Handlers”</a>.
+        </p><p>
+          A <em class="replaceable"><code>condition_value</code></em> can be an
+          SQLSTATE value or a MySQL error code. For a list of SQLSTATE
+          and error values, see <a href="error-handling.html#error-messages-server" title="B.2. Server Error Codes and Messages">Section B.2, “Server Error Codes and Messages”</a>.
+        </p></div><div class="section" lang="en"><div class="titlepage"><div><div><h4 class="title"><a name="declare-handlers"></a>23.2.10.2. <code class="literal">DECLARE</code> Handlers</h4></div></div></div><a class="indexterm" name="id2432316"></a><pre class="programlisting">DECLARE <em class="replaceable"><code>handler_type</code></em> HANDLER FOR <em class="replaceable"><code>condition_value</code></em>[,...] <em class="replaceable"><code>statement</code></em>
+
+<em class="replaceable"><code>handler_type</code></em>:
+    CONTINUE
+  | EXIT
+  | UNDO
+
+<em class="replaceable"><code>condition_value</code></em>:
+    SQLSTATE [VALUE] <em class="replaceable"><code>sqlstate_value</code></em>
+  | <em class="replaceable"><code>condition_name</code></em>
+  | SQLWARNING
+  | NOT FOUND
+  | SQLEXCEPTION
+  | <em class="replaceable"><code>mysql_error_code</code></em>
+</pre><p>
+          The <code class="literal">DECLARE ... HANDLER</code> statement specifies
+          handlers that each may deal with one or more conditions. If
+          one of these conditions occurs, the specified
+          <em class="replaceable"><code>statement</code></em> is executed.
+          <em class="replaceable"><code>statement</code></em> can be a simple statement
+          (for example, <code class="literal">SET <em class="replaceable"><code>var_name</code></em>
+          = <em class="replaceable"><code>value</code></em></code>), or it can be a
+          compound statement written using <code class="literal">BEGIN</code> and
+          <code class="literal">END</code> (see <a href="stored-procedures.html#begin-end" title="23.2.7. BEGIN ... END Compound Statement Syntax">Section 23.2.7, “<code class="literal">BEGIN ... END</code> Compound Statement Syntax”</a>).
+        </p><p>
+          For a <code class="literal">CONTINUE</code> handler, execution of the
+          current routine continues after execution of the handler
+          statement. For an <code class="literal">EXIT</code> handler, execution
+          terminates for the <code class="literal">BEGIN ... END</code> compound
+          statement in which the handler is declared. (This is true even
+          if the condition occurs in an inner block.) The
+          <code class="literal">UNDO</code> handler type statement is not yet
+          supported.
+        </p><p>
+          If a condition occurs for which no handler has been declared,
+          the default action is <code class="literal">EXIT</code>.
+        </p><p>
+          A <em class="replaceable"><code>condition_value</code></em> can be any of the
+          following values:
+        </p><div class="itemizedlist"><ul type="disc"><li><p>
+              An SQLSTATE value or a MySQL error code. You should not
+              use SQLSTATE value <code class="literal">'00000'</code> or error
+              code 0, because those indicate sucess rather than an error
+              condition. For a list of SQLSTATE and error values, see
+              <a href="error-handling.html#error-messages-server" title="B.2. Server Error Codes and Messages">Section B.2, “Server Error Codes and Messages”</a>.
+            </p></li><li><p>
+              A condition name previously specified with
+              <code class="literal">DECLARE ... CONDITION</code>. See
+              <a href="stored-procedures.html#declare-conditions" title="23.2.10.1. DECLARE Conditions">Section 23.2.10.1, “<code class="literal">DECLARE</code> Conditions”</a>.
+            </p></li><li><p>
+              <code class="literal">SQLWARNING</code> is shorthand for all
+              SQLSTATE codes that begin with <code class="literal">01</code>.
+            </p></li><li><p>
+              <code class="literal">NOT FOUND</code> is shorthand for all SQLSTATE
+              codes that begin with <code class="literal">02</code>. This is
+              relevant only within the context of cursors and is used to
+              control what happens when a cursor reaches the end of a
+              data set.
+            </p></li><li><p>
+              <code class="literal">SQLEXCEPTION</code> is shorthand for all
+              SQLSTATE codes not caught by <code class="literal">SQLWARNING</code>
+              or <code class="literal">NOT FOUND</code>.
+            </p></li></ul></div><p>
+          Example:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>CREATE TABLE test.t (s1 int,primary key (s1));</code></strong>
+Query OK, 0 rows affected (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>delimiter //</code></strong>
+
+mysql&gt; <strong class="userinput"><code>CREATE PROCEDURE handlerdemo ()</code></strong>
+    -&gt; <strong class="userinput"><code>BEGIN</code></strong>
+    -&gt;   <strong class="userinput"><code>DECLARE CONTINUE HANDLER FOR SQLSTATE '23000' SET @x2 = 1;</code></strong>
+    -&gt;   <strong class="userinput"><code>SET @x = 1;</code></strong>
+    -&gt;   <strong class="userinput"><code>INSERT INTO test.t VALUES (1);</code></strong>
+    -&gt;   <strong class="userinput"><code>SET @x = 2;</code></strong>
+    -&gt;   <strong class="userinput"><code>INSERT INTO test.t VALUES (1);</code></strong>
+    -&gt;   <strong class="userinput"><code>SET @x = 3;</code></strong>
+    -&gt; <strong class="userinput"><code>END;</code></strong>
+    -&gt; <strong class="userinput"><code>//</code></strong>
+Query OK, 0 rows affected (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>CALL handlerdemo()//</code></strong>
+Query OK, 0 rows affected (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>SELECT @x//</code></strong>
+    +------+
+    | @x   |
+    +------+
+    | 3    |
+    +------+
+    1 row in set (0.00 sec)
+</pre><p>
+          The example associates a handler with SQLSTATE 23000, which
+          occurs for a duplicate-key error. Notice that
+          <code class="literal">@x</code> is <code class="literal">3</code>, which shows
+          that MySQL executed to the end of the procedure. If the line
+          <code class="literal">DECLARE CONTINUE HANDLER FOR SQLSTATE '23000' SET @x2
+          = 1;</code> had not been present, MySQL would have taken
+          the default path (<code class="literal">EXIT</code>) after the second
+          <code class="literal">INSERT</code> failed due to the <code class="literal">PRIMARY
+          KEY</code> constraint, and <code class="literal">SELECT @x</code>
+          would have returned <code class="literal">2</code>.
+        </p><p>
+          If you want to ignore a condition, you can declare a
+          <code class="literal">CONTINUE</code> handler for it and associate it
+          with an empty block. For example:
+        </p><pre class="programlisting">DECLARE CONTINUE HANDLER FOR SQLWARNING BEGIN END;
+</pre><p>
+          The statement associated with a handler cannot use
+          <code class="literal">ITERATE</code> or <code class="literal">LEAVE</code> to
+          refer to labels for blocks that enclose the handler
+          declaration. That is, the scope of a block label does not
+          include the code for handlers declared within the block.
+          Consider the following example, where the
+          <code class="literal">REPEAT</code> block has a label of
+          <code class="literal">retry</code>:
+        </p><pre class="programlisting">CREATE PROCEDURE p ()
+BEGIN
+  DECLARE i INT DEFAULT 3;
+  retry:
+    REPEAT
+      BEGIN
+        DECLARE CONTINUE HANDLER FOR SQLWARNING
+          BEGIN
+            ITERATE retry;  # illegal
+          END;
+      END;
+      IF i &lt; 0 THEN
+        LEAVE retry;        # legal
+      END IF;
+      SET i = i - 1;
+    UNTIL FALSE END REPEAT;
+END;
+</pre><p>
+          The label is in scope for the <code class="literal">IF</code> statement
+          within the block. It is not in scope for the
+          <code class="literal">CONTINUE</code> handler, so the reference there is
+          invalid and results in an error:
+        </p><pre class="programlisting">ERROR 1308 (42000): LEAVE with no matching label: retry
+</pre><p>
+          To avoid using references to outer labels in handlers, you can
+          use different strategies:
+        </p><div class="itemizedlist"><ul type="disc"><li><p>
+              If you want to leave the block, you can use an
+              <code class="literal">EXIT</code> handler:
+            </p><pre class="programlisting">DECLARE EXIT HANDLER FOR SQLWARNING BEGIN END;
+</pre></li><li><p>
+              If you want to iterate, you can set a status variable in
+              the handler that can be checked in the enclosing block to
+              determine whether the handler was invoked. The following
+              example uses the variable <code class="literal">done</code> for this
+              purpose:
+            </p><pre class="programlisting">CREATE PROCEDURE p ()
+BEGIN
+  DECLARE i INT DEFAULT 3;
+  DECLARE done INT DEFAULT FALSE;
+  retry:
+    REPEAT
+      BEGIN
+        DECLARE CONTINUE HANDLER FOR SQLWARNING
+          BEGIN
+            SET done = TRUE;
+          END;
+      END;
+      IF NOT done AND i &lt; 0 THEN
+        LEAVE retry;
+      END IF;
+      SET i = i - 1;
+    UNTIL FALSE END REPEAT;
+END;
+</pre></li></ul></div></div></div><div class="section" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="cursors"></a>23.2.11. Cursors</h3></div></div></div><div class="toc"><dl><dt><span class="section"><a href="stored-procedures.html#declare-cursors">23.2.11.1. Declaring Cursors</a></span></dt><dt><span class="section"><a href="stored-procedures.html#open">23.2.11.2. Cursor <code class="literal">OPEN</code> Statement</a></span></dt><dt><span class="section"><a href="stored-procedures.html#fetch">23.2.11.3. Cursor <code class="literal">FETCH</code> Statement</a></span></dt><dt><span class="section"><a href="stored-procedures.html#close">23.2.11.4. Cursor <code class="literal">CLOSE</code> Statement</a></span></dt></dl></div><a class="indexterm" name="id2432885"></a><p>
+        Cursors are supported inside stored procedures and functions and
+        triggers. The syntax is as in embedded SQL. Cursors currently
+        have these properties:
+      </p><div class="itemizedlist"><ul type="disc"><li><p>
+            Asensitive: The server may or may not make a copy of its
+            result table
+          </p></li><li><p>
+            Read only: Not updatable
+          </p></li><li><p>
+            Non-scrollable: Can be traversed only in one direction and
+            cannot skip rows
+          </p></li></ul></div><p>
+        Cursors must be declared before declaring handlers. Variables
+        and conditions must be declared before declaring either cursors
+        or handlers.
+      </p><p>
+        Example:
+      </p><pre class="programlisting">CREATE PROCEDURE curdemo()
+BEGIN
+  DECLARE done INT DEFAULT 0;
+  DECLARE a CHAR(16);
+  DECLARE b,c INT;
+  DECLARE cur1 CURSOR FOR SELECT id,data FROM test.t1;
+  DECLARE cur2 CURSOR FOR SELECT i FROM test.t2;
+  DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = 1;
+
+  OPEN cur1;
+  OPEN cur2;
+
+  REPEAT
+    FETCH cur1 INTO a, b;
+    FETCH cur2 INTO c;
+    IF NOT done THEN
+       IF b &lt; c THEN
+          INSERT INTO test.t3 VALUES (a,b);
+       ELSE
+          INSERT INTO test.t3 VALUES (a,c);
+       END IF;
+    END IF;
+  UNTIL done END REPEAT;
+
+  CLOSE cur1;
+  CLOSE cur2;
+END
+</pre><div class="section" lang="en"><div class="titlepage"><div><div><h4 class="title"><a name="declare-cursors"></a>23.2.11.1. Declaring Cursors</h4></div></div></div><pre class="programlisting">DECLARE <em class="replaceable"><code>cursor_name</code></em> CURSOR FOR <em class="replaceable"><code>select_statement</code></em>
+</pre><p>
+          This statement declares a cursor. Multiple cursors may be
+          declared in a routine, but each cursor in a given block must
+          have a unique name.
+        </p><p>
+          The <code class="literal">SELECT</code> statement cannot have an
+          <code class="literal">INTO</code> clause.
+        </p></div><div class="section" lang="en"><div class="titlepage"><div><div><h4 class="title"><a name="open"></a>23.2.11.2. Cursor <code class="literal">OPEN</code> Statement</h4></div></div></div><a class="indexterm" name="id2433026"></a><pre class="programlisting">OPEN <em class="replaceable"><code>cursor_name</code></em>
+</pre><p>
+          This statement opens a previously declared cursor.
+        </p></div><div class="section" lang="en"><div class="titlepage"><div><div><h4 class="title"><a name="fetch"></a>23.2.11.3. Cursor <code class="literal">FETCH</code> Statement</h4></div></div></div><a class="indexterm" name="id2433089"></a><pre class="programlisting">FETCH <em class="replaceable"><code>cursor_name</code></em> INTO <em class="replaceable"><code>var_name</code></em> [, <em class="replaceable"><code>var_name</code></em>] ...
+</pre><p>
+          This statement fetches the next row (if a row exists) using
+          the specified open cursor, and advances the cursor pointer.
+        </p><p>
+          If no more rows are available, a No Data condition occurs with
+          SQLSTATE value 02000. To detect this condition, you can set up
+          a handler for it (or for a <code class="literal">NOT FOUND</code>
+          condition). An example is shown in <a href="stored-procedures.html#cursors" title="23.2.11. Cursors">Section 23.2.11, “Cursors”</a>.
+        </p></div><div class="section" lang="en"><div class="titlepage"><div><div><h4 class="title"><a name="close"></a>23.2.11.4. Cursor <code class="literal">CLOSE</code> Statement</h4></div></div></div><a class="indexterm" name="id2433176"></a><pre class="programlisting">CLOSE <em class="replaceable"><code>cursor_name</code></em>
+</pre><p>
+          This statement closes a previously opened cursor.
+        </p><p>
+          If not closed explicitly, a cursor is closed at the end of the
+          compound statement in which it was declared.
+        </p></div></div><div class="section" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="flow-control-constructs"></a>23.2.12. Flow Control Constructs</h3></div></div></div><div class="toc"><dl><dt><span class="section"><a href="stored-procedures.html#if-statement">23.2.12.1. <code class="literal">IF</code> Statement</a></span></dt><dt><span class="section"><a href="stored-procedures.html#case-statement">23.2.12.2. <code class="literal">CASE</code> Statement</a></span></dt><dt><span class="section"><a href="stored-procedures.html#loop-statement">23.2.12.3. <code class="literal">LOOP</code> Statement</a></span></dt><dt><span class="section"><a href="stored-procedures.html#leave-statement">23.2.12.4. <code class="literal">LEAVE</code> Statement</a></span></dt><dt><span class="section"><a href="stored-procedures.html#iterate-statement">23.2.12.5. <code class="literal">ITERATE</code> Statement</a></span></dt><dt><span class="section"><a href="stored-procedures.html#repeat-statement">23.2.12.6. <code class="literal">REPEAT</code> Statement</a></span></dt><dt><span class="section"><a href="stored-procedures.html#while-statement">23.2.12.7. <code class="literal">WHILE</code> Statement</a></span></dt></dl></div><p>
+        The <code class="literal">IF</code>, <code class="literal">CASE</code>,
+        <code class="literal">ITERATE</code>, <code class="literal">LEAVE</code>
+        <code class="literal">LOOP</code>, <code class="literal">WHILE</code>, and
+        <code class="literal">REPEAT</code> constructs are fully implemented.
+      </p><p>
+        Many of these constructs contain other statements, as indicated
+        by the grammar specifications in the following sections. Such
+        constructs may be nested. For example, an <code class="literal">IF</code>
+        statement might contain a <code class="literal">WHILE</code> loop, which
+        itself contains a <code class="literal">CASE</code> statement.
+      </p><p>
+        <code class="literal">FOR</code> loops are not currently supported.
+      </p><div class="section" lang="en"><div class="titlepage"><div><div><h4 class="title"><a name="if-statement"></a>23.2.12.1. <code class="literal">IF</code> Statement</h4></div></div></div><a class="indexterm" name="id2433327"></a><pre class="programlisting">IF <em class="replaceable"><code>search_condition</code></em> THEN <em class="replaceable"><code>statement_list</code></em>
+    [ELSEIF <em class="replaceable"><code>search_condition</code></em> THEN <em class="replaceable"><code>statement_list</code></em>] ...
+    [ELSE <em class="replaceable"><code>statement_list</code></em>]
+END IF
+</pre><p>
+          <code class="literal">IF</code> implements a basic conditional
+          construct. If the <em class="replaceable"><code>search_condition</code></em>
+          evaluates to true, the corresponding SQL statement list is
+          executed. If no <em class="replaceable"><code>search_condition</code></em>
+          matches, the statement list in the <code class="literal">ELSE</code>
+          clause is executed. Each
+          <em class="replaceable"><code>statement_list</code></em> consists of one or
+          more statements.
+        </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Note</h3><p>
+            There is also an <a href="functions.html#function_if"><code class="literal">IF()</code></a>
+            <span class="emphasis"><em>function</em></span>, which differs from the
+            <code class="literal">IF</code> <span class="emphasis"><em>statement</em></span>
+            described here. See
+            <a href="functions.html#control-flow-functions" title="11.3. Control Flow Functions">Section 11.3, “Control Flow Functions”</a>.
+          </p></div><p>
+          An <code class="literal">IF ... END IF</code> block — like all
+          other flow-control blocks used within stored routines —
+          must be terminated with a semicolon, as shown in this example:
+
+</p><pre class="programlisting">DELIMITER //
+
+CREATE FUNCTION SimpleCompare(n INT, m INT) 
+  RETURNS VARCHAR(20)
+
+  BEGIN
+    DECLARE s VARCHAR(20);
+
+    IF n &gt; m THEN SET s = '&gt;';
+    ELSEIF n = m THEN SET s = '=';
+    ELSE SET s = '&lt;';
+    END IF;
+
+    SET s = CONCAT(n, ' ', s, ' ', m);
+
+    RETURN s;
+  END //
+
+DELIMITER ;
+</pre><p>
+        </p><p>
+          As with other flow-control constructs, <code class="literal">IF ... END
+          IF</code> blocks may be nested within other flow-control
+          constructs, including other <code class="literal">IF</code> statements.
+          Each <code class="literal">IF</code> must be terminated by its own
+          <code class="literal">END IF</code> followed by a semicolon. You can use
+          indentation to make nested flow-control blocks more easily
+          readable by humans (although this is not required by MySQL),
+          as shown here:
+
+</p><pre class="programlisting">DELIMITER //
+
+CREATE FUNCTION VerboseCompare (n INT, m INT) 
+  RETURNS VARCHAR(50)
+
+  BEGIN
+    DECLARE s VARCHAR(50);
+
+    IF n = m THEN SET s = 'equals';
+    ELSE
+      IF n &gt; m THEN SET s = 'greater';
+      ELSE SET s = 'less';
+      END IF;
+    
+      SET s = CONCAT('is ', s, ' than');
+    END IF;
+
+    SET s = CONCAT(n, ' ', s, ' ', m, '.');
+
+    RETURN s;
+  END //
+
+DELIMITER ;
+</pre><p>
+
+          In this example, the inner <code class="literal">IF</code> is evaluated
+          only if <code class="literal">n</code> is not equal to
+          <code class="literal">m</code>.
+        </p></div><div class="section" lang="en"><div class="titlepage"><div><div><h4 class="title"><a name="case-statement"></a>23.2.12.2. <code class="literal">CASE</code> Statement</h4></div></div></div><a class="indexterm" name="id2433544"></a><pre class="programlisting">CASE <em class="replaceable"><code>case_value</code></em>
+    WHEN <em class="replaceable"><code>when_value</code></em> THEN <em class="replaceable"><code>statement_list</code></em>
+    [WHEN <em class="replaceable"><code>when_value</code></em> THEN <em class="replaceable"><code>statement_list</code></em>] ...
+    [ELSE <em class="replaceable"><code>statement_list</code></em>]
+END CASE
+</pre><p>
+          Or:
+        </p><pre class="programlisting">CASE
+    WHEN <em class="replaceable"><code>search_condition</code></em> THEN <em class="replaceable"><code>statement_list</code></em>
+    [WHEN <em class="replaceable"><code>search_condition</code></em> THEN <em class="replaceable"><code>statement_list</code></em>] ...
+    [ELSE <em class="replaceable"><code>statement_list</code></em>]
+END CASE
+</pre><p>
+          The <code class="literal">CASE</code> statement for stored routines
+          implements a complex conditional construct. If a
+          <em class="replaceable"><code>search_condition</code></em> evaluates to true,
+          the corresponding SQL statement list is executed. If no search
+          condition matches, the statement list in the
+          <code class="literal">ELSE</code> clause is executed. Each
+          <em class="replaceable"><code>statement_list</code></em> consists of one or
+          more statements.
+        </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Note</h3><p>
+            If no search condition matches the value tested, and the
+            <code class="literal">CASE</code> statement contains no
+            <code class="literal">ELSE</code> clause, a <span class="errortext">Case not found
+            for CASE statement</span> error results.
+          </p></div><p>
+          Each <em class="replaceable"><code>statement_list</code></em> consists of one
+          or more statements; an empty
+          <em class="replaceable"><code>statement_list</code></em> is not allowed. To
+          handle situations where no value is matched by any
+          <code class="literal">WHEN</code> clause, use an <code class="literal">ELSE</code>
+          containing an empty <code class="literal">BEGIN ... END</code> block, as
+          shown in this example:
+
+</p><pre class="programlisting">DELIMITER |
+
+CREATE PROCEDURE p()
+  BEGIN
+    DECLARE v INT DEFAULT 1;
+    
+    CASE v
+      WHEN 2 THEN SELECT v;
+      WHEN 3 THEN SELECT 0;
+      ELSE
+        BEGIN
+        END;
+    END CASE;
+  END;
+  |
+</pre><p>
+
+          (The indentation used here in the <code class="literal">ELSE</code>
+          clause is for purposes of clarity only, and is not otherwise
+          significant.)
+        </p><p>
+          The syntax of the <code class="literal">CASE</code>
+          <span class="emphasis"><em>statement</em></span> used inside stored routines
+          differs slightly from that of the SQL <code class="literal">CASE</code>
+          <span class="emphasis"><em>expression</em></span> described in
+          <a href="functions.html#control-flow-functions" title="11.3. Control Flow Functions">Section 11.3, “Control Flow Functions”</a>. The
+          <code class="literal">CASE</code> statement cannot have an <code class="literal">ELSE
+          NULL</code> clause, and it is terminated with <code class="literal">END
+          CASE</code> instead of <code class="literal">END</code>.
+        </p></div><div class="section" lang="en"><div class="titlepage"><div><div><h4 class="title"><a name="loop-statement"></a>23.2.12.3. <code class="literal">LOOP</code> Statement</h4></div></div></div><a class="indexterm" name="id2433799"></a><pre class="programlisting">[<em class="replaceable"><code>begin_label</code></em>:] LOOP
+    <em class="replaceable"><code>statement_list</code></em>
+END LOOP [<em class="replaceable"><code>end_label</code></em>]
+</pre><p>
+          <code class="literal">LOOP</code> implements a simple loop construct,
+          enabling repeated execution of the statement list, which
+          consists of one or more statements. The statements within the
+          loop are repeated until the loop is exited; usually this is
+          accomplished with a <code class="literal">LEAVE</code> statement.
+        </p><p>
+          A <code class="literal">LOOP</code> statement can be labeled.
+          <em class="replaceable"><code>end_label</code></em> cannot be given unless
+          <em class="replaceable"><code>begin_label</code></em> also is present. If
+          both are present, they must be the same.
+        </p></div><div class="section" lang="en"><div class="titlepage"><div><div><h4 class="title"><a name="leave-statement"></a>23.2.12.4. <code class="literal">LEAVE</code> Statement</h4></div></div></div><a class="indexterm" name="id2433899"></a><pre class="programlisting">LEAVE <em class="replaceable"><code>label</code></em>
+</pre><p>
+          This statement is used to exit any labeled flow control
+          construct. It can be used within <code class="literal">BEGIN ...
+          END</code> or loop constructs (<code class="literal">LOOP</code>,
+          <code class="literal">REPEAT</code>, <code class="literal">WHILE</code>).
+        </p></div><div class="section" lang="en"><div class="titlepage"><div><div><h4 class="title"><a name="iterate-statement"></a>23.2.12.5. <code class="literal">ITERATE</code> Statement</h4></div></div></div><a class="indexterm" name="id2433984"></a><pre class="programlisting">ITERATE <em class="replaceable"><code>label</code></em>
+</pre><p>
+          <code class="literal">ITERATE</code> can appear only within
+          <code class="literal">LOOP</code>, <code class="literal">REPEAT</code>, and
+          <code class="literal">WHILE</code> statements.
+          <code class="literal">ITERATE</code> means “<span class="quote">do the loop
+          again.</span>”
+        </p><p>
+          Example:
+        </p><pre class="programlisting">CREATE PROCEDURE doiterate(p1 INT)
+BEGIN
+  label1: LOOP
+    SET p1 = p1 + 1;
+    IF p1 &lt; 10 THEN ITERATE label1; END IF;
+    LEAVE label1;
+  END LOOP label1;
+  SET @x = p1;
+END
+</pre></div><div class="section" lang="en"><div class="titlepage"><div><div><h4 class="title"><a name="repeat-statement"></a>23.2.12.6. <code class="literal">REPEAT</code> Statement</h4></div></div></div><a class="indexterm" name="id2434098"></a><a class="indexterm" name="id2434107"></a><pre class="programlisting">[<em class="replaceable"><code>begin_label</code></em>:] REPEAT
+    <em class="replaceable"><code>statement_list</code></em>
+UNTIL <em class="replaceable"><code>search_condition</code></em>
+END REPEAT [<em class="replaceable"><code>end_label</code></em>]
+</pre><p>
+          The statement list within a <code class="literal">REPEAT</code>
+          statement is repeated until the
+          <em class="replaceable"><code>search_condition</code></em> is true. Thus, a
+          <code class="literal">REPEAT</code> always enters the loop at least
+          once. <em class="replaceable"><code>statement_list</code></em> consists of
+          one or more statements.
+        </p><p>
+          A <code class="literal">REPEAT</code> statement can be labeled.
+          <em class="replaceable"><code>end_label</code></em> cannot be given unless
+          <em class="replaceable"><code>begin_label</code></em> also is present. If
+          both are present, they must be the same.
+        </p><p>
+          Example:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>delimiter //</code></strong>
+
+mysql&gt; <strong class="userinput"><code>CREATE PROCEDURE dorepeat(p1 INT)</code></strong>
+    -&gt; <strong class="userinput"><code>BEGIN</code></strong>
+    -&gt;   <strong class="userinput"><code>SET @x = 0;</code></strong>
+    -&gt;   <strong class="userinput"><code>REPEAT SET @x = @x + 1; UNTIL @x &gt; p1 END REPEAT;</code></strong>
+    -&gt; <strong class="userinput"><code>END</code></strong>
+    -&gt; <strong class="userinput"><code>//</code></strong>
+Query OK, 0 rows affected (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>CALL dorepeat(1000)//</code></strong>
+Query OK, 0 rows affected (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>SELECT @x//</code></strong>
++------+
+| @x   |
++------+
+| 1001 |
++------+
+1 row in set (0.00 sec)
+</pre></div><div class="section" lang="en"><div class="titlepage"><div><div><h4 class="title"><a name="while-statement"></a>23.2.12.7. <code class="literal">WHILE</code> Statement</h4></div></div></div><a class="indexterm" name="id2434291"></a><pre class="programlisting">[<em class="replaceable"><code>begin_label</code></em>:] WHILE <em class="replaceable"><code>search_condition</code></em> DO
+    <em class="replaceable"><code>statement_list</code></em>
+END WHILE [<em class="replaceable"><code>end_label</code></em>]
+</pre><p>
+          The statement list within a <code class="literal">WHILE</code> statement
+          is repeated as long as the
+          <em class="replaceable"><code>search_condition</code></em> is true.
+          <em class="replaceable"><code>statement_list</code></em> consists of one or
+          more statements.
+        </p><p>
+          A <code class="literal">WHILE</code> statement can be labeled.
+          <em class="replaceable"><code>end_label</code></em> cannot be given unless
+          <em class="replaceable"><code>begin_label</code></em> also is present. If
+          both are present, they must be the same.
+        </p><p>
+          Example:
+        </p><pre class="programlisting">CREATE PROCEDURE dowhile()
+BEGIN
+  DECLARE v1 INT DEFAULT 5;
+
+  WHILE v1 &gt; 0 DO
+    ...
+    SET v1 = v1 - 1;
+  END WHILE;
+END
+</pre></div></div><div class="section" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="return"></a>23.2.13. <code class="literal">RETURN</code> Statement Syntax</h3></div></div></div><a class="indexterm" name="id2434415"></a><pre class="programlisting">RETURN <em class="replaceable"><code>expr</code></em>
+</pre><p>
+        The <code class="literal">RETURN</code> statement terminates execution of
+        a stored function and returns the value
+        <em class="replaceable"><code>expr</code></em> to the function caller. There
+        must be at least one <code class="literal">RETURN</code> statement in a
+        stored function. There may be more than one if the function has
+        multiple exit points.
+      </p><p>
+        This statement is not used in stored procedures, triggers, or
+        events.
+      </p></div></div><div class="section" lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="stored-procedure-last-insert-id"></a>23.3. Stored Procedures, Functions, Triggers, and
+      <a href="functions.html#function_last-insert-id"><code class="literal">LAST_INSERT_ID()</code></a></h2></div></div></div><a class="indexterm" name="id2434500"></a><a class="indexterm" name="id2434509"></a><a class="indexterm" name="id2434518"></a><a class="indexterm" name="id2434530"></a><p>
+      Within the body of a stored routine (procedure or function) or a
+      trigger, the value of
+      <a href="functions.html#function_last-insert-id"><code class="literal">LAST_INSERT_ID()</code></a> changes the same
+      way as for statements executed outside the body of these kinds of
+      objects (see <a href="functions.html#information-functions" title="11.11.3. Information Functions">Section 11.11.3, “Information Functions”</a>). The effect
+      of a stored routine or trigger upon the value of
+      <a href="functions.html#function_last-insert-id"><code class="literal">LAST_INSERT_ID()</code></a> that is seen by
+      following statements depends on the kind of routine:
+    </p><div class="itemizedlist"><ul type="disc"><li><p>
+          If a stored procedure executes statements that change the
+          value of <a href="functions.html#function_last-insert-id"><code class="literal">LAST_INSERT_ID()</code></a>, the
+          changed value will be seen by statements that follow the
+          procedure call.
+        </p></li><li><p>
+          For stored functions and triggers that change the value, the
+          value is restored when the function or trigger ends, so
+          following statements will not see a changed value.
+        </p></li></ul></div></div><div class="section" lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="stored-procedure-logging"></a>23.4. Binary Logging of Stored Routines and Triggers</h2></div></div></div><p>
+      The binary log contains information about SQL statements that
+      modify database contents. This information is stored in the form
+      of “<span class="quote">events</span>” that describe the modifications. The
+      binary log has two important purposes:
+    </p><div class="itemizedlist"><ul type="disc"><li><p>
+          For replication, the binary log is used on master replication
+          servers as a record of the statements to be sent to slave
+          servers. The master server sends the events contained in its
+          binary log to its slaves, which execute those events to make
+          the same data changes that were made on the master. See
+          <a href="replication.html#replication-implementation" title="19.4. Replication Implementation">Section 19.4, “Replication Implementation”</a>.
+        </p></li><li><p>
+          Certain data recovery operations require use of the binary
+          log. After a backup file has been restored, the events in the
+          binary log that were recorded after the backup was made are
+          re-executed. These events bring databases up to date from the
+          point of the backup. See
+          <a href="backup-and-recovery.html#recovery-from-backups" title="6.2.2. Using Backups for Recovery">Section 6.2.2, “Using Backups for Recovery”</a>.
+        </p></li></ul></div><p>
+      However, there are certain binary logging issues that apply with
+      respect to stored routines (procedures and functions) and
+      triggers, if logging occurs at the statement level:
+    </p><div class="itemizedlist"><ul type="disc"><li><p>
+          In some cases, it is possible that a statement will affect
+          different sets of rows on a master and a slave.
+        </p></li><li><p>
+          Replicated statements executed on a slave are processed by the
+          slave SQL thread, which has full privileges. It is possible
+          for a procedure to follow different execution paths on master
+          and slave servers, so a user can write a routine containing a
+          dangerous statement that will execute only on the slave where
+          it is processed by a thread that has full privileges.
+        </p></li><li><p>
+          If a routine that modifies data is non-deterministic, it is
+          not repeatable. This can result in different data on a master
+          and slave, or cause restored data to differ from the original
+          data.
+        </p></li></ul></div><p>
+      This section describes how MySQL 5.1 handles binary
+      logging for stored routines and triggers. It states the current
+      conditions that the implementation places on the use of stored
+      routines, and what you can do to avoid problems. It also provides
+      additional information about the reasons for these conditions.
+    </p><p>
+      In general, the issues described here result when binary logging
+      occurs at the SQL statement level. If you use row-based binary
+      logging, the log contains changes made to individual rows as a
+      result of executing SQL statements. When routines or triggers
+      execute, row changes are logged, not the statements that make the
+      changes. For stored procedures, this means that the
+      <code class="literal">CALL</code> statement is not logged. For stored
+      functions, row changes made within the function are logged, not
+      the function invocation. For triggers, row changes made by the
+      trigger are logged. On the slave side, only the row changes are
+      seen, not the routine or trigger invocation. For general
+      information about row-based logging, see
+      <a href="replication.html#replication-formats" title="19.1.2. Replication Formats">Section 19.1.2, “Replication Formats”</a>.
+    </p><p>
+      Unless noted otherwise, the remarks here assume that you have
+      enabled binary logging by starting the server with the
+      <code class="option">--log-bin</code> option. (See
+      <a href="server-administration.html#binary-log" title="5.2.4. The Binary Log">Section 5.2.4, “The Binary Log”</a>.) If the binary log is not enabled,
+      replication is not possible, nor is the binary log available for
+      data recovery.
+    </p><p>
+      The current conditions on the use of stored functions in MySQL
+      5.1 can be summarized as follows. These conditions do
+      not apply to stored procedures and they do not apply unless binary
+      logging is enabled.
+    </p><div class="itemizedlist"><ul type="disc"><li><p>
+          To create or alter a stored function, you must have the
+          <code class="literal">SUPER</code> privilege, in addition to the
+          <code class="literal">CREATE ROUTINE</code> or <code class="literal">ALTER
+          ROUTINE</code> privilege that is normally required.
+        </p></li><li><p>
+          When you create a stored function, you must declare either
+          that it is deterministic or that it does not modify data.
+          Otherwise, it may be unsafe for data recovery or replication.
+        </p><p>
+          By default, for a <code class="literal">CREATE FUNCTION</code> statement
+          to be accepted, at least one of
+          <code class="literal">DETERMINISTIC</code>, <code class="literal">NO SQL</code>,
+          or <code class="literal">READS SQL DATA</code> must be specified
+          explicitly. Otherwise an error occurs:
+        </p><pre class="programlisting">ERROR 1418 (HY000): This function has none of DETERMINISTIC, NO SQL,
+or READS SQL DATA in its declaration and binary logging is enabled
+(you *might* want to use the less safe log_bin_trust_function_creators
+variable)
+</pre><p>
+          This function is deterministic (and does not modify data), so
+          it is safe:
+        </p><pre class="programlisting">CREATE FUNCTION f1(i INT)
+RETURNS INT
+DETERMINISTIC
+READS SQL DATA
+BEGIN
+  RETURN i;
+END;
+</pre><p>
+          This function uses <a href="functions.html#function_uuid"><code class="literal">UUID()</code></a>,
+          which is not deterministic, so the function also is not
+          deterministic and is not safe:
+        </p><pre class="programlisting">CREATE FUNCTION f2()
+RETURNS CHAR(36) CHARACTER SET utf8
+BEGIN
+  RETURN UUID();
+END;
+</pre><p>
+          This function modifies data, so it may not be safe:
+        </p><pre class="programlisting">CREATE FUNCTION f3(p_id INT)
+RETURNS INT
+BEGIN
+  UPDATE t SET modtime = NOW() WHERE id = p_id;
+  RETURN ROW_COUNT();
+END;
+</pre><p>
+          Assessment of the nature of a function is based on the
+          “<span class="quote">honesty</span>” of the creator: MySQL does not check
+          that a function declared <code class="literal">DETERMINISTIC</code> is
+          free of statements that produce non-deterministic results.
+        </p></li><li><p>
+          To relax the preceding conditions on function creation (that
+          you must have the <code class="literal">SUPER</code> privilege and that
+          a function must be declared deterministic or to not modify
+          data), set the global
+          <code class="literal">log_bin_trust_function_creators</code> system
+          variable to 1. By default, this variable has a value of 0, but
+          you can change it like this:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SET GLOBAL log_bin_trust_function_creators = 1;</code></strong>
+</pre><p>
+          You can also set this variable by using the
+          <code class="option">--log-bin-trust-function-creators=1</code> option
+          when starting the server.
+        </p><p>
+          If binary logging is not enabled,
+          <code class="literal">log_bin_trust_function_creators</code> does not
+          apply and <code class="literal">SUPER</code> is not required for
+          function creation.
+        </p></li></ul></div><p>
+      For information about built-in functions that may be unsafe for
+      replication (and thus cause stored functions that use them to be
+      unsafe as well), see <a href="replication.html#replication-features" title="19.3.1. Replication Features and Issues">Section 19.3.1, “Replication Features and Issues”</a>.
+    </p><p>
+      Triggers are similar to stored functions, so the preceding remarks
+      regarding functions also apply to triggers with the following
+      exception: <code class="literal">CREATE TRIGGER</code> does not have an
+      optional <code class="literal">DETERMINISTIC</code> characteristic, so
+      triggers are assumed to be always deterministic. However, this
+      assumption might in some cases be invalid. For example, the
+      <a href="functions.html#function_uuid"><code class="literal">UUID()</code></a> function is
+      non-deterministic (and does not replicate). You should be careful
+      about using such functions in triggers.
+    </p><p>
+      Triggers can update tables, so error messages similar to those for
+      stored functions occur with <code class="literal">CREATE TRIGGER</code> if
+      you do not have the required privileges. On the slave side, the
+      slave uses the trigger <code class="literal">DEFINER</code> attribute to
+      determine which user is considered to be the creator of the
+      trigger.
+    </p><p>
+      The rest of this section provides additional detail about the
+      logging implementation and its implications. You need not read it
+      unless you are interested in the background on the rationale for
+      the current logging-related conditions on stored routine use. This
+      discussion applies only for statement-based logging, and not for
+      row-based logging, with the exception of the first item:
+      <code class="literal">CREATE</code> and <code class="literal">DROP</code> statements
+      are logged as statements regardless of the logging mode.
+    </p><div class="itemizedlist"><ul type="disc"><li><p>
+          The server writes <code class="literal">CREATE PROCEDURE</code>,
+          <code class="literal">CREATE FUNCTION</code>, <code class="literal">ALTER
+          PROCEDURE</code>, <code class="literal">ALTER FUNCTION</code>,
+          <code class="literal">DROP PROCEDURE</code>, and <code class="literal">DROP
+          FUNCTION</code> statements to the binary log.
+        </p></li><li><p>
+          A stored function invocation is logged as a
+          <code class="literal">SELECT</code> statement if the function changes
+          data and occurs within a statement that would not otherwise be
+          logged. This prevents non-replication of data changes that
+          result from use of stored functions in non-logged statements.
+          For example, <code class="literal">SELECT</code> statements are not
+          written to the binary log, but a <code class="literal">SELECT</code>
+          might invoke a stored function that makes changes. To handle
+          this, a <code class="literal">SELECT
+          <em class="replaceable"><code>func_name</code></em>()</code> statement is
+          written to the binary log when the given function makes a
+          change. Suppose that the following statements are executed on
+          the master:
+        </p><pre class="programlisting">CREATE FUNCTION f1(a INT) RETURNS INT
+BEGIN
+  IF (a &lt; 3) THEN 
+    INSERT INTO t2 VALUES (a);
+  END IF;
+  RETURN 0;
+END;
+
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1),(2),(3);
+
+SELECT f1(a) FROM t1;
+</pre><p>
+          When the <code class="literal">SELECT</code> statement executes, the
+          function <code class="literal">f1()</code> is invoked three times. Two
+          of those invocations insert a row, and MySQL logs a
+          <code class="literal">SELECT</code> statement for each of them. That is,
+          MySQL writes the following statements to the binary log:
+        </p><pre class="programlisting">SELECT f1(1);
+SELECT f1(2);
+</pre><p>
+          The server also logs a <code class="literal">SELECT</code> statement for
+          a stored function invocation when the function invokes a
+          stored procedure that causes an error. In this case, the
+          server writes the <code class="literal">SELECT</code> statement to the
+          log along with the expected error code. On the slave, if the
+          same error occurs, that is the expected result and replication
+          continues. Otherwise, replication stops.
+        </p><p>
+          Note: Before MySQL 5.1.7, you will see these <code class="literal">SELECT
+          <em class="replaceable"><code>func_name</code></em>()</code> statements
+          logged as <code class="literal">DO
+          <em class="replaceable"><code>func_name</code></em>()</code>. The change
+          to <code class="literal">SELECT</code> was made because use of
+          <code class="literal">DO</code> was found to yield insufficient control
+          over error code checking.
+        </p></li><li><p>
+          Logging stored function invocations rather than the statements
+          executed by a function has a security implication for
+          replication, which arises from two factors:
+        </p><div class="itemizedlist"><ul type="circle"><li><p>
+              It is possible for a function to follow different
+              execution paths on master and slave servers.
+            </p></li><li><p>
+              Statements executed on a slave are processed by the slave
+              SQL thread which has full privileges.
+            </p></li></ul></div><p>
+          The implication is that although a user must have the
+          <code class="literal">CREATE ROUTINE</code> privilege to create a
+          function, the user can write a function containing a dangerous
+          statement that will execute only on the slave where it is
+          processed by a thread that has full privileges. For example,
+          if the master and slave servers have server ID values of 1 and
+          2, respectively, a user on the master server could create and
+          invoke an unsafe function <code class="literal">unsafe_func()</code> as
+          follows:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>delimiter //</code></strong>
+mysql&gt; <strong class="userinput"><code>CREATE FUNCTION unsafe_func () RETURNS INT</code></strong>
+    -&gt; <strong class="userinput"><code>BEGIN</code></strong>
+    -&gt;   <strong class="userinput"><code>IF @@server_id=2 THEN <em class="replaceable"><code>dangerous_statement</code></em>; END IF;</code></strong>
+    -&gt;   <strong class="userinput"><code>RETURN 1;</code></strong>
+    -&gt; <strong class="userinput"><code>END;</code></strong>
+    -&gt; <strong class="userinput"><code>//</code></strong>
+mysql&gt; <strong class="userinput"><code>delimiter ;</code></strong>
+mysql&gt; <strong class="userinput"><code>INSERT INTO t VALUES(unsafe_func());</code></strong>
+</pre><p>
+          The <code class="literal">CREATE FUNCTION</code> and
+          <code class="literal">INSERT</code> statements are written to the binary
+          log, so the slave will execute them. Because the slave SQL
+          thread has full privileges, it will execute the dangerous
+          statment. Thus, the function invocation has different effects
+          on the master and slave and is not replication-safe.
+        </p><p>
+          To guard against this danger for servers that have binary
+          logging enabled, stored function creators must have the
+          <code class="literal">SUPER</code> privilege, in addition to the usual
+          <code class="literal">CREATE ROUTINE</code> privilege that is required.
+          Similarly, to use <code class="literal">ALTER FUNCTION</code>, you must
+          have the <code class="literal">SUPER</code> privilege in addition to the
+          <code class="literal">ALTER ROUTINE</code> privilege. Without the
+          <code class="literal">SUPER</code> privilege, an error will occur:
+        </p><pre class="programlisting">ERROR 1419 (HY000): You do not have the SUPER privilege and
+binary logging is enabled (you *might* want to use the less safe
+log_bin_trust_function_creators variable)
+</pre><p>
+          If you do not want to require function creators to have the
+          <code class="literal">SUPER</code> privilege (for example, if all users
+          with the <code class="literal">CREATE ROUTINE</code> privilege on your
+          system are experienced application developers), set the global
+          <code class="literal">log_bin_trust_function_creators</code> system
+          variable to 1. You can also set this variable by using the
+          <code class="option">--log-bin-trust-function-creators=1</code> option
+          when starting the server. If binary logging is not enabled,
+          <code class="literal">log_bin_trust_function_creators</code> does not
+          apply and <code class="literal">SUPER</code> is not required for
+          function creation.
+        </p></li><li><p>
+          If a function that performs updates is non-deterministic, it
+          is not repeatable. This can have two undesirable effects:
+        </p><div class="itemizedlist"><ul type="circle"><li><p>
+              It will make a slave different from the master.
+            </p></li><li><p>
+              Restored data will be different from the original data.
+            </p></li></ul></div><p>
+          To deal with these problems, MySQL enforces the following
+          requirement: On a master server, creation and alteration of a
+          function is refused unless you declare the function to be
+          deterministic or to not modify data. Two sets of function
+          characteristics apply here:
+        </p><div class="itemizedlist"><ul type="circle"><li><p>
+              The <code class="literal">DETERMINISTIC</code> and <code class="literal">NOT
+              DETERMINISTIC</code> characteristics indicate whether a
+              function always produces the same result for given inputs.
+              The default is <code class="literal">NOT DETERMINISTIC</code> if
+              neither characteristic is given. To declare that a
+              function is deterministic, you must specify
+              <code class="literal">DETERMINISTIC</code> explicitly.
+            </p></li><li><p>
+              The <code class="literal">CONTAINS SQL</code>, <code class="literal">NO
+              SQL</code>, <code class="literal">READS SQL DATA</code>, and
+              <code class="literal">MODIFIES SQL DATA</code> characteristics
+              provide information about whether the function reads or
+              writes data. Either <code class="literal">NO SQL</code> or
+              <code class="literal">READS SQL DATA</code> indicates that a
+              function does not change data, but you must specify one of
+              these explicitly because the default is <code class="literal">CONTAINS
+              SQL</code> if no characteristic is given.
+            </p></li></ul></div><p>
+          By default, for a <code class="literal">CREATE FUNCTION</code> statement
+          to be accepted, at least one of
+          <code class="literal">DETERMINISTIC</code>, <code class="literal">NO SQL</code>,
+          or <code class="literal">READS SQL DATA</code> must be specified
+          explicitly. Otherwise an error occurs:
+        </p><pre class="programlisting">ERROR 1418 (HY000): This function has none of DETERMINISTIC, NO SQL,
+or READS SQL DATA in its declaration and binary logging is enabled
+(you *might* want to use the less safe log_bin_trust_function_creators
+variable)
+</pre><p>
+          If you set <code class="literal">log_bin_trust_function_creators</code>
+          to 1, the requirement that functions be deterministic or not
+          modify data is dropped.
+        </p></li><li><p>
+          Stored procedure calls are logged at the statement level
+          rather than at the <code class="literal">CALL</code> level. That is, the
+          server does not log the <code class="literal">CALL</code> statement, it
+          logs those statements within the procedure that actually
+          execute. As a result, the same changes that occur on the
+          master will be observed on slave servers. This prevents
+          problems that could result from a procedure having different
+          execution paths on different machines.
+        </p><p>
+          In general, statements executed within a stored procedure are
+          written to the binary log using the same rules that would
+          apply were the statements to be executed in standalone
+          fashion. Some special care is taken when logging procedure
+          statements because statement execution within procedures is
+          not quite the same as in non-procedure context:
+        </p><div class="itemizedlist"><ul type="circle"><li><p>
+              A statement to be logged might contain references to local
+              procedure variables. These variables do not exist outside
+              of stored procedure context, so a statement that refers to
+              such a variable cannot be logged literally. Instead, each
+              reference to a local variable is replaced by this
+              construct for logging purposes:
+            </p><pre class="programlisting">NAME_CONST(<em class="replaceable"><code>var_name</code></em>, <em class="replaceable"><code>var_value</code></em>)
+</pre><p>
+              <em class="replaceable"><code>var_name</code></em> is the local variable
+              name, and <em class="replaceable"><code>var_value</code></em> is a
+              constant indicating the value that the variable has at the
+              time the statement is logged.
+              <a href="functions.html#function_name-const"><code class="literal">NAME_CONST()</code></a> has a value
+              of <em class="replaceable"><code>var_value</code></em>, and a
+              “<span class="quote">name</span>” of
+              <em class="replaceable"><code>var_name</code></em>. Thus, if you invoke
+              this function directly, you get a result like this:
+            </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT NAME_CONST('myname', 14);</code></strong>
++--------+
+| myname |
++--------+
+|     14 |
++--------+
+</pre><p>
+              <a href="functions.html#function_name-const"><code class="literal">NAME_CONST()</code></a> allows a
+              logged standalone statement to be executed on a slave with
+              the same effect as the original statement that was
+              executed on the master within a stored procedure.
+            </p></li><li><p>
+              A statement to be logged might contain references to
+              user-defined variables. To handle this, MySQL writes a
+              <code class="literal">SET</code> statement to the binary log to make
+              sure that the variable exists on the slave with the same
+              value as on the master. For example, if a statement refers
+              to a variable <code class="literal">@my_var</code>, that statement
+              will be preceded in the binary log by the following
+              statement, where <em class="replaceable"><code>value</code></em> is the
+              value of <code class="literal">@my_var</code> on the master:
+            </p><pre class="programlisting">SET @my_var = <em class="replaceable"><code>value</code></em>;
+</pre></li><li><p>
+              Procedure calls can occur within a committed or
+              rolled-back transaction. Transactional context is
+              accounted for so that the transactional aspects of
+              procedure execution are replicated correctly. That is, the
+              server logs those statements within the procedure that
+              actually execute and modify data, and also logs
+              <code class="literal">BEGIN</code>, <code class="literal">COMMIT</code>, and
+              <code class="literal">ROLLBACK</code> statements as necessary. For
+              example, if a procedure updates only transactional tables
+              and is executed within a transaction that is rolled back,
+              those updates are not logged. If the procedure occurs
+              within a committed transaction, <code class="literal">BEGIN</code>
+              and <code class="literal">COMMIT</code> statements are logged with
+              the updates. For a procedure that executes within a
+              rolled-back transaction, its statements are logged using
+              the same rules that would apply if the statements were
+              executed in standalone fashion:
+            </p><div class="itemizedlist"><ul type="square"><li><p>
+                  Updates to transactional tables are not logged.
+                </p></li><li><p>
+                  Updates to non-transactional tables are logged because
+                  rollback does not cancel them.
+                </p></li><li><p>
+                  Updates to a mix of transactional and
+                  non-transactional tables are logged surrounded by
+                  <code class="literal">BEGIN</code> and
+                  <code class="literal">ROLLBACK</code> so that slaves will make
+                  the same changes and rollbacks as on the master.
+                </p></li></ul></div></li></ul></div></li><li><p>
+          A stored procedure call is <span class="emphasis"><em>not</em></span> written to
+          the binary log at the statement level if the procedure is
+          invoked from within a stored function. In that case, the only
+          thing logged is the statement that invokes the function (if it
+          occurs within a statement that is logged) or a
+          <code class="literal">DO</code> statement (if it occurs within a
+          statement that is not logged). For this reason, care should be
+          exercised in the use of stored functions that invoke a
+          procedure, even if the procedure is otherwise safe in itself.
+        </p></li></ul></div></div></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="spatial-extensions.html">Prev</a> </td><td width="20%" align="center"> </td><td width="40%" align="right"> <a accesskey="n" href="triggers.html">Next</a></td></tr><tr><td width="40%" align="left" valign="top">Chapter 22. Spatial Extensions </td><td width="20%" align="center"><a accesskey="h" href="index.html">Home</a></td><td width="40%" align="right" valign="top"> Chapter 24. Triggers</td></tr></table></div></body></html>

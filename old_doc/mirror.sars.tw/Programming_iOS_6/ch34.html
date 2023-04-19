@@ -1,0 +1,780 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>Chapter 34. Maps</title>
+    <link rel="stylesheet" type="text/css" href="docbook-xsl-mymods.css" />
+    <meta name="generator" content="DocBook XSL Stylesheets V1.76.0" />
+    <link rel="home" href="index.html" />
+    <link rel="up" href="pt06.html" />
+    <link rel="prev" href="ch33.html" />
+    <link rel="next" href="ch35.html" />
+  </head>
+  <body>
+    <div class="mattnotice">
+      <p>As a courtesy, this is a <b>full free</b> rendering of my book, <i>Programming iOS 6</i>, by Matt Neuburg. Copyright 2013 Matt Neuburg. Please note that this book has now been completely superseded by two more recent books, <a href="http://shop.oreilly.com/product/0636920032465.do">iOS 7 Fundamentals</a> and <a href="http://shop.oreilly.com/product/0636920031017.do">Programming iOS 7</a>. If my work has been of help to you, please <b>consider purchasing</b> one or both of them. Thank you!
+	</p>
+    </div>
+    <div class="navfooter">
+      <table width="100%" summary="Navigation footer">
+        <tr>
+          <td width="40%" align="left"><a accesskey="p" href="ch33.html">Prev</a> </td>
+          <td width="20%" align="center">
+            <a accesskey="u" href="pt06.html">Up</a>
+          </td>
+          <td width="40%" align="right"> <a accesskey="n" href="ch35.html">Next</a></td>
+        </tr>
+        <tr>
+          <td width="40%" align="left" valign="top">Chapter 33. Mail and Messages </td>
+          <td width="20%" align="center">
+            <a accesskey="h" href="index.html">Table of Contents</a>
+          </td>
+          <td width="40%" align="right" valign="top"> Chapter 35. Sensors</td>
+        </tr>
+      </table>
+    </div>
+    <div class="chapter">
+      <div class="titlepage">
+        <div>
+          <div>
+            <h2 class="title"><a id="chap_id34"></a>Chapter 34. Maps</h2>
+          </div>
+        </div>
+      </div>
+      <p>Your app can imitate the Maps app, displaying a map interface and placing annotations and overlays on the map.<a id="idm441640981408" class="indexterm"></a> UIView subclasses for displaying the map, along with the programming API, are provided by the Map Kit framework. You’ll link to <span class="emphasis"><em>MapKit.framework</em></span> and import <code class="literal">&lt;MapKit/MapKit.h&gt;</code>. You might also need the Core Location framework to express locations by latitude and longitude; you’ll link to <span class="emphasis"><em>CoreLocation.framework</em></span> and import <code class="literal">&lt;CoreLocation/CoreLocation.h&gt;</code>.<a id="idm441640977664" class="indexterm"></a>
+<a id="idm441640976480" class="indexterm"></a><a id="idm441640975568" class="indexterm"></a>
+<a id="idm441640974256" class="indexterm"></a><a id="idm441640973344" class="indexterm"></a><a id="idm441640972432" class="indexterm"></a><a id="idm441640971536" class="indexterm"></a></p>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_displaying_a_map"></a>Displaying a Map</h2>
+            </div>
+          </div>
+        </div>
+        <p>A map is displayed through a UIView subclass, an <a id="idm441640969136" class="indexterm"></a>MKMapView. The map is potentially a map of the entire world; the map view is usually configured to display a particular area. An MKMapView instance can be created in code or through the nib editor. A map has a <code class="literal">type</code>, which is one of the following:</p>
+        <div class="itemizedlist">
+          <ul class="itemizedlist" type="disc">
+            <li class="listitem">
+<code class="literal">MKMapTypeStandard</code>
+</li>
+            <li class="listitem">
+<code class="literal">MKMapTypeSatellite</code>
+</li>
+            <li class="listitem">
+<code class="literal">MKMapTypeHybrid</code>
+</li>
+          </ul>
+        </div>
+        <p>The area displayed on the map is its <code class="literal">region</code>, an MKCoordinateRegion. This is a struct comprising a location (a CLLocationCoordinate2D), describing the latitude and longitude of the point at the center of the region (the map’s <code class="literal">centerCoordinate</code>), along with a span (an MKCoordinateSpan), describing the quantity of latitude and longitude embraced by the region and hence the scale of the map. Convenience functions help you construct an MKCoordinateRegion.</p>
+        <p>In this example, I’ll initialize the display of an MKMapView (<code class="literal">map</code>) to show a place where I like to go dirt biking (<a class="xref" href="ch34.html#FIGtepusquet">Figure 34.1</a>):</p>
+        <pre class="screen">CLLocationCoordinate2D loc =
+    CLLocationCoordinate2DMake(34.924365,-120.217372);
+MKCoordinateSpan span = MKCoordinateSpanMake(.015, .015);
+MKCoordinateRegion reg = MKCoordinateRegionMake(loc, span);
+self.map.region = reg;</pre>
+        <div class="figure">
+          <a id="FIGtepusquet"></a>
+          <div class="figure-contents">
+            <div class="mediaobject">
+              <img src="figs/pios_3401.png" alt="figs/pios_3401.png" />
+            </div>
+          </div>
+          <p class="title">Figure 34.1. A map view showing a happy place</p>
+        </div>
+        <br class="figure-break" />
+        <p>An MKCoordinateSpan is described in degrees of latitude and longitude. It may be, however, that what you know is the region’s proposed dimensions in meters. To convert, call <code class="literal">MKCoordinateRegionMakeWithDistance</code>. The ability to perform this conversion is important, because an MKMapView shows the world through a Mercator projection, where longitude lines are parallel and equidistant, and scale increases at higher latitudes. This means, for example, that trying to display an MKCoordinateSpan with a fixed quantity of latitude will require the map to zoom out further at higher latitudes.</p>
+        <p>I happen to know that the area I want to display is about 1200 meters on a side. Hence, this is another way of displaying approximately the same region:</p>
+        <pre class="screen">CLLocationCoordinate2D loc =
+    CLLocationCoordinate2DMake(34.924365,-120.217372);
+MKCoordinateRegionreg = MKCoordinateRegionMakeWithDistance(loc, 1200, 1200);
+self.map.region = reg;</pre>
+        <p>Another way of describing a map region is <a id="idm441640950464" class="indexterm"></a>MKMapRect, a struct built up from MKMapPoint and MKMapSize. The earth has already been projected onto the map for us, and now we are describing a rectangle of that map, in terms of the units in which the map is drawn. The exact relationship between an MKMapPoint and the corresponding latitude/longitude coordinates is arbitrary and of no interest; what matters is that you can ask for the conversion (<code class="literal">MKMapPointForCoordinate</code>, <code class="literal">MKCoordinateForMapPoint</code>), along with the ratio of points to meters (which will vary with latitude: <code class="literal">MKMetersPerMapPointAtLatitude</code>, <code class="literal">MKMapPointsPerMeterAtLatitude</code>, <code class="literal">MKMetersBetweenMapPoints</code>). To determine what the map view is showing in MKMapRect terms, use its <code class="literal">visibleMapRect</code> property. Thus, this is yet another way of displaying approximately the same region:</p>
+        <pre class="screen">CLLocationCoordinate2D loc =
+    CLLocationCoordinate2DMake(34.924365,-120.217372);
+MKMapPoint pt = MKMapPointForCoordinate(loc);
+double w = MKMapPointsPerMeterAtLatitude(loc.latitude) * 1200;
+self.map.visibleMapRect = MKMapRectMake(pt.x - w/2.0, pt.y - w/2.0, w, w);</pre>
+        <p>In none of those examples did I bother with the question of the actual dimensions of the map view itself. I simply threw a proposed region at the map view, and it decided how best to portray the corresponding area. Values you assign to the map’s <code class="literal">region</code> and <code class="literal">visibleMapRect</code> are unlikely to be the exact values the map adopts in any case; that’s because the map view will optimize for display without distorting the map’s scale. You can perform this same optimization in code by calling these methods:</p>
+        <div class="itemizedlist">
+          <ul class="itemizedlist" type="disc">
+            <li class="listitem">
+<code class="literal">regionThatFits:</code>
+</li>
+            <li class="listitem">
+<code class="literal">mapRectThatFits:</code>
+</li>
+            <li class="listitem">
+<code class="literal">mapRectThatFits:edgePadding:</code>
+</li>
+          </ul>
+        </div>
+        <p>By default, the user can zoom and scroll the map with the usual gestures; you can turn this off by setting the map view’s <code class="literal">zoomEnabled</code> and <code class="literal">scrollEnabled</code> to NO. Usually you will set them both to YES or both to NO. For further customization of an MKMapView’s response to touches, use a UIGestureRecognizer (<a class="xref" href="ch18.html">Chapter 18</a>).</p>
+        <p>You can change programmatically the region displayed, optionally with animation, by calling these methods:</p>
+        <div class="itemizedlist">
+          <ul class="itemizedlist" type="disc">
+            <li class="listitem">
+<code class="literal">setRegion:animated:</code>
+</li>
+            <li class="listitem">
+<code class="literal">setCenterCoordinate:animated:</code>
+</li>
+            <li class="listitem">
+<code class="literal">setVisibleMapRect:animated:</code>
+</li>
+            <li class="listitem">
+<code class="literal">setVisibleMapRect:edgePadding:animated:</code>
+</li>
+          </ul>
+        </div>
+        <p>The map view’s delegate (MKMapViewDelegate) is notified as the map loads and as the region changes (including changes triggered programmatically):</p>
+        <div class="itemizedlist">
+          <ul class="itemizedlist" type="disc">
+            <li class="listitem">
+<code class="literal">mapViewWillStartLoadingMap:</code>
+</li>
+            <li class="listitem">
+<code class="literal">mapViewDidFinishLoadingMap:</code>
+</li>
+            <li class="listitem">
+<code class="literal">mapViewDidFailLoadingMap:withError:</code>
+</li>
+            <li class="listitem">
+<code class="literal">mapView:regionWillChangeAnimated:</code>
+</li>
+            <li class="listitem">
+<code class="literal">mapView:regionDidChangeAnimated:</code>
+</li>
+          </ul>
+        </div>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_annotations"></a>Annotations</h2>
+            </div>
+          </div>
+        </div>
+        <p>An <span class="emphasis"><em>annotation</em></span> is a marker associated with a location on a map. To make an annotation appear on a map, two objects are needed:<a id="idm441640917296" class="indexterm"></a></p>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+The object attached to the MKMapView
+</span>
+            </dt>
+            <dd>
+The annotation itself is attached to the MKMapView. It consists of any instance whose class adopts the <a id="idm441640914608" class="indexterm"></a>MKAnnotation protocol, which specifies a coordinate, a title, and a subtitle for the annotation. You might have reason to define your own class to handle this task, or you can use the simple built-in MKPointAnnotation class. The annotation’s <code class="literal">coordinate</code> is its most important property; this says where on earth the annotation should be drawn. The title and subtitle are optional, to be displayed in a callout.
+</dd>
+            <dt>
+              <span class="term">
+The object that draws the annotation
+</span>
+            </dt>
+            <dd>
+An annotation is drawn by an <a id="idm441640910608" class="indexterm"></a>MKAnnotationView, a UIView subclass. This can be extremely simple. In fact, even a nil MKAnnotationView might be perfectly satisfactory: it draws a red pin. If red is not your favorite color, a built-in MKAnnotationView subclass, MKPinAnnotationView, displays a pin in red, green, or purple; by convention you are supposed to use these colors for different purposes (destination points, starting points, and user-specified points, respectively). For more flexibility, you can provide your own UIImage as the MKAnnotationView’s <code class="literal">image</code> property. And for even <span class="emphasis"><em>more</em></span> flexibility, you can take over the drawing of an MKAnnotationView by overriding <code class="literal">drawRect:</code> in a subclass.
+</dd>
+          </dl>
+        </div>
+        <p>Not only does an annotation require two separate objects, but in fact those objects do not initially exist together. An annotation object has no pointer to the annotation view object that will draw it. Rather, it is up to you to supply the annotation view object in real time, on demand, in the MKMapView’s delegate. This architecture may sound confusing, but in fact it’s a very clever way of reducing the amount of resources needed at any given moment. Think of it this way: an annotation itself is merely a lightweight object that a map can always possess; the corresponding annotation view is a heavyweight object that is needed only so long as that annotation’s coordinates are within the visible portion of the map.</p>
+        <p>Let’s add the simplest possible annotation to our map. The point where the annotation is to go has been stored in an instance variable:</p>
+        <pre class="screen">self.annloc = CLLocationCoordinate2DMake(34.923964,-120.219558);</pre>
+        <p>We create the annotation, configure its properties, and add it to the MKMapView:</p>
+        <pre class="screen">MKPointAnnotation* ann = [MKPointAnnotation new];
+ann.coordinate = self.annloc;
+ann.title = @"Park here";
+ann.subtitle = @"Fun awaits down the road!";
+[self.map addAnnotation:ann];</pre>
+        <p>That code is sufficient to produce <a class="xref" href="ch34.html#FIGtepusquet2">Figure 34.2</a>. I didn’t implement any MKMapView delegate methods, so the MKAnnotationView is nil. But a nil MKAnnotationView, as I’ve already said, produces a red pin. I’ve also tapped the annotation, to display its callout, containing the annotation’s title and subtitle.</p>
+        <div class="figure">
+          <a id="FIGtepusquet2"></a>
+          <div class="figure-contents">
+            <div class="mediaobject">
+              <img src="figs/pios_3402.png" alt="figs/pios_3402.png" />
+            </div>
+          </div>
+          <p class="title">Figure 34.2. A simple annotation</p>
+        </div>
+        <br class="figure-break" />
+        <p>This location is a starting point, so by convention the pin should be green. We can easily create a green pin using MKPinAnnotationView, which has a <code class="literal">pinColor</code> property. To supply the annotation view, we must give the map view a delegate (MKMapViewDelegate) and implement <code class="literal">mapView:viewForAnnotation:</code>.</p>
+        <p>The structure of <code class="literal">mapView:viewForAnnotation:</code> is rather similar to the structure of <code class="literal">tableView:cellForRowAtIndexPath:</code> (<a class="xref" href="ch21.html">Chapter 21</a>), which is not surprising, considering that they both do the same sort of thing. Recall that the goal of <code class="literal">tableView:cellForRowAtIndexPath:</code> is to allow the table view to reuse cells, so that at any given moment only as many cells are needed as are <span class="emphasis"><em>visible</em></span> in the table view, regardless of how many rows the table as a whole may consist of. The same thing holds for a map and its annotation views. The map may have a huge number of annotations, but it needs to display annotation views for only those annotations that are within its current <code class="literal">region</code>. Any extra annotation views that have been scrolled out of view can thus be reused and are held for us by the map view in a cache for exactly this purpose.</p>
+        <p>So, in <code class="literal">mapView:viewForAnnotation:</code>, we start by calling <code class="literal">dequeueReusableAnnotationViewWithIdentifier:</code> to see whether there’s an already existing annotation view that’s not currently being displayed and that we might be able to reuse. If there isn’t, we create one, attaching to it an appropriate reuse identifier.</p>
+        <p>Here’s our implementation of <code class="literal">mapView:viewForAnnotation:</code>. Observe that in creating our green pin, we explicitly set its <code class="literal">canShowCallout</code> to YES, as this is not the default:</p>
+        <pre class="screen">- (MKAnnotationView *)mapView:(MKMapView *)mapView
+            viewForAnnotation:(id &lt;MKAnnotation&gt;)annotation {
+    MKAnnotationView* v = nil;
+    if ([annotation.title isEqualToString:@"Park here"]) { <a id="CO8-1"></a>❶
+        static NSString* ident = @"greenPin"; <a id="CO8-2"></a>❷
+        v = [mapView dequeueReusableAnnotationViewWithIdentifier:ident];
+        if (v == nil) {
+            v = [[MKPinAnnotationView alloc] initWithAnnotation:annotation
+                                                reuseIdentifier:ident];
+            ((MKPinAnnotationView*)v).pinColor = MKPinAnnotationColorGreen;
+            v.canShowCallout = YES;
+        }
+        v.annotation = annotation; <a id="CO8-3"></a>❸
+    }
+    return v;
+}</pre>
+        <p>The structure of this implementation of <code class="literal">mapView:viewForAnnotation:</code> is typical (though it seems pointlessly elaborate when we have only one annotation in our map):</p>
+        <div class="calloutlist">
+          <table border="0" summary="Callout list">
+            <tr>
+              <td width="5%" valign="top" align="left">
+                <p><a href="#CO8-1">❶</a> </p>
+              </td>
+              <td valign="top" align="left">
+                <p>
+We might have more than one reusable type of annotation view. (A view can perhaps be reconfigured and thus reused, but cannot be magically converted into a view of a different type.) Here, some of our annotations might be marked with green pins, and other annotations might be marked by a different sort of annotation view altogether. So we must first somehow distinguish these cases, based on something about the incoming annotation. Here, I use the annotation’s title as a distinguishing mark; later in this chapter, I’ll suggest a much better approach.
+</p>
+              </td>
+            </tr>
+            <tr>
+              <td width="5%" valign="top" align="left">
+                <p><a href="#CO8-2">❷</a> </p>
+              </td>
+              <td valign="top" align="left">
+                <p>
+After that, for each reusable type, we proceed much as with table view cells. We have an identifier that categorizes this sort of reusable view. We try to dequeue an unused annotation view of the appropriate type, and if we can’t, we create one and configure it.
+</p>
+              </td>
+            </tr>
+            <tr>
+              <td width="5%" valign="top" align="left">
+                <p><a href="#CO8-3">❸</a> </p>
+              </td>
+              <td valign="top" align="left">
+                <p>
+Even if we <span class="emphasis"><em>can</em></span> dequeue an unused annotation view, and even if we have no other configuration to perform, we must associate the annotation view with the incoming annotation by assigning the annotation to this annotation view’s <code class="literal">annotation</code> property.
+</p>
+              </td>
+            </tr>
+          </table>
+        </div>
+        <p>MKAnnotationView has one more option of which we might avail ourselves: when it draws the annotation view (the pin), it can animate it into place, dropping it in the manner familiar from the Maps app. All we have to do is add one line of code:</p>
+        <pre class="screen">((MKPinAnnotationView*)v).animatesDrop = YES;</pre>
+        <p>Now let’s go further. Instead of a green pin, we’ll substitute our own artwork. I’ll revise the code at the heart of my <code class="literal">mapView:viewForAnnotation:</code> implementation, such that instead of creating an MKPinAnnotationView, I create an instance of its superclass, MKAnnotationView, and give it a custom image showing a dirt bike. The image is too large, so I shrink the view’s bounds before returning it; I also move the view up a bit, so that the bottom of the image is at the coordinates on the map (<a class="xref" href="ch34.html#FIGtepusquet3">Figure 34.3</a>):</p>
+        <pre class="screen">- (MKAnnotationView *)mapView:(MKMapView *)mapView
+            viewForAnnotation:(id &lt;MKAnnotation&gt;)annotation {
+    MKAnnotationView* v = nil;
+    if ([annotation.title isEqualToString:@"Park here"]) {
+        static NSString* ident = @"greenPin";
+        v = [mapView dequeueReusableAnnotationViewWithIdentifier:ident];
+        if (v == nil) {
+            v = [[MKAnnotationView alloc] initWithAnnotation:annotation
+                                              reuseIdentifier:ident];
+            v.image = [UIImage imageNamed:@"clipartdirtbike.gif"];
+            CGRect f = v.bounds;
+            f.size.height /= 3.0;
+            f.size.width /= 3.0;
+            v.bounds = f;
+            v.centerOffset = CGPointMake(0,-20);
+            v.canShowCallout = YES;
+        }
+        v.annotation = annotation;
+    }
+    return v;
+}</pre>
+        <div class="figure">
+          <a id="FIGtepusquet3"></a>
+          <div class="figure-contents">
+            <div class="mediaobject">
+              <img src="figs/pios_3403.png" alt="figs/pios_3403.png" />
+            </div>
+          </div>
+          <p class="title">Figure 34.3. A custom annotation image</p>
+        </div>
+        <br class="figure-break" />
+        <p>For more flexibility, we can create our own MKAnnotationView subclass and endow it with the ability to draw itself. At a minimum, such a subclass should override the initializer and assign itself a frame, and should implement <code class="literal">drawRect:</code>. Here’s the implementation for a class MyAnnotationView that draws a dirt bike:</p>
+        <pre class="screen">- (id)initWithAnnotation:(id &lt;MKAnnotation&gt;)annotation
+         reuseIdentifier:(NSString *)reuseIdentifier {
+    self = [super initWithAnnotation:annotation
+                     reuseIdentifier:reuseIdentifier];
+    if (self) {
+        UIImage* im = [UIImage imageNamed:@"clipartdirtbike.gif"];
+        self.frame =
+            CGRectMake(0, 0, im.size.width/3.0 + 5, im.size.height/3.0 + 5);
+        self.centerOffset = CGPointMake(0,-20);
+        self.opaque = NO;
+    }
+    return self;
+}
+
+- (void) drawRect: (CGRect) rect {
+    UIImage* im = [UIImage imageNamed:@"clipartdirtbike.gif"];
+    [im drawInRect:CGRectInset(self.bounds, 5, 5)];
+}</pre>
+        <p>The corresponding implementation of <code class="literal">mapView:viewForAnnotation:</code> now has much less work to do:</p>
+        <pre class="screen">- (MKAnnotationView *)mapView:(MKMapView *)mapView
+            viewForAnnotation:(id &lt;MKAnnotation&gt;)annotation {
+    MKAnnotationView* v = nil;
+    if ([annotation.title isEqualToString:@"Park here"]) {
+        static NSString* ident = @"bike";
+        v = [mapView dequeueReusableAnnotationViewWithIdentifier:ident];
+        if (v == nil) {
+            v = [[MyAnnotationView alloc] initWithAnnotation:annotation
+                                             reuseIdentifier:ident];
+            v.canShowCallout = YES;
+        }
+        v.annotation = annotation;
+    }
+    return v;
+}</pre>
+        <p>For ultimate flexibility, we should provide our own annotation class as well. A minimal annotation class will look like this:</p>
+        <pre class="screen">@interface MyAnnotation : NSObject &lt;MKAnnotation&gt;
+@property (nonatomic) CLLocationCoordinate2D coordinate;
+@property (nonatomic, copy) NSString *title, *subtitle;
+- (id)initWithLocation:(CLLocationCoordinate2D)coord;
+@end
+
+@implementation MyAnnotation
+- (id)initWithLocation: (CLLocationCoordinate2D) coord {
+    self = [super init];
+    if (self) {
+        self-&gt;_coordinate = coord;
+    }
+    return self;
+}
+@end</pre>
+        <p>Now when we create our annotation and add it to our map, our code looks like this:</p>
+        <pre class="screen">MyAnnotation* ann = [[MyAnnotation alloc] initWithLocation:loc];
+ann.title = @"Park here";
+ann.subtitle = @"Fun awaits down the road!";
+[self.map addAnnotation:ann];</pre>
+        <p>A major advantage of this change appears in our implementation of <code class="literal">mapView:viewForAnnotation:</code>, where we test for the annotation type. Formerly, it wasn’t easy to distinguish those annotations that needed to be drawn as a dirt bike; we were rather artificially examining the title:</p>
+        <pre class="screen">if ([annotation.title isEqualToString:@"Park here"]) {</pre>
+        <p>Now, however, we can just look at the class:</p>
+        <pre class="screen">if ([annotation isKindOfClass:[MyAnnotation class]]) {</pre>
+        <p>A further advantage of supplying our own annotation class is that this approach gives our implementation room to grow. For example, at the moment, every MyAnnotation is drawn as a bike, but we could now add another property to MyAnnotation that tells us what drawing to use. We could also give MyAnnotation further properties saying such things as which way the bike should face, what angle it should be drawn at, and so on. Our implementation of <code class="literal">mapView:viewForAnnotation:</code>, you’ll recall, assigns the annotation to the annotation view’s <code class="literal">annotation</code> property; thus, MyAnnotationView would be able to read those MyAnnotation properties and draw itself appropriately.</p>
+        <p>To add our own animation to an annotation view as it appears on the map, analogous to the built-in MKPinAnnotationView pin-drop animation, we implement the map view delegate method <code class="literal">mapView:didAddAnnotationViews:</code>. The key fact here is that at the moment this method is called, the annotation view has been added but the redraw moment has not yet arrived (<a class="xref" href="ch17.html">Chapter 17</a>). So if we animate the view, that animation will be performed at the moment the view appears onscreen. Here, I’ll animate the opacity of the view so that it fades in, while growing the view from a point to its full size; the only even mildly tricky bit is identifying the view:</p>
+        <pre class="screen">- (void)mapView:(MKMapView *)mapView didAddAnnotationViews:(NSArray *)views {
+    for (MKAnnotationView* aView in views) {
+        if ([aView.reuseIdentifier isEqualToString:@"bike"]) {
+            aView.transform = CGAffineTransformMakeScale(0, 0);
+            aView.alpha = 0;
+            [UIView animateWithDuration:0.8 animations:^{
+                aView.alpha = 1;
+                aView.transform = CGAffineTransformIdentity;
+            }];
+        }
+    }
+}</pre>
+        <p>The callout is visible in <a class="xref" href="ch34.html#FIGtepusquet2">Figure 34.2</a> and <a class="xref" href="ch34.html#FIGtepusquet3">Figure 34.3</a> because before taking the screenshot, I tapped on the annotation, thus <span class="emphasis"><em>selecting</em></span> it. MKMapView has methods allowing annotations to be selected or deselected programmatically, thus (by default) causing their callouts to appear or disappear. The delegate has methods notifying you when the user selects or deselects an annotation, and you are free to override your custom MKAnnotationView’s <code class="literal">setSelected:animated:</code> if you want to change what happens when the user taps an annotation.</p>
+        <p>A callout can contain left and right accessory views; these are the MKAnnotationView’s <code class="literal">leftCalloutAccessoryView</code> and <code class="literal">rightCalloutAccessoryView</code>. They are UIViews, and should be small (less than 32 pixels in height). You can respond to taps on these views as you would any view or control; as a convenience, a delegate method <code class="literal">mapView:annotationView:calloutAccessoryControlTapped:</code> is called when the user taps an accessory view, provided it is a UIControl.</p>
+        <p>An MKAnnotationView can optionally be draggable by the user; set its <code class="literal">draggable</code> property to YES and implement the map view delegate’s <code class="literal">mapView:annotationView:didChangeDragState:fromOldState:</code>. You can also customize changes to the appearance of the view as it is dragged, by implementing your annotation view class’s <code class="literal">setDragState:animated:</code> method. If you’re using a custom annotation class, you’ll also need to implement its <code class="literal">setCoordinate:</code> method; in our custom annotation class, MyAnnotation, that’s done automatically, as the <code class="literal">coordinate</code> property is synthesized and is not <code class="literal">readonly</code>.</p>
+        <p>Certain annotation properties and annotation view properties are automatically animatable through view animation, provided you’ve implemented them in a KVO compliant way (<a class="xref" href="ch13.html">Chapter 13</a>). For example, in MyAnnotation, the <code class="literal">coordinate</code> property is synthesized, so it is KVO compliant; therefore, we are able to animate the shifting of the annotation’s position:</p>
+        <pre class="screen">[UIView animateWithDuration:0.25 animations:^{
+    CLLocationCoordinate2D loc = ann.coordinate;
+    loc.latitude = loc.latitude + 0.0005;
+    loc.longitude = loc.longitude + 0.001;
+    ann.coordinate = loc;
+}];</pre>
+        <p>MKMapView has extensive support for adding and removing annotations.</p>
+        <div class="warning" style="margin-left: 0; margin-right: 10%;">
+          <h3 class="title">Warning</h3>
+          <p>Annotation views don’t change size as the map is zoomed in and out, so if there are several annotations and they are brought close together by the user zooming out, the display can become crowded. Moreover, if too many annotations are being drawn simultaneously in a map view, scroll and zoom performance can degrade. The only way to prevent this is to respond to changes in the map’s visible region (for example, in the delegate method <code class="literal">mapView:regionDidChangeAnimated:</code>) by removing and adding annotations dynamically. This is a tricky problem, and it’s surprising that the API doesn’t give you any assistance with it.</p>
+        </div>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_overlays"></a>Overlays</h2>
+            </div>
+          </div>
+        </div>
+        <p>An overlay differs from an annotation in being drawn entirely with respect to points on the surface of the earth. Thus, whereas an annotation’s size is always the same, an overlay’s size is tied to the zoom of the map view.<a id="idm441640833296" class="indexterm"></a></p>
+        <p>Overlays are implemented much like annotations. You provide an object that adopts the <a id="idm441640831904" class="indexterm"></a>MKOverlay protocol (which itself conforms to the MKAnnotation protocol) and add it to the map view. When the map view delegate method <code class="literal">mapView:viewForOverlay:</code> is called, you provide an <a id="idm441640830448" class="indexterm"></a>MKOverlayView and hand it the overlay object; the overlay view then draws the overlay on demand. As with annotations, this architecture means that the overlay itself is a lightweight object, and the overlay view is needed only if the part of the earth that the overlay covers is actually being displayed in the map view. An MKOverlayView has no reuse identifier.</p>
+        <p>Some built-in MKShape subclasses adopt the MKOverlay protocol: MKCircle, MKPolygon, and MKPolyline. In parallel to those, MKOverlayView has built-in subclasses MKCircleView, MKPolygonView, and MKPolylineView, ready to draw the corresponding shapes. Thus, as with annotations, you can base your overlay entirely on the power of existing classes.</p>
+        <p>In this example, I’ll use MKPolygonView to draw an overlay triangle pointing up the road from the parking place annotated in our earlier examples (<a class="xref" href="ch34.html#FIGtepusquet4">Figure 34.4</a>). We add the MKPolygon as an overlay to our map view, and derive the MKPolygonView from it in our implementation of <code class="literal">mapView:viewForOverlay:</code>. First, the MKPolygon overlay:</p>
+        <pre class="screen">CLLocationCoordinate2D loc = self.annloc;
+CGFloat lat = loc.latitude;
+CLLocationDistance metersPerPoint = MKMetersPerMapPointAtLatitude(lat);
+MKMapPoint c = MKMapPointForCoordinate(loc);
+c.x += 150/metersPerPoint;
+c.y -= 50/metersPerPoint;
+MKMapPoint p1 = MKMapPointMake(c.x, c.y);
+p1.y -= 100/metersPerPoint;
+MKMapPoint p2 = MKMapPointMake(c.x, c.y);
+p2.x += 100/metersPerPoint;
+MKMapPoint p3 = MKMapPointMake(c.x, c.y);
+p3.x += 300/metersPerPoint;
+p3.y -= 400/metersPerPoint;
+MKMapPoint pts[3] = {
+    p1, p2, p3
+};
+MKPolygon* tri = [MKPolygon polygonWithPoints:pts count:3];
+[self.map addOverlay:tri];</pre>
+        <p>Second, the delegate method, where we provide the MKPolygonView:</p>
+        <pre class="screen">- (MKOverlayView *)mapView:(MKMapView *)mapView
+        viewForOverlay:(id &lt;MKOverlay&gt;)overlay {
+    MKPolygonView* v = nil;
+    if ([overlay isKindOfClass:[MKPolygon class]]) {
+        v = [[MKPolygonView alloc] initWithPolygon:(MKPolygon*)overlay];
+        v.fillColor = [[UIColor redColor] colorWithAlphaComponent:0.1];
+        v.strokeColor = [[UIColor redColor] colorWithAlphaComponent:0.8];
+        v.lineWidth = 2;
+    }
+    return v;
+}</pre>
+        <div class="figure">
+          <a id="FIGtepusquet4"></a>
+          <div class="figure-contents">
+            <div class="mediaobject">
+              <img src="figs/pios_3404.png" alt="figs/pios_3404.png" />
+            </div>
+          </div>
+          <p class="title">Figure 34.4. An overlay view</p>
+        </div>
+        <br class="figure-break" />
+        <p>Now let’s go further. The triangle in <a class="xref" href="ch34.html#FIGtepusquet4">Figure 34.4</a> is rather crude; I could draw a better arrow shape using a CGPath (<a class="xref" href="ch15.html">Chapter 15</a>). The built-in MKOverlayView subclass that lets me do that is MKOverlayPathView. To structure my use of MKOverlayView similarly to the preceding example, I’ll supply the CGPath when I add the overlay instance to the map view. No built-in class lets me do that, so I’ll use a custom class, MyOverlay, that implements the MKOverlay protocol.</p>
+        <p>A minimal overlay class looks like this:</p>
+        <pre class="screen">@interface MyOverlay : NSObject &lt;MKOverlay&gt;
+@property (nonatomic, readonly) CLLocationCoordinate2D coordinate;
+@property (nonatomic, readonly) MKMapRect boundingMapRect;
+- (id) initWithRect: (MKMapRect) rect;
+@end
+
+@implementation MyOverlay
+- (id) initWithRect: (MKMapRect) rect {
+    self = [super init];
+    if (self) {
+        self-&gt;_boundingMapRect = rect;
+    }
+    return self;
+}
+- (CLLocationCoordinate2D) coordinate {
+    MKMapPoint pt = MKMapPointMake(
+        MKMapRectGetMidX(self.boundingMapRect),
+        MKMapRectGetMidY(self.boundingMapRect));
+    return MKCoordinateForMapPoint(pt);
+}
+@end</pre>
+        <p>Our actual MyOverlay class will also have a <code class="literal">path</code> property; this will be a UIBezierPath that holds our CGPath and supplies it to the MKOverlayView.</p>
+        <p>Just as the <code class="literal">coordinate</code> property of an annotation tells the map view where on earth the annotation is to be drawn, the <code class="literal">boundingMapRect</code> property of an overlay tells the map view where on earth the overlay is to be drawn. Whenever any part of the <code class="literal">boundingMapRect</code> is displayed within the map view’s bounds, the map view will have to concern itself with drawing the overlay. With MKPolygon, we supplied the points of the polygon in earth coordinates and the <code class="literal">boundingMapRect</code> was calculated for us. With our custom overlay class, we must supply or calculate it ourselves.</p>
+        <p>At first it may appear that there is a typological impedance mismatch: the <code class="literal">boundingMapRect</code> is an MKMapRect, whereas a CGPath is defined by CGPoints. However, it turns out that these units are interchangeable: the CGPoints of our CGPath will be translated for us directly into MKMapPoints on the same scale — that is, the <span class="emphasis"><em>distance</em></span> between any two CGPoints will be the distance between the two corresponding MKMapPoints. However, the <span class="emphasis"><em>origins</em></span> are different: the CGPath must be described relative to the top-left corner of the <code class="literal">boundingMapRect</code> — that is, the <code class="literal">boundingMapRect</code> is described in earth coordinates, but the top-left corner of the <code class="literal">boundingMapRect</code> is <code class="literal">{0,0}</code> as far as the CGPath is concerned. (You might think of this difference as analogous to the difference between a UIView’s frame and its bounds.)</p>
+        <p>To make life simple, I’ll think in meters; actually, I’ll think in chunks of 75 meters, because this turns out to be a good unit for positioning and laying out the arrow. In other words, a line one <code class="literal">unit</code> long would in fact be 75 meters long if I were to arrive at this actual spot on the earth and discover the overlay literally drawn on the ground. Having derived this chunk (<code class="literal">unit</code>), I use it to lay out the <code class="literal">boundingMapRect</code>, four units on a side and positioned slightly east and north of the annotation point (because that’s where the road is). Then I simply construct the arrow shape within the 4×4-unit square, rotating it so that it points in roughly the same direction as the road:</p>
+        <pre class="screen">// start with our position and derive a nice unit for drawing
+CLLocationCoordinate2D loc = self.annloc;
+CGFloat lat = loc.latitude;
+CLLocationDistance metersPerPoint = MKMetersPerMapPointAtLatitude(lat);
+MKMapPoint c = MKMapPointForCoordinate(loc);
+CGFloat unit = 75.0/metersPerPoint;
+// size and position the overlay bounds on the earth
+CGSize sz = CGSizeMake(4*unit, 4*unit);
+MKMapRect mr =
+    MKMapRectMake(c.x + 2*unit, c.y - 4.5*unit, sz.width, sz.height);
+// describe the arrow as a CGPath
+CGMutablePathRef p = CGPathCreateMutable();
+CGPoint start = CGPointMake(0, unit*1.5);
+CGPoint p1 = CGPointMake(start.x+2*unit, start.y);
+CGPoint p2 = CGPointMake(p1.x, p1.y-unit);
+CGPoint p3 = CGPointMake(p2.x+unit*2, p2.y+unit*1.5);
+CGPoint p4 = CGPointMake(p2.x, p2.y+unit*3);
+CGPoint p5 = CGPointMake(p4.x, p4.y-unit);
+CGPoint p6 = CGPointMake(p5.x-2*unit, p5.y);
+CGPoint points[] = {
+    start, p1, p2, p3, p4, p5, p6
+};
+// rotate the arrow around its center
+CGAffineTransform t1 = CGAffineTransformMakeTranslation(unit*2, unit*2);
+CGAffineTransform t2 = CGAffineTransformRotate(t1, -M_PI/3.5);
+CGAffineTransform t3 = CGAffineTransformTranslate(t2, -unit*2, -unit*2);
+CGPathAddLines(p, &amp;t3, points, 7);
+CGPathCloseSubpath(p);
+// create the overlay and give it the path
+MyOverlay* over = [[MyOverlay alloc] initWithRect:mr];
+over.path = [UIBezierPath bezierPathWithCGPath:p];
+CGPathRelease(p);
+// add the overlay to the map
+[self.map addOverlay:over];</pre>
+        <p>The delegate method, where we provide the MKOverlayPathView, is simple. We pull the CGPath out of the MyOverlay instance and hand it to the MKOverlayPathView, also telling the MKOverlayPathView how to stroke and fill that path:</p>
+        <pre class="screen">- (MKOverlayView*)mapView:(MKMapView*)mapView
+        viewForOverlay:(id &lt;MKOverlay&gt;)overlay {
+    MKOverlayView* v = nil;
+    if ([overlay isKindOfClass: [MyOverlay class]]) {
+        v = [[MKOverlayPathView alloc] initWithOverlay:overlay];
+        MKOverlayPathView* vv = (MKOverlayPathView*)v;
+        vv.path = ((MyOverlay*)overlay).path.CGPath;
+        vv.strokeColor = [UIColor blackColor];
+        vv.fillColor = [[UIColor redColor] colorWithAlphaComponent:0.2];
+        vv.lineWidth = 2;
+    }
+    return v;
+}</pre>
+        <p>The result is a much nicer arrow (<a class="xref" href="ch34.html#FIGtepusquet5">Figure 34.5</a>), and of course this technique can be generalized to draw an overlay from any CGPath we like.</p>
+        <div class="figure">
+          <a id="FIGtepusquet5"></a>
+          <div class="figure-contents">
+            <div class="mediaobject">
+              <img src="figs/pios_3405.png" alt="figs/pios_3405.png" />
+            </div>
+          </div>
+          <p class="title">Figure 34.5. A nicer overlay view</p>
+        </div>
+        <br class="figure-break" />
+        <p>For full generality, you could define your own MKOverlayView subclass; your subclass must override and implement <code class="literal">drawMapRect:zoomScale:inContext:</code>. The incoming <code class="literal">mapRect:</code> parameter describes a tile of the visible map (not the size and position of the overlay). The overlay itself is available through the inherited <code class="literal">overlay</code> property, and conversion methods such as <code class="literal">rectForMapRect:</code> are provided for converting between the map’s <code class="literal">mapRect:</code> coordinates and the overlay view’s graphics context coordinates.</p>
+        <p>In our example, we can move the entire functionality for drawing the arrow into an MKOverlayView subclass, which I’ll call MyOverlayView. Its initializer takes an <code class="literal">angle:</code> parameter, with which I’ll set its <code class="literal">angle</code> property; now our arrow can point in any direction. Another nice benefit of this architectural change is that we can use the <code class="literal">zoomScale:</code> parameter to determine the stroke width. For simplicity, our implementation of <code class="literal">drawMapRect:zoomScale:inContext:</code> ignores the incoming <code class="literal">mapRect</code> value and just draws the entire arrow every time it is called:</p>
+        <pre class="screen">- (id) initWithOverlay:(id &lt;MKOverlay&gt;)overlay angle: (CGFloat) ang {
+    self = [super initWithOverlay:overlay];
+    if (self) {
+        self-&gt;_angle = ang;
+    }
+    return self;
+}
+
+- (void)drawMapRect:(MKMapRect)mapRect zoomScale:(MKZoomScale)zoomScale
+          inContext:(CGContextRef)context {
+    NSLog(@"draw this: %@", MKStringFromMapRect(mapRect));
+    CGContextSetStrokeColorWithColor(context, [UIColor blackColor].CGColor);
+    CGContextSetFillColorWithColor(context,
+        [[UIColor redColor] colorWithAlphaComponent:0.2].CGColor);
+    CGContextSetLineWidth(context, 1.2/zoomScale);
+    CGFloat unit = MKMapRectGetWidth([self.overlay boundingMapRect])/4.0;
+    CGMutablePathRef p = CGPathCreateMutable();
+    CGPoint start = CGPointMake(0, unit*1.5);
+    CGPoint p1 = CGPointMake(start.x+2*unit, start.y);
+    CGPoint p2 = CGPointMake(p1.x, p1.y-unit);
+    CGPoint p3 = CGPointMake(p2.x+unit*2, p2.y+unit*1.5);
+    CGPoint p4 = CGPointMake(p2.x, p2.y+unit*3);
+    CGPoint p5 = CGPointMake(p4.x, p4.y-unit);
+    CGPoint p6 = CGPointMake(p5.x-2*unit, p5.y);
+    CGPoint points[] = {
+        start, p1, p2, p3, p4, p5, p6
+    };
+    // rotate the arrow around its center
+    CGAffineTransform t1 = CGAffineTransformMakeTranslation(unit*2, unit*2);
+    CGAffineTransform t2 = CGAffineTransformRotate(t1, self.angle);
+    CGAffineTransform t3 = CGAffineTransformTranslate(t2, -unit*2, -unit*2);
+    CGPathAddLines(p, &amp;t3, points, 7);
+    CGPathCloseSubpath(p);
+    CGContextAddPath(context, p);
+    CGContextDrawPath(context, kCGPathFillStroke);
+    CGPathRelease(p);
+}</pre>
+        <p>To add the overlay to our map, we still must determine its MKMapRect:</p>
+        <pre class="screen">CLLocationCoordinate2D loc = self.annloc;
+CGFloat lat = loc.latitude;
+CLLocationDistance metersPerPoint = MKMetersPerMapPointAtLatitude(lat);
+MKMapPoint c = MKMapPointForCoordinate(loc);
+CGFloat unit = 75.0/metersPerPoint;
+// size and position the overlay bounds on the earth
+CGSize sz = CGSizeMake(4*unit, 4*unit);
+MKMapRect mr =
+    MKMapRectMake(c.x + 2*unit, c.y - 4.5*unit, sz.width, sz.height);
+MyOverlay* over = [[MyOverlay alloc] initWithRect:mr];
+[self.map addOverlay:over];</pre>
+        <p>The delegate, providing the overlay view, now has very little work to do; in our implementation, it must supply an angle for the arrow:</p>
+        <pre class="screen">- (MKOverlayView *)mapView:(MKMapView *)mapView
+            viewForOverlay:(id &lt;MKOverlay&gt;)overlay {
+    MKOverlayView* v = nil;
+    if ([overlay isKindOfClass: [MyOverlay class]]) {
+        v = [[MyOverlayView alloc] initWithOverlay: overlay
+                                             angle: -M_PI/3.5];
+    }
+    return v;
+}</pre>
+        <p>That’s not an ideal architecture; the angle really should belong to the overlay and be passed along with it to the overlay view. But our code does draw the arrow and it does illustrate the basic use of a MKOverlayView subclass.</p>
+        <p>Our MyOverlay class, adopting the MKOverlay protocol, also implements the <code class="literal">coordinate</code> getter method to return the center of the <code class="literal">boundingMapRect</code>. This is crude, but it’s a good minimal implementation. The purpose of the MKOverlay <code class="literal">coordinate</code> property is to specify the position where you would add an annotation describing the overlay. For example:</p>
+        <pre class="screen">// ... create overlay and assign it a path as before ...
+[self.map addOverlay:over];
+MKPointAnnotation* annot = [MKPointAnnotation new];
+annot.coordinate = over.coordinate;
+annot.title = @"This way!";
+[self.map addAnnotation:annot];</pre>
+        <p>The MKOverlay protocol also lets you provide an implementation of <code class="literal">intersectsMapRect:</code> to refine your overlay’s definition of what constitutes an intersection with itself; the default is to use the <code class="literal">boundingMapRect</code>, but if your overlay is drawn in some nonrectangular shape, you might want to use its actual shape as the basis for determining intersection.</p>
+        <p>Overlays are maintained by the map view as an array and are drawn from back to front starting at the beginning of the array. MKMapView has extensive support for adding and removing overlays, and for managing their layering order.</p>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_map_kit_and_current_location"></a>Map Kit and Current Location</h2>
+            </div>
+          </div>
+        </div>
+        <p>A device may have sensors that can determine its current location (<a class="xref" href="ch35.html">Chapter 35</a>). Map Kit provides simple integration with these facilities. Keep in mind that the user can turn off these sensors or can refuse your app access to them (in the Settings app, under Privacy → Location Services), so trying to use these features may fail. Also, determining the device’s location can take time.<a id="idm441640770896" class="indexterm"></a><a id="idm441640770000" class="indexterm"></a></p>
+        <p>You can ask an MKMapView in your app to display the device’s location just by setting its <code class="literal">showsUserLocation</code> property to YES. If your app has not been granted or denied access to Location Services, the system alert requesting authorization will appear. If access is granted, the map automatically puts an annotation at that location.<a id="idm441640767792" class="indexterm"></a></p>
+        <p>The <code class="literal">userLocation</code> property of the map view is an MKUserLocation, adopting the MKAnnotation protocol. It has a <code class="literal">location</code> property, a CLLocation, whose <code class="literal">coordinate</code> is a CLLocationCoordinate2D; if the map view’s <code class="literal">showsUserLocation</code> is YES and the map view has actually worked out the user’s location, the <code class="literal">coordinate</code> describes that location. It also has <code class="literal">title</code> and <code class="literal">subtitle</code> properties, plus you can check whether it is currently <code class="literal">updating</code>. You are free to supply your own annotation view to be displayed for this annotation, just as for any annotation.</p>
+        <p>Displaying the appropriate region of the map — that is, actually <span class="emphasis"><em>showing</em></span> the part of the world where the user is located — is the responsibility of the map delegate’s <code class="literal">mapView:didUpdateUserLocation:</code> method:</p>
+        <pre class="screen">- (void)mapView:(MKMapView *)mapView
+        didUpdateUserLocation:(MKUserLocation *)userLocation {
+    CLLocationCoordinate2D coordinate = userLocation.location.coordinate;
+    MKCoordinateRegion reg =
+        MKCoordinateRegionMakeWithDistance(coordinate, 600, 600);
+    mapView.region = reg;
+}</pre>
+        <p>You can ask the map view whether the user’s location, if known, is in the visible region of the map (<code class="literal">isUserLocationVisible</code>).</p>
+        <p>MKMapView also has a <code class="literal">userTrackingMode</code> that you can set to determine how the user’s real-world location should be tracked <span class="emphasis"><em>automatically</em></span> by the map display; your options are:</p>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+<code class="literal">MKUserTrackingModeNone</code>
+</span>
+            </dt>
+            <dd>
+If <code class="literal">showsUserLocation</code> is YES, the map gets an annotation at the user’s location, but that’s all. Deciding whether to set the map’s <code class="literal">region</code> in <code class="literal">mapView:didUpdateUserLocation:</code>, as I’ve just shown, is up to you.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">MKUserTrackingModeFollow</code>
+</span>
+            </dt>
+            <dd>
+Setting this mode sets <code class="literal">showsUserLocation</code> to YES. The map automatically centers the user’s location and scales appropriately. You should <span class="emphasis"><em>not</em></span> set the map’s <code class="literal">region</code> in <code class="literal">mapView:didUpdateUserLocation:</code>, as you’ll be struggling against the tracking mode’s attempts to do the same thing.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">MKUserTrackingModeFollowWithHeading</code>
+</span>
+            </dt>
+            <dd>
+Like <code class="literal">MKUserTrackingModeFollow</code>, but the map is also rotated so that the direction the user is facing is up. In this case, the <code class="literal">userLocation</code> annotation also has a <code class="literal">heading</code> property, a CLHeading; I’ll talk more about headings in <a class="xref" href="ch35.html">Chapter 35</a>.
+</dd>
+          </dl>
+        </div>
+        <p>When the <code class="literal">userTrackingMode</code> is one of the <code class="literal">follow</code> modes, if the user is left free to zoom and scroll the map, and if the user scrolls in such a way that the user location annotation is no longer visible, the <code class="literal">userTrackingMode</code> may be automatically changed back to <code class="literal">MKUserTrackingModeNone</code> (and the user location annotation may be removed). You’ll probably want to provide a way to let the user turn tracking back on again, or to toggle among the three tracking modes.</p>
+        <p>One way to do that is with an <a id="idm441640735840" class="indexterm"></a>MKUserTrackingBarButtonItem, a UIBarButtonItem subclass. You initialize MKUserTrackingBarButtonItem with a map view, and its behavior is automatic from then on: when the user taps it, it switches the map view to the next tracking mode, and its icon reflects the current tracking mode. (The behavior of MKUserTrackingBarButtonItem is a bit <span class="emphasis"><em>too</em></span> automatic for my taste, however.)</p>
+        <p>New in iOS 6, you can ask the Maps app to display the device’s current location by starting with an MKMapItem returned by the class method <code class="literal">mapItemForCurrentLocation</code>.<a id="idm441640732816" class="indexterm"></a>
+<a id="idm441640731504" class="indexterm"></a> This call doesn’t attempt to determine the device’s location, nor does it contain any location information; it merely generates an MKMapItem which, when sent to the Maps app, will cause <span class="emphasis"><em>it</em></span> to attempt to determine (and display) the device’s location:</p>
+        <pre class="screen">MKMapItem* mi = [MKMapItem mapItemForCurrentLocation];
+[mi openInMapsWithLaunchOptions:
+    @{MKLaunchOptionsMapTypeKey:@(MKMapTypeStandard)}];</pre>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_geocoding"></a>Geocoding</h2>
+            </div>
+          </div>
+        </div>
+        <p>The term <span class="emphasis"><em>geocoding</em></span> refers to the translation of an address to a coordinate and <span class="emphasis"><em>vice versa</em></span>. Geocoding functionality is encapsulated in the <a id="idm441640726128" class="indexterm"></a>CLGeocoder class; to use it, you’ll need to link to <span class="emphasis"><em>CoreLocation.framework</em></span>.<a id="idm441640724832" class="indexterm"></a> Geocoding takes time and might not succeed at all, as it depends upon network and server availability; moreover, results may be more or less uncertain. Therefore, all geocoding methods take a completion handler which will eventually be called with two arguments:</p>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+<code class="literal">NSArray* placemark</code>
+</span>
+            </dt>
+            <dd>
+An NSArray of CLPlacemark objects. If things went really well, the array will contain exactly one CLPlacemark; if there are multiple placemark objects, the first one is the best guess. If nil, something went wrong.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">NSError* error</code>
+</span>
+            </dt>
+            <dd>
+If the placemark array was nil, this argument reports the reason things went wrong.
+</dd>
+          </dl>
+        </div>
+        <p>A <a id="idm441640717616" class="indexterm"></a>CLPlacemark can be used to initialize an <a id="idm441640716976" class="indexterm"></a>MKPlacemark, a CLPlacemark subclass that adopts the MKAnnotation protocol, and is therefore suitable to be handed directly over to an MKMapView for display. Here is an (unbelievably simple-minded) example that allows the user to enter an address in a UISearchBar (<a class="xref" href="ch25.html">Chapter 25</a>) to be displayed in an MKMapView:<a id="idm441640715312" class="indexterm"></a></p>
+        <pre class="screen">-(void)searchBarSearchButtonClicked:(UISearchBar *)searchBar {
+    NSString* s = searchBar.text;
+    [searchBar resignFirstResponder];
+    CLGeocoder* geo = [CLGeocoder new];
+    [geo geocodeAddressString:s
+            completionHandler:^(NSArray *placemarks, NSError *error) {
+        if (nil == placemarks) {
+            NSLog(@"%@", error.localizedDescription);
+            return;
+        }
+        CLPlacemark* p = [placemarks objectAtIndex:0];
+        MKPlacemark* mp = [[MKPlacemark alloc] initWithPlacemark:p];
+        [self.map removeAnnotations:self.map.annotations];
+        [self.map addAnnotation:mp];
+        [self.map setRegion: MKCoordinateRegionMakeWithDistance
+                                 (mp.coordinate, 1000, 1000)
+                   animated: YES];
+    }];
+}</pre>
+        <p>By default, the resulting annotation’s callout <code class="literal">title</code> contains a nicely formatted string describing the address.</p>
+        <p>That example illustrates <span class="emphasis"><em>forward geocoding</em></span>, the conversion of an address to a coordinate. Instead of a string, you can provide a dictionary. Not surprisingly, the keys of this dictionary are exactly the keys you would get by extracting an address from the user’s address book (<a class="xref" href="ch31.html">Chapter 31</a>); thus, you can go quite directly from an address book contact to a coordinate.</p>
+        <p>The converse operation is <span class="emphasis"><em>reverse geocoding</em></span>: you start with a coordinate — actually a CLLocation, which you’ll obtain from elsewhere, or construct from a coordinate using <code class="literal">initWithLatitude:longitude:</code> — and call <code class="literal">reverseGeocodeLocation:completionHandler:</code> in order to obtain an address. The address is expressed through the <span class="keep-together">CLPlacemark</span> <code class="literal">addressDictionary</code> property, which is an address in address book format; you can translate it to a string with <code class="literal">ABCreateStringWithAddressDictionary</code>. Alternatively, you can consult directly various CLPlacemark properties, such as <code class="literal">subthoroughfare</code> (such as a house number), <code class="literal">thoroughfare</code> (a street name), <code class="literal">locality</code> (a town), and <code class="literal">administrativeArea</code> (a state). These properties are present in a placemark resulting from forward geocoding as well; thus, one nice byproduct of forward geocoding is that it can format and complete an address, including adding a zip code (<code class="literal">postalCode</code>) to the address.</p>
+        <p>In this example of reverse geocoding, we have an MKMapView that is already tracking the user, and so we have the user’s location as the map’s <code class="literal">userLocation</code>; we ask for the corresponding address:<a id="idm441640701184" class="indexterm"></a></p>
+        <pre class="screen">CLGeocoder* geo = [CLGeocoder new];
+CLLocation* loc = userLocation.location;
+[geo reverseGeocodeLocation:loc
+          completionHandler:^(NSArray *placemarks, NSError *error)
+  {
+      if (placemarks) {
+          CLPlacemark* p = [placemarks objectAtIndex:0];
+          NSLog(@"%@", p.addressDictionary); // do something with address
+      }
+  }];</pre>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_communicating_with_the_maps_app"></a>Communicating With the Maps App</h2>
+            </div>
+          </div>
+        </div>
+        <p>New in iOS 6, your app can communicate with the Maps app.<a id="idm441640697440" class="indexterm"></a>
+<a id="idm441640696112" class="indexterm"></a> For example, instead of displaying a point of interest in a map view in our own app, we can ask the Maps app to display it. This is useful because the Maps app can help the user in ways that our app may not be able to; for example, it can give the user turn-by-turn directions to a place, and the user can store a place as a bookmark. The channel of communication between your app and the Maps app is the MKMapItem class.</p>
+        <p>Here, I’ll ask the Maps app to display the same point marked by the annotation in our earlier examples, on a hybrid map portraying the same region of the earth (<a class="xref" href="ch34.html#FIGtepusquet6">Figure 34.6</a>):</p>
+        <pre class="screen">MKPlacemark* p =
+    [[MKPlacemark alloc] initWithCoordinate:self.annloc
+                          addressDictionary:nil];
+MKMapItem* mi = [[MKMapItem alloc] initWithPlacemark: p];
+mi.name = @"A Great Place to Dirt Bike"; // label to appear in Maps app
+NSValue* span = [NSValue valueWithMKCoordinateSpan:self.map.region.span];
+[mi openInMapsWithLaunchOptions:
+    @{MKLaunchOptionsMapTypeKey: @(MKMapTypeHybrid),
+      MKLaunchOptionsMapSpanKey: span
+    }
+];</pre>
+        <div class="figure">
+          <a id="FIGtepusquet6"></a>
+          <div class="figure-contents">
+            <div class="mediaobject">
+              <img src="figs/pios_3406.png" alt="figs/pios_3406.png" />
+            </div>
+          </div>
+          <p class="title">Figure 34.6. The Maps app displays our point of interest</p>
+        </div>
+        <br class="figure-break" />
+        <p>New in iOS 6.1, the MKLocalSearch class, along with MKLocalSearchRequest and MKLocalSearchResponse, lets you ask the Maps app to perform a natural language search for you.<a id="idm441640688048" class="indexterm"></a>
+<a id="idm441640686704" class="indexterm"></a> This is less formal than forward geocoding, described in the previous section; instead of searching for an address, you can search for a point of interest by name or description. In this example, I’ll do a natural language search for the same intersection displayed by our earlier examples, and I’ll display it with an annotation in our map view:</p>
+        <pre class="screen">MKLocalSearchRequest* req = [MKLocalSearchRequest new];
+req.naturalLanguageQuery =
+    @"Tepusquet Road and Colson Canyon Road, Santa Maria, California";
+MKLocalSearch* search = [[MKLocalSearch alloc] initWithRequest:req];
+[search startWithCompletionHandler:
+ ^(MKLocalSearchResponse *response, NSError *error) {
+    MKMapItem* where = response.mapItems[0]; // I'm feeling lucky
+    MKPlacemark* place = where.placemark;
+    CLLocationCoordinate2D loc = place.location.coordinate;
+    MKCoordinateRegion reg =
+        MKCoordinateRegionMakeWithDistance(loc, 1200, 1200);
+    [self.map setRegion:reg animated:YES];
+    [self.map addAnnotation:place];
+}];</pre>
+      </div>
+    </div>
+    <div class="navfooter">
+      <table width="100%" summary="Navigation footer">
+        <tr>
+          <td width="40%" align="left"><a accesskey="p" href="ch33.html">Prev</a> </td>
+          <td width="20%" align="center">
+            <a accesskey="u" href="pt06.html">Up</a>
+          </td>
+          <td width="40%" align="right"> <a accesskey="n" href="ch35.html">Next</a></td>
+        </tr>
+        <tr>
+          <td width="40%" align="left" valign="top">Chapter 33. Mail and Messages </td>
+          <td width="20%" align="center">
+            <a accesskey="h" href="index.html">Table of Contents</a>
+          </td>
+          <td width="40%" align="right" valign="top"> Chapter 35. Sensors</td>
+        </tr>
+      </table>
+    </div>
+  </body>
+</html>

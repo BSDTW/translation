@@ -1,0 +1,243 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>各種 Services 的啟動方式</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.79" />
+<link rel="HOME" title="FreeBSD 使用手冊" href="index.html" />
+<link rel="UP" title="設定與效能調校(Tuning)" href="config-tuning.html" />
+<link rel="PREVIOUS" title="各式應用程式的設定檔" href="configtuning-appconfig.html" />
+<link rel="NEXT" title="設定 cron" href="configtuning-cron.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD 使用手冊</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="configtuning-appconfig.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 11 設定與效能調校(Tuning)</td>
+<td width="10%" align="right" valign="bottom"><a href="configtuning-cron.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="CONFIGTUNING-STARTING-SERVICES"
+name="CONFIGTUNING-STARTING-SERVICES">11.5 各種 Services 的啟動方式</a></h1>
+
+<i class="AUTHORGROUP"><span class="CONTRIB">Contributed by</span> Tom Rhodes.</i> 
+
+<p>Many users choose to install third party software on FreeBSD from the Ports
+Collection. In many of these situations it may be necessary to configure the software in
+a manner which will allow it to be started upon system initialization. Services, such as
+<a href="http://www.FreeBSD.org/cgi/url.cgi?ports/mail/postfix/pkg-descr"><tt
+class="FILENAME">mail/postfix</tt></a> or <a
+href="http://www.FreeBSD.org/cgi/url.cgi?ports/www/apache13/pkg-descr"><tt
+class="FILENAME">www/apache13</tt></a> are just two of the many software packages which
+may be started during system initialization. This section explains the procedures
+available for starting third party software.</p>
+
+<p>In FreeBSD, most included services, such as <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=cron&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">cron</span>(8)</span></a>, are started
+through the system start up scripts. These scripts may differ depending on FreeBSD or
+vendor version; however, the most important aspect to consider is that their start up
+configuration can be handled through simple startup scripts.</p>
+
+<p>Before the advent of <tt class="FILENAME">rc.d</tt>, applications would drop a simple
+start up script into the <tt class="FILENAME">/usr/local/etc/rc.d</tt> directory which
+would be read by the system initialization scripts. These scripts would then be executed
+during the latter stages of system start up.</p>
+
+<p>While many individuals have spent hours trying to merge the old configuration style
+into the new system, the fact remains that some third party utilities still require a
+script simply dropped into the aforementioned directory. The subtle differences in the
+scripts depend whether or not <tt class="FILENAME">rc.d</tt> is being used. Prior to
+FreeBSD&nbsp;5.1 the old configuration style is used and in almost all cases a new style
+script would do just fine.</p>
+
+<p>While every script must meet some minimal requirements, most of the time these
+requirements are FreeBSD version agnostic. Each script must have a <tt
+class="FILENAME">.sh</tt> extension appended to the end and every script must be
+executable by the system. The latter may be achieved by using the <tt
+class="COMMAND">chmod</tt> command and setting the unique permissions of <tt
+class="LITERAL">755</tt>. There should also be, at minimal, an option to <tt
+class="LITERAL">start</tt> the application and an option to <tt class="LITERAL">stop</tt>
+the application.</p>
+
+<p>The simplest start up script would probably look a little bit like this one:</p>
+
+<pre class="PROGRAMLISTING">
+#!/bin/sh
+echo -n ' utility'
+
+case "$1" in
+start)
+        /usr/local/bin/utility
+        ;;
+stop)
+        kill -9 `cat /var/run/utility.pid`
+        ;;
+*)
+        echo "Usage: `basename $0` {start|stop}" &gt;&#38;2
+        exit 64
+        ;;
+esac
+
+exit 0
+</pre>
+
+<p>This script provides for a <tt class="LITERAL">stop</tt> and <tt
+class="LITERAL">start</tt> option for the application hereto referred simply as <tt
+class="LITERAL">utility</tt>.</p>
+
+<p>Could be started manually with:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT"><tt
+class="FILENAME">/usr/local/etc/rc.d/utility.sh</tt> start</kbd>
+</pre>
+
+<p>While not all third party software requires the line in <tt
+class="FILENAME">rc.conf</tt>, almost every day a new port will be modified to accept
+this configuration. Check the final output of the installation for more information on a
+specific application. Some third party software will provide start up scripts which
+permit the application to be used with <tt class="FILENAME">rc.d</tt>; although, this
+will be discussed in the next section.</p>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN15240" name="AEN15240">11.5.1 Extended Application
+Configuration</a></h2>
+
+<p>Now that FreeBSD includes <tt class="FILENAME">rc.d</tt>, configuration of application
+startup has become easier, and more featureful. Using the key words discussed in the <a
+href="configtuning-rcd.html">rc.d</a> section, applications may now be set to start after
+certain other services for example <acronym class="ACRONYM">DNS</acronym>; may permit
+extra flags to be passed through <tt class="FILENAME">rc.conf</tt> in place of hard coded
+flags in the start up script, etc. A basic script may look similar to the following:</p>
+
+<pre class="PROGRAMLISTING">
+#!/bin/sh
+#
+# PROVIDE: utility
+# REQUIRE: DAEMON
+# KEYWORD: shutdown
+
+#
+# DO NOT CHANGE THESE DEFAULT VALUES HERE
+# SET THEM IN THE /etc/rc.conf FILE
+#
+utility_enable=${utility_enable-"NO"}
+utility_flags=${utility_flags-""}
+utility_pidfile=${utility_pidfile-"/var/run/utility.pid"}
+
+. /etc/rc.subr
+
+name="utility"
+rcvar=`set_rcvar`
+command="/usr/local/sbin/utility"
+
+load_rc_config $name
+
+pidfile="${utility_pidfile}"
+
+start_cmd="echo \"Starting ${name}.\"; /usr/bin/nice -5 ${command} ${utility_flags} ${command_args}"
+
+run_rc_command "$1"
+</pre>
+
+<p>This script will ensure that the provided <b class="APPLICATION">utility</b> will be
+started after the <tt class="LITERAL">daemon</tt> service. It also provides a method for
+setting and tracking the <acronym class="ACRONYM">PID</acronym>, or process <acronym
+class="ACRONYM">ID</acronym> file.</p>
+
+<p>This application could then have the following line placed in <tt
+class="FILENAME">/etc/rc.conf</tt>:</p>
+
+<pre class="PROGRAMLISTING">
+utility_enable="YES"
+</pre>
+
+<p>This new method also allows for easier manipulation of the command line arguments,
+inclusion of the default functions provided in <tt class="FILENAME">/etc/rc.subr</tt>,
+compatibility with the <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=rcorder&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">rcorder</span>(8)</span></a> utility and
+provides for easier configuration via the <tt class="FILENAME">rc.conf</tt> file.</p>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN15262" name="AEN15262">11.5.2 以 Services 來啟動各式
+Services</a></h2>
+
+<p>Other services, such as <acronym class="ACRONYM">POP</acronym>3 server daemons,
+<acronym class="ACRONYM">IMAP</acronym>, etc. could be started using the <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=inetd&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">inetd</span>(8)</span></a>. This
+involves installing the service utility from the Ports Collection with a configuration
+line appended to the <tt class="FILENAME">/etc/inetd.conf</tt> file, or uncommenting one
+of the current configuration lines. Working with <b class="APPLICATION">inetd</b> and its
+configuration is described in depth in the <a href="network-inetd.html">inetd</a>
+section.</p>
+
+<p>In some cases, it may be more plausible to use the <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=cron&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">cron</span>(8)</span></a> daemon to
+start system services. This approach has a number of advantages because <tt
+class="COMMAND">cron</tt> runs these processes as the <tt class="FILENAME">crontab</tt>'s
+file owner. This allows regular users to start and maintain some applications.</p>
+
+<p>The <tt class="COMMAND">cron</tt> utility provides a unique feature, <tt
+class="LITERAL">@reboot</tt>, which may be used in place of the time specification. This
+will cause the job to be run when <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=cron&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">cron</span>(8)</span></a> is started,
+normally during system initialization.</p>
+</div>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="configtuning-appconfig.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="configtuning-cron.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">各式應用程式的設定檔</td>
+<td width="34%" align="center" valign="top"><a href="config-tuning.html"
+accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">設定 <tt class="COMMAND">cron</tt></td>
+</tr>
+</table>
+</div>
+
+<p align="center"><small>本文及其他文件，可由此下載：<a
+href="ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/">ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/</a>。</small></p>
+
+<p align="center"><small>若有 FreeBSD 方面疑問，請先閱讀 <a
+href="http://www.FreeBSD.org/docs.html">FreeBSD 相關文件</a>，如不能解決的話，再洽詢
+&#60;<a href="mailto:questions@FreeBSD.org">questions@FreeBSD.org</a>&#62;。<br />
+關於本文件的問題，請洽詢 &#60;<a
+href="mailto:doc@FreeBSD.org">doc@FreeBSD.org</a>&#62;。</small></p>
+</body>
+</html>
+

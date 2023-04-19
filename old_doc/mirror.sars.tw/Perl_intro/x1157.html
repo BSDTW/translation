@@ -1,0 +1,316 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<HTML
+><HEAD
+><TITLE
+>12.7 如何製作簡易訪客留言板？</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="網路管理語言 Perl 入門與實作"
+HREF="book1.html"><LINK
+REL="UP"
+TITLE="12. CGI 程式設計"
+HREF="c1084.html"><LINK
+REL="PREVIOUS"
+TITLE="12.6 如何將傳遞資料解碼？"
+HREF="x1151.html"><LINK
+REL="NEXT"
+TITLE="12.8 CGI 程式常見疑難"
+HREF="x1161.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>網路管理語言 Perl 入門與實作: </TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="x1151.html"
+ACCESSKEY="P"
+>&#60;&#60;&#60; Previous</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>12. CGI 程式設計</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="x1161.html"
+ACCESSKEY="N"
+>Next &#62;&#62;&#62;</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="GBK"
+></A
+>12.7 如何製作簡易訪客留言板？</H1
+><P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+>(一)製作訪客留言表單 signin.htm
+
+您可以使用網頁編輯器來快速製作，也可以手動用 HTML 語法來撰寫。
+
+以下是 signin.htm 的內容：
+
+&#60;html&#62;
+&#60;head&#62;
+&#60;!-- 加上以下這一行，以免有亂碼產生 --&#62;
+&#60;meta http-equiv="Content-Type" content="text/html; charset=big5"&#62;
+&#60;title&#62;留言板&#60;/title&#62;
+&#60;/head&#62;
+&#60;body bgcolor="white"&#62;
+&#60;hr size=1&#62;
+&#60;center&#62;
+&#60;!--以下是您的站台名稱--&#62;
+&#60;font size=5 color=red&#62;我的訪客留言板&#60;/font&#62;
+&#60;br&#62;
+&#60;!--以下是您的版權宣告--&#62;
+&#60;font color="green" size="2"&#62; v1.0 精簡版 (C) 1997 written by OLS3&#60;/font&#62;
+&#60;hr size=1&#62;
+&#60;table align=center border=0&#62;&#60;tr&#62;&#60;td&#62;
+
+&#60;!--以下是表單內容, 共有二個欄位: 姓名及留言內容, 您可以自行再增添; 
+表單採 POST 呼叫法, cgi 程式名稱是 GBK.cgi --&#62;
+&#60;form name="ols3" method="post" action="http://主機/cgi-bin/GBK.cgi"&#62;
+
+&#60;!--姓名欄位的名稱是 name--&#62;
+姓名: &#60;input type="text" name="name" size="30"&#62;
+&#60;br&#62;
+
+&#60;!--留言內容欄位的名稱是 comment--&#62;
+留言內容:&#60;br&#62;
+&#60;textarea name="comment" rows="5" cols="45"&#62;&#60;/textarea&#62;
+&#60;p&#62;
+&#60;input type="submit" value="確定"&#62; &#60;input type="reset" value="清除"&#62;
+&#60;input type="button" value="回上一頁" onClick="history.back()"&#62;
+&#60;/form&#62;
+
+&#60;/td&#62;&#60;/tr&#62;&#60;/table&#62;&#60;/center&#62;
+&#60;/body&#62;
+&#60;/html&#62;
+
+(二)製作留言寫入程式 GBK.cgi
+
+留言寫入的方式有許多種，這裡介紹的是靜態標記法。
+
+所謂靜態標記法是說：將留言內容，直接寫入某一個 HTML 檔中，該 HTML 檔，
+事先即存在一個特殊的標記，此標記的目的，是用來識別留言要從何處開始寫入，
+也就是說，在該標記之後，就是留言開始要寫入的地方。
+將來若要顯示留言內容時，只要直接超連結至這個 HTML 檔即可！
+這種方式的留言板算是最簡單輕便的一種。
+
+寫入程式 GBK.cgi 如下：
+
+#!/usr/local/bin/perl
+
+# 先定義留言寫入的 HTML 檔案位置及名稱
+$gbkhtml="/var/www/html/gbk.html";
+
+# 設定留言板的 URL 位址
+$gbkurl="http://主機/gbk.html";
+
+# 取得表單傳遞過來的內容
+read(STDIN, $temp, $ENV{'CONTENT_LENGTH'});
+@pairs=split(/&#38;/,$temp);
+foreach $item(@pairs)  {
+  ($key,$content)=split (/=/,$item,2);
+  $content=~tr/+/ /;
+  $content=~ s/%(..)/pack("c",hex($1))/ge;
+  $OLS3{$key}=$content;
+}
+
+#經過上述動作，此時留言者姓名及內容，已分別放在 $OLS3{'name'} 及 $OLS3{'comment'} 中
+$name=$OLS3{'name'};
+$comment=$OLS3{'comment'};
+
+# 處理斷行問題
+$comment=~ s/\cM\n/&#60;br&#62;\n/g;
+
+# 取得留言時間
+($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst)=gmtime(time+8*60*60);
+if (length ($min) == 1) {$min = '0'.$min;}
+if (length ($sec) == 1) {$sec = '0'.$sec;}
+$mon+=1;
+$date="$mon/$mday/$year, $hour:$min:$sec";
+
+# 開啟HTML檔, 並讀出所有的內容
+open(FHD, "$gbkhtml") || die "Content-type: text/html\n\n 開啟檔案錯誤!\n";
+@all=&#60;FHD&#62;;
+close(FHD);
+
+# 重新開啟HTML檔, 以便更新其留言內容
+open(FHD, "&#62;$gbkhtml") || die "Content-type: text/html\n\n 開啟檔案錯誤!\n";
+
+# 利用迴圈, 將原檔案內容依次寫回, 並在其過程中寫入新的留言
+foreach $line(@all) {
+
+   # 該列是否為標記? 若是, 表示該處為新留言開始要寫入的地方
+   if ($line =~ /&#60;!--ols3--&#62;/)  {
+
+    # 寫回原來的標記, 以後方可繼續使用
+      print FHD "&#60;!--ols3--&#62;\n";
+
+     # 寫入新的留言
+      print FHD "姓名: $name [時間: $date]&#60;p&#62;$comment&#60;hr size=1&#62;\n";
+
+   } else {
+
+    # 若該列不是標記, 表示是舊有的內容, 則不予改變地將它寫回
+    print FHD $line;
+  }
+}
+
+# 關畢 HTML 檔
+close(FHD);
+
+# 接下來, 感謝一下留言的網友, 三秒後回到顯示留言畫面
+print "Content-type: text/html\n\n";
+print "&#60;html&#62;&#60;head&#62;\n";
+print "&#60;META HTTP-EQUIV=REFRESH CONTENT=\"3;URL=$gbkurl\"&#62;\n";
+print "&#60;title&#62;Thanks!&#60;/title&#62;&#60;/head&#62;\n";
+print "&#60;body bgcolor=white&#62;&#60;center&#62;\n";
+print "謝謝您的留言!\n";
+print "&#60;/center&#62;&#60;/body&#62;&#60;/html&#62;\n";
+
+# 程式結束
+
+將程式放入 cgi-bin 中
+
+GBK.cgi 屬性設為 755，放入 cgi-bin 目錄中
+
+gbk.html 屬性設為 666 ，放入您的網頁空間中
+
+gbk.html 一開始尚未有任何留言寫入時的樣子如下：
+
+&#60;html&#62;
+&#60;head&#62;
+&#60;meta http-equiv="Content-Type" content="text/html; charset=big5"&#62;
+&#60;title&#62;我的留言板&#60;/title&#62;
+&#60;/head&#62;
+&#60;body bgcolor=white&#62;
+&#60;center&#62;
+&#60;font size=5 color=red&#62;我的留言板&#60;/font&#62;
+&#60;hr size=1&#62;
+&#60;a href="http://主機/signin.htm"&#62;我要留言&#60;/a&#62;
+&#60;hr size=1&#62;
+&#60;/center&#62;
+&#60;!--ols3--&#62;
+&#60;/body&#62;
+&#60;/html&#62;
+
+(三) 顯示訪客留言：gbk.html
+
+接下來，您就可以設一個超連結來顯示您的訪客留言囉。
+
+例如：
+
+&#60;A href="http://主機/gbk.html"&#62;訪客留言&#60;/a&#62;&#13;</PRE
+></TD
+></TR
+></TABLE
+></P
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="x1151.html"
+ACCESSKEY="P"
+>&#60;&#60;&#60; Previous</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="book1.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="x1161.html"
+ACCESSKEY="N"
+>Next &#62;&#62;&#62;</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>12.6 如何將傳遞資料解碼？</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="c1084.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>12.8 CGI 程式常見疑難</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

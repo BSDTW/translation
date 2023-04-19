@@ -1,0 +1,189 @@
+
+
+<!-- Vignette StoryServer 4 Sat Mar 11 15:43:24 2000 --> 
+<style type=text/css>
+<!--
+p,div {font-size:12pt; line-height:14pt; font-family:宋體;}
+.p1{font-size:12pt;font-family:宋體;}
+.p2{font-size:12pt;font-family:宋體;line-height:14pt;}
+.p3{font-size:14.8px;font-family:宋體;}
+.p4{font-size:14.8px;font-family:宋體;line-height:14pt;}
+.p5{font-size:1pt}
+a:hover{color:red;}
+a.t1:visited{color:red;}
+-->
+</style>
+<title>FreeBSD使用大全</title></head>
+
+<body bgcolor="#FFFFFF" text="#000000" link="#383098" vlink="#336699" alink="#FF0000" topmargin="0">
+<!-- Vignette StoryServer 4 Thu Mar 23 10:01:54 2000 --> <!-- Vignette StoryServer 4 Thu Mar 23 15:34:35 2000 --> 
+
+<!--開始：新聞內容-->
+<TABLE WIDTH=750 BORDER=0 CELLSPACING=0 CELLPADDING=0>
+
+<tr valign=top>
+
+
+
+<TD  valign=top>
+<CENTER><FONT COLOR=#000066 size=5><B>FreeBSD連載(31)：系統日誌</B><br></FONT></CENTER>
+
+<HR  ALIGN="center" SIZE=1>
+<CENTER><FONT FACE="Arial" SIZE=2> 1999年12月3日 17:11 </FONT><FONT COLOR="#990000" SIZE=2>王波</FONT></CENTER><p>
+
+<h1 align=center>系統日誌與備份</h1>
+
+<p>　　由於FreeBSD是一個多用戶系統，那麼就需要管理員進行日常維護，特別是用做網路伺服器的系統，一旦因為
+缺乏維護而造成停機故障，就會造成很大損失。即使對於單用戶的FreeBSD系統，同樣也要執行這些不可缺乏的維護任
+務，只是由於系統歸個人使用，那麼對維護的要求就不必那麼高，維護任務就輕松一些。</p>
+
+<ul><P><LI><h2>系統日誌</h2></LI></P></ul>
+
+<p>　　系統的日誌記錄提供了對系統活動的詳細審計，這些日誌用於評估、審查系統的運行環境和各種操作。對於一般情況
+，日誌記錄包括記錄用戶登錄時間、登錄地點、進行什麼操作等內容，如果使用得當，日誌記錄能向系統管理員提供有關危害
+安全的侵害或入侵試圖等非常有用的信息。</p>
+
+<p>　　BSD提供了詳細的各種日誌記錄，以及有關日誌的大量工具和實用程序。這些審計記錄通常由程序自動產生，是缺
+省設置的一部分，能夠幫助Unix管理員來尋找系統中存在的問題，對系統維護十分有用。還有另一些日誌記錄，需要管理
+員進行設置才能生效。大部分日誌記錄檔案被保存在/var/log目錄中，在這個目錄中除了保存系統生成日誌之外，還
+包括一些應用軟體的日誌檔案。當然/var目錄下的其他子目錄中也會記錄下一些其他種類的日誌記錄檔案，這依賴於具體
+的應用程序的設置。</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>$ ls /var/log
+<br>adduser            maillog.5.gz     sendmail.st.1
+<br>dmesg.today        maillog.6.gz     sendmail.st.10
+<br>dmesg.yesterday    maillog.7.gz     sendmail.st.2
+<br>httpd-access.log   messages         sendmail.st.3
+<br>httpd-error.log    messages.0.gz    sendmail.st.4
+<br>kerberos.log       messages.1.gz    sendmail.st.5
+<br>lastlog            messages.2.gz    sendmail.st.6
+<br>lpd-errs           messages.3.gz    sendmail.st.7
+<br>maillog            messages.4.gz    sendmail.st.8
+<br>maillog.0.gz       messages.5.gz    sendmail.st.9
+<br>maillog.1.gz       news             setuid.today
+<br>maillog.2.gz       ppp.log          setuid.yesterday
+<br>maillog.3.gz       sendmail.st      userlog
+<br>maillog.4.gz       sendmail.st.0    wtmp</td></pre></tr></table>
+
+<ul><B><P><LI>系統登錄日誌</LI></P></B></ul>
+
+<p>　　系統會保存每個用戶的登錄記錄，這些信息包括這個用戶的名字、登錄起始結束時間以及從何處登錄入系統的等等。
+它們被保存到/var/log/lastlog、/var/log/wtmp和/var/run/utmp檔案中，這
+三個檔案以二進制格式保存了這些用戶的登錄數據。</p>
+
+<p>　　其中/var/run/utmp檔案中保存的是目前系統用戶的登錄記錄，因此這個檔案會隨著用戶進入和離開系
+統而不斷變化，而它也不會為用戶保留很長的記錄，只保留當時隨機的用戶記錄。系統中需要查詢目前用戶狀態的程序，如
+who、w等就需要訪問這個檔案。utmp可能不包括所有精確的信息，某些突發錯誤會終止用戶登錄會話，當沒有及時更新
+utmp記錄，因此utmp的記錄不是百分之百的可以信賴的。</p>
+
+<p>　　而/var/log/wtmp保存了所有的登錄、退出信息，以及系統的啟動、停機記錄，因此隨著系統正常運行
+時間的增加，它的大小也會越來越大，增加的速度依賴於系統用戶登錄次數。因此可以利用這個日誌用來查看用戶的登錄記錄
+，last命令就通過訪問這個檔案來獲得這些信息，並以反序從後向前顯示用戶的登錄記錄，last也能根據用戶、終端
+tty或時間顯示相應的記錄。ac命令同樣也使用wtmp中的數據產生報告，但它的顯示方式不同。它可以根據用戶（ac -p）
+，或按日期（ap -d）顯示信息，這樣管理員就能獲得一些非常有用的反常信息，如一個平時不太活躍的用戶
+突然登錄並連接很長時間，就有理由懷疑這個帳戶被竊取了。</p>
+
+<p>　　注意：X Window由於會同時打開多個終端視窗，因此會使得用戶登錄連接時間迅速增加。</p>
+
+<p>　　lastlog檔案保存的是每個用戶的最後一次登錄信息，包括登錄時間和地點，這個檔案一般只有login程
+序使用，通過用戶的UID，來在lastlog檔案中查找相應記錄，然後報告其最後一次登錄時間和終端tty。然後，
+login程序就使用新的記錄更新這個檔案。</p>
+
+<p>　　這三個檔案是使用二進制格式保存的，因此不能直接查看其中的內容，而需要使用相關命令。當然也可以通過程序來
+訪問這三個檔案，這就需要了解它們使用的數據結構。其中utmp和wtmp使用同樣的數據結構，而lastlog使用
+另外一個數據結構，可使用man來進行查詢具體結構。如果系統的用戶數量很多，那麼wtmp檔案的大小會迅速增加，在
+系統/var檔案系統空間緊張的情況下，就導致這個檔案系統被占滿。系統不會主動控制這個檔案的大小，因此這需要管理
+員的干預，需要手工及時清除，或編寫shell腳本定期保存和清除。</p>
+
+<p>　　系統還可以提供記賬統計的功能，要打開系統的計賬功能，需要使用accton命令，注意，accton必須跟
+隨記賬日誌檔案的名字作參數，而不帶參數的accton將關閉記賬進程。</p>
+
+<p>　　當打開了記賬功能後，可以使用lastcomm來檢查在系統中執行的所有命令的信息，包括執行的命令、執行命
+令的用戶、用戶使用的終端tty，命令完成的時間，執行時間等。從lastcomm的輸出也能幫助管理員檢查可能的入
+侵行為。</p>
+
+<p>　　此外可以使用ac命令來查詢用戶的連接時間的報告，sa命令來查詢用戶消耗的處理器時間的報告。</p>
+
+<ul><B><P><LI>Syslog日誌記錄</LI></P></B></ul>
+
+<p>　　最初，syslog只是為了sendmail而設計的消息日誌工具，由於它提供了一個中心控制點，使得sys
+log非常好用和易配置，因此當今很多程序都使用syslog來發送它們的記錄信息。syslog是一種強大的日誌記
+錄方式，不但可以將日誌保存在本地檔案中，還可以根據設置將syslog記錄發送到網路上的另一台主機中。</p>
+
+<p>　　支持syslog方式的系統啟動了syslogd守護進程，這個程序從本地的Unix套接字和監聽在514端
+口（UDP）上的Internet套接字，來獲得syslog的記錄。本機中進程使用syslog系統調用發送來sy
+slog記錄，然後由syslogd將他們保存到正確的檔案或發送到網路上另一台運行syslogd主機中去。</p>
+
+<p>　　syslogd的設置檔案為/etc/syslog.conf，定義消息對應的相應目標，一條消息可以達到多
+個目標，也可能被忽略。</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre><font size=2>#       $Id: syslog.conf,v 1.9 1998/10/14 21:59:55 nate Exp $
+<br>#
+<br>#       Spaces are NOT valid field separators in this file.
+<br>#       Consult the syslog.conf(5) manpage.
+<br>*.err;kern.debug;auth.notice;mail.crit          /dev/console
+<br>*.notice;kern.debug;lpr.info;mail.crit;news.err /var/log/messages
+<br>mail.info                                       /var/log/maillog
+<br>lpr.info                                        /var/log/lpd-errs
+<br>cron.*                                          /var/cron/log
+<br>*.err                                           root
+<br>*.notice;news.err                               root
+<br>*.alert                                         root
+<br>*.emerg                                         *
+<br>!ppp
+<br>*.*                                             /var/log/ppp.log</font></td></pre></tr></table>
+
+<p>　　syslog.conf的配置可以分為兩個部分，第一部分用於區分消息的類型，另一個用於設置消息發送的目的
+地。通常，消息的類型包括消息的產生者，例如kern表示核心產生的消息，auth表示認証系統產生的消息，等等，還
+包括消息的級別，例如emerg表示非常重要的緊急信息，alert表示系統告警狀態，crit表示關鍵狀態，err
+表示一般的錯誤信息，warning表示警告信息，notice表示提示信息，但還不是錯誤，info表示一般信息，
+debug表示調試信息等，因此一個消息的類型可能為：kern.debug、mail.info等，但頁可以使用通
+配符*進行匹配。</p>
+
+<p>　　從上面的syslog.conf的設置可以看出，系統正常運行中的很多重要的信息，如錯誤信息*.err、內
+核調試信息kern.debuf、認証報告auth.notice等被直接輸出的console中，另外還有一些比較
+重要的信息被輸出到/var/log/messages檔案中，發送郵件的記錄將被保存在/var/log/mail
+log檔案中，打印記錄為/var/log/lpd-errs等，使得管理員可以根據這些檔案來查詢相關記錄，進行統
+計或尋找系統問題。其中使用syslog記錄的messages檔案中包括root登錄的信息、用戶多次登錄失敗的嘗
+試等對系統安全相當重要的信息，因此也是系統遭受攻擊之後，攻擊者會根據syslog.conf中設置試圖清除相關文
+件中自己的登錄記錄。因此對於安全性要求更高的系統，可以嘗試將syslog發送到另一台電腦上，或者輸出到一些設
+備檔案中，如在印表機上立即打印輸出。</p>
+
+<p>　　系統會使用newsyslog定期檢查syslog輸出的messages檔案和maillog檔案，將舊數
+據壓縮保存為備份檔案，如messages.1.gz等。</p>
+
+<ul><B><P><LI>其他日誌</LI></P></B></ul>
+
+<p>　　除了系統登錄記錄和syslog記錄之外，其他還有一些應用程序使用自己的記錄方式。</p>
+
+<p>　　系統每天都會自動檢查系統的安全設置，包括對SetUID、SetGID的執行檔案的檢查，其結果將輸出到/
+var/log/security.today檔案中，管理員可以與/var/log/security.yeste
+rday檔案對比，尋找系統安全設置的變化。</p>
+
+<p>　　如果系統使用sendmail，那麼sendmail.st檔案中以二進制形式保存了sendmail的統計
+信息。</p>
+
+<p>　　在系統啟動的時候，就將核心的檢測信息輸出到螢幕上，這些信息可以幫助用戶分析系統中的硬體狀態。一般使用d
+mesg命令來查看最後一次啟動時輸出的這個檢測信息。這個信息也被系統保存在/var/log/dmesg.tod
+ay檔案中，系統中同時也存在另一個檔案dmesg.yesterday，是上次的啟動檢測信息，對比這兩個檔案，就
+可以了解到系統硬體和核心配置的變化。</p>
+
+<p>　　lpd-errs記錄了系統中lpd產生的錯誤信息。</p>
+
+<p>　　此外，各種shell還會記錄用戶使用的命令歷史，它使用用戶主目錄下的檔案來記錄這些命令歷史，通常這個文
+件的名字為.history（csh），或.bash-history等。
+</p>
+
+
+
+<BR>
+
+</TD>
+</TR></TABLE>
+
+
+
+</BODY>
+</HTML>

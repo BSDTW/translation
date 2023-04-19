@@ -1,0 +1,602 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>Chapter 27. Audio</title>
+    <link rel="stylesheet" type="text/css" href="docbook-xsl-mymods.css" />
+    <meta name="generator" content="DocBook XSL Stylesheets V1.76.0" />
+    <link rel="home" href="index.html" />
+    <link rel="up" href="pt06.html" />
+    <link rel="prev" href="pt06.html" />
+    <link rel="next" href="ch28.html" />
+  </head>
+  <body>
+    <div class="mattnotice">
+      <p>As a courtesy, this is a <b>full free</b> rendering of my book, <i>Programming iOS 6</i>, by Matt Neuburg. Copyright 2013 Matt Neuburg. Please note that this book has now been completely superseded by two more recent books, <a href="http://shop.oreilly.com/product/0636920032465.do">iOS 7 Fundamentals</a> and <a href="http://shop.oreilly.com/product/0636920031017.do">Programming iOS 7</a>. If my work has been of help to you, please <b>consider purchasing</b> one or both of them. Thank you!
+	</p>
+    </div>
+    <div class="navfooter">
+      <table width="100%" summary="Navigation footer">
+        <tr>
+          <td width="40%" align="left"><a accesskey="p" href="pt06.html">Prev</a> </td>
+          <td width="20%" align="center">
+            <a accesskey="u" href="pt06.html">Up</a>
+          </td>
+          <td width="40%" align="right"> <a accesskey="n" href="ch28.html">Next</a></td>
+        </tr>
+        <tr>
+          <td width="40%" align="left" valign="top">Part VI. Some Frameworks </td>
+          <td width="20%" align="center">
+            <a accesskey="h" href="index.html">Table of Contents</a>
+          </td>
+          <td width="40%" align="right" valign="top"> Chapter 28. Video</td>
+        </tr>
+      </table>
+    </div>
+    <div class="chapter">
+      <div class="titlepage">
+        <div>
+          <div>
+            <h2 class="title"><a id="chap_id27"></a>Chapter 27. Audio</h2>
+          </div>
+        </div>
+      </div>
+      <p>iOS provides various means and technologies for allowing your app to produce sound (and even to input it). The topic is a large one, so this chapter can only introduce it. You’ll want to read Apple’s <span class="emphasis"><em>Multimedia Programming Guide</em></span> and <span class="emphasis"><em>Core Audio Overview</em></span>.</p>
+      <p>None of the classes discussed in this chapter provide any user interface within your application for allowing the user to stop and start playback of sound. You can create your own such interface, and I’ll discuss how you can associate the “remote control” buttons with your application. Also, a web view (<a class="xref" href="ch24.html">Chapter 24</a>) supports the HTML 5 <code class="literal">&lt;audio&gt;</code> tag; this can be a simple, lightweight way to play audio and to allow the user to control playback. (By default, a web view even allows use of AirPlay.) Alternatively, you could treat the sound as a movie and use the MPMoviePlayerController class discussed in <a class="xref" href="ch28.html">Chapter 28</a>; this can also be a good way to play a sound file located remotely over the Internet.
+<a id="idxsound" class="indexterm"></a><a id="idm441642447488" class="indexterm"></a></p>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_system_sounds"></a>System Sounds</h2>
+            </div>
+          </div>
+        </div>
+        <p>The simplest form of sound is <span class="emphasis"><em>system sound</em></span>, which is the iOS equivalent of the basic computer “beep.” This is implemented through <a id="idm441642444544" class="indexterm"></a>System Sound Services; you’ll need to import <code class="literal">&lt;AudioToolbox/AudioToolbox.h&gt;</code> and link to <span class="emphasis"><em>AudioToolbox.framework</em></span>.<a id="idm441642442640" class="indexterm"></a>
+<a id="idm441642441328" class="indexterm"></a> You’ll be calling one of two C functions, which behave very similarly to one another:<a id="idm441642440064" class="indexterm"></a></p>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+<code class="literal">AudioServicesPlayAlertSound</code>
+</span>
+            </dt>
+            <dd>
+Plays a sound and, on an iPhone, may also vibrate the device, depending on the user’s settings.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">AudioServicesPlaySystemSound</code>
+</span>
+            </dt>
+            <dd>
+Plays a short sound of your choice. On an iPhone, there won’t be an accompanying vibration, but you can specifically elect to have this “sound” <span class="emphasis"><em>be</em></span> a device vibration (by passing <code class="literal">kSystemSoundID_Vibrate</code> as the name of the “sound”).
+</dd>
+          </dl>
+        </div>
+        <p>The sound file to be played needs to be an uncompressed AIFF or WAV file (or an Apple CAF file wrapping one of these). To hand the sound to these functions, you’ll need a SystemSoundID, which you obtain by calling <code class="literal">AudioServicesCreateSystemSoundID</code> with a CFURLRef (or NSURL) that points to a sound file. In this example, the sound file is in our app bundle:</p>
+        <pre class="screen">NSURL* sndurl =
+    [[NSBundle mainBundle] URLForResource:@"test" withExtension:@"aif"];
+SystemSoundID snd;
+AudioServicesCreateSystemSoundID ((__bridge CFURLRef)sndurl, &amp;snd);
+AudioServicesPlaySystemSound(snd);</pre>
+        <p>However, there’s a problem with that code: we have failed to exercise proper memory management. We need to call <code class="literal">AudioServicesDisposeSystemSoundID</code> to release our SystemSoundID. But when shall we do this? <code class="literal">AudioServicesPlaySystemSound</code> executes asynchronously. So the solution can’t be to call <code class="literal">AudioServicesDisposeSystemSoundID</code> in the next line of the same snippet, because this would release our sound just as it is about to start playing, resulting in silence. The solution is to implement a sound completion handler, a function that is called when the sound has finished playing. So, our sound-playing snippet now looks like this:</p>
+        <pre class="screen">NSURL* sndurl =
+    [[NSBundle mainBundle] URLForResource:@"test" withExtension:@"aif"];
+SystemSoundID snd;
+AudioServicesCreateSystemSoundID((__bridge CFURLRef)sndurl, &amp;snd);
+AudioServicesAddSystemSoundCompletion(snd, nil, nil, SoundFinished, nil);
+AudioServicesPlaySystemSound(snd);</pre>
+        <p>And here is our sound completion handler, the <code class="literal">SoundFinished</code> function referred to in the previous snippet:</p>
+        <pre class="screen">void SoundFinished (SystemSoundID snd, void* context) {
+    AudioServicesRemoveSystemSoundCompletion(snd);
+    AudioServicesDisposeSystemSoundID(snd);
+}</pre>
+        <p>Note that because we are about to release the sound, we first release the sound completion handler information applied to it. The last argument passed to <code class="literal">AudioServicesAddSystemSoundCompletion</code> is a pointer-to-void that comes back as the second parameter of our sound completion handler function; you can use this parameter in any way you like, such as to help identify the sound.</p>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_audio_session"></a>Audio Session</h2>
+            </div>
+          </div>
+        </div>
+        <p>If your app is going to use a more sophisticated way of producing sound, such as an audio player (discussed in the next section), it must specify a <span class="emphasis"><em>policy</em></span> regarding that sound. This policy will answer such questions as: should sound stop when the screen is locked? Should sound interrupt existing sound (being played, for example, by the Music app) or should it be layered on top of it?<a id="idm441642420064" class="indexterm"></a></p>
+        <p>Your policy is declared in an <span class="emphasis"><em>audio session</em></span>, which is a singleton AVAudioSession instance created automatically as your app launches.<a id="idm441642418272" class="indexterm"></a> You’ll need to link to <span class="emphasis"><em>AVFoundation.framework</em></span> and import <code class="literal">&lt;AVFoundation/AVFoundation.h&gt;</code>. You’ll refer to your app’s AVAudioSession by way of the class method <code class="literal">sharedInstance</code>.<a id="idm441642415296" class="indexterm"></a>
+<a id="idm441642414016" class="indexterm"></a></p>
+        <div class="note" style="margin-left: 0; margin-right: 10%;">
+          <h3 class="title">Note</h3>
+          <p>Before iOS 6, it was also possible, and sometimes necessary, to talk to your audio session in C, by linking to <span class="emphasis"><em>AudioToolbox.framework</em></span> and importing <code class="literal">&lt;AudioToolbox/AudioToolbox.h&gt;</code>.<a id="idm441642411344" class="indexterm"></a>
+<a id="idm441642410048" class="indexterm"></a> In iOS 6, the C API isn’t needed, and I don’t use it in this edition of the book.<a id="idm441642408720" class="indexterm"></a>
+<a id="idm441642407408" class="indexterm"></a></p>
+        </div>
+        <p>To declare your audio session’s policy, you’ll set its <span class="emphasis"><em>category</em></span>, by calling <code class="literal">setCategory:withOptions:error:</code>. The basic policies for audio playback are:</p>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+Ambient (<code class="literal">AVAudioSessionCategoryAmbient</code>)
+</span>
+            </dt>
+            <dd>
+Your app’s audio plays even while Music app music or other background audio is playing, and is silenced by the phone’s Silent switch and screen locking.
+</dd>
+            <dt>
+              <span class="term">
+Solo Ambient (<code class="literal">AVAudioSessionCategorySoloAmbient</code>, the default)
+</span>
+            </dt>
+            <dd>
+Your app stops Music app music or other background audio from playing, and is silenced by the phone’s Silent switch and screen locking.
+</dd>
+            <dt>
+              <span class="term">
+Playback (<code class="literal">AVAudioSessionCategoryPlayback</code>)
+</span>
+            </dt>
+            <dd>
+Your app stops Music app music or other background audio from playing, and is <span class="emphasis"><em>not</em></span> silenced by the Silent switch. It is silenced by screen locking (in iOS 5 and later) unless it is also configured to play in the background (as explained later in this chapter).<a id="idm441642397040" class="indexterm"></a><a id="idm441642396128" class="indexterm"></a>
+</dd>
+          </dl>
+        </div>
+        <p>Your audio session’s <code class="literal">otherAudioPlaying</code> property can tell you whether audio is already playing in some other app, such as the Music app. Apple suggests that you might want your choice of audio session policy, and perhaps what kinds of sound your app plays, to take into account the answer to that question.</p>
+        <p>Audio session category options (the <code class="literal">withOptions:</code> parameter of <code class="literal">setCategory:withOptions:error:</code>) allow you to modify the playback policies to some extent. For example:</p>
+        <div class="itemizedlist">
+          <ul class="itemizedlist" type="disc">
+            <li class="listitem">
+You can override the Playback policy so as to allow Music app music or other background audio to play (<code class="literal">AVAudioSessionCategoryOptionMixWithOthers</code>). Your sound is then said to be <span class="emphasis"><em>mixable</em></span>. If you don’t make your sound mixable, then mixable background audio will still be able to play, but non-mixable background audio won’t be able to play.
+</li>
+            <li class="listitem">
+You can override a policy that allows Music app music or other background audio to play, so as to <span class="emphasis"><em>duck</em></span> (diminish the volume of) that background audio (<code class="literal">AVAudioSessionCategoryOptionDuckOthers</code>). Ducking does <span class="emphasis"><em>not</em></span> depend automatically on whether your app is actively producing any sound; rather, it starts as soon as you turn this override on and remains in place until your audio session is deactivated.<a id="idm441642386544" class="indexterm"></a><a id="idm441642385632" class="indexterm"></a>
+</li>
+          </ul>
+        </div>
+        <p>It is common practice to declare your app’s initial audio session policy very early in the life of the app, possibly as early as <code class="literal">application:didFinishLaunchingWithOptions:</code>. You can then, if necessary, change your audio session policy in real time, as your app runs.</p>
+        <p>Your audio session policy is not in effect, however, unless your audio session is also <span class="emphasis"><em>active</em></span>. By default, it isn’t. Thus, asserting your audio session policy is done by a combination of configuring the audio session and activating the audio session. To activate (or deactivate) your audio session, you call <code class="literal">setActive:withOptions:error:</code>.</p>
+        <p>The question then is <span class="emphasis"><em>when</em></span> to call <code class="literal">setActive:withOptions:error:</code>. This is a little tricky because of multitasking. Your audio session can be deactivated automatically if your app is no longer active. So if you want your policy to be obeyed under all circumstances, you must explicitly activate your audio session each time your app becomes active. The best place to do this is in <code class="literal">applicationDidBecomeActive:</code>, as this is the only method guaranteed to be called every time your app is reactivated under circumstances where your audio session might have been deactivated in the background. (See <a class="xref" href="ch11.html">Chapter 11</a> for how an app resigns and resumes active status.)</p>
+        <p>The first parameter to <code class="literal">setActive:withOptions:error:</code> is a BOOL saying whether we want to activate or deactivate our audio session. There are various reasons why you might deactivate (and perhaps reactivate) your audio session over the lifetime of your app.</p>
+        <p>One such reason is that you no longer need to hog the device’s audio, and you want to yield to other apps to play music in the background. The second parameter to <code class="literal">setActive:withOptions:error:</code> lets you supply a single option, <code class="literal">AVAudioSessionSetActiveOptionNotifyOthersOnDeactivation</code> (only when the first parameter is NO). By doing this, you tell the system to allow any audio suspended by the activation of your audio session to resume. After all, enforcing a Playback audio session policy that silences music that was playing in the background is not very nice if your app isn’t actively producing any sound <span class="emphasis"><em>at the moment</em></span>; better to activate your Playback audio session only when your app is actively producing sound, and deactivate it when your sound finishes. When you do that along with this option, the effect is one of pausing background audio, playing your audio, and then resuming background audio (if the app providing the background audio responds correctly to this option). I’ll give an example later in this chapter.</p>
+        <p>Another reason for deactivating (and reactivating) your audio session is to bring a change of audio policy into effect. A good example is <span class="emphasis"><em>ducking</em></span>. Let’s say that, in general, we don’t play any sounds, and we want background sound such as Music app songs to continue playing while our app runs. So we configure our audio session to use the Ambient policy in <code class="literal">application:didFinishLaunchingWithOptions:</code>, as follows:</p>
+        <pre class="screen">[[AVAudioSession sharedInstance] setCategory: AVAudioSessionCategoryAmbient
+                                 withOptions:0 error: nil];</pre>
+        <p>We aren’t interrupting any other audio with our Ambient policy, so it does no harm to activate our audio session every time our app becomes active, no matter how, in <code class="literal">applicationDidBecomeActive:</code>, like this:</p>
+        <pre class="screen">[[AVAudioSession sharedInstance] setActive: YES withOptions: 0 error: nil];</pre>
+        <p>That’s all it takes to set and enforce your app’s overall audio session policy. Now let’s say we do <span class="emphasis"><em>sometimes</em></span> play a sound, but it’s brief and doesn’t require background sound to stop entirely; it suffices for background audio to be quieter momentarily while we’re playing our sound. That’s ducking! So, just before we play our sound, we duck any external sound by changing the options on our Ambient category:</p>
+        <pre class="screen">[[AVAudioSession sharedInstance]
+    setCategory: AVAudioSessionCategoryAmbient
+    withOptions: AVAudioSessionCategoryOptionDuckOthers
+          error: nil];</pre>
+        <p>When we finish playing our sound, we turn off ducking. This is the tricky part. Not only must we remove the ducking property from our audio session policy, but we must also <span class="emphasis"><em>deactivate our audio session</em></span> to make the change take effect immediately and bring the external sound back to its original level; there is then no harm in reactivating our audio session:</p>
+        <pre class="screen">[[AVAudioSession sharedInstance] setActive:NO withOptions:0 error:nil];
+[[AVAudioSession sharedInstance] setCategory: AVAudioSessionCategoryAmbient
+                                 withOptions: 0
+                                       error: nil];
+[[AVAudioSession sharedInstance] setActive:YES withOptions: 0 error:nil];</pre>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_interruptions"></a>Interruptions</h3>
+              </div>
+            </div>
+          </div>
+          <p>Your audio session can be <span class="emphasis"><em>interrupted</em></span>.<a id="idm441642360592" class="indexterm"></a><a id="idm441642359728" class="indexterm"></a> This could mean that some other app deactivates it: for example, on an iPhone a phone call can arrive or an alarm can go off. In the multitasking world, it could mean that another app asserts its audio session over yours. You can register for a notification to learn of interruptions:</p>
+          <div class="variablelist">
+            <dl>
+              <dt>
+                <span class="term">
+<code class="literal">AVAudioSessionInterruptionNotification</code>
+</span>
+              </dt>
+              <dd>
+                <p class="simpara">
+To learn whether the interruption began or ended, examine the <code class="literal">AVAudioSessionInterruptionTypeKey</code> entry in the notification’s <code class="literal">userInfo</code> dictionary; this will be one of the following:
+</p>
+                <div class="itemizedlist">
+                  <ul class="itemizedlist" type="disc">
+                    <li class="listitem">
+<code class="literal">AVAudioSessionInterruptionTypeBegan</code>
+</li>
+                    <li class="listitem">
+<code class="literal">AVAudioSessionInterruptionTypeEnded</code>
+</li>
+                  </ul>
+                </div>
+                <p class="simpara">In the latter case, the <code class="literal">AVAudioSessionInterruptionOptionKey</code> entry may be present, containing an NSNumber wrapping <code class="literal">AVAudioSessionInterruptionOptionShouldResume</code>; this is the flip side of <code class="literal">AVAudioSessionSetActiveOptionNotifyOthersOnDeactivation</code>, which I mentioned earlier: some other app that interrupted you has now deactivated its audio session, and is telling you to feel free to resume your audio.</p>
+              </dd>
+            </dl>
+          </div>
+          <div class="note" style="margin-left: 0; margin-right: 10%;">
+            <h3 class="title">Note</h3>
+            <p>Audio session notifications are new in iOS 6. Previously, it was necessary to set an audio session delegate, or install a handler function by way of the C API.<a id="idm441642347632" class="indexterm"></a>
+<a id="idm441642346304" class="indexterm"></a></p>
+          </div>
+          <p>Interruptions are not as intrusive as you might suppose. When your audio session is interrupted, your audio has already stopped and your audio session has been deactivated; you might respond by altering something about your app’s user interface to reflect the fact that your audio isn’t playing, but apart from this there’s no particular work for you to do. When the interruption ends, on the other hand, activating your audio session and possibly resuming playback of your audio might be up to you. Even this may not be necessary, however; if you use an audio player (AVAudioPlayer, discussed in the next section), it activates your audio session for you, and typically resumes playing, when an interruption ends.</p>
+          <p>In the multitasking world, when your app switches to the background, your audio is paused (unless your app plays audio in the background, as discussed later in this chapter). Various things can happen when your app comes back to the front. Again, if you were playing audio with an AVAudioPlayer, it’s possible that the AVAudioPlayer will handle the entire situation: it will automatically reactivate your audio session and resume playing, and you won’t get any interruption notifications.</p>
+          <p>If you’re <span class="emphasis"><em>not</em></span> using an AVAudioPlayer, however, it is likely that being moved into the background will count as an interruption of your audio session. You don’t get any notifications while you’re suspended in the background, so everything happens at once when your app comes back to the front: you’ll be notified that the interruption began, then notified that it ended, and then your <code class="literal">applicationDidBecomeActive:</code> will be called, all in quick succession (and in that order). Make sure that your responses to these events, arriving in a sudden cluster, don’t step on each other’s toes somehow.</p>
+          <div class="warning" style="margin-left: 0; margin-right: 10%;">
+            <h3 class="title">Warning</h3>
+            <p>When the user double-taps the Home button to reach the application switcher and uses the Play button to resume the current Music app song, you get a notification that an interruption began; if the user then double-taps the Home button again to return from the application switcher to your app, you get <code class="literal">applicationDidBecomeActive:</code>, but you do <span class="emphasis"><em>not</em></span> get any notification that the interruption has ended (and an AVAudioPlayer does not automatically resume playing). This seems incoherent.</p>
+          </div>
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_routing_changes"></a>Routing Changes</h3>
+              </div>
+            </div>
+          </div>
+          <p>Your audio is routed through a particular output (and input).<a id="idm441642337824" class="indexterm"></a><a id="idm441642336944" class="indexterm"></a> The user can make changes in this routing — for example, by plugging headphones into the device, which causes sound to stop coming out of the speaker and to come out of the headphones instead. By default, your audio continues uninterrupted if any is playing, but your code might like to be notified when routing is changed. You can register for <code class="literal">AVAudioSessionRouteChangeNotification</code> to hear about routing changes.</p>
+          <p>The notification’s <code class="literal">userInfo</code> dictionary is chock full of useful information about what just happened. You’re given a description of the new route and possibly the old route, along with a summation of what changed and why. Here’s NSLog’s display of the dictionary that results when I detach headphones from the device:</p>
+          <pre class="screen">AVAudioSessionRouteChangePreviousRouteKey =
+    "&lt;AVAudioSessionRouteDescription: 0x1f028840,
+        inputs = (null);
+        outputs = (
+            "&lt;AVAudioSessionPortDescription: 0x1f02af30,
+                type = Headphones;
+                name = Headphones;
+                UID = Wired Headphones;
+                channels = (
+                    "&lt;AVAudioSessionChannelDescription: 0x1f02af80,
+                         name = Headphones Left;
+                         number = 1;
+                         port UID = Wired Headphones&gt;",
+                    "&lt;AVAudioSessionChannelDescription: 0x1f02afa0,
+                        name = Headphones Right;
+                        number = 2;
+                        port UID = Wired Headphones&gt;"
+                )&gt;"
+        )&gt;";
+AVAudioSessionRouteChangeReasonKey = 2;</pre>
+          <p>The classes mentioned here — AVAudioSessionRouteDescription, AVAudioSessionPortDescription, AVAudioSessionChannelDescription — are all value classes (glorified structs). For the meaning of the AVAudioSessionRouteChangeReasonKey, see the AVAudioSession class reference; the value here, <code class="literal">2</code>, is <code class="literal">AVAudioSessionRouteChangeReasonOldDeviceUnavailable</code> — we stopped using the headphones because there are no headphones any longer. A routing change may not of itself interrupt your sound, but Apple suggests that in this particular situation you might like to respond by stopping your audio deliberately, possibly giving the user the option of resuming it, because otherwise sound may now suddenly be coming out of the speaker in a public place.</p>
+        </div>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_audio_player"></a>Audio Player</h2>
+            </div>
+          </div>
+        </div>
+        <p>An <span class="emphasis"><em>audio player</em></span> is an instance of the <a id="idm441642327296" class="indexterm"></a>AVAudioPlayer class. This is the easiest way to play sounds with any degree of sophistication. A wide range of sound types is acceptable, including MP3, AAC, and ALAC, as well as AIFF and WAV. You can set a sound’s volume and stereo pan features, loop a sound, synchronize the playing of multiple sounds simultaneously, change the playing rate, and set playback to begin somewhere in the middle of a sound.<a id="idm441642325872" class="indexterm"></a> New in iOS 6, you can even tell the audio player what output channels of the device to use in producing its sound.</p>
+        <p>To use an audio player, you’ll need to link to <span class="emphasis"><em>AVFoundation.framework</em></span> and import <code class="literal">&lt;AVFoundation/AVFoundation.h&gt;</code>.<a id="idm441642323376" class="indexterm"></a>
+<a id="idm441642322064" class="indexterm"></a><a id="idm441642321152" class="indexterm"></a> An audio player should always be used in conjunction with an audio session; see the previous section.</p>
+        <div class="warning" style="margin-left: 0; margin-right: 10%;">
+          <h3 class="title">Warning</h3>
+          <p>Not every device type can play a compressed sound format in every degree of compression, and the limits can be difficult or impossible to learn except by experimentation. I encountered this issue when an app of mine worked correctly on an iPod touch 32GB but failed to play its sounds on an iPod touch 8GB (even though the latter was newer). Even more frustrating, the files played just fine in the Music app on <span class="emphasis"><em>both</em></span> devices. The problem appears to be that the compression bit rate of my sound files was too low for AVAudioPlayer on the 8GB device, but not on the 32GB device. But there is no documentation of the limits involved.</p>
+        </div>
+        <p>An audio player can possess and play only one sound, but it can play that sound repeatedly, and you can have multiple audio players, possibly playing simultaneously. An audio player is initialized with its sound, using a local file URL or NSData. To play the sound, first tell the audio player to <code class="literal">prepareToPlay</code>, causing it to load buffers and initialize hardware; then tell it to <code class="literal">play</code>. The audio player’s delegate (AVAudioPlayerDelegate) is notified when the sound finishes playing (<code class="literal">audioPlayerDidFinishPlaying:successfully:</code>); do <span class="emphasis"><em>not</em></span> repeatedly check the audio player’s <code class="literal">playing</code> property to learn its state. Other useful methods include <code class="literal">pause</code> and <code class="literal">stop</code>; the chief difference between them is that <code class="literal">pause</code> doesn’t release the buffers and hardware set up by <code class="literal">prepareToPlay</code>, but <code class="literal">stop</code> does (so you’d want to call <code class="literal">prepareToPlay</code> again before resuming play). Neither <code class="literal">pause</code> nor <code class="literal">stop</code> changes the playhead position (the point in the sound where playback will start if <code class="literal">play</code> is sent again); for that, use the <code class="literal">currentTime</code> property.</p>
+        <div class="note" style="margin-left: 0; margin-right: 10%;">
+          <h3 class="title">Note</h3>
+          <p>In a WWDC 2011 video, Apple points out that simultaneously playing multiple sounds that have different sample rates is computationally expensive, and suggests that you prepare your sounds beforehand by converting them to a single sample rate. Also, decoding AAC is faster and less expensive than decoding MP3.</p>
+        </div>
+        <p>Devising a strategy for instantiating, retaining, and releasing your audio players is up to you. In one of my apps, I use a class called Player, which implements a <code class="literal">play:</code> method expecting a string path to a sound file in the app bundle. This method creates a new audio player, stores it as an instance variable, and tells it to play the sound file; it also sets itself up as that audio player’s delegate, and emits a notification when the sound finishes playing. In this way, by maintaining a single Player instance, I can play different sounds in succession:</p>
+        <pre class="screen">- (void) play: (NSString*) path {
+    NSURL *fileURL = [[NSURL alloc] initFileURLWithPath: path];
+    NSError* err = nil;
+    AVAudioPlayer *newPlayer =
+        [[AVAudioPlayer alloc] initWithContentsOfURL: fileURL error: &amp;err];
+    // error-checking omitted
+    self.player = newPlayer; // retain policy
+    [self.player prepareToPlay];
+    [self.player setDelegate: self];
+    [self.player play];
+}
+
+- (void)audioPlayerDidFinishPlaying:(AVAudioPlayer *)player // delegate method
+                       successfully:(BOOL)flag {
+    [[NSNotificationCenter defaultCenter]
+        postNotificationName:@"soundFinished" object:nil];
+}</pre>
+        <p>Here are some useful audio player properties:</p>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+<code class="literal">pan</code>, <code class="literal">volume</code>
+</span>
+            </dt>
+            <dd>
+Stereo positioning and loudness, respectively.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">numberOfLoops</code>
+</span>
+            </dt>
+            <dd>
+How many times the sound should repeat after it finishes playing; thus, <code class="literal">0</code> (the default) means it doesn’t repeat. A negative value causes the sound to repeat indefinitely (until told to <code class="literal">stop</code>).
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">duration</code>
+</span>
+            </dt>
+            <dd>
+The length of the sound (read-only).
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">currentTime</code>
+</span>
+            </dt>
+            <dd>
+The playhead position within the sound. If the sound is paused or stopped, <code class="literal">play</code> will start at the <code class="literal">currentTime</code>. You can set this in order to “seek” to a playback position within the sound.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">enableRate</code>, <code class="literal">rate</code>
+</span>
+            </dt>
+            <dd>
+These properties allow the sound to be played at anywhere from half speed (<code class="literal">0.5</code>) to double speed (<code class="literal">2.0</code>). Set <code class="literal">enableRate</code> to YES <span class="emphasis"><em>before</em></span> calling <code class="literal">prepareToPlay</code>; you are then free to set the <code class="literal">rate</code>.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">meteringEnabled</code>
+</span>
+            </dt>
+            <dd>
+If YES (the default is NO), you can call <code class="literal">updateMeters</code> followed by <code class="literal">averagePowerForChannel:</code> and/or <code class="literal">peakPowerForChannel:</code>, periodically, to track how loud the sound is. Presumably this would be so you could provide some sort of graphical representation of this value in your interface.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">settings</code>
+</span>
+            </dt>
+            <dd>
+A read-only dictionary describing features of the sound, such as its bit rate (<code class="literal">AVEncoderBitRateKey</code>), its sample rate (<code class="literal">AVSampleRateKey</code>), and its data format (<code class="literal">AVFormatIDKey</code>).
+</dd>
+          </dl>
+        </div>
+        <p>The <code class="literal">playAtTime:</code> method allows playing to be scheduled to start at a certain time. The time should be described in terms of the audio player’s <code class="literal">deviceCurrentTime</code> property.</p>
+        <p>As I mentioned in the previous section, an audio player resumes playing when your app comes to the front if it was playing and was forced to stop playing when your app was moved to the background. There are delegate methods <code class="literal">audioPlayerBeginInterruption:</code> and <code class="literal">audioPlayerEndInterruption:withOptions:</code>, but my experience is that the audio player will normally resume playing automatically and the delegate won’t be sent these messages at all. In fact, I have yet to discover a situation in which <code class="literal">audioPlayerEndInterruption:withOptions:</code> is <span class="emphasis"><em>ever</em></span> called when your app is in the foreground (active); it may, however, be called when your app is capable of playing sound in the background, as I’ll explain later in this chapter.</p>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_remote_control_of_your_sound"></a>Remote Control of Your Sound</h2>
+            </div>
+          </div>
+        </div>
+        <p>Various sorts of signal constitute <span class="emphasis"><em>remote control</em></span>. There is hardware remote control; the user might be using earbuds with buttons, for example.<a id="idm441642267488" class="indexterm"></a><a id="idm441642266592" class="indexterm"></a><a id="idm441642265712" class="indexterm"></a> There is also software remote control — for example, the playback controls that you see when you double-click the Home button to view the fast app switcher and then swipe to the right (<a class="xref" href="ch27.html#FIGremote">Figure 27.1</a>). Similarly, the buttons that appear if you double-click the Home button when the screen is locked and sound is playing are a form of software remote control (<a class="xref" href="ch27.html#FIGlockscreenMusic">Figure 27.2</a>).</p>
+        <div class="figure">
+          <a id="FIGremote"></a>
+          <div class="figure-contents">
+            <div class="mediaobject">
+              <img src="figs/pios_2701.png" alt="figs/pios_2701.png" />
+            </div>
+          </div>
+          <p class="title">Figure 27.1. The software remote controls in the app switcher</p>
+        </div>
+        <br class="figure-break" />
+        <div class="figure">
+          <a id="FIGlockscreenMusic"></a>
+          <div class="figure-contents">
+            <div class="mediaobject">
+              <img src="figs/pios_2702.png" alt="figs/pios_2702.png" />
+            </div>
+          </div>
+          <p class="title">Figure 27.2. The software remote controls on the locked screen</p>
+        </div>
+        <br class="figure-break" />
+        <p>Your app can arrange to be targeted by <span class="emphasis"><em>remote control events</em></span> reporting that the user has tapped a remote control. This is particularly appropriate in an app that plays sound. Your sound-playing app can respond to the remote play/pause button, for example, by playing or pausing its sound.</p>
+        <p>Remote control events are a form of UIEvent, and they are sent initially to the first responder. (See <a class="xref" href="ch11.html">Chapter 11</a> and <a class="xref" href="ch18.html">Chapter 18</a> on UIResponders and the responder chain.) To arrange to be a recipient of remote control events:</p>
+        <div class="itemizedlist">
+          <ul class="itemizedlist" type="disc">
+            <li class="listitem">
+Your app must contain a UIResponder in its responder chain that returns YES from <code class="literal">canBecomeFirstResponder</code>, and that responder must actually be first responder.<a id="idm441642251824" class="indexterm"></a>
+</li>
+            <li class="listitem">
+Some UIResponder in the responder chain, at or above the first responder, must implement <code class="literal">remoteControlReceivedWithEvent:</code>.
+</li>
+            <li class="listitem">
+Your app must call the UIApplication instance method <code class="literal">beginReceivingRemoteControlEvents</code>.
+</li>
+            <li class="listitem">
+Your app’s audio session’s policy must be Playback.
+</li>
+            <li class="listitem">
+Your app must emit some sound. The rule is that the running app that is capable of receiving remote control events and that last actually produced sound is the target of remote events. The user can tell what app this is because the icon at the right of the remote control interface (<a class="xref" href="ch27.html#FIGremote">Figure 27.1</a>) is the icon of that app. The remote control event target defaults to the Music app if no other app takes precedence by this rule.<a id="idm441642245072" class="indexterm"></a>
+<a id="idm441642244032" class="indexterm"></a>
+</li>
+          </ul>
+        </div>
+        <p>A typical place to put all of this is in your view controller, which is, after all, a UIResponder:</p>
+        <pre class="screen">- (BOOL)canBecomeFirstResponder {
+    return YES;
+}
+
+- (void) viewDidAppear:(BOOL)animated {
+    [super viewDidAppear: animated];
+    [self becomeFirstResponder];
+    [[UIApplication sharedApplication] beginReceivingRemoteControlEvents];
+}
+
+- (void)remoteControlReceivedWithEvent:(UIEvent *)event {
+    // ...
+}</pre>
+        <p>The question is then how to implement <code class="literal">remoteControlReceivedWithEvent:</code>. Your implementation will examine the <code class="literal">subtype</code> of the incoming UIEvent to decide what to do. There are many possible <code class="literal">subtype</code> values, listed under UIEventSubtype in the UIEvent class documentation; they have names like <code class="literal">UIEventSubtypeRemoteControlPlay</code>. A minimal implementation will respond to <code class="literal">UIEventSubtypeRemoteControlTogglePlayPause</code>. Here’s an example in an app where sound is produced by an AVAudioPlayer:</p>
+        <pre class="screen">- (void)remoteControlReceivedWithEvent:(UIEvent *)event {
+    UIEventSubtype type = event.subtype;
+    if (type == UIEventSubtypeRemoteControlTogglePlayPause) {
+        if ([if self.player isPlaying])
+            [self.player pause];
+        else
+            [self.player play];
+    }
+}</pre>
+        <p>You can also influence what information the user will see in the remote control interface about what’s being played. For that, you’ll use <a id="idm441642234832" class="indexterm"></a>MPNowPlayingInfoCenter; you’ll need to link to <span class="emphasis"><em>MediaPlayer.framework</em></span> and import <code class="literal">&lt;MediaPlayer/MediaPlayer.h&gt;</code>. Call the class method <code class="literal">defaultCenter</code> and set the resulting instance’s <code class="literal">nowPlayingInfo</code> property to a dictionary. The relevant keys are listed in the class documentation; they will make more sense after you’ve read <a class="xref" href="ch29.html">Chapter 29</a>, which discusses the Media Player framework. The code (from my TidBITS News app) that actually produced the interface shown in <a class="xref" href="ch27.html#FIGremote">Figure 27.1</a> and <a class="xref" href="ch27.html#FIGlockscreenMusic">Figure 27.2</a> is as follows:</p>
+        <pre class="screen">MPNowPlayingInfoCenter* mpic = [MPNowPlayingInfoCenter defaultCenter];
+mpic.nowPlayingInfo = @{
+    MPMediaItemPropertyTitle:self.titleLabel.text,
+    MPMediaItemPropertyArtist:self.authorLabel.text
+};</pre>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_playing_sound_in_the_background"></a>Playing Sound in the Background</h2>
+            </div>
+          </div>
+        </div>
+        <p>In the multitasking world, when the user switches away from your app to another app, by default, your app is suspended and stops producing sound.<a id="idm441642226432" class="indexterm"></a><a id="idm441642225568" class="indexterm"></a> But if the business of your app is to play sound, you might like your app to continue playing sound in the background. In earlier sections of this chapter, I’ve spoken about how your app, in the foreground, relates its sound production to background sound such as the Music app. Now we’re talking about how your app can <span class="emphasis"><em>be</em></span> that background sound, possibly playing sound while some other app is in the foreground.</p>
+        <p>To play sound in the background, your app must do these things:</p>
+        <div class="itemizedlist">
+          <ul class="itemizedlist" type="disc">
+            <li class="listitem">
+In your <span class="emphasis"><em>Info.plist</em></span>, you must include the “Required background modes” key (<code class="literal">UIBackgroundModes</code>) with a value that includes “App plays audio” (<code class="literal">audio</code>).
+</li>
+            <li class="listitem">
+Your audio session’s policy must be Playback (and must be active, of course).
+</li>
+          </ul>
+        </div>
+        <p>If those things are true, then the sound that your app is playing when the user clicks the Home button and dismisses your application, or switches to another app, will go right on playing.</p>
+        <div class="note" style="margin-left: 0; margin-right: 10%;">
+          <h3 class="title">Note</h3>
+          <p>When the screen is locked, your app can continue to play sound only if it is capable of playing sound in the background.</p>
+        </div>
+        <p>Moreover, your app may be able to start playing in the background even if it was <span class="emphasis"><em>not</em></span> playing previously — namely, if it is mixable (<code class="literal">AVAudioSessionCategoryOptionMixWithOthers</code>, see earlier in this chapter), or if it is capable of being the remote control target. Indeed, an extremely cool feature of playing sound in the background is that remote control events continue to work. Even if your app was not actively playing at the time it was put into the background, it may be the remote control target (because it <span class="emphasis"><em>was</em></span> playing sound earlier, as explained in the preceding section). In that case, if the user causes a remote control event to be sent, your app, if suspended in the background, will be woken up (still in the background) in order to receive the remote control event and can begin playing sound. However, the rules for interruptions still apply; another app can interrupt your app’s audio session while your app is in the background, and if that app receives remote control events, then your app is no longer the remote control target.</p>
+        <p>If your app is the remote control target in the background, then another app can interrupt your app’s audio, play some audio of its own, and then deactivate its own audio session with the option telling your app to resume playing. I’ll give a minimal example of how this works with an AVAudioPlayer.</p>
+        <p>Let’s call the two apps BackgroundPlayer and Interrupter. Suppose Interrupter has an audio session policy of Ambient. This means that when it comes to the front, background audio doesn’t stop. But now Interrupter wants to play a sound of its own, temporarily stopping background audio. To pause the background audio, it sets its own audio session to Playback:</p>
+        <pre class="screen">[[AVAudioSession sharedInstance] setCategory:AVAudioSessionCategoryPlayback
+                                 withOptions:0 error:nil];
+[[AVAudioSession sharedInstance] setActive:YES withOptions:0 error:nil];
+[self.player setDelegate: self];
+[self.player prepareToPlay];
+[self.player play];</pre>
+        <p>When Interrupter’s sound finishes playing, its AVAudioPlayer’s delegate is notified. In response, Interrupter deactivates its audio session with the <code class="literal">AVAudioSessionSetActiveOptionNotifyOthersOnDeactivation</code> option; then it’s fine for it to switch its audio session policy back to Ambient and activate it once again:</p>
+        <pre class="screen">[[AVAudioSession sharedInstance] setActive:NO
+    withOptions:AVAudioSessionSetActiveOptionNotifyOthersOnDeactivation
+    error:nil];
+[[AVAudioSession sharedInstance] setCategory:AVAudioSessionCategoryAmbient
+                                 withOptions:0 error:nil];
+[[AVAudioSession sharedInstance] setActive: YES withOptions:0 error:nil];</pre>
+        <p>So much for Interrupter. Now let’s turn to BackgroundPlayer, which was playing in the background when Interrupter came along and changed its own policy to Playback. When Interrupter changes its own policy to Playback, BackgroundPlayer’s sound is interrupted; it stops playing, and its AVAudioPlayer delegate is sent <code class="literal">audioPlayerBeginInterruption:</code>. When Interrupter deactivates its audio session, BackgroundPlayer’s AVAudioPlayer delegate is sent <code class="literal">audioPlayerEndInterruption:withOptions:</code>. It tests for the resume option and, if it is set, starts playing again:</p>
+        <pre class="screen">-(void)audioPlayerEndInterruption:(AVAudioPlayer *)p
+        withOptions:(NSUInteger)opts {
+    if (opts &amp; AVAudioSessionInterruptionOptionShouldResume) {
+        [p prepareToPlay];
+        [p play];
+    }
+}</pre>
+        <p>An interesting byproduct of your app being capable of playing sound in the background is that while it <span class="emphasis"><em>is</em></span> playing sound, a timer can fire. The timer must have been created and scheduled in the foreground, but after that, it will fire even while your app is in the background, unless your app is currently not playing any sound. This is remarkable, because many sorts of activity are forbidden when your app is running in the background.</p>
+        <p>Another byproduct of your app playing sound in the background has to do with app delegate events. In <a class="xref" href="ch11.html">Chapter 11</a>, I said that your app delegate will probably never receive the <code class="literal">applicationWillTerminate:</code> message, because by the time the app terminates, it will already have been suspended and incapable of receiving any events. However, an app that is playing sound in the background is <span class="emphasis"><em>not</em></span> suspended, even though it is in the background. If it is terminated while playing sound in the background, it will receive <code class="literal">applicationDidEnterBackground:</code>, even though it has <span class="emphasis"><em>already</em></span> received this event previously when it was moved into the background, and then it <span class="emphasis"><em>will</em></span> receive <code class="literal">applicationWillTerminate:</code>.</p>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_further_topics_in_sound"></a>Further Topics in Sound</h2>
+            </div>
+          </div>
+        </div>
+        <p>iOS is a powerful milieu for production and processing of sound; its sound-related technologies are extensive. This is a big topic, and an entire book could be written about it (in fact, such books do exist). I’ll talk in <a class="xref" href="ch29.html">Chapter 29</a> about accessing sound files in the user’s music library. But here are some further topics that there is no room to discuss here:</p>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+Other audio session policies
+</span>
+            </dt>
+            <dd>
+If your app accepts sound input or does audio processing, you’ll want to look into additional audio session policies I didn’t talk about earlier — Record, Play and Record, and Audio Processing. In addition, if you’re using Record or Play and Record, there are modes — voice chat, video recording, and measurement (of the sound being input) — that optimize how sound is routed (for example, what microphone is used) and how it is modified.
+</dd>
+            <dt>
+              <span class="term">
+Recording sound
+</span>
+            </dt>
+            <dd>
+To record sound simply, use AVAudioRecorder. Your audio session policy will need to adopt a Record policy before recording begins.
+</dd>
+            <dt>
+              <span class="term">
+Audio queues
+</span>
+            </dt>
+            <dd>
+Audio queues implement sound playing and recording through a C API with more granularity than the Objective-C AVAudioPlayer and AVAudioRecorder (though it is still regarded as a high-level API), giving you access to the buffers used to move chunks of sound data between a storage format (a sound file) and sound hardware.
+</dd>
+            <dt>
+              <span class="term">
+Extended Audio File Services
+</span>
+            </dt>
+            <dd>
+A C API for reading and writing sound files in chunks. It is useful in connection with technologies such as audio queues.
+</dd>
+            <dt>
+              <span class="term">
+Audio Converter Services
+</span>
+            </dt>
+            <dd>
+A C API for converting sound files between formats.
+</dd>
+            <dt>
+              <span class="term">
+Streaming audio
+</span>
+            </dt>
+            <dd>
+Audio streamed in real time over the network, such as an Internet radio station, can be played with Audio File Stream Services, in connection with audio queues.
+</dd>
+            <dt>
+              <span class="term">
+OpenAL
+</span>
+            </dt>
+            <dd>
+An advanced technology for playing sound with fine control over its stereo stage and directionality.
+</dd>
+            <dt>
+              <span class="term">
+Audio units
+</span>
+            </dt>
+            <dd>
+Plug-ins that filter and modify the nature and quality of a sound as it passes through them. See the <span class="emphasis"><em>Audio Unit Hosting Guide for iOS</em></span>.
+</dd>
+            <dt>
+              <span class="term">
+MIDI
+</span>
+            </dt>
+            <dd>
+The CoreMIDI framework allows interaction with MIDI devices. The Audio Toolbox framework allows you to play a MIDI file, possibly passing it through an AUGraph that uses the <a id="idm441642178336" class="indexterm"></a>AUSampler audio unit to produce synthesized sound.
+</dd>
+          </dl>
+        </div>
+        <p>
+          <a id="idm441642176784" class="indexterm"></a>
+        </p>
+      </div>
+    </div>
+    <div class="navfooter">
+      <table width="100%" summary="Navigation footer">
+        <tr>
+          <td width="40%" align="left"><a accesskey="p" href="pt06.html">Prev</a> </td>
+          <td width="20%" align="center">
+            <a accesskey="u" href="pt06.html">Up</a>
+          </td>
+          <td width="40%" align="right"> <a accesskey="n" href="ch28.html">Next</a></td>
+        </tr>
+        <tr>
+          <td width="40%" align="left" valign="top">Part VI. Some Frameworks </td>
+          <td width="20%" align="center">
+            <a accesskey="h" href="index.html">Table of Contents</a>
+          </td>
+          <td width="40%" align="right" valign="top"> Chapter 28. Video</td>
+        </tr>
+      </table>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,333 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<HTML
+><HEAD
+><TITLE
+>15. 過濾求職信病毒</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="網路管理語言 Perl 入門與實作"
+HREF="book1.html"><LINK
+REL="PREVIOUS"
+TITLE="14. 大量刪帳號"
+HREF="c1177.html"><LINK
+REL="NEXT"
+TITLE="16. 掃瞄"
+HREF="c1190.html"></HEAD
+><BODY
+CLASS="CHAPTER"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>網路管理語言 Perl 入門與實作: </TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="c1177.html"
+ACCESSKEY="P"
+>&#60;&#60;&#60; Previous</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="c1190.html"
+ACCESSKEY="N"
+>Next &#62;&#62;&#62;</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="CHAPTER"
+><H1
+><A
+NAME="CHF"
+></A
+>15. 過濾求職信病毒</H1
+><P
+>Perl 在病毒防治上也非常好用。</P
+><P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+>#! /usr/bin/perl
+#
+# 本程式用來濾除 /var/spool/mail 信包檔中的 "求職信" 病毒。
+# 想法如下:
+# 信件尚未放入 /var/spool/mail 之前, 您可以用 procmail 來濾除,
+# 但先前已餵入 /var/spool/mail 中的病毒信件, 怎麼辦呢? 因此, 才有這隻程式的產生.
+#
+# 不過, 本人無法保證它一定會百分之百濾除;
+# 使用前您應該自己對執行時可能承擔的風險先考慮清楚!
+# 若有任何損失, 本人概不負責.
+#
+# 使用前, 您應先將 /var/spool/mail 這個目錄予以備份.
+# (註: 若是 FreeBSD, 則可能是 /var/mail 這個目錄)
+# 例如:
+# cp -Rp /var/spool/mail /tmp/save.mail
+# su - 成 root 身份
+# 將本程式放入 /var/spool/mail 中, chmod 755 filter_mail.pl
+# 執行 ./filter_mail.pl
+# 它會將 /var/spool/mail 中的信包檔在 /tmp/filt_msg_tmp 目錄中, 一封一封解開.
+# 然後予以過濾寫回. 執行結束之後, /var/spool/mail 中的權限仍然會保持原樣.
+# 所有解開的信件檔, 都在 /tmp/filt_msg_tmp 目錄中, 若一切正常, 可以將該目錄刪除.
+# 若有不正常, 可自行用 cat 指令將信件檔組合回去, 或將原先備份的信包檔蓋回去.
+#
+# 本程式稍加修改, 即可用來過濾其它的病毒.
+#
+# 版權宣告:
+# Copyright (c) 2002 by OLS3(ols3@www.tnc.edu.tw) 04/20/2002
+# 本程式為 GPL 軟體.
+# 發佈這一程式的目的是希望它有用，但沒有任何擔保。
+# 甚至沒有適合特定目的而隱含的擔保。
+# 更詳細的情況請參考 GNU 通用公共許可證。
+# 當您修改和重新發佈本軟體時，請保留版權宣告的文字部份。
+#
+# $Id: chapF.sgml,v 1.1.1.1 2003/08/14 00:26:12 ols3 Exp $
+
+use strict;
+
+show_title();
+
+while(my $msg_file=&#60;*&#62;) {
+  if ($msg_file eq 'filter_mail.pl') { next;}
+  print "Processing spool mail ---&#62; $msg_file\n";
+  open(FHD, "$msg_file") || die;
+  flock(FHD, 2);
+  # 將信包檔的每一封信分開存放, 以數字為檔名, 放在 /tmp/filt_msg_tmp/使用者帳號/ 目錄下
+  split_msg(\*FHD, $msg_file);
+  flock(FHD, 8);
+  close(FHD);
+
+  # 處理這些信件
+  proc_msg($msg_file);
+  print "Done!             \n";
+}
+
+sub show_title {
+  system("clear");
+  print &#60;&#60;HERE;
+/*--------------------------------------------*/
+/* Filter spool mail v1.0.1 (GPL)             */
+/* Copyright (c) 2002 written by OLS3         */
+/*--------------------------------------------*/
+HERE
+
+}
+
+sub split_msg {
+	my $fh = shift;
+	my $user_id=shift;
+	my $count=1;
+	my $s=1;
+	my $bline='ols3Tp1iz2a134598132308abcdefghijk123pisa#############';
+	my $line;
+	my $msg_start='^From\s.*?@?.*?\s+?\w+\s\w+\s\d+\s\d+:\d+:\d+\s\d+';
+	my $msg_name='';
+	my $t2_dir = "/tmp/filt_msg_tmp";
+	my $tmp_dir = "$t2_dir/$user_id/";
+	if (! -e $t2_dir) { mkdir $t2_dir, 0777; }
+	if (! -e $tmp_dir) { mkdir $tmp_dir, 0777; }
+	my $k=1;
+	while($line = &#60;$fh&#62;) {
+	        print print_process_status($k);
+		# 處理第一封信件
+		if ($s == 1) {
+			$msg_name= $tmp_dir . $count . '.msg';
+			open(FH, "&#62; $msg_name")||die;
+			$s=0;
+		}
+
+		if (($line =~ /$msg_start/) &#38;&#38; !$bline) {
+			# 關檔結束寫入上一封信
+			close(FH);
+			# 開檔寫入新的一封信
+			$count++;
+			$msg_name= $tmp_dir . $count . '.msg';
+			open(FH, "&#62; $msg_name")||die;
+		}
+
+
+		$bline=$line;
+		chomp $bline;
+
+		print FH $line || die;
+		$k++;
+	}
+	close(FH);
+}
+
+sub get_ugid {
+	my @attr=stat(shift);
+	return @attr[4,5];
+}
+
+sub proc_msg {
+        my $msgf=shift;
+        my ($uid, $gid)=get_ugid($msgf);
+
+        # 刪除信包檔
+        if (-e $msgf) {
+          unlink $msgf;
+        }
+
+	# 開一個空檔
+	open(FHE, "&#62; $msgf");
+	close(FHE);
+
+	# 修改屬性
+	chown($uid, $gid, "$msgf");
+	chmod 0660, $msgf;
+
+	open(FHE, "&#62;&#62; $msgf");
+	flock(FHE, 2);
+	my $i=1;
+	while(my $fn=glob("/tmp/filt_msg_tmp/$msgf/*.msg")) {
+	  print print_process_status($i);
+	  if (!filt_msg($fn)) {
+	    open(F, "$fn") || die;
+	    while(&#60;F&#62;) {
+	      print FHE;
+	    }
+	    close(F);
+	  } else {
+	    print "find virus! delete $fn !\n";
+	  }
+	  $i++;
+	}
+	flock(FHE, 8);
+	close(FHE);
+}
+
+
+sub filt_msg {
+        my $msg=shift;
+	my ($sm, $fm, $bm);
+	my $s_001 = "\&#60;iframe.*?src=.*?height=3D0.*?width=3D0\&#62;";
+	my $t_001 = '^Content-Type: application/octet-stream';
+        my $t_002 = '^Content-Type: audio/x-midi';
+        my $t_003 = '^Content-Type: audio/x-wav';
+        my $f_001 = 'name=.*?\.scr';
+	my $f_002 = 'name=.*?\.exe';
+	my $f_003 = 'name=.*?\.pif';
+	my $f_004 = 'name=.*?\.bat';
+	open(FHD_msg, "$msg") || die "open msg error!\n";
+	while(my $line=&#60;FHD_msg&#62;) {
+	  if ($line =~ /$s_001/) { $sm=1; }
+	  if ($line =~ /$t_001|$t_002|$t_003/) { $fm=1; }
+          if ($line =~ /$f_001|$f_002|$f_003|$f_004/) { $bm=1;}
+	  if ($sm || ($fm &#38;&#38; $bm)) { return 1; }
+	}
+	return 0;
+}
+
+
+sub print_process_status {
+    my $i=shift;
+    my $j = $i % 4;
+    SWITCH : {
+	$j == 0 &#38;&#38; do { print STDERR " (|)\r";  last SWITCH; };
+	$j == 1 &#38;&#38; do { print STDERR " (/)\r";  last SWITCH; };
+	$j == 2 &#38;&#38; do { print STDERR " (-)\r";  last SWITCH; };
+	$j == 3 &#38;&#38; do { print STDERR " (\\)\r"; last SWITCH; };
+    }
+}&#13;</PRE
+></TD
+></TR
+></TABLE
+></P
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="c1177.html"
+ACCESSKEY="P"
+>&#60;&#60;&#60; Previous</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="book1.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="c1190.html"
+ACCESSKEY="N"
+>Next &#62;&#62;&#62;</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>14. 大量刪帳號</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>16. 掃瞄</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

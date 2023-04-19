@@ -1,0 +1,290 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>RAID1 - 鏡射(Mirroring)</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.79" />
+<link rel="HOME" title="FreeBSD 使用手冊" href="index.html" />
+<link rel="UP" title="GEOM: Modular Disk Transformation Framework" href="geom.html" />
+<link rel="PREVIOUS" title="RAID0 - 分散連結(striping)" href="geom-striping.html" />
+<link rel="NEXT" title="The Vinum Volume Manager" href="vinum-vinum.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD 使用手冊</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="geom-striping.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 19 GEOM: Modular Disk
+Transformation Framework</td>
+<td width="10%" align="right" valign="bottom"><a href="vinum-vinum.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="GEOM-MIRROR" name="GEOM-MIRROR">19.4 RAID1 -
+鏡射(Mirroring)</a></h1>
+
+<p>許多企業或個人用戶用鏡射(mirroring) 來不中斷系統進行備份。 鏡射簡單來說就是在 B
+磁碟上重覆一份 A 磁碟的資料， 或者 C+D 磁碟重覆 A+B 磁碟的資料。不論設定如何，
+最重要的是所有磁碟或分割區(partition) 上的資料都會被複製，
+之後可在不中斷服務的情況下復原、備份資料，使儲存的資料更安全。</p>
+
+<p>開始之前，請先確定系統上有兩個容量相同的磁碟， 後面的範例假設這兩顆磁碟是 direct
+access(<a href="http://www.FreeBSD.org/cgi/man.cgi?query=da&amp;sektion=4"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">da</span>(4)</span></a>) <acronym
+class="ACRONYM">SCSI</acronym> 磁碟。</p>
+
+<p>首先我們假設 FreeBSD 安裝在第一個磁碟上，且只有兩個分割區(partition)。
+其中一個是交換分割區(swap partition，大小為 <acronym class="ACRONYM">RAM</acronym>
+的兩倍)，而剩下的全用於根目錄(即 <tt class="FILENAME">/</tt>， root file
+system)。當然要在不同掛載點(mount point) 切出更多分割區 (partition)
+也可以，不過難度會大幅提升，因為必須手動操作 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=bsdlabel&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">bsdlabel</span>(8)</span></a> 和 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=fdisk&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">fdisk</span>(8)</span></a> 工具。</p>
+
+<p>重開機並等到系統完全初始化完畢，用 <tt class="USERNAME">root</tt> 登入。</p>
+
+<p>建立 <tt class="FILENAME">/dev/mirror/gm</tt> 裝置並以 <tt
+class="FILENAME">/dev/da1</tt> 連結：</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">gmirror label -vnb round-robin gm0 /dev/da1</kbd>
+</pre>
+
+<p>這時系統應該會回應：</p>
+
+<pre class="SCREEN">
+Metadata value stored on /dev/da1.
+Done.
+</pre>
+
+<p>初始化 GEOM，這動作會自動載入 <tt class="FILENAME">/boot/kernel/geom_mirror.ko</tt>
+kernel module：</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">gmirror load</kbd>
+</pre>
+
+<div class="NOTE">
+<blockquote class="NOTE">
+<p><b>Note:</b> 這動作應該會在 <tt class="FILENAME">/dev/mirror</tt> 下建立 <tt
+class="DEVICENAME">gm0</tt> 裝置結點(device node)。</p>
+</blockquote>
+</div>
+
+<p>在這個新建的 <tt class="DEVICENAME">gm0</tt> 裝置上安置一般的 <tt
+class="COMMAND">fdisk</tt> label 和開機磁區：</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">fdisk -vBI /dev/mirror/gm0</kbd>
+</pre>
+
+<p>接著安置 <tt class="COMMAND">bsdlabel</tt> 資訊：</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">bsdlabel -wB /dev/mirror/gm0s1</kbd>
+</pre>
+
+<div class="NOTE">
+<blockquote class="NOTE">
+<p><b>Note:</b> 如果存在多個 slice 和分割區(partition)，
+記得修改上兩指令的參數，且另一個磁碟上的 slice 和分割區(partition) 大小必須相同。</p>
+</blockquote>
+</div>
+
+<p>用 <a href="http://www.FreeBSD.org/cgi/man.cgi?query=newfs&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">newfs</span>(8)</span></a> 工具在 <tt
+class="DEVICENAME">gm0s1a</tt> 裝置結點建立預設的檔案系統：</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">newfs -U /dev/mirror/gm0s1a</kbd>
+</pre>
+
+<p>系統會印出許多資訊和一大堆數字，這是正常的。
+確認是否有認何錯誤，接著就可以將這個裝置掛載到 <tt class="FILENAME">/mnt</tt>
+掛載點(mount mount)：</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">mount /dev/mirror/gm0s1a /mnt</kbd>
+</pre>
+
+<p>接著將原本開機磁碟的資料搬移到新的檔案系統 (<tt class="FILENAME">/mnt</tt>)。範例是用
+<a href="http://www.FreeBSD.org/cgi/man.cgi?query=dump&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">dump</span>(8)</span></a> 和 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=restore&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">restore</span>(8)</span></a> ，不過用 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=dd&amp;sektion=1"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">dd</span>(1)</span></a> 也可以。</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">dump -L -0 -f- / |(cd /mnt &amp;&amp; restore -r -v -f-)</kbd>
+</pre>
+
+<p>執行上述指令時，只要將恰當的檔案系統掛在正確的位置，應該就能成功。</p>
+
+<p>接著編輯 <tt class="FILENAME">/mnt/etc/fstab</tt> 檔將 swap file 那行移除或註解起來。
+<a id="AEN26692" name="AEN26692" href="#FTN.AEN26692"><span
+class="footnote">[1]</span></a>請參考下面範例，並根據新磁碟修改其它的檔案系統資訊：</p>
+
+<pre class="PROGRAMLISTING">
+# Device                Mountpoint      FStype  Options         Dump    Pass#
+#/dev/da0s2b             none            swap    sw              0       0
+/dev/mirror/gm0s1a       /               ufs     rw              1       1
+</pre>
+
+<p>在目前的根目錄及新的根目錄建立 <tt class="FILENAME">boot.conf</tt> 檔案，
+這個檔案可以『幫助』系統 <acronym class="ACRONYM">BIOS</acronym> 開機：</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">echo "1:da(1,a)/boot/loader" &gt; /boot.config</kbd>
+</pre>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">echo "1:da(1,a)/boot/loader" &gt; /mnt/boot.config</kbd>
+</pre>
+
+<div class="NOTE">
+<blockquote class="NOTE">
+<p><b>Note:</b> 在兩個根目錄上都新增檔案是為了安全起見，
+如果因為某些原因新的根目錄無法開機，至少還可用原本的根目錄。</p>
+</blockquote>
+</div>
+
+<p>接著在 <tt class="FILENAME">/boot/loader.conf</tt> 新增兩行：</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">echo 'geom_mirror_load="YES"' &gt;&gt; /mnt/boot/loader.conf</kbd>
+</pre>
+
+<p>這會指示 <a href="http://www.FreeBSD.org/cgi/man.cgi?query=loader&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">loader</span>(8)</span></a> 在開機時載入
+<tt class="FILENAME">geom_mirror.ko</tt> kernel module。</p>
+
+<p>重開機：</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">shutdown -r now</kbd>
+</pre>
+
+<p>如果一切順利，系統應該會從 <tt class="DEVICENAME">gm0s1a</tt> 裝置開機， 接下來出現
+<tt class="COMMAND">login</tt> 提示畫面。如果出錯了， 請參閱下面 Troubleshooting 那一節。
+現在可以將 <tt class="DEVICENAME">da0</tt> 磁碟加入 <tt class="DEVICENAME">gm0</tt>
+裝置：</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">gmirror configure -a gm0</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">gmirror insert gm0 /dev/da0</kbd>
+</pre>
+
+<p>其中 <code class="OPTION">-a</code> 旗標告訴 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=gmirror&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">gmirror</span>(8)</span></a>
+使用「自動同步(automatic synchronization)」，例如自動同步寫入磁碟的動作。 manual
+說明了如何重建、取代磁碟等，不過 manual 裡的範例是用 <tt class="DEVICENAME">data</tt>
+而不是 <tt class="DEVICENAME">gm0</tt>。</p>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN26739" name="AEN26739">19.4.1 Troubleshooting</a></h2>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="AEN26741" name="AEN26741">19.4.1.1 系統無法開機</a></h3>
+
+<p>如果開機提示類似這樣：</p>
+
+<pre class="PROGRAMLISTING">
+ffs_mountroot: can't find rootvp
+Root mount failed: 6
+mountroot&#62;
+</pre>
+
+<p>請用機器面板上的 Power 按鈕或 reset 按鈕來重開機，並在開機選單選 (6)，
+這樣子，系統就會進入 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=loader&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">loader</span>(8)</span></a>
+交談模式。這時候，請照下面指令來手動載入所需的 kernel module ，也就是 <tt
+class="FILENAME">geom_mirror.ko</tt>：</p>
+
+<pre class="SCREEN">
+OK? <kbd class="USERINPUT">load geom_mirror.ko</kbd>
+OK? <kbd class="USERINPUT">boot</kbd>
+</pre>
+
+<p>如果這樣成功了的話，表示因為某些原因無法自動載入 kernel module。 請將：</p>
+
+<pre class="PROGRAMLISTING">
+options    GEOM_MIRROR
+</pre>
+
+<p>加入到核心設定檔(kernel configuration file)，重編並安裝核心。
+這應該能解決這個問題。</p>
+</div>
+</div>
+</div>
+
+<h3 class="FOOTNOTES">Notes</h3>
+
+<table border="0" class="FOOTNOTES" width="100%">
+<tr>
+<td align="LEFT" valign="TOP" width="5%"><a id="FTN.AEN26692" name="FTN.AEN26692"
+href="geom-mirror.html#AEN26692"><span class="footnote">[1]</span></a></td>
+<td align="LEFT" valign="TOP" width="95%">
+<p>請注意，將 <tt class="FILENAME">fstab</tt> 的 swap file
+那行註解起來，通常表示：您得用別的方法來重建 swap。詳情請參考 <a
+href="adding-swap-space.html">Section 11.14</a>。</p>
+</td>
+</tr>
+</table>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="geom-striping.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="vinum-vinum.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">RAID0 - 分散連結(striping)</td>
+<td width="34%" align="center" valign="top"><a href="geom.html" accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">The Vinum Volume Manager</td>
+</tr>
+</table>
+</div>
+
+<p align="center"><small>本文及其他文件，可由此下載：<a
+href="ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/">ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/</a>。</small></p>
+
+<p align="center"><small>若有 FreeBSD 方面疑問，請先閱讀 <a
+href="http://www.FreeBSD.org/docs.html">FreeBSD 相關文件</a>，如不能解決的話，再洽詢
+&#60;<a href="mailto:questions@FreeBSD.org">questions@FreeBSD.org</a>&#62;。<br />
+關於本文件的問題，請洽詢 &#60;<a
+href="mailto:doc@FreeBSD.org">doc@FreeBSD.org</a>&#62;。</small></p>
+</body>
+</html>
+

@@ -1,0 +1,325 @@
+<HTML>
+
+<LINK HREF="style.css" REL="STYLESHEET" TYPE="text/css">
+
+<HEAD>
+<TITLE>Tutorial: Menus and Icons</TITLE>
+</HEAD>
+
+<BODY>
+<FONT SIZE="-1">
+[ <A HREF="./index.html">contents</A>
+| <A HREF="http://www.winprog.org/">#winprog</A>
+]
+</FONT>
+<HR>
+
+
+<H1>Menus and Icons</H1>
+
+<P>Example: menu_one</P>
+<IMG SRC="images/menu_one.gif" ALT="[images/menu_one.gif]" ALIGN="right">
+
+<P>
+This is just a small section to show how to add basic menus to your window.
+Usually you use a pre-made menu resource.  This will be in an .rc file
+and will be compiled and linked into your .exe.  This is rather compiler
+specific, commercial compilers will have a resource editor that you can use
+to create your menus, but for this example I will show the text of the .rc
+file so you can add it in manually.  I usually have an .h file as well which
+is included in both my .rc file and my .c source files.  This file contains
+the identifiers for controls and menu items etc.
+
+<P>
+For this example you can start with the window code from simple_window and add this
+code into it as instructed.
+
+<P>
+First the .h file.  Usually called "resource.h"
+
+<PRE CLASS="LIST">
+#define IDR_MYMENU 101
+#define IDI_MYICON 201
+
+#define ID_FILE_EXIT 9001
+#define ID_STUFF_GO 9002
+</PRE>
+
+Not much there, but our menu will be pretty simple.  The names and values here
+are up to you for the choosing.  Now we write our .rc file.
+
+<PRE CLASS="LIST">
+#include "resource.h"
+
+IDR_MYMENU MENU
+BEGIN
+    POPUP "&File"
+    BEGIN
+        MENUITEM "E&xit", ID_FILE_EXIT
+    END
+
+    POPUP "&Stuff"
+    BEGIN
+        MENUITEM "&Go", ID_STUFF_GO
+        MENUITEM "G&o somewhere else", 0, GRAYED
+    END
+END
+
+IDI_MYICON ICON "menu_one.ico"
+
+</PRE>
+
+<P>
+You will want to add the .rc file to your project or makefile depending on what tools
+you are using.
+
+<P>
+You also want to <CODE>#include "resource.h"</CODE> in your source file (.c) so that
+the menu command identifiers and the menu resource id will be defined.
+
+<P>
+The easiest way to attach the menu and icon to your window is to specify them when you
+register the window class, like this:
+
+<PRE CLASS="SNIP">
+    wc.lpszMenuName  = MAKEINTRESOURCE(IDR_MYMENU);
+</PRE>
+
+<PRE CLASS="SNIP">
+    wc.hIcon  = LoadIcon(GetModuleHandle(NULL), MAKEINTRESOURCE(IDI_MYICON));
+    wc.hIconSm  = (HICON)LoadImage(GetModuleHandle(NULL), MAKEINTRESOURCE(IDI_MYICON), IMAGE_ICON, 16, 16, 0);
+</PRE>
+
+<P>
+Change that and see what happens.  Your window should now have a File and Stuff
+menu with the respective items underneath.  That is assuming your .rc file was
+properly compiled and linked into your program.  (again, see compiler notes)
+
+<P>
+The icon in the top left of the window and on the task bar should now display the small custom icon that
+we specified.  If you hit Alt-Tab, the large version of the icon should be displayed
+in the application list.
+
+<P>
+I've used <CODE>LoadIcon()</CODE> to load the large icon because it's simpler, however it will only
+load icons at the default resolution of 32x32, so in order to load the smaller image, we need to use
+<CODE>LoadImage()</CODE>.  Be aware that icon files and resources can contain multiple images, and in
+this case the ones I've supplied contain the two sizes that I'm loading.
+
+
+<P>Example: menu_two</P>
+
+<P> 
+An alternative to using a menu resource is to create one on the fly (or when your
+program runs).   This is a bit more work programming wise, but adds flexibility and
+is sometimes necessary.
+
+<P>
+You can also use icons that aren't stored as resources, you could choose to store your
+icon as a seperate file and load it at runtime.  This would also give you the option of
+allowing the user to select an icon of their choice with the common dialogs discussed later,
+or something to that effect.
+
+<P>
+Start again from simple_window without the .h or .rc added.  Now we will
+handle the <CODE>WM_CREATE</CODE> message and add a menu to our window.
+
+<PRE CLASS="SNIP">
+#define ID_FILE_EXIT 9001
+#define ID_STUFF_GO 9002
+</PRE>
+
+Put these two id's at the top of your .c file this time, underneath your <CODE>#include</CODE>s.
+Next we add the following code into our <CODE>WM_CREATE</CODE> handler.
+
+<PRE CLASS="SNIP">
+    case WM_CREATE:
+    {
+        HMENU hMenu, hSubMenu;
+        HICON hIcon, hIconSm;
+
+        hMenu = CreateMenu();
+
+        hSubMenu = CreatePopupMenu();
+        AppendMenu(hSubMenu, MF_STRING, ID_FILE_EXIT, "E&xit");
+        AppendMenu(hMenu, MF_STRING | MF_POPUP, (UINT)hSubMenu, "&File");
+
+        hSubMenu = CreatePopupMenu();
+        AppendMenu(hSubMenu, MF_STRING, ID_STUFF_GO, "&Go");
+        AppendMenu(hMenu, MF_STRING | MF_POPUP, (UINT)hSubMenu, "&Stuff");
+
+        SetMenu(hwnd, hMenu);
+
+
+        hIcon = LoadImage(NULL, "menu_two.ico", IMAGE_ICON, 32, 32, LR_LOADFROMFILE);
+        if(hIcon)
+            SendMessage(hwnd, WM_SETICON, ICON_BIG, (LPARAM)hIcon);
+        else
+            MessageBox(hwnd, "Could not load large icon!", "Error", MB_OK | MB_ICONERROR);
+
+        hIconSm = LoadImage(NULL, "menu_two.ico", IMAGE_ICON, 16, 16, LR_LOADFROMFILE);
+        if(hIconSm)
+            SendMessage(hwnd, WM_SETICON, ICON_SMALL, (LPARAM)hIconSm);
+        else
+            MessageBox(hwnd, "Could not load small icon!", "Error", MB_OK | MB_ICONERROR);
+    }
+    break;
+</PRE>
+
+<P>
+This creates a menu almost the same as the one we had in the resource and
+attaches it to our window.  A menu that is assigned to a window is automatically
+removed when the program terminates, so we don't need to worry about getting rid
+of it later.  If we did though, we could use <CODE>GetMenu()</CODE> and <CODE>DestroyMenu()</CODE>.
+
+<P>
+The code for the icons is pretty simple, we call <CODE>LoadImage()</CODE> twice, to load the
+icon as both a 16x16 size and a 32x32 size.  We can't use <CODE>LoadIcon()</CODE> at all
+because it will only load resources, not files.  We specify <CODE>NULL</CODE> for the instance
+handle parameter because we aren't loading a resource from our module, and instead of a resource
+ID we pass in the name of the icon file we want to load.  Finally, we pass in the 
+<CODE>LR_LOADFROMFILE</CODE> flag to indicate that we want the function to treat the string we give it
+as a filename and not a resource name.
+
+<P>
+If each call succeeds we assign the icon handle to our window with <CODE>WM_SETICON</CODE>, and if it
+fails we pop up a message box letting us know something went wrong.
+
+<P>
+<B>NOTE:</B> that the <CODE>LoadImage()</CODE> calls will fail if the icon file isn't in the current
+working directory of the program.  If you are using VC++ and you run the program from the IDE, the current
+working directory will be the one the project file is in.  However if you run the program from the Debug or
+Release directories from explorer or the command shell, then you'll need to copy the icon file into that directory
+in order for the program to find it.  If all else fails, specify the full path to the icon, <CODE>"C:\\Path\\To\\Icon.ico"</CODE>.
+
+<P>
+Okay now that we have our menu, we need to make it do something.  This is
+pretty simple, all we need to do is handle the <CODE>WM_COMMAND</CODE> message.  
+Also we'll need to check which command we are getting and act accordingly.  Now our
+<CODE>WndProc()</CODE> should look something like this.
+
+<PRE CLASS="SNIP">
+LRESULT CALLBACK WndProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam)
+{
+    switch(Message)
+    {
+        case WM_CREATE:
+        {
+            HMENU hMenu, hSubMenu;
+
+            hMenu = CreateMenu();
+
+            hSubMenu = CreatePopupMenu();
+            AppendMenu(hSubMenu, MF_STRING, ID_FILE_EXIT, "E&xit");
+            AppendMenu(hMenu, MF_STRING | MF_POPUP, (UINT)hSubMenu, "&File");
+
+            hSubMenu = CreatePopupMenu();
+            AppendMenu(hSubMenu, MF_STRING, ID_STUFF_GO, "&Go");
+            AppendMenu(hMenu, MF_STRING | MF_POPUP, (UINT)hSubMenu, "&Stuff");
+
+            SetMenu(hwnd, hMenu);
+
+
+            hIcon = LoadImage(NULL, "menu_two.ico", IMAGE_ICON, 32, 32, LR_LOADFROMFILE);
+            if(hIcon)
+                SendMessage(hwnd, WM_SETICON, ICON_BIG, (LPARAM)hIcon);
+            else
+                MessageBox(hwnd, "Could not load large icon!", "Error", MB_OK | MB_ICONERROR);
+
+            hIconSm = LoadImage(NULL, "menu_two.ico", IMAGE_ICON, 16, 16, LR_LOADFROMFILE);
+            if(hIconSm)
+                SendMessage(hwnd, WM_SETICON, ICON_SMALL, (LPARAM)hIconSm);
+            else
+                MessageBox(hwnd, "Could not load small icon!", "Error", MB_OK | MB_ICONERROR);
+        }
+        break;
+        case WM_COMMAND:
+            switch(LOWORD(wParam))
+            {
+                case ID_FILE_EXIT:
+
+                break;
+                case ID_STUFF_GO:
+
+                break;
+            }
+        break;
+        case WM_CLOSE:
+            DestroyWindow(hwnd);
+        break;
+        case WM_DESTROY:
+            PostQuitMessage(0);
+        break;
+        default:
+            return DefWindowProc(hwnd, Message, wParam, lParam);
+    }
+    return 0;
+}
+</PRE>
+
+As you can see we've got our <CODE>WM_COMMAND</CODE> all set up, and it even has another <CODE>switch()</CODE> in it.
+This <CODE>switch()</CODE>'s on the value of the low word of <CODE>wParam</CODE>, which in the case of <CODE>WM_COMMAND</CODE>
+contains the control or menu id that sent the message.
+
+<P>
+We obviously want the Exit menu item to close the program.  So in the <CODE>WM_COMMAND</CODE>,
+<CODE>ID_FILE_EXIT</CODE> handler you can use the following code to do just that.
+
+<PRE CLASS="SNIP">
+PostMessage(hwnd, WM_CLOSE, 0, 0);
+</PRE>
+
+<P>
+Your WM_COMMAND handler should now look like this:
+
+<PRE CLASS="SNIP">
+    case WM_COMMAND:
+        switch(LOWORD(wParam))
+        {
+            case ID_FILE_EXIT:
+                PostMessage(hwnd, WM_CLOSE, 0, 0);
+            break;
+            case ID_STUFF_GO:
+
+            break;
+        }
+    break;
+</PRE>
+
+I leave it up to you to make the other menu command <CODE>ID_STUFF_GO</CODE> do something.
+
+<H3>The program file icon</H3>
+
+You may have noticed that the <CODE>menu_one.exe</CODE> file now shows up as the custom icon we added as a 
+resource, whereas the <CODE>menu_two.exe</CODE> file does not, since we are loading an external file.  Windows
+Explorer simply displays the first icon (numerically by ID) in the program files resources, so 
+since we only have one icon, that's what it is displaying.  If you want to be sure that a certain
+icon is displayed with your program file, simply add it as a resource and assign it a very low ID... like <CODE>1</CODE>.
+You don't even need to refer to the file in your program, and you can load completely different icons for
+your windows if you choose.
+
+<HR>
+<FONT SIZE="-1">
+Copyright &copy; 1998-2003, Brook Miles (<A HREF="mailto:forger(nospam)winprog.org">theForger</A>).  All rights reserved.
+</FONT>
+
+<SCRIPT language="JavaScript">
+<!--
+   var re = /\(nospam\)/ig;
+   var str;
+
+   for(i = 0;i < document.links.length;i++) 
+   {
+      str = "" + document.links(i).href;
+      if(str.search(re) != -1)
+         document.links(i).href = str.replace(re, "@");
+
+      str = "" + document.links(i).innerHTML;
+      if(str.search(re) != -1)
+         document.links(i).innerHTML = str.replace(re, "@");
+   }
+-->
+</SCRIPT>
+
+</BODY>
+</HTML>

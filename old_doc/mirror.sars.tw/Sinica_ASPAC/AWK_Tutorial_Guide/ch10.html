@@ -1,0 +1,157 @@
+<title>Recursive Program</title>
+<h1>使用 AWK 撰寫 Recusive Program</h1>
+<pre><h4>
+AWK 中除了函數的參數列(Argument List)上的參數(Arguments)外,
+所有變數不管於何處出現全被視為 Global variable. 其生命持續
+至程式結束 --- 該變數不論在function外或 function內皆可使用, 
+只要變數名稱相同所使用的就是同一個變數,直到程式結束. 
+因 Recusive 函數內部的變數, 會因它呼叫子函數(本身)而重覆使用,
+      故撰寫該類函數時, 應特別留心.<p>
+例如 : 執行
+awk '<p>
+BEGIN 
+{ <p>
+x = 35<p>
+y = 45<p>
+test_variable( x )
+printf("Return to  main : arg1= %d, x= %d, y= %d, z= %d\n",
+arg1, x, y, z)
+}
+
+  function test_variable( arg1 )
+{
+ arg1++  # arg1 為參數列上的參數, 是local variable. 離開此函數
+後將消失.<p>
+ y ++       # 會改變主式中的變數 y
+ z = 55     # z 為該函數中新使用的變數, 主程式中變數 z 仍可被使用.
+ printf("Inside the function: arg1=%d,x=%d, y=%d, z=%d\n",<p>
+     arg1, x, y, z)
+ } ' 
+結果螢幕印出
+
+         Inside the function: arg1= 36,x= 35, y= 46, z= 55
+         Return to main     : arg1= 0, x= 35, y= 46, z= 55
+
+  由上可知 :
+<ul>
+<li>函數內可任意使用主程式中的任何變數.
+<li>函數內所啟用的任何變數(除參數外), 於該函數之外依然可以使用. 
+</ul>
+此特性優劣參半, 最大的壞處是式中的變數不易被保護, 特別是
+recursive呼叫本身, 執行子函數時會破壞父函數內的變數.
+權變的方法是 : 在函數的 Argument list 上虛列一些 Arguments.<p>
+函數執行中使用這些虛列的 Arguments 來記錄不想被破壞的資料,
+如此執行子函數時就不會破壞到這些資料. 此外AWK 並不會檢查,
+呼叫函數時所傳遞的參數個數是否一致.
+例如 : 定義 recursive function 如下 :
+          function  demo( arg1 )# 最常見的錯誤例子
+              ........
+               for(i=1; i&lt 20 ; i++){
+                 demo(x) 
+  # 又呼叫本身. 因為 i 是 global variable, 故執行完該子函數後
+  # 原函數中的 i 已經被壞, 故本函數無法正確執行.
+ .......
+        } 
+ ..........     
+  }
+可將上列函數中的 i 虛列在該函數的參數列上, 如此 i 便是一個
+local variable, 不會因執行子函數而被破壞. 
+將上列函數修改如下:
+function  demo( arg1,     i )
+{
+ ......
+ for(i=1; i&lt 20; i++)
+     {
+      demo(x)#AWK不會檢查呼叫函數時, 所傳遞的參數個數是否一致
+      .....
+      }
+ }    
+ $0, $1,.., NF, NR,..也都是 global variable, 讀者於 recusive function
+中若有使用這些內建變數, 也應另外設立一些 local variable 來保存,
+以免被破壞.
+範例 :以下是一個常見的 Recursive 範例. 它要求使用者輸入一串元素
+(各元素間用空白隔開) 然後印出這些元素所有可能的排列.
+編輯如下的AWK式, 取名為 permu
+awk '
+BEGIN
+{ 
+ print "請輸入排列的元素,各元素間請用空白隔開"
+ getline 
+ permutation($0, "")  
+ printf("\n共 %d 種排列方式\n", counter)
+} 
+function  permutation( main_lst, buffer, new_main_lst, nf, i, j ) 
+{
+  $0 = main_lst  # 把main_lst指定給$0之後AWK將自動進行
+  欄位分割.
+nf = NF            # 故可用 NF 表示 main_lst 上存在的元素個數.
+#  BASE CASE : 當main_lst只有一個元素時. 
+     if( nf == 1)
+    {     
+     print buffer main_lst # buffer的內容連接(concate)上 main_lst 就
+     counter++             # 是完成一次排列的結果
+     return
+    }
+    # General Case : 每次從 main\_lst 中取出一個元素放到buffer中
+    #  再用 main_lst 中剩下的元素 (new_main_lst) 往下進行排列
+      else for( i=1; i&lt =nf ;i++)
+      {
+       $0 = main_lst # $0($1,$2,..$j,,)為Global variable已被壞, 故重新
+                           #  把 main\_lst 指定給\$0, 令AWK再做一次欄位分割  
+                 new_main_lst = ""
+                 for(j=1; j&lt =nf; j++) # concate new_main_lst  
+                    if( j != i )  new_main_lst = new_main_lst " " $j
+                 permutation( new_main_lst, buffer " " $i  )
+      }
+  } 
+ '$* 
+執行     $ permu
+  螢幕上出現 
+
+              請輸入排列的元素,各元素間請用空白隔開
+  若輸入 1 2 3 結果印出 
+
+              1 2 3
+              1 3 2
+              2 1 3
+              2 3 1
+              3 1 2
+              3 2 1
+
+             共 6 種排列方式
+
+
+ 說 明 :
+<ol>
+<li>有些較舊版的AWK,並不容許使用者指定$0之值. 此時可改用 
+gawk, 或 nawk.
+否則也可自行使用 split() 函數來分割 main_lst.</li>
+
+<li>為避免執行子函數時破壞 new_main_lst, nf, i, j 故把這些變數
+也列於參數列上. 如此, new_main_lst, nf, i, j 將被當成 local variable,
+而不會受到子函數中同名的變數影響. 讀者宣告函數時,參數列上
+不妨將這些 ``虛列的參數'' 與真正用於傳遞資訊的參數間以較長
+的空白隔開, 以便於區別.</li>
+<li>AWK 中欲將字串concatenation(連接)時, 直接將兩字串併置
+即可(Implicit Operator).
+       例如 : 
+
+    awk '
+   <i>BEGIN{
+          A = "This "
+          B = "is a "
+          C = A B "key."</i> # 變數A與B之間應留空白, 
+                                         否則''AB''將代表另一新變數.
+            <i>print C</i>
+                   }
+           }
+        結果將印出
+        This is a key.
+</li>
+<li>  AWK使用者所撰寫的函數可再reuse, 並不需要每個AWK式中
+都重新撰寫.
+將函數部分單讀編寫於一檔案中, 當需要用到該函數時再以下列方式
+include進來.
+$ awk  -f 函數襠名 -f AWK主程式檔名  資料檔檔名  
+</ol>
+</h4></pre><hr>

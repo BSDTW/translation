@@ -1,0 +1,117 @@
+
+
+<!-- Vignette StoryServer 4 Sat Mar 11 15:43:24 2000 --> 
+<style type=text/css>
+<!--
+p,div {font-size:12pt; line-height:14pt; font-family:宋體;}
+.p1{font-size:12pt;font-family:宋體;}
+.p2{font-size:12pt;font-family:宋體;line-height:14pt;}
+.p3{font-size:14.8px;font-family:宋體;}
+.p4{font-size:14.8px;font-family:宋體;line-height:14pt;}
+.p5{font-size:1pt}
+a:hover{color:red;}
+a.t1:visited{color:red;}
+-->
+</style>
+<title>FreeBSD使用大全</title></head>
+
+<body bgcolor="#FFFFFF" text="#000000" link="#383098" vlink="#336699" alink="#FF0000" topmargin="0">
+<!-- Vignette StoryServer 4 Thu Mar 23 10:01:54 2000 --> <!-- Vignette StoryServer 4 Thu Mar 23 15:34:35 2000 --> 
+
+<!--開始：新聞內容-->
+<TABLE WIDTH=750 BORDER=0 CELLSPACING=0 CELLPADDING=0>
+
+<tr valign=top>
+
+
+
+<TD  valign=top>
+<CENTER><FONT COLOR=#000066 size=5><B>FreeBSD連載(37)：DNS的體系結構</B><br></FONT></CENTER>
+
+<HR  ALIGN="center" SIZE=1>
+<CENTER><FONT FACE="Arial" SIZE=2> 1999年12月9日 14:20 </FONT><FONT COLOR="#990000" SIZE=2>王波</FONT></CENTER><p>
+
+<h1 align=center>DNS服務</h1>
+
+<p>　　通常，一台電腦只需要配置域名解析就可以了，不需要自己運行名字伺服器守護進程，然而有些時候需要設置自己
+的名字伺服器，這就需要FreeBSD下配置名字伺服器BIND（Berkeley Internet Name D
+omain）。BIND也是由伯克利開發的一個著名軟體，它的執行程序為named，運行在Internet上幾乎所
+有的名字伺服器上，構成Internet的名字系統。</p>
+
+<p>　　由於普通的客戶電腦並不需要運行named，因此在其/etc/rc.conf配置檔案中，named_enable
+應為NO。當需要運行named以提供DNS服務的時候，就要將這個參數的值改為”YES”。</p>
+
+<ul><P><LI><h2>DNS的體系結構</h2></LI></P></ul>
+
+<p>　　Internet上的DNS名字服務為一種分布式的體系，由分布在Internet各地的DNS伺服器上的named
+守護進程為整個Internet提供本域內電腦的名字解析服務。DNS域名結構為分級方式，例如www.online.ha.cn
+中最後面的cn為頂級域名，由後向前分別劃分為不同級別的域。</p>
+
+<p>　　Internet上的頂級域名有兩種，一種象cn這樣的國別代碼，另一種是如同edu、org、net、com
+等分類代碼。國別頂級域下的次級域名同樣可以按照地域或組織結構來分類劃分。</p>
+
+<p>　　那麼要進行名字解析，就需要從域名的後面向前，一級級查找這個域名。因此Internet上就有一些DNS服
+務器為Internet的頂級域提供解析任務，這些DNS伺服器稱為根DNS伺服器。知道了根DNS伺服器的地址，就
+能按級查找任何具有DNS域名的主機名字，BIND代碼中就包括了這些根DNS伺服器的地址。</p>
+
+<p>　　名字服務使用zone的概念來表示一個域內的主機，然而zone與域也有所區別，zone只是域的一部分，而
+不是整個域。因為zone中不包括域下的子域。例如域名www.example.org.cn的域為example.org.cn
+，這是一個獨立的zone。這個域下可由子域組成，例如www.sub.example.org.cn就
+屬於其子域sub.example.org.cn，子域也是一個獨立的zone，並不包括在example.org.cn
+這個zone之內，作為域的example.org.cn中就包括sub.example.org.cn子域。</p>
+
+<p>　　除了從名字查找主機的IP地址這種正向的查找方式之外，另外還有從IP地址反查主機域名的解析方式。很多情況
+下網路中使用這種反向解析來確定主機的身份，因此也很重要。查找名字的反向解析是從前面的網路地址向後面的節點地址，
+逐級查找，因此IP地址zone是IP地址的前面部分。然而由於一個主機的域名可以任意設置，並不一定與IP地址相關
+，因此正向查找和反向查找是兩個不同的查找過程，需要配置不同的zone。</p>
+
+
+<ul><h2><P><LI>使用DNS查詢工具</LI></P></h2></ul>
+
+<p>　　用來進行DNS查詢的一個非常有用的工具是nslookup，可以使用它來查詢DNS中的各種數據。除了可以
+在命令行下直接進行基本的DNS查詢之外，直接啟動nslookup將進入一個交互模式，這裡能查詢各種類型的DNS
+數據。</p>
+
+<p>　　的名字解析數據可以有各種不同的類型，有設置這個zone的參數的SOA類型數據，有設置名字對應的IP地址
+的A類型數據，有設置從IP地址反向解析DNS名字的PTR數據，有定義服務與這個zone的DNS伺服器的NS數據
+，以及定義主機別名的CNAME數據。這些不同類型的數據均可以通過nslookup的交互模式來查詢，需要使用
+set type命令設置相應的查詢類型。</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>$ nslookup 
+<br>Default Server:  ns.hazzptt.net.cn
+<br>Address:  202.102.224.68
+<br>
+<br>> set type=ns
+<br>> yahoo.com
+<br>Server:  ns.hazzptt.net.cn
+<br>Address:  202.102.224.68
+<br>
+<br>Non-authoritative answer:
+<br>yahoo.com       nameserver = NS2.DCA.yahoo.com
+<br>yahoo.com       nameserver = NS5.DCX.yahoo.com
+<br>yahoo.com       nameserver = NS.EUROPE.yahoo.com
+<br>yahoo.com       nameserver = NS1.yahoo.com
+<br>
+<br>Authoritative answers can be found from:
+<br>NS2.DCA.yahoo.com       internet address = 209.143.200.34
+<br>NS5.DCX.yahoo.com       internet address = 216.32.74.10
+<br>NS.EUROPE.yahoo.com     internet address = 195.67.49.25
+<br>NS1.yahoo.com   internet address = 204.71.200.33
+<br>></td></pre></tr></table>
+
+<P>　　這個例子就使用nslookup來查詢yahoo.com這個zone的名字伺服器，需要將類型設置為ns來執行查詢。用
+來幫助獲得DNS數據的工具還有很多，如dig能迅速返回整個zone的名字解析數據，dnswalk可以用來幫助查詢名字
+伺服器的設置。這些工具都可以用來幫助查找DNS的設置問題。</P>
+
+
+
+<BR>
+
+</TD>
+</TR></TABLE>
+
+
+
+</BODY>
+</HTML>

@@ -1,0 +1,1166 @@
+<html>
+
+<head>
+<meta HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=big5">
+<title>MySQL中文參考手冊- 10 從MySQL得到最大的性能</title>
+<style type="text/css">
+<!--
+.p14{font-size:14.8px;font-family:宋體;line-height:14pt;}
+.p5{ border: 1px solid rgb(146,201,201) }
+a:hover{color:red;}
+a.t1:visited{color:red;}
+-->
+</style>
+</head>
+
+<body BGCOLOR="#FFFFFF" TEXT="#000000" LINK="#101090" VLINK="#7030B0" class="p4">
+
+<h1><img src="Img/mysql-logo.gif" alt="mysql-logo.gif (3082 bytes)" WIDTH="127" HEIGHT="60"><font color="#FF0000">MySQL中文參考手冊</font></h1>
+
+<p>譯者：晏子 <a href="mailto:(clyan@sohu.com">(clyan@sohu.com</a>）<br>
+GB 碼主頁：<a href="http://linuxdb.yeah.net">http://linuxdb.yeah.net</a></p>
+
+<p>Big5 轉碼者：statue <a href="mailto:statue.bbs@bbs.yzu.edu.tw">
+(statue@bbs.yzu.edu.tw</a>） <br>
+詞彙轉換：彭武興 (<a href="mailto:wilson@mailbox.com.tw">wilson@mailbox.com.tw</a>)<br>
+Big5 碼主頁：
+<a href="http://cnpa.yzu.edu.tw/~cfc/docs/mysqldoc_big5/manual_toc.html">
+http://cnpa.yzu.edu.tw/~cfc/docs/mysqldoc_big5/manual_toc.html</a><br>
+Big5 碼分站：
+<a href="http://php.wilson.gs/mysqldoc/big5/manual_toc.html">
+http://php.wilson.gs/mysqldoc/big5/manual_toc.html
+</p>
+
+<hr>
+
+<p><a HREF="manual_Introduction.html">第一章</a>, <a HREF="manual_Server.html">前一章</a>, 
+<a HREF="manual_MySQL_Benchmarks.html">下一章</a>, <a HREF="manual_Concept_Index.html">最後一章</a>，<a HREF="manual_toc.html">目錄</a>. </p>
+
+<hr>
+
+<h1><a NAME="Performance" HREF="manual_toc.html#Performance">10 從MySQL得到最大的性能</a></h1>
+
+<p>最佳化是一項複雜的任務，因為它最終需要對整個系統的理解。當用你的系統/應用的小知識做一些局部最佳化是可能的時候，你越想讓你的系統更最佳化，你必須知道它也越多。 
+</p>
+
+<p>因此，本章將試圖解釋並給出最佳化MySQL的不同方法的一些例子。但是記住總是有某些(逐漸變難)是系統更快的方法留著去做。 
+</p>
+
+<h2><a NAME="Optimize_Basics" HREF="manual_toc.html#Optimize_Basics">10.1 最佳化概述</a></h2>
+
+<p>為了使一個系統更快的最重要部分當然是基本設計。你也需要知道你的系統將做這樣的事情，那就是你的瓶頸。 
+</p>
+
+<p>最常見的瓶頸是： 
+
+<ul>
+  <li>磁碟尋道。磁碟花時間找到一個數據，用在1999年的現代磁碟其平均時間通常小於10ms，因此理論上我們能大約一秒尋道 
+    1000 
+    次。這個時間用新磁碟提高很慢並且很難對一個表最佳化。最佳化它的方法是將數據散布在多個磁碟上。 
+  </li>
+  <li>當磁碟在我們需要讀數據的正確位置時，磁碟讀/寫。用1999年的現代，一個磁碟傳輸類似10-20Mb/s。這必尋道更容易最佳化，因為你能從多個磁碟並行地讀。 
+  </li>
+  <li>CPU周期。當我們讀數據進內存時，(或如果它已經在那裡)我們需要處理它以達到我們的結果。當我們有相對內存較小的表時，這是最常見的限制因素，但是用小表速度通常不是問題。 
+  </li>
+  <li>內存帶寬。當CPU需要超出適合cpu緩存的數據時，緩存帶寬就成為內存的一個瓶頸。這是對大多數系統的一個不常見的瓶頸但是你應該知道它。 
+  </li>
+</ul>
+
+<h2><a NAME="System" HREF="manual_toc.html#System">10.2 系統/編譯時和啟動參數的調節</a></h2>
+
+<p>我們以系統級的東西開始，因為這些決策的某一些很早就做好了。在其他情況下，快速瀏覽這部分可能就夠了，因為它對大收獲並不重要，但是有一個關於在這個層次上收獲有多大的感覺總是好的。 
+</p>
+
+<p>使用的內定OS確實重要！為了最大程度地使用多CPU，應該使用Solaris(因為執行緒工作得確實不錯)或Linux(因為2.2本的核心又確實不錯的SMP支援)。而且在32位的機器上，Linux內定有2G的文件大小限制。當新的文件系統被釋出時( 
+XFS )，希望這不久被修正。 </p>
+
+<p>因為我們沒在很多平台上運行生產MySQL，我們忠告你在可能選擇它前，測試你打算運行的平台。 
+</p>
+
+<p>其他建議： 
+
+<ul>
+  <li>如果你有足夠的RAM，你能刪除所有交換設備。一些作業系統在某些情況下將使用一個SWAP設備，即使你有空閑的內存。 
+  </li>
+  <li>使用<code>--skip-locking</code>的<strong>MySQL</strong>選項避免外部鎖定。注意這將不影響<strong>MySQL</strong>功能，只要它僅運行在一個伺服器上。只要在你運行<code>myisamchk</code>以前，記得要停掉伺服器(或鎖定相關部分)。在一些系統上這個開關是強制的，因為外部鎖定不是在任何情況下都工作。當用MIT-pthreads編譯時，<code>--skip-locking</code>選項內定為打開(on)，因為<code>flock()</code>沒在所有的平台上被MIT-pthreads充分支援。唯一的情況是如果你對同一數據運行<strong>MySQL</strong>伺服器(不是客戶)，你不能使用<code>--skip-locking</code>之時，否則對沒有先清掉(flushing)或先鎖定<code>mysqld</code>伺服器的表上運行<code>myisamchk</code>。你仍然能使用<code>LOCK 
+    TABLES</code>/ <code>UNLOCK TABLES</code>，即使你正在使用<code>--skip-locking</code>。 
+  </li>
+</ul>
+
+<h3><a NAME="Compile_and_link_options" HREF="manual_toc.html#Compile_and_link_options">10.2.1 
+編譯和鏈接怎樣影響MySQL的速度</a></h3>
+
+<p>大多數下列測試在Linux上並用<strong>MySQL</strong>效能進行的，但是它們應該對其他作業系統和工作負載給出一些指示。 
+</p>
+
+<p>當你用<code>-static</code>鏈接時，你得到最快的可執行文件。使用Unix套接字而非TCP/IP連接一個資料庫也可給出好一些的性能。 
+</p>
+
+<p>在Linux上，當用<code>pgcc</code>和<code>-O6</code>編譯時，你將得到最快的代碼。為了用這些選項編譯<tt>“sql_yacc.cc”</tt>，你需要大約200M內存，因為<code>gcc/pgcc</code>需要很多內存使所有函數嵌入（inline）。在配置<strong>MySQL</strong>時，你也應該設定<code>CXX=gcc</code>以避免包括<code>libstdc++</code>庫(它不需要)。 
+</p>
+
+<p>只通過使用一個較好的編譯器或較好的編譯器選項，在應用中你能得到一個10-30%的加速。如果你自己編譯SQL伺服器，這特別重要！ 
+</p>
+
+<p>在Intel上，你應該例如使用pgcc或Cygnus CodeFusion編譯器得到最大速度。我們已經測試了新的 
+Fujitsu編譯器，但是它是還沒足夠不出錯來最佳化編譯MySQL。 </p>
+
+<p>這裡是我們做過的一些測量表： 
+
+<ul>
+  <li>如果你以<code>-O6</code>使用<code>pgcc</code>並且編譯任何東西，<code>mysqld</code>伺服器是比用<code>gcc</code>快11%（用字符串99的版本)。 
+  </li>
+  <li>如果你動態地鏈接(沒有<code>-static</code>)，結果慢了13%。注意你仍能使用一個動態連接的MySQL庫。只有伺服器對性能是關鍵的。 
+  </li>
+  <li>如果你使用TCP/IP而非Unix套接字，結果慢7.5%。 </li>
+  <li>在一個Sun SPARCstation 10上，<code>gcc</code>2.7.3是比Sun Pro C++ 4.2快13%。 </li>
+  <li>在Solaris 2.5.1上，在單個處理器上MIT-pthreads比帶原生執行緒的Solaris慢8-12%。以更多的負載/cpus，差別應該變得更大。 
+  </li>
+</ul>
+
+<p>由TcX提供的<strong>MySQL</strong>-Linux的分發用<code>pgcc</code>編譯並靜態鏈接。 
+</p>
+
+<h3><a NAME="Disk_issues" HREF="manual_toc.html#Disk_issues">10.2.2 磁碟問題</a></h3>
+
+<ul>
+  <li>正如前面所述，磁碟尋道是一個性能的大瓶頸。當數據開始增長以致緩存變得不可能時，這個問題變得越來越明顯。對大資料庫，在那你或多或少地要隨機存取數據，你可以依靠你將至少需要一次磁碟尋道來讀取並且幾次磁碟尋道寫入。為了使這個問題最小化，使用有低尋道時間的磁碟。 
+  </li>
+  <li>為了增加可用磁碟軸的數量(並且從而減少尋道開銷)，符號聯接文件到不同磁碟或分割磁碟是可能的。 
+    <dl COMPACT="Disk_issues">
+      <dt><strong>使用符號連接</strong> </dt>
+      <dd>這意味著你將索引/數據文件符號從正常的數據目錄鏈接到其他磁碟(那也可以被分割的)。這使得尋道和讀取時間更好(如果磁碟不用於其他事情)。見<a HREF="manual_Performance.html#Symbolic_links">10.2.2.1 
+        使用資料庫和表的符號鏈接</a>。 </dd>
+      <dt><strong>分割</strong> </dt>
+      <dd>分割意味著你有許多磁碟並把第一塊放在第一個磁碟上，在第二塊放在第二個磁碟上，並且第 
+        n塊在第(n mod number_of_disks)磁碟上，等等。這意味著，如果你的正常數據大小於分割大小(或完美地排列過)，你將得到較好一些的性能。注意，分割是否很依賴於OS和分割大小。因此用不同的分割大小測試你的應用程式。見<a HREF="manual_Performance.html#Benchmarks">10.8 使用你自己的效能</a>。注意對分割的速度差異<strong>很</strong>依賴於參數，取決於你如何分割參數和磁碟數量，你可以得出以數量級的不同。注意你必須選擇為隨機或順序存取最佳化。 
+      </dd>
+    </dl>
+  </li>
+  <li>為了可靠，你可能想要使用襲擊RAID 0+1(分割+鏡像)，但是在這種情況下，你將需要2*N個驅動器來保存N個驅動器的數據。如果你有錢，這可能是最好的選擇！然而你也可能必須投資一些卷管理軟件投資以高效地處理它。 
+  </li>
+  <li>一個好選擇是讓稍重要的數據(它能再生)上存在RAID 0磁碟上，而將確實重要的數據(像主機資訊和日誌文件)存在一個RAID 
+    0+1或RAID N磁碟上。如果因為更新奇偶位你有許多寫入，RAID N可能是一個問題。 
+  </li>
+  <li>你也可以對資料庫使用的文件系統設置參數。一個容易的改變是以noatime選項挂裝文件系統。這是它跳過更新在inode中的最後訪問時間，而且這將避免一些磁碟尋道。</li>
+</ul>
+
+<h4><a NAME="Symbolic_links" HREF="manual_toc.html#Symbolic_links">10.2.2.1 
+為資料庫和表使用符號鏈接</a></h4>
+
+<p>你可以從資料庫目錄移動表和資料庫到別處，並且用鏈接到新地點的符號代替它們。你可能想要這樣做，例如，轉移一個資料庫到有更多空閑空間的一個文件系統。 
+</p>
+
+<p>如果<strong>MySQL</strong>注意到一個表是一個符號鏈接，它將解析符號鏈接並且使用其實際指向的表，它可工作在支援<code>realpath()</code>調用的所有系統上(至少Linux和Solaris支援<code>realpath()</code>)！在不支援<code>realpath()</code>的系統上，你應該不同時通過真實路徑和符號鏈接訪問表！如果你這樣做，表在任何更新後將不一致。 
+</p>
+
+<p><strong>MySQL</strong>內定不支援資料庫鏈接。只要你不在資料庫之間做一個符號鏈接，一切將工作正常。假定你在<strong>MySQL</strong>數據目錄下有一個資料庫<code>db1</code>，並且做了一個符號鏈接<code>db2</code>指向<code>db1</code>：</p>
+
+<pre>shell&gt; cd /path/to/datadir
+shell&gt; ln -s db1 db2
+</pre>
+
+<p>現在，對在<code>db1</code>中的任一表<code>tbl_a</code>，在<code>db2</code>種也好像有一個表<code>tbl_a</code>。如果一個執行緒更新<code>db1.tbl_a</code>並且另一個執行緒更新<code>db2.tbl_a</code>，將有問題。 
+</p>
+
+<p>如果你確實需要這樣，你必須改變下列在<tt>“mysys/mf_format.c”</tt>中的代碼： 
+</p>
+
+<pre>if (!lstat(to,&amp;stat_buff))  /* Check if it's a symbolic link */
+    if (S_ISLNK(stat_buff.st_mode) &amp;&amp; realpath(to,buff))
+</pre>
+
+<p>把代碼改變為這樣： </p>
+
+<pre>if (realpath(to,buff))
+<a NAME="IDX620"></a> </pre>
+
+<h3><a NAME="Server_parameters" HREF="manual_toc.html#Server_parameters">10.2.3 
+調節伺服器參數</a></h3>
+
+<p>你能用這個命令得到<code>mysqld</code>伺服器內定緩衝區大小： </p>
+
+<pre>shell&gt; mysqld --help
+</pre>
+
+<p>這個命令產生一張所有<code>mysqld</code>選項和可配置變數的表。輸出包括內定值並且看上去像這樣一些東西： 
+</p>
+
+<pre>Possible variables for option --set-variable (-O) are:
+back_log              current value: 5
+connect_timeout       current value: 5
+delayed_insert_timeout  current value: 300
+delayed_insert_limit  current value: 100
+delayed_queue_size    current value: 1000
+flush_time            current value: 0
+interactive_timeout   current value: 28800
+join_buffer_size      current value: 131072
+key_buffer_size       current value: 1048540
+lower_case_table_names  current value: 0
+long_query_time       current value: 10
+max_allowed_packet    current value: 1048576
+max_connections       current value: 100
+max_connect_errors    current value: 10
+max_delayed_threads   current value: 20
+max_heap_table_size   current value: 16777216
+max_join_size         current value: 4294967295
+max_sort_length       current value: 1024
+max_tmp_tables        current value: 32
+max_write_lock_count  current value: 4294967295
+net_buffer_length     current value: 16384
+query_buffer_size     current value: 0
+record_buffer         current value: 131072
+sort_buffer           current value: 2097116
+table_cache           current value: 64
+thread_concurrency    current value: 10
+tmp_table_size        current value: 1048576
+thread_stack          current value: 131072
+wait_timeout          current value: 28800
+</pre>
+
+<p>如果有一個<code>mysqld</code>伺服器正在運行，通過執行這個命令，你可以看到它實際上使用的變數的值： 
+</p>
+
+<pre>shell&gt; mysqladmin variables
+</pre>
+
+<p>每個選項在下面描述。對於緩衝區大小、長度和棧大小的值以字節給出，你能用於個後綴<samp>“K”</samp>或<samp>“M”</samp> 
+指出以K字節或兆字節顯示值。例如，<code>16M</code>指出16兆字節。後綴字母的大小寫沒有關系﹔<code>16M</code>和<code>16m</code>是相同的。 
+</p>
+
+<p>你也可以用命令<code>SHOW STATUS</code>自一個運行的伺服器看見一些統計。見<a HREF="manual_Reference.html#SHOW">7.21<code> SHOW</code>語法(得到表、列的資訊)</a>。 
+
+<dl COMPACT="manual_Reference.html#SHOW">
+  <dt><code><code>back_log</code></code> </dt>
+  <dd>要求<strong>MySQL</strong>能有的連接數量。當主要<strong>MySQL</strong>執行緒在一個很短時間內得到<strong>非常</strong>多的連接請求，這就起作用，然後主執行緒花些時間(盡管很短)檢查連接並且啟動一個新執行緒。<code>back_log</code>值指出在<strong>MySQL</strong>暫時停止回答新請求之前的短時間內多少個請求可以被存在堆疊中。只有如果期望在一個短時間內有很多連接，你需要增加它，換句話說，這值對到來的TCP/IP連接的偵聽隊列的大小。你的作業系統在這個隊列大小上有它自己的限制。 
+    Unix <code>listen(2)</code>系統調用的手冊頁應該有更多的細節。檢查你的OS文檔找出這個變數的最大值。試圖設定<code>back_log</code>高於你的作業系統的限制將是無效的。 
+  </dd>
+  <dt><code><code>connect_timeout</code></code> </dt>
+  <dd><code>mysqld</code>伺服器在用<code>Bad handshake</code>（糟糕的交握）應答前正在等待一個連接報文的秒數。 
+  </dd>
+  <dt><code><code>delayed_insert_timeout</code></code> </dt>
+  <dd>一個<code>INSERT DELAYED</code>執行緒應該在終止之前等待<code>INSERT</code>語句的時間。 
+  </dd>
+  <dt><code><code>delayed_insert_limit</code></code> </dt>
+  <dd>在插入<code>delayed_insert_limit</code>行後，<code>INSERT DELAYED</code>處理器將檢查是否有任何<code>SELECT</code>語句未執行。如果這樣，在繼續前執行允許這些語句。 
+  </dd>
+  <dt><code><code>delayed_queue_size</code></code> </dt>
+  <dd>應該為處理<code>INSERT DELAYED</code>分配多大一個隊列(以行數)。如果排隊滿了，任何進行<code>INSERT 
+    DELAYED</code>的客戶將等待直到隊列又有空間了。 </dd>
+  <dt><code><code>flush_time</code></code> </dt>
+  <dd>如果這被設置為非零值，那麼每<code>flush_time</code>秒所有表將被關閉(以釋放資源和sync到磁碟)。 
+  </dd>
+  <dt><code><code>interactive_timeout</code></code> </dt>
+  <dd>伺服器在關上它前在一個交互連接上等待行動的秒數。一個交互的客戶被定義為對<code>mysql_real_connect()</code>使用<code>CLIENT_INTERACTIVE</code>選項的客戶。也可見<code>wait_timeout</code>。 
+  </dd>
+  <dt><code><code>join_buffer_size</code></code> </dt>
+  <dd>用於全部聯結(join)的緩衝區大小(不是用索引的聯結)。緩衝區對2個表間的每個全部聯結分配一次緩衝區，當增加索引不可能時，增加該值可得到一個更快的全部聯結。（通常得到快速聯結的最佳方法是增加索引。）</dd>
+  <dt><code><code>key_buffer_size</code></code> </dt>
+  <dd>索引塊是緩沖的並且被所有的執行緒共享。<code>key_buffer_size</code>是用於索引塊的緩衝區大小，增加它可得到更好處理的索引(對所有讀和多重寫)，到你能負擔得起那樣多。如果你使它太大，系統將開始換頁並且真的變慢了。記住既然<strong>MySQL</strong>不緩存讀取的數據，你將必須為OS文件系統緩存留下一些空間。為了在寫入多個行時得到更多的速度，使用<code>LOCK 
+    TABLES</code>。見<a HREF="manual_Reference.html#LOCK_TABLES">7.24<code>LOCK 
+    TABLES/UNLOCK TABLES</code>語法</a>。 </dd>
+  <dt><code><code>long_query_time</code></code> </dt>
+  <dd>如果一個查詢所用時間超過它(以秒計)，<code>Slow_queries</code>記數器將被增加。 
+  </dd>
+  <dt><code><code>max_allowed_packet</code></code> </dt>
+  <dd>一個包的最大尺寸。消息緩衝區被初始化為<code>net_buffer_length</code>字節，但是可在需要時增加到<code>max_allowed_packet</code>個字節。內定地，該值太小必能捕捉大的(可能錯誤)包。如果你正在使用大的<code>BLOB</code>列，你必須增加該值。它應該像你想要使用的最大<code>BLOB</code>的那麼大。 
+  </dd>
+  <dt><code><code>max_connections</code></code> </dt>
+  <dd>允許的同時客戶的數量。增加該值增加<code>mysqld</code>要求的文件描述符的數量。見下面對文件描述符限制的注釋。見<a HREF="manual_Problems.html#Too_many_connections">18.2.4<code> Too many connections</code>錯誤</a>。 
+  </dd>
+  <dt><code><code>max_connect_errors</code></code> </dt>
+  <dd>如果有多於該數量的從一台主機中斷的連接，這台主機阻止進一步的連接。你可用<code>FLUSH 
+    HOSTS</code>命令疏通一台主機。 </dd>
+  <dt><code><code>max_delayed_threads</code></code> </dt>
+  <dd>不要啟動多於的這個數字的執行緒來處理<code>INSERT DELAYED</code>語句。如果你試圖在所有<code>INSERT 
+    DELAYED</code>執行緒在用後向一張新表插入數據，行將被插入，就像<code>DELAYED</code>屬性沒被指定那樣。 
+  </dd>
+  <dt><code><code>max_join_size</code></code> </dt>
+  <dd>可能將要讀入多於<code>max_join_size</code>個記錄的聯結將返回一個錯誤。如果你的用戶想要執行沒有一個<code>WHERE</code>子句、花很長時間並且返回百萬行的聯結，設置它。 
+  </dd>
+  <dt><code><code>max_sort_length</code></code> </dt>
+  <dd>在排序<code>BLOB</code>或<code>TEXT</code>值時使用的字節數(每個值僅頭<code>max_sort_length</code>個字節被使用﹔其餘的被忽略)。 
+  </dd>
+  <dt><code><code>max_tmp_tables</code></code> </dt>
+  <dd>（該選擇目前還不做任何事情)。一個客戶能同時保持打開的臨時表的最大數量。 
+  </dd>
+  <dt><code><code>net_buffer_length</code></code> </dt>
+  <dd>通信緩衝區在查詢之間被重置到該大小。通常這不應該被改變，但是如果你有很少的內存，你能將它設置為查詢期望的大小。（即，客戶發出的SQL語句期望的長度。如果語句超過這個長度，緩衝區自動地被擴大，直到<code>max_allowed_packet</code>個字節。）</dd>
+  <dt><code><code>record_buffer</code></code> </dt>
+  <dd>每個進行一個順序掃描的執行緒為其掃描的每張表分配這個大小的一個緩衝區。如果你做很多順序掃描，你可能想要增加該值。 
+  </dd>
+  <dt><code><code>sort_buffer</code></code> </dt>
+  <dd>每個需要進行排序的執行緒分配該大小的一個緩衝區。增加這值加速<code>ORDER 
+    BY</code>或<code>GROUP BY</code>操作。見<a HREF="manual_Problems.html#Temporary_files">18.5 MySQL在哪兒儲存臨時文件</a>。 </dd>
+  <dt><code><code>table_cache</code></code> </dt>
+  <dd>為所有執行緒打開表的數量。增加該值能增加<code>mysqld</code>要求的文件描述符的數量。<strong>MySQL</strong>對每個唯一打開的表需要2個文件描述符，見下面對文件描述符限制的注釋。對於表緩存如何工作的資訊，見<a HREF="manual_Performance.html#Table_cache">10.2.4 MySQL怎樣打開和關閉表</a>。 </dd>
+  <dt><code><code>tmp_table_size</code></code> </dt>
+  <dd>如果一張臨時表超出該大小，<strong>MySQL</strong>產生一個<code>The table 
+    tbl_name is full</code>形式的錯誤，如果你做很多高級<code>GROUP BY</code>查詢，增加<code>tmp_table_size</code>值。 
+  </dd>
+  <dt><code><code>thread_stack</code></code> </dt>
+  <dd>每個執行緒的棧大小。由<code>crash-me</code>測試檢測到的許多限制依賴於該值。內定隊一般的操作是足夠大了。見<a HREF="manual_Performance.html#Benchmarks">10.8 使用你自己的效能</a>。 </dd>
+  <dt><code><code>wait_timeout</code></code> </dt>
+  <dd>伺服器在關閉它之前在一個連接上等待行動的秒數。也可見<code>interactive_timeout</code>。 
+  </dd>
+</dl>
+
+<p><strong>MySQL</strong>使用是很具伸縮性的算法，因此你通常能用很少的內存運行或給<strong>MySQL</strong>更多的被存以得到更好的性能。 
+</p>
+
+<p>如果你有很多內存和很多表並且有一個中等數量的客戶，想要最大的性能，你應該一些像這樣的東西： 
+</p>
+
+<pre>shell&gt; safe_mysqld -O key_buffer=16M -O table_cache=128 \
+           -O sort_buffer=4M -O record_buffer=1M &amp;
+
+如果你有較少的內存和大量的連接，使用這樣一些東西： </pre>
+
+<pre>shell&gt; safe_mysqld -O key_buffer=512k -O sort_buffer=100k \
+           -O record_buffer=100k &amp;
+</pre>
+
+<pre>或甚至： </pre>
+
+<pre>shell&gt; safe_mysqld -O key_buffer=512k -O sort_buffer=16k \
+           -O table_cache=32 -O record_buffer=8k -O net_buffer=1K &amp;
+</pre>
+
+<p>如果有很多連接，“交換問題”可能發生，除非<code>mysqld</code>已經被配置每個連接使用很少的內存。當然如果你對所有連接有足夠的內存，<code>mysqld</code>執行得更好。 
+</p>
+
+<p>注意，如果你改變<code>mysqld</code>的一個選項，它實際上只對伺服器的那個例子保持。 
+</p>
+
+<p>為了明白一個參數變化的效果，這樣做： </p>
+
+<pre>shell&gt; mysqld -O key_buffer=32m --help
+</pre>
+
+<p>保証<code>--help</code>選項是最後一個﹔否則，命令行上在它之後列出的任何選項的效果將不在反映在輸出中。 
+</p>
+
+<h3><a NAME="Table_cache" HREF="manual_toc.html#Table_cache">10.2.4 MySQL怎樣打開和關閉資料庫表</a></h3>
+
+<p><code>table_cache</code>, <code>max_connections</code>和<code>max_tmp_tables</code>影響伺服器保持打開的文件的最大數量。如果你增加這些值的一個或兩個，你可以遇到你的作業系統每個進程打開文件描述符的數量上強加的限制。然而，你可以能在許多系統上增加該限制。請教你的OS文檔找出如何做這些，因為改變限制的方法各系統有很大的不同。 
+</p>
+
+<p><code>table_cache</code>與<code>max_connections</code>有關。例如，對於200個打開的連接，你應該讓一張表的緩沖至少<code>有200 
+* n</code>，這裡<code>n</code>是一個聯結(join)中表的最大數量。 </p>
+
+<p>打開表的緩存可以增加到一個<code>table_cache</code>的最大值（內定為64﹔這可以用<code>mysqld</code>的<code>-O 
+table_cache=#</code>選項來改變）。一個表絕對不被關閉，除非當緩存滿了並且另外一個執行緒試圖打開一個表時或如果你使用<code>mysqladmin 
+refresh</code>或<code>mysqladmin flush-tables</code>。 </p>
+
+<p>當表緩存滿時，伺服器使用下列程序找到一個緩存入口來使用： 
+
+<ul>
+  <li>不是當前使用的表被釋放，以最近最少使用（LRU）順序。 </li>
+  <li>如果緩存滿了並且沒有表可以釋放，但是一個新表需要打開，緩存必須臨時被擴大。 
+  </li>
+  <li>如果緩存處於一個臨時擴大狀態並且一個表從在用變為不在用狀態，它被關閉並從緩存中釋放。 
+  </li>
+</ul>
+
+<p>對每個並發存取打開一個表。這意味著，如果你讓2個執行緒存取同一個表或在同一個查詢中存取表兩次(用<code>AS</code>)，表需要被打開兩次。任何表的第一次打開占2個文件描述符﹔表的每一次額外使用僅占一個文件描述符。對於第一次打開的額外描述符用於索引文件﹔這個描述符在所有執行緒之間共享。 
+</p>
+
+<h3><a NAME="Creating_many_tables" HREF="manual_toc.html#Creating_many_tables">10.2.5 
+在同一個資料庫中創建大量資料庫表的缺點</a></h3>
+
+<p>如果你在一個目錄中有許多文件，打開、關閉和創建操作將會很慢。如果你執行在許多不同表上的<code>SELECT</code>語句，當表緩存滿時，將有一點開銷，因為對每個必須打開的表，另外一個必須被關閉。你可以通過使表緩沖更大些來減少這個開銷。 
+</p>
+
+<h3><a NAME="Open_tables" HREF="manual_toc.html#Open_tables">10.2.6 
+為什麼有這麼多打開的表？</a></h3>
+
+<p>當你運行<code>mysqladmin status</code>時，你將看見像這樣的一些東西： 
+</p>
+
+<pre>Uptime: 426 Running threads: 1 Questions: 11082 Reloads: 1 Open tables: 12
+</pre>
+
+<p>如果你僅有6個表，這可能有點令人困惑。 </p>
+
+<p><strong>MySQL</strong>是多執行緒的，因此它可以同時在同一個表上有許多詢問。為了是2個執行緒在同一個文件上有不同狀態的問題減到最小，表由每個並發進程獨立地打開。這為數據文件消耗一些內存和一個額外的文件描述符。索引文件描述符在所有執行緒之間共享。 
+</p>
+
+<h3><a NAME="Memory_use" HREF="manual_toc.html#Memory_use">10.2.7 MySQL怎樣使用內存</a></h3>
+
+<p>下表指出<code>mysqld</code>伺服器使用儲存器的一些方式。在應用的地方，給出與儲存器使用相關的伺服器變數的名字。 
+
+<ul>
+  <li>關鍵字緩衝區(變數<code>key_buffer_size</code>)由所有執行緒分享﹔當需要時，分配伺服器使用的其他緩衝區。見<a HREF="manual_Performance.html#Server_parameters">10.2.3 調節伺服器參數</a>。</li>
+  <li>每個連接使用一些執行緒特定的空間﹔一個棧(內定64K，變數<code>thread_stack</code>)、一個連接緩衝區(變數<code>net_buffer_length</code>)和一個結果緩衝區(變數<code>net_buffer_length</code>)。當需要時，連接緩衝區和結果緩衝區動態地被擴大到<code>max_allowed_packet</code>。當一個查詢正在運行當前查詢的一個拷貝時，也分配字符串。 
+  </li>
+  <li>所有執行緒共享同一基儲存器。 </li>
+  <li>目前還沒有什麼是內存映射的(除了壓縮表，但是那是另外一個的故事)。這是因為4GB的32位儲存器空間對最大的資料庫來所不是足夠大的。當一個64位尋址空間的系統變得更普遍時，我們可以為內存映射增加全面的支援。 
+  </li>
+  <li>每個做順序掃描的請求分配一個讀緩衝區(變數<code>record_buffer</code>)。 
+  </li>
+  <li>所有聯結均用一遍完成並且大多數聯結可以甚至不用一張臨時表來完成。最臨時的表是基於內存的(HEAP)表。有較大記錄長度(以所有列的長度之和計算)的臨時表或包含<code>BLOB</code>列的表在磁碟上儲存。在<strong>MySQL</strong>版本3.23.2前一個問題是如果一張HEAP表超過<code>tmp_table_size</code>的大小，你得到錯誤<code>The 
+    table tbl_name is full</code>。在更新的版本中，這通過必要時自動將在內存的(HEAP)表轉變為一個基於磁碟(MyISAM)的表來處理。為了解決這個問題，你可以通過設置<code>mysqld</code>的<code>tmp_table_size</code>選項，或通過在客戶程式中設置SQL的<code>SQL_BIG_TABLES</code>選項增加臨時表的大小。見<a HREF="manual_Reference.html#SET_OPTION">7.25<code> SET OPTION</code>句法</a>。在<strong>MySQL</strong> 
+    3.20中，臨時表的最大尺寸是<code>record_buffer*16</code>，因此如果你正在使用這個版本，你必須增加<code>record_buffer</code>值。你也可以使用<code>--big-tables</code>選項啟動<code>mysqld</code>以總將臨時表儲存在磁碟上，然而，這將影響許多複雜查詢的速度。 
+  </li>
+  <li>大多數做排序的請求分配一個排序緩衝區和一個或二個臨時文件。見<a HREF="manual_Problems.html#Temporary_files">18.5 MySQL在哪兒儲存臨時文件</a>。 </li>
+  <li>幾乎所有的語法分析和計算都在一家本地儲存器中完成。對小項目沒有內存開銷並且一般的較慢儲存器分配和釋放被避免。內存僅為出乎意料的大字符串分配(這用<code>malloc()</code>和<code>free()</code>完成)。 
+  </li>
+  <li>每個索引文件只被打開一次，並且數據文件為每個並發運行的執行緒打開一次。對每個並發執行緒，分配一個表結構、對每列的列結構和大小為<code>3 
+    * n</code>的一個緩衝區(這裡<code>n</code>是最大的行長度，不算<code>BLOB</code>列)。一個<code>BLOB</code>使用5 
+    ～ 8個字節加上<code>BLOB</code>數據。 </li>
+  <li>對每個有<code>BLOB</code>列的表，一個緩衝區動態地被擴大以便讀入更大的<code>BLOB</code>值。如果你掃描一個表，分配與最大<code>BLOB</code>值一樣大的一個緩衝區。 
+  </li>
+  <li>對所有在用的表的表處理器被保存在一個緩存中並且作為一個FIFO管理。通常緩存有64個入口。如果一個表同時被2個運行的執行緒使用，緩存為此包含2個入口。見<a HREF="manual_Performance.html#Table_cache">10.2.4 MySQL如何打開和關閉資料庫表</a>。 
+  </li>
+  <li>一個<code>mysqladmin flush-tables</code>命令關閉所有不在用的表並在當前執行的執行緒結束時，標記所有在用的表準備被關閉。這將有效地釋放大多數在用的內存。 
+  </li>
+</ul>
+
+<p><code>ps</code>和其他系統狀態程式可以報導<code>mysqld</code>使用很多內存。這可以是在不同的內存地址上的執行緒棧造成的。例如，Solaris版本的<code>ps</code>將棧間未用的內存算作已用的內存。你可以通過用<code>swap 
+-s</code>檢查可用交換區來驗証它。我們用商業內存漏洞探查器測試了<code>mysqld</code>，因此應該有沒有內存漏洞。 
+</p>
+
+<h3><a NAME="Internal_locking" HREF="manual_toc.html#Internal_locking">10.2.8 MySQL怎樣鎖定資料庫表</a></h3>
+
+<p><strong>MySQL</strong>中所有鎖定不會是死鎖的。這通過總是在一個查詢前立即請求所有必要的鎖定並且總是以同樣的順序鎖定表來管理。 
+</p>
+
+<p>對<code>WRITE</code>，<strong>MySQL</strong>使用的鎖定方法原理如下： 
+
+<ul>
+  <li>如果在表上沒有鎖，放一個鎖在它上面。 </li>
+  <li>否則，把鎖定請求放在寫鎖定隊列中。 </li>
+</ul>
+
+<p>對<code>READ</code>，<strong>MySQL</strong>使用的鎖定方法原理如下： 
+
+<ul>
+  <li>如果在表上沒有寫鎖定，把一個讀鎖定放在它上面。 </li>
+  <li>否則，把鎖請求放在讀鎖定隊列中。 </li>
+</ul>
+
+<p>當一個鎖定被釋放時，鎖定可被寫鎖定隊列中的執行緒得到，然後是讀鎖定隊列中的執行緒。 
+</p>
+
+<p>這意味著，如果你在一個表上有許多更改，<code>SELECT</code>語句將等待直到有沒有更多的更改。 
+</p>
+
+<p>為了解決在一個表中進行很多<code>INSERT</code>和<code>SELECT</code>操作的情況，你可在一張臨時表中插入行並且偶爾用來自臨時表的記錄更新真正的表。 
+</p>
+
+<p>這可用下列代碼做到： </p>
+
+<pre>mysql&gt; LOCK TABLES real_table WRITE, insert_table WRITE;
+mysql&gt; insert into real_table select * from insert_table;
+mysql&gt; delete from insert_table;
+mysql&gt; UNLOCK TABLES;
+</pre>
+
+<p>如果你在一些特定的情況字下區分檢索的優先次序，你可以使用<code>LOW_PRIORITY</code>選項的<code>INSERT</code>。見<a HREF="manual_Reference.html#INSERT">7.14<code> INSERT</code>句法</a>。 </p>
+
+<p>你也能改變在<tt>“mysys/thr_lock.c”</tt>中的鎖代碼以使用一個單個隊列。在這種情況下，寫鎖定和讀鎖定將有同樣優先級，它可能幫助一些應用程式。 
+</p>
+
+<h3><a NAME="Table_locking" HREF="manual_toc.html#Table_locking">10.2.9 
+資料庫表級鎖定的問題</a></h3>
+
+<p><strong>MySQL</strong>的表鎖定代碼是不會死鎖的。 </p>
+
+<p><strong>MySQL</strong>使用表級鎖定(而不是行級鎖定或列級鎖定)以達到很高的鎖定速度。對於大表，表級鎖定對大多數應用程式來說比行級鎖定好一些，但是當然有一些缺陷。 
+</p>
+
+<p>在<strong>MySQL</strong>3.23.7和更高版本中，一個人能把行插入到<code>MyISAM</code>表同時其他執行緒正在讀該表。注意，目前只有在表中內有刪除的行時才工作。 
+</p>
+
+<p>表級鎖定使很多執行緒能夠同時讀一個表，但是如果一個執行緒想要寫一個表，它必須首先得到獨占存取權。在更改期間，所有其他想要存取該特定表的執行緒將等到更改就緒。 
+</p>
+
+<p>因為資料庫的更改通常被視為比<code>SELECT</code>更重要，更新一個表的所有語句比從一個表中檢索資訊的語句有更高的優先級。這應該保証更改不被“餓死”，因為一個人針對一個特定表會發出很多繁重的查詢。 
+</p>
+
+<p>從<strong>MySQL 3.23.7</strong>開始，一個人可以能使用<code>max_write_lock_count</code>變數<strong>強制MySQL</strong>在一個表上一個特定數量的插入後發出一個<code>SELECT</code>。 
+</p>
+
+<p>對此一個主要的問題如下： 
+
+<ul>
+  <li>一個客戶發出一個花很長時間運行的<code>SELECT</code>。 </li>
+  <li>然後其他客戶在一個使用的表上發出一個<code>UPDATE</code>﹔這個客戶將等待直到<code>SELECT</code>完成。</li>
+  <li>另一個客戶在同一個表上發出另一個<code>SELECT</code>語句﹔因為<code>UPDATE</code>比<code>SELECT</code>有更高的優先級，該<code>SELECT</code>將等待<code>UPDATE</code>的完成。它也將等待第一個<code>SELECT</code>完成！ 
+  </li>
+</ul>
+
+<p>對這個問題的一些可能的解決方案是： 
+
+<ul>
+  <li>試著使<code>SELECT</code>語句運行得更快﹔你可能必須創建一些摘要(summary)表做到這點。 
+  </li>
+  <li>用<code>--low-priority-updates</code>啟動<code>mysqld</code>。這將給所有更新(修改)一個表的語句以比<code>SELECT</code>語句低的優先級。在這種情況下，在先前情形的最後的<code>SELECT</code>語句將在<code>INSERT</code>語句前執行。 
+  </li>
+  <li>你可以用<code>LOW_PRIORITY</code>屬性給與一個特定的<code>INSERT</code>、<code>UPDATE</code>或<code>DELETE</code>語句較低優先級。 
+  </li>
+  <li>為<strong>max_write_lock_count</strong>指定一個低值來啟動<code>mysqld</code>使得在一定數量的<code>WRITE</code>鎖定後給出<code>READ</code>鎖定。 
+  </li>
+  <li>通過使用SQL命令：<code>SET SQL_LOW_PRIORITY_UPDATES=1</code>，你可從一個特定執行緒指定所有的更改應該由用低優先級完成。見<a HREF="manual_Reference.html#SET_OPTION">7.25<code> SET OPTION</code>句法</a>。 </li>
+  <li>你可以用<code>HIGH_PRIORITY</code>屬性指明一個特定<code>SELECT</code>是很重要的。見<a HREF="manual_Reference.html#SELECT">7.12<code> SELECT</code>句法</a>。 </li>
+  <li>如果你有關於<code>INSERT</code>結合<code>SELECT</code>的問題，切換到使用新的<code>MyISAM</code>表，因為它們支援並發的<code>SELECT</code>和<code>INSERT</code>。 
+  </li>
+  <li>如果你主要混合<code>INSERT</code>和<code>SELECT</code>語句，<code>DELAYED</code>屬性<code>的INSERT</code>將可能解決你的問題。見<a HREF="manual_Reference.html#INSERT">7.14<code> INSERT</code>句法</a>。 </li>
+  <li>如果你有關於<code>SELECT</code>和<code>DELETE</code>的問題，<code>LIMIT</code>選項的<code>DELETE</code>可以幫助你。見<a HREF="manual_Reference.html#DELETE">7.11<code> DELETE</code>句法</a>。 </li>
+</ul>
+
+<h2><a NAME="Data_size" HREF="manual_toc.html#Data_size">10.3 使你的數據盡可能小</a></h2>
+
+<p>最基本的最佳化之一是使你的數據(和索引)在磁碟上(並且在內存中)占據的空間盡可能小。這能給出巨大的改進，因為磁碟讀入較快並且通常也用較少的主儲存器。如果在更小的列上做索引，索引也占據較少的資源。 
+</p>
+
+<p>你能用下面的技術使表的性能更好並且使儲存空間最小： 
+
+<ul>
+  <li>盡可能地使用最有效(最小)的類型。<strong>MySQL</strong>有很多節省磁碟空間和內存的專業化類型。 
+  </li>
+  <li>如果可能使表更小，使用較小的整數類型。例如，<code>MEDIUMINT</code>經常比<code>INT</code>好一些。 
+  </li>
+  <li>如果可能，聲明列為<code>NOT NULL</code>。它使任何事情更快而且你為每列節省一位。注意如果在你的應用程式中你確實需要<code>NULL</code>，你應該毫無疑問使用它，只是避免內定地在所有列上有它。</li>
+  <li>如果你沒有任何變長列(<code>VARCHAR</code>、<code>TEXT</code>或<code>BLOB</code>列)，使用固定尺寸的記錄格式。這比較快但是不幸地可能會浪費一些空間。見<a HREF="manual_Performance.html#Choosing_table_type">10.6 選擇一種表類型</a>。 </li>
+  <li>每張桌子應該有盡可能短的主索引。這使一行的辨認容易而有效。</li>
+  <li>對每個表，你必須決定使用哪種儲存/索引方法。見<a HREF="manual_Server.html#Table_types">9.4 MySQL表類型</a>。也可參見<a HREF="manual_Performance.html#Choosing_table_type">10.6 選擇一種表類型</a>。 </li>
+  <li>只創建你確實需要的索引。索引對檢索有好處但是當你需要快速儲存東西時就變得糟糕。如果你主要通過搜索列的組合來存取一個表，以它們做一個索引。第一個索引部分應該是最常用的列。如果你總是使用許多列，你應該首先以更多的副本使用列以獲得更好的列索引壓縮。 
+  </li>
+  <li>如果很可能一個索引在頭幾個字符上有唯一的前綴，僅僅索引該前綴比較好。<strong>MySQL</strong>支援在一個字符列的一部分上的索引。更短的索引更快，不僅因為他們占較少的磁碟空間而且因為他們將在索引緩存中給你更多的命中率並且因此有更少磁碟尋道。見<a HREF="manual_Performance.html#Server_parameters">10.2.3 調節伺服器參數</a>。</li>
+  <li>在一些情形下，分割一個經常被掃描進2個表的表是有益的。特別是如果它是一個動態格式的表並且它可能使一個能用來掃描後找出相關行的較小靜態格式的表。 
+  </li>
+</ul>
+
+<h2><a NAME="MySQL_indexes" HREF="manual_toc.html#MySQL_indexes">10.4 MySQL索引的使用</a></h2>
+
+<p>索引被用來快速找出在一個列上用一特定值的行。沒有索引，MySQL不得不首先以第一條記錄開始並然後讀完整個表直到它找出相關的行。表越大，花費時間越多。如果表對於查詢的列有一個索引，MySQL能快速到達一個位置去搜尋到數據文件的中間，沒有必要考慮所有數據。如果一個表有1000行，這比順序讀取至少快100倍。注意你需要存取幾乎所有1000行，它較快的順序讀取，因為此時我們避免磁碟尋道。 
+</p>
+
+<p>所有的MySQL索引(<code>PRIMARY</code>、<code>UNIQUE</code>和<code>INDEX</code>)在B樹中儲存。字符串是自動地壓縮前綴和結尾空間。見<a HREF="manual_Reference.html#CREATE_INDEX">7.27<code> CREATE INDEX</code>句法</a>。 </p>
+
+<p>索引用於： 
+
+<ul>
+  <li>快速找出匹配一個<code>WHERE</code>子句的行。 </li>
+  <li>當執行聯結時，從其他表檢索行。 </li>
+  <li>對特定的索引列找出<code>MAX()</code>或<code>MIN()</code>值。 </li>
+  <li>如果排序或分組在一個可用鍵的最左面前綴上進行(例如，<code>ORDER 
+    BY key_part_1,key_part_2</code>)，排序或分組一個表。如果所有鍵值部分跟隨<code>DESC</code>，鍵以倒序被讀取。 
+  </li>
+  <li>在一些情況中，一個查詢能被最佳化來檢索值，不用咨詢數據文件。如果對某些表的所有使用的列是數字型的並且構成某些鍵的最左面前綴，為了更快，值可以從索引樹被檢索出來。 
+  </li>
+</ul>
+
+<p>假定你發出下列<code>SELECT</code>語句： </p>
+
+<pre>mysql&gt; SELECT * FROM tbl_name WHERE col1=val1 AND col2=val2;
+</pre>
+
+<p>如果一個多列索引存在於<code>col1</code>和<code>col2</code>上，適當的行可以直接被取出。如果分開的單行列索引存在於<code>col1</code>和<code>col2</code>上，最佳化器試圖通過決定哪個索引將找到更少的行並來找出更具限制性的索引並且使用該索引取行。 
+</p>
+
+<p><a NAME="IDX624"></a>如果表有一個多列索引，任何最左面的索引前綴能被最佳化器使用以找出行。例如，如果你有一個3行列索引<code>(col1,col2,col3)</code>，你已經索引了在<code>(col1)</code>、<code>(col1,col2)</code>和<code>(col1,col2,col3)</code>上的搜索能力。 
+</p>
+
+<p>如果列不構成索引的最左面前綴，<strong>MySQL</strong>不能使用一個部分的索引。假定你下面顯示的<code>SELECT</code>語句： 
+</p>
+
+<pre>mysql&gt; SELECT * FROM tbl_name WHERE col1=val1;
+mysql&gt; SELECT * FROM tbl_name WHERE col2=val2;
+mysql&gt; SELECT * FROM tbl_name WHERE col2=val2 AND col3=val3;
+</pre>
+
+<p>如果一個索引存在於<code>(col1、col2、col3)</code>上，只有上面顯示的第一個查詢使用索引。第二個和第三個查詢確實包含索引的列，但是<code>(col2)</code>和<code>(col2、col3)</code>不是<code>(col1、col2、col3)</code>的最左面前綴。 
+</p>
+
+<p>如果<code>LIKE</code>參數是一個不以一個通配符字符起始的一個常數字符串，<a NAME="IDX626"></a><strong>MySQL</strong>也為<code>LIKE</code>比較使用索引。例如，下列<code>SELECT</code>語句使用索引： 
+</p>
+
+<pre>mysql&gt; select * from tbl_name where key_col LIKE &quot;Patrick%&quot;;
+mysql&gt; select * from tbl_name where key_col LIKE &quot;Pat%_ck%&quot;;
+</pre>
+
+<p>在第一條語句中，只考慮有<code>&quot;Patrick&quot; &lt;= key_col &lt; 
+&quot;Patricl&quot;</code>的行。在第二條語句中，只考慮有<code>&quot;Pat&quot; 
+&lt;= key_col &lt; &quot;Pau&quot;</code>的行。 </p>
+
+<p>下列<code>SELECT</code>語句將不使用索引： </p>
+
+<pre>mysql&gt; select * from tbl_name where key_col LIKE &quot;%Patrick%&quot;;
+mysql&gt; select * from tbl_name where key_col LIKE other_col;
+</pre>
+
+<p>在第一條語句中，<code>LIKE</code>值以一個通配符字符開始。在第二條語句中，<code>LIKE</code>值不是一個常數。 
+</p>
+
+<p><a NAME="IDX630"></a><a NAME="IDX631"></a>如果 column_name 是一個索引，使用<code>column_name 
+IS NULL</code>的搜索將使用索引。 </p>
+
+<p><strong>MySQL</strong>通常使用找出最少數量的行的索引。一個索引被用於你與下列操作符作比較的列：<code>=</code>、<code>&gt;</code>、<code>&gt;=</code>、<code>&lt;</code>、<code>&lt;=</code>、<code>BETWEEN</code>和一個有一個非通配符前綴像<code>'something%'</code>的<code>LIKE</code>的列。 
+</p>
+
+<p>任何不跨越的在<code>WHERE</code>子句的所有<code>AND</code>層次的索引不用來最佳化詢問。 
+</p>
+
+<p>下列<code>WHERE</code>子句使用索引：</p>
+
+<pre>... WHERE index_part1=1 AND index_part2=2
+... WHERE index=1 OR A=10 AND index=2      /* index = 1 OR index = 2 */
+... WHERE index_part1='hello' AND index_part_3=5
+          /* optimized like &quot;index_part1='hello'&quot; */
+</pre>
+
+<p>這些<code>WHERE</code>子句<strong>不</strong>使用索引： </p>
+
+<pre>... WHERE index_part2=1 AND index_part3=2  /* index_part_1 is not used */
+... WHERE index=1 OR A=10                  /* No index */
+... WHERE index_part1=1 OR index_part2=10  /* No index spans all rows */
+</pre>
+
+<h2><a NAME="Query_Speed" HREF="manual_toc.html#Query_Speed">10.5 
+存取或更新數據的查詢速度</a></h2>
+
+<p>首先，一件事情影響所有的詢問。你有的許可系統設置越複雜，你得到更多的開銷。</p>
+
+<p>如果你不讓任何<code>GRANT</code>語句執行，<strong>MySQL</strong>將稍微最佳化許可檢查。因此如果你有很大量，值得花時間來避免授權，否則更多的許可檢查有更大的開銷。 
+</p>
+
+<p>如果你的問題是與一些明顯的<strong>MySQL</strong>函數有關，你總能在<strong>MySQL</strong>客戶中計算其時間：</p>
+
+<pre>mysql&gt; select benchmark(1000000,1+1);
++------------------------+
+| benchmark(1000000,1+1) |
++------------------------+
+|                      0 |
++------------------------+
+1 row in set (0.32 sec)
+</pre>
+
+<p>上面顯示<strong>MySQL</strong>能在<code>PentiumII 400MHz</code>上以0.32秒執行1,000,000個<code>+</code>表達式。 
+</p>
+
+<p>所有<strong>MySQL</strong>函數應該被高度最佳化，但是以可能有一些例外並且<code>benchmark(loop_count,expression)</code>是找出是否你的查詢有問題的一個極好工具。</p>
+
+<h3><a NAME="Estimating_performance" HREF="manual_toc.html#Estimating_performance">10.5.1 
+估計查詢性能</a></h3>
+
+<p>在大多數情況下，你能通過計算磁碟尋道估計性能。對小的表，你通常能在1次磁碟尋道中找到行(因為這個索引可能被緩沖)。對更大的表，你能估計它(使用 
+B++ 樹索引)，你將需要：<code>log(row_count)/log(index_block_length/3*2/(index_length 
++ data_pointer_length))+1</code>次尋道找到行。 </p>
+
+<p>在<strong>MySQL</strong>中，索引塊通常是1024個字節且數據指針通常是4個字節，這對一個有一個索引長度為3(中等整數)的 
+500,000 行的表給你：<code>log(500,000)/log(1024/3*2/(3+4)) + 1</code>= 4 
+次尋道。 </p>
+
+<p>像上面的索引將要求大約 500,000 * 7 * 3/2 = 5.2M，(假設索引緩衝區被充滿到2/3(它是典型的))，你將可能在內存中有索引的大部分並且你將可能僅需要1-2調用從OS讀數據來找出行。 
+</p>
+
+<p>然而對於寫，你將需要 4 次尋道請求(如上)來找到在哪兒存放新索引並且通常需2次尋道更新這個索引並且寫入行。 
+</p>
+
+<p>注意，上述不意味著你的應用程式將緩慢地以 N log N 
+退化！當表格變得更大時，只要一切被OS或SQL伺服器緩沖，事情將僅僅或多或少地更慢。在數據變得太大不能被緩沖後，事情將開始變得更慢直到你的應用程式僅僅受磁碟尋道限制(它以N 
+log N增加)。為了避免這個增加，索引緩沖隨數據增加而增加。見<a HREF="manual_Performance.html#Server_parameters">10.2.3 調節伺服器參數</a>。</p>
+
+<h3><a NAME="SELECT_speed" HREF="manual_toc.html#SELECT_speed">10.5.2 <code>SELECT</code>查詢的速度</a></h3>
+
+<p>總的來說，當你想要使一個較慢的<code>SELECT ... WHERE</code>更快，檢查的第一件事情是你是否能增加一個索引。見<a HREF="manual_Performance.html#MySQL_indexes">10.4 MySQL 索引的使用</a>。在不同表之間的所有引用通常應該用索引完成。你可以使用<code>EXPLAIN</code>來確定哪個索引用於一條<code>SELECT</code>語句。見<a HREF="manual_Reference.html#EXPLAIN">7.22<code> EXPLAIN</code>句法(得到關於一條<code>SELECT</code>的資訊)</a>。 
+</p>
+
+<p>一些一般的建議： 
+
+<ul>
+  <li>為了幫助<strong>MySQL</strong>更好地最佳化查詢，在它已經裝載了相關數據後，在一個表上運行<code>myisamchk 
+    --analyze</code>。這為每一個更新一個值，指出有相同值地平均行數（當然，對唯一索引，這總是1。）</li>
+  <li>為了根據一個索引排序一個索引和數據，使用<code>myisamchk --sort-index 
+    --sort-records=1</code>（如果你想要在索引1上排序)。如果你有一個唯一索引，你想要根據該索引地次序讀取所有的記錄，這是使它更快的一個好方法。然而注意，這個排序沒有被最佳地編寫，並且對一個大表將花很長時間！ 
+  </li>
+</ul>
+
+<h3><a NAME="Where_optimizations" HREF="manual_toc.html#Where_optimizations">10.5.3 MySQL怎樣最佳化<code>WHERE</code>子句</a></h3>
+
+<p>where最佳化被放在<code>SELECT</code>中，因為他們最主要在那裡使用裡，但是同樣的最佳化被用於<code>DELETE</code>和<code>UPDATE</code>語句。</p>
+
+<p>也要注意，本節是不完全的。<strong>MySQL</strong>確實作了許多最佳化而我們沒有時間全部記錄他們。 
+</p>
+
+<p>由<strong>MySQL</strong>實施的一些最佳化列在下面： 
+
+<ul>
+  <li>刪除不必要的括號： <pre>   ((a AND b) AND c OR (((a AND b) AND (c AND d))))
+-&gt; (a AND b AND c) OR (a AND b AND c AND d)
+</pre>
+  </li>
+  <li>常數調入： <pre>   (a&lt;b AND b=c) AND a=5
+-&gt; b&gt;5 AND b=c AND a=5
+</pre>
+  </li>
+  <li>刪除常數條件(因常數調入所需)：<pre>   (B&gt;=5 AND B=5) OR (B=6 AND 5=5) OR (B=7 AND 5=6)
+-&gt; B=5 OR B=6
+</pre>
+  </li>
+  <li>索引使用的常數表達式僅計算一次。 </li>
+  <li>在一個單個表上的沒有一個<code>WHERE</code>的<code>COUNT(*)</code>直接從表中檢索資訊。當僅使用一個表時，對任何<code>NOT 
+    NULL</code>表達式也這樣做。 </li>
+  <li>無效常數表達式的早期檢測。<strong>MySQL</strong>快速檢測某些<code>SELECT</code>語句是不可能的並且不返回行。 
+  </li>
+  <li>如果你不使用<code>GROUP BY</code>或分組函數(<code>COUNT()</code>、<code>MIN()</code>……)，<code>HAVING</code>與<code>WHERE</code>合並。</li>
+  <li>為每個子聯結(sub join)，構造一個更簡單的<code>WHERE</code>以得到一個更快的<code>WHERE</code>計算並且也盡快跳過記錄。 
+    <a NAME="IDX633"></a> <a NAME="IDX634"></a> </li>
+  <li>所有常數的表在查詢中的任何其他表前被首先讀出。一個常數的表是： 
+    <ul>
+      <li>一個空表或一個有1行的表。 </li>
+      <li>與在一個<code>UNIQUE</code>索引、或一個<code>PRIMARY KEY</code>的<code>WHERE</code>子句一起使用的表，這裡所有的索引部分使用一個常數表達式並且索引部分被定義為<code>NOT 
+        NULL</code>。 </li>
+    </ul>
+    <p>所有下列的表用作常數表： </p>
+    <pre>mysql&gt; SELECT * FROM t WHERE primary_key=1;
+mysql&gt; SELECT * FROM t1,t2
+           WHERE t1.primary_key=1 AND t2.primary_key=t1.id;
+</pre>
+  </li>
+  <li>對聯結表的最好聯結組合是通過嘗試所有可能性來找到:(。如果所有在<code>ORDER 
+    BY</code>和<code>GROUP BY</code>的列來自同一個表，那麼當廉潔時，該表首先被選中。 
+  </li>
+  <li>如果有一個<code>ORDER BY</code>子句和一個不同的<code>GROUP BY</code>子句，或如果<code>ORDER 
+    BY</code>或<code>GROUP BY</code>包含不是來自聯結隊列中的第一個表的其他表的列，創建一個臨時表。 
+  </li>
+  <li>如果你使用<code>SQL_SMALL_RESULT</code>，<strong>MySQL</strong>將使用一個在內存中的表。 
+  </li>
+  <li>因為<code>DISTINCT</code>被變換到在所有的列上的一個<code>GROUP BY</code>，<code>DISTINCT</code>與<code>ORDER 
+    BY</code>結合也將在許多情況下需要一張臨時表。 </li>
+  <li>每個表的索引被查詢並且使用跨越少於30% 
+    的行的索引。如果這樣的索引沒能找到，使用一個快速的表掃描。 </li>
+  <li>在一些情況下，<strong>MySQL</strong>能從索引中讀出行，甚至不咨詢數據文件。如果索引使用的所有列是數字的，那麼只有索引樹被用來解答查詢。 
+  </li>
+  <li>在每個記錄被輸出前，那些不匹配<code>HAVING</code>子句的行被跳過。 
+  </li>
+</ul>
+
+<p>下面是一些很快的查詢例子： </p>
+
+<pre>mysql&gt; SELECT COUNT(*) FROM tbl_name;
+mysql&gt; SELECT MIN(key_part1),MAX(key_part1) FROM tbl_name;
+mysql&gt; SELECT MAX(key_part2) FROM tbl_name
+           WHERE key_part_1=constant;
+mysql&gt; SELECT ... FROM tbl_name
+           ORDER BY key_part1,key_part2,... LIMIT 10;
+mysql&gt; SELECT ... FROM tbl_name
+           ORDER BY key_part1 DESC,key_part2 DESC,... LIMIT 10;
+</pre>
+
+<p>下列查詢僅使用索引樹就可解決(假設索引列是數字的)： </p>
+
+<pre>mysql&gt; SELECT key_part1,key_part2 FROM tbl_name WHERE key_part1=val;
+mysql&gt; SELECT COUNT(*) FROM tbl_name
+           WHERE key_part1=val1 AND key_part2=val2;
+mysql&gt; SELECT key_part2 FROM tbl_name GROUP BY key_part1;
+</pre>
+
+<p>下列查詢使用索引以排序順序檢索，不用一次另外的排序： </p>
+
+<pre>mysql&gt; SELECT ... FROM tbl_name ORDER BY key_part1,key_part2,...
+mysql&gt; SELECT ... FROM tbl_name ORDER BY key_part1 DESC,key_part2 DESC,...
+</pre>
+
+<h3><a NAME="LEFT_JOIN_optimization" HREF="manual_toc.html#LEFT_JOIN_optimization">10.5.4 
+MySQL怎樣最佳化<code>LEFT JOIN</code></a></h3>
+
+<p>在<strong>MySQL</strong><code>中，A LEFT JOIN B</code>實現如下： 
+
+<ul>
+  <li>表<code>B</code>被設置為依賴於表<code>A</code>。 </li>
+  <li>表<code>A</code>被設置為依賴於所有用在<code>LEFT JOIN</code>條件的表(除<code>B</code>外)。 
+  </li>
+  <li>所有<code>LEFT JOIN</code>條件被移到<code>WHERE</code>子句中。 </li>
+  <li>進行所有標準的聯結最佳化，除了一個表總是在所有它依賴的表之後被讀取。如果有一個循環依賴，<strong>MySQL</strong>將發出一個錯誤。 
+  </li>
+  <li>進行所有標準的<code>WHERE</code>最佳化。 </li>
+  <li>如果在<code>A</code>中有一行匹配<code>WHERE</code>子句，但是在<code>B</code>中沒有任何行匹配<code>LEFT 
+    JOIN</code>條件，那麼在<code>B</code>刈谹成所有列設置為<code>NULL</code>的一行。 
+  </li>
+  <li>如果你使用<code>LEFT JOIN</code>來找出在某些表中不存在的行並且在<code>WHERE</code>部分你有下列測試：<code>column_name 
+    IS NULL</code>，這裡column_name 被聲明為<code>NOT NULL</code>的列，那麼<code>MySQL</code>在它已經找到了匹配<code>LEFT 
+    JOIN</code>條件的一行後，將停止在更多的行後尋找(對一特定的鍵組合)。 
+  </li>
+</ul>
+
+<h3><a NAME="LIMIT_optimization" HREF="manual_toc.html#LIMIT_optimization">10.5.5 MySQL怎樣最佳化<code>LIMIT</code></a></h3>
+
+<p>在一些情況中，當你使用<code>LIMIT #</code>而不使用<code>HAVING</code>時，<strong>MySQL</strong>將以不同方式處理查詢。 
+
+<ul>
+  <li>如果你用<code>LIMIT</code>只選擇一些行，當<strong>MySQL</strong>一般比較喜歡做完整的表掃描時，它將在一些情況下使用索引。 
+  </li>
+  <li>如果你使用<code>LIMIT #</code>與<code>ORDER BY</code>，<strong>MySQL</strong>一旦找到了第一個<code> 
+    #</code> 行，將結束排序而不是排序整個表。 </li>
+  <li>當結合<code>LIMIT #</code>和<code>DISTINCT</code>時，<strong>MySQL</strong>一旦找到<code>#</code>個唯一的行，它將停止。 
+  </li>
+  <li>在一些情況下，一個<code>GROUP BY</code>能通過順序讀取鍵(或在鍵上做排序)來解決，並然後計算摘要直到鍵值改變。在這種情況下，<code>LIMIT 
+    #</code>將不計算任何不必要的<code>GROUP</code>。 </li>
+  <li>只要<code>MySQL</code>已經發送了第一個<code>#</code>行到客戶，它將放棄查詢。 
+  </li>
+  <li><code>LIMIT 0</code>將總是快速返回一個空集合。這對檢查查詢並且得到結果列的列類型是有用的。 
+  </li>
+  <li>臨時表的大小使用<code>LIMIT #</code>計算需要多少空間來解決查詢。 </li>
+</ul>
+
+<h3><a NAME="Insert_speed" HREF="manual_toc.html#Insert_speed">10.5.6 <code>INSERT</code>查詢的速度</a></h3>
+
+<p>插入一個記錄的時間由下列組成： 
+
+<ul>
+  <li>連接：(3) </li>
+  <li>發送查詢給伺服器：(2) </li>
+  <li>分析查詢：(2) </li>
+  <li>插入記錄：（1 x 記錄大小）</li>
+  <li>插入索引：（1 x 索引）</li>
+  <li>關閉：(1) </li>
+</ul>
+
+<p>這裡的數字有點與總體時間成正比。這不考慮打開表的初始開銷(它為每個並發運行的查詢做一次)。 
+</p>
+
+<p>表的大小以N log N (B 樹)的速度減慢索引的插入。 </p>
+
+<p>加快插入的一些方法： 
+
+<ul>
+  <li>如果你同時從同一客戶插入很多行，使用多個值表的<code>INSERT</code>語句。這比使用分開<code>INSERT</code>語句快(在一些情況中幾倍)。</li>
+  <li>如果你從不同客戶插入很多行，你能通過使用<code>INSERT DELAYED</code>語句得到更高的速度。見<a HREF="manual_Reference.html#INSERT">7.14<code> INSERT</code>句法</a>。 </li>
+  <li>注意，用<code>MyISAM</code>，如果在表中沒有刪除的行，能在<code>SELECT</code>:s正在運行的同時插入行。 
+  </li>
+  <li>當從一個文本文件裝載一個表時，使用<code>LOAD DATA INFILE</code>。這通常比使用很多<code>INSERT</code>語句快20倍。見<a HREF="manual_Reference.html#LOAD_DATA">7.16<code> LOAD DATA INFILE</code>句法</a>。 </li>
+  <li>當表有很多索引時，有可能多做些工作使得<code>LOAD DATA INFILE</code>更快些。使用下列程序： 
+    <ol>
+      <li>有選擇地用<code>CREATE TABLE</code>創建表。例如使用<code>mysql</code>或Perl-DBI。 
+      </li>
+      <li>執行<code>FLUSH TABLES</code>，或外殼命令<code>mysqladmin flush-tables</code>。 
+      </li>
+      <li>使用<code>myisamchk --keys-used=0 -rq /path/to/db/tbl_name</code>。這將從表中刪除所有索引的使用。 
+      </li>
+      <li>用<code>LOAD DATA INFILE</code>把數據插入到表中，這將不更新任何索引，因此很快。</li>
+      <li>如果你有<code>myisampack</code>並且想要壓縮表，在它上面運行<code>myisampack</code>。見<a HREF="manual_Performance.html#Compressed_format">10.6.3 壓縮表的特徵</a>。 </li>
+      <li>用<code>myisamchk -r -q /path/to/db/tbl_name</code>再創建索引。這將在將它寫入磁碟前在內存中創建索引樹，並且它更快，因為避免大量磁碟尋道。結果索引樹也被完美地平衡。 
+      </li>
+      <li>執行<code>FLUSH TABLES</code>，或外殼命令<code>mysqladmin flush-tables</code>。</li>
+    </ol>
+    <p>這個程序將被構造進在MySQL的某個未來版本的<code>LOAD DATA INFILE</code>。</p>
+  </li>
+  <li>你可以鎖定你的表以加速插入。<pre>mysql&gt; LOCK TABLES a WRITE;
+mysql&gt; INSERT INTO a VALUES (1,23),(2,34),(4,33);
+mysql&gt; INSERT INTO a VALUES (8,26),(6,29);
+mysql&gt; UNLOCK TABLES;
+</pre>
+    <p>主要的速度差別是索引緩衝區僅被清洗到磁碟上一次，在所有<code>INSERT</code>語句完成後。一般有與有不同的<code>INSERT</code>語句那樣奪的索引緩衝區清洗。如果你能用一個單個語句插入所有的行，鎖定就不需要。鎖定也將降低多連接測試的整體時間，但是對某些執行緒最大等待時間將上升(因為他們等待鎖)。例如：</p>
+    <pre>thread 1 does 1000 inserts
+thread 2, 3, and 4 does 1 insert
+thread 5 does 1000 inserts
+</pre>
+    <p>如果你不使用鎖定，2、3和4將在1和5前完成。如果你使用鎖定，2、3和4將可能不在1或5前完成，但是整體時間應該快大約40%。因為<code>INSERT</code>, 
+    <code>UPDATE</code>和<code>DELETE</code>操作在<strong>MySQL</strong>中是很快的，通過為多於大約5次連續不斷地插入或更新一行的東西加鎖，你將獲得更好的整體性能。如果你做很多一行的插入，你可以做一個<code>LOCK 
+    TABLES</code>，偶爾隨後做一個<code>UNLOCK TABLES</code>(大約每1000行)以允許另外的執行緒存取表。這仍然將導致獲得好的性能。當然，<code>LOAD 
+    DATA INFILE</code>對裝載數據仍然是更快的。 </p>
+  </li>
+</ul>
+
+<p>為了對<code>LOAD DATA INFILE</code>和<code>INSERT</code>得到一些更快的速度，擴大關鍵字緩衝區。見<a HREF="manual_Performance.html#Server_parameters">10.2.3 調節伺服器參數</a>。</p>
+
+<h3><a NAME="Update_speed" HREF="manual_toc.html#Update_speed">10.5.7 <code>UPDATE</code>查詢的速度</a></h3>
+
+<p>更改查詢被最佳化為有一個寫開銷的一個<code>SELECT</code>查詢。寫速度依賴於被更新數據大小和被更新索引的數量。 
+</p>
+
+<p>使更改更快的另一個方法是推遲更改並且然後一行一行地做很多更改。如果你鎖定表，做一行一行地很多更改比一次做一個快。 
+</p>
+
+<p>注意，動態記錄格式的更改一個較長總長的記錄，可能切開記錄。因此如果你經常這樣做，時不時地<code>OPTIMIZE 
+TABLE</code>是非常重要的。見<a HREF="manual_Reference.html#OPTIMIZE_TABLE">7.9<code> 
+OPTIMIZE TABLE</code>句法</a>。 </p>
+
+<h3><a NAME="Delete_speed" HREF="manual_toc.html#Delete_speed">10.5.8 <code>DELETE</code>查詢的速度</a></h3>
+
+<p>刪除一個記錄的時間精確地與索引數量成正比。為了更快速地刪除記錄，你可以增加索引緩存的大小。見<a HREF="manual_Performance.html#Server_parameters">10.2.3 調節伺服器參數</a>。 </p>
+
+<p>從一個表刪除所有行比刪除行的一大部分也要得多。 </p>
+
+<p><a NAME="IDX635"></a> <a NAME="IDX636"></a> </p>
+
+<h2><a NAME="Choosing_table_type" HREF="manual_toc.html#Choosing_table_type">10.6 
+選擇一種表類型</a></h2>
+
+<p>用MySQL，當前(版本 3.23.5)你能從一個速度觀點在4可用表的格式之間選擇。 
+
+<dl COMPACT="Choosing_table_type">
+  <dt><strong>靜態MyISAM</strong> </dt>
+  <dd>這種格式是最簡單且最安全的格式，它也是在磁碟格式最快的。速度來自於數據能在磁碟上被找到的難易方式。當所定有一個索引和靜態格式的東西時，它很簡單，只是行長度乘以行數量。而且在掃描一張表時，用每次磁碟讀取來讀入常數個記錄是很容易的。安全性來自於如果當寫入一個靜態MyISAM文件時，你的計算機崩潰，<code>myisamchk</code>能很容易指出每行在哪兒開始和結束，因此它通常能回收所有記錄，除了部分被寫入的那個。注意，在MySQL中，所有索引總能被重建。</dd>
+  <dt><strong>動態MyISAM</strong> </dt>
+  <dd>這種格式有點複雜，因為每一行必須有一個頭說明它有多長。當一個記錄在更改時變長時，它也可以在多於一個位置上結束。你能使用<code>OPTIMIZE 
+    table</code>或<code>myisamchk</code>整理一張表。如果你在同一個表中有像某些<code>VARCHAR</code>或<code>BLOB</code>列那樣存取/改變的靜態數據，將動態列移入另外一個表以避免碎片可能是一個好主意。 
+  </dd>
+  <dt><strong>壓縮MyISAM</strong> </dt>
+  <dd>這是一個只讀類型，用可選的<code>myisampack</code>工具產生。 </dd>
+  <dt><strong>內存(HEAP 堆）</strong> </dt>
+  <dd>這種表格式對小型/中型查找表十分有用。對拷貝/創建一個常用的查找表(用聯結)到一個(也許臨時)HEAP表有可能加快多個表聯結。假定我們想要做下列聯結，用同樣數據可能要幾倍時間。 
+    <pre>SELECT tab1.a, tab3.a FROM tab1, tab2, tab3
+        WHERE tab1.a = tab2.a and tab2.a = tab3.a and tab2.c != 0;
+</pre>
+    <p>為了加速它，我們可用tab2和tab3的聯結創建一張臨時表，因為用相同列( 
+    tab1.a )查找。這裡是創建該表和結果選擇的命令。 </p>
+    <pre>CREATE TEMPORARY TABLE test TYPE=HEAP
+        SELECT
+                tab2.a as a2, tab3.a as a3
+        FROM
+                tab2, tab3
+        WHERE
+                tab2.a = tab3.a and c = 0;
+SELECT tab1.a, test.a3 from tab1, test where tab1.a = test.a1;
+SELECT tab1.b, test.a3 from tab1, test where tab1.a = test.a1 and something;
+</pre>
+  </dd>
+</dl>
+
+<h3><a NAME="Static_format" HREF="manual_toc.html#Static_format">10.6.1 靜態(定長)表的特點</a></h3>
+
+<ul>
+  <li>這是內定格式。它用在表不包含<code>VARCHAR</code>、<code>BLOB</code>或<code>TEXT</code>列時候。 
+  </li>
+  <li>所有的<code>CHAR</code>、<code>NUMERIC</code>和<code>DECIMAL</code>列充填到列寬度。 
+  </li>
+  <li>非常快。</li>
+  <li>容易緩沖。 </li>
+  <li>容易在崩潰後重建，因為記錄位於固定的位置。 </li>
+  <li>不必被重新組織(用<code>myisamchk</code>)，除非一個巨量的記錄被刪除並且你想要歸還空閑磁碟空間給作業系統。 
+  </li>
+  <li>通常比動態表需要更多的磁碟空間。</li>
+</ul>
+
+<h3><a NAME="Dynamic_format" HREF="manual_toc.html#Dynamic_format">10.6.2 
+動態表的特點</a></h3>
+
+<ul>
+  <li>如果表包含任何<code>VARCHAR</code>、<code>BLOB</code>或<code>TEXT</code>列，使用該格式。 
+  </li>
+  <li>所有字符串列是動態的(除了那些長度不到4的列)。 </li>
+  <li>每個記錄前置一個位圖，對字符串列指出哪個列是空的(<code>''</code>)，或對數字列哪個是零(這不同於包含<code>NULL</code>值的列)。如果字符串列在刪除尾部空白後有零長度，或數字列有零值，它在位圖中標記並且不保存到磁碟上。非空字符串儲存為一個長度字節加字符串內容。 
+  </li>
+  <li>通常比定長表占更多的磁碟空間。 </li>
+  <li>每個記錄僅使用所需的空間。如果一個記錄變得更大，它按需要被切開多段，這導致記錄碎片。</li>
+  <li>如果你與超過行長度的資訊更新行，行將被分段。在這種情況中，你可能必須時時運行<code>myisamchk 
+    -r</code>以使性能更好。使用<code>myisamchk -ei tbl_name</code>做一些統計。</li>
+  <li>在崩潰後不容易重建，因為一個記錄可以是分很多段並且一個連接(碎片)可以丟失。</li>
+  <li>對動態尺寸記錄的期望行長度是：<pre>3
++ (number of columns + 7) / 8
++ (number of char columns)
++ packed size of numeric columns
++ length of strings
++ (number of NULL columns + 7) / 8
+</pre>
+    <p>對每個連接有6個字節的懲罰。無論何時更改引起記錄的增大，一個動態記錄被鏈接。每個新鏈接將至少是20個字節，因此下一增大將可能在同一鏈連中。如果不是，將有另外一個鏈接。你可以用<code>myisamchk 
+    -ed</code>檢查有多少鏈接。所有的鏈接可以用<code> myisamchk -r</code> 
+    刪除。 </p>
+  </li>
+</ul>
+
+<h3><a NAME="Compressed_format" HREF="manual_toc.html#Compressed_format">10.6.3 
+壓縮表的特點</a></h3>
+
+<ul>
+  <li>一張用<code>myisampack</code>實用程式制作的只讀表。所有具有<strong>MySQL</strong>擴展電子郵件支援的客戶可以為其內部使用保留一個<code>myisampack</code>拷貝。 
+  </li>
+  <li>解壓縮代碼存在於所有<strong>MySQL</strong>分發，以便甚至沒有<code>myisampack</code>的客戶能讀取用<code>myisampack</code>壓縮的表。</li>
+  <li>占據很小的磁碟空間，使磁碟使用量減到最小。 </li>
+  <li>每個記錄被單獨壓縮(很小的存取開銷)。對一個記錄的頭是定長的(1-3 
+    字節)，取決於表中最大的記錄。每列以不同方式被壓縮。一些壓縮類型是：<ul>
+      <li>通常對每列有一張不同的哈夫曼表。 </li>
+      <li>後綴空白壓縮。 </li>
+      <li>前綴空白壓縮。 </li>
+      <li>用值<code>0</code>的數字使用1位儲存。</li>
+      <li>如果整數列的值有一個小範圍，列使用最小的可能類型來儲存。例如，如果所有的值在<code>0</code>到<code>255</code>的範圍，一個<code>BIGINT</code>列(8個字節)可以作為一個<code>TINYINT</code>列(1字節)儲存。</li>
+      <li>如果列僅有可能值的一個小集合，列類型被變換到<code>ENUM</code>。 </li>
+      <li>列可以使用上面的壓縮方法的組合。</li>
+    </ul>
+  </li>
+  <li>能處理定長或動態長度的記錄，然而不能處理<code>BLOB</code>或<code>TEXT</code>列。</li>
+  <li>能用<code>myisamchk</code>解壓縮。</li>
+</ul>
+
+<p><strong>MySQL</strong>能支援不同的索引類型，但是一般的類型是ISAM。這是一個B樹索引並且你能粗略地為索引文件計算大小為<code>(key_length+4)*0.67</code>，在所有的鍵上的總和。（這是對最壞情況，當所有鍵以排序順序被插入時。）</p>
+
+<p>字符串索引是空白壓縮的。如果第一個索引部分是一個字符串，它也將壓縮前綴。如果字符串列有很多尾部空白或是一個總不能用到全長的<code>VARCHAR</code>列，空白壓縮使索引文件更小。如果很多字符串有相同的前綴，前綴壓縮是有幫助的。</p>
+
+<p><a NAME="IDX637"></a> <a NAME="IDX638"></a> </p>
+
+<h3><a NAME="HEAP_format" HREF="manual_toc.html#HEAP_format">10.6.4 內存表的特點</a></h3>
+
+<p>堆桌子僅存在於內存中，因此如果<code>mysqld</code>被關掉或崩潰，它們將丟失，但是因為它們是<strong>很</strong>快，不管怎樣它們是有用的。</p>
+
+<p><strong>MySQL</strong>內部的HEAP表使用沒有溢出區的100%動態哈希並且沒有與刪除有關的問題。</p>
+
+<p>你只能通過使用在堆表中的一個索引的用等式存取東西(通常用<code>=</code>操作符)。</p>
+
+<p>堆表的缺點是： 
+
+<ol>
+  <li>你要為你想要同時使用的所有堆表需要足夠的額外內存。</li>
+  <li>你不能在索引的一個部分上搜索。</li>
+  <li>你不能順序搜索下一個條目(即使用這個索引做一個<code>ORDER BY</code>)。</li>
+  <li><strong>MySQL</strong>也不能算出在2個值之間大概有多少行。這被最佳化器使用來決定使用哪個索引，但是在另一方面甚至不需要磁碟尋道。</li>
+</ol>
+
+<h2><a NAME="Tips" HREF="manual_toc.html#Tips">10.7 其他最佳化技巧</a></h2>
+
+<p>對加快系統的未分類的建議是： 
+
+<ul>
+  <li>使用持久的連接資料庫以避免連接開銷。</li>
+  <li>總是檢查你的所有詢問確實使用你已在表中創建了的索引。在<strong>MySQL</strong>中，你可以用<code>EXPLAIN</code>命令做到。見<a HREF="manual_Reference.html#EXPLAIN">7.22<code> EXPLAIN</code>句法(得到關於<code>SELECT</code>的資訊)</a>。</li>
+  <li>嘗試避免在被更改了很多的表上的複雜的<code>SELECT</code>查詢。這避免與鎖定表有關的問題。 
+  </li>
+  <li>在一些情況下，使得基於來自其他表的列的資訊引入一個“ 
+    哈希”的列有意義。如果該列較短並且有合理的唯一值，它可以比在許多列上的一個大索引快些。在<strong>MySQL</strong>中，很容易使用這個額外列：<code>SELECT 
+    * from table where hash='calculated hash on col1 and col2' and col_1='constant' and 
+    col_2='constant' and ..</code> 。</li>
+  <li>對於有很多更改的表，你應該試著避免所有<code>VARCHAR</code>或<code>BLOB</code>列。只要你使用單個<code>VARCHAR</code>或<code>BLOB</code>列，你將得到動態行長度。見<a HREF="manual_Server.html#Table_types">9.4 MySQL表類型</a>。 </li>
+  <li>只是因為行太大，分割一張表為不同的表一般沒有什麼用處。為了存取行，最大的性能命沖擊是磁碟尋道以找到行的第一個字節。在找到數據後，大多數新型磁碟對大多數應用程式來說足夠快，能讀入整個行。它確實有必要分割的唯一情形是如果其動態行尺寸的表(見上述)能變為固定的行大小，或如果你很頻繁地需要掃描表格而不需要大多數列。見<a HREF="manual_Server.html#Table_types">9.4 MySQL表類型</a>。 </li>
+  <li>如果你很經常地需要基於來自很多行的資訊計算(如計數)，引入一個新表並實時更新計數器可能更好一些。類型的更改<code>UPDATE 
+    table set count=count+1 where index_column=constant</code>是很快的！當你使用像<strong>MySQL</strong>那樣的只有表級鎖定(多重讀/單個寫)的資料庫時，這確實重要。這也將給出大多數資料庫較好的性能，因為鎖定管理器在這種情況下有較少的事情要做。 
+    11111111111111111111111</li>
+  <li>如果你需要從大的記錄文件表中收集統計資訊，使用總結性的表而不是掃描整個表。維護總結應該比嘗試做“實時”統計要快些。當有變化而不是必須改變運行的應用時，從記錄文件重新產生新的總結表(取決於業務決策)要快多了！</li>
+  <li>如果可能，應該將報告分類為“實時”或“統計”，這裡統計報告所需的數據僅僅基於從實際數據產生的總結表中產生。</li>
+  <li>充分利用列有內定值的事實。當被插入值不同於內定值時，只是明確地插入值。這減少MySQL需要做的語法分析並且改進插入速度。 
+  </li>
+  <li>在一些情況下，包裝並儲存數據到一個BLOB中是很方便的。在這種情況下，你必須在你的應用中增加額外的代碼來打包/解包BLOB中的東西，但是這種方法可以在某些階段節省很多存取。當你有不符合靜態的表結構的數據時，這很實用。</li>
+  <li>在一般情況下，你應該嘗試以第三范式保存數據，但是如果你需要這些以獲得更快的速度，你應該不用擔心重複或創建總結表。 
+  </li>
+  <li>儲存程序或UDF(用戶定義函數)可能是獲得更好性能的一個好方法，然而如果你使用某些不支援它的資料庫，在這種情況中，你應該總是有零一個方法(較慢的)做這些。</li>
+  <li>你總是能通過在你的應用程式中緩沖查詢/答案並嘗試同時做很多插入/更新來獲得一些好處。如果你的資料庫支援鎖定表(像<strong>MySQL</strong>和Oracle)，這應該有助於確保索引緩沖在所有更新後只清空一次。 
+  </li>
+  <li>但你不知道何時寫入你的數據時，使用<code>INSERT /*! DELAYED */</code>。這加快處理，因為很多記錄可以用一次磁碟寫入被寫入。</li>
+  <li>當你想要讓你的選擇顯得更重要時，使用<code>INSERT /*! LOW_PRIORITY */</code>。</li>
+  <li>使用<code>SELECT /*! HIGH_PRIORITY */</code>來取得塞入隊列的選擇，它是即使有人等待做一個寫入也要完成的選擇。</li>
+  <li>使用多行<code>INSERT</code>語句來儲存很多有一條SQL命令的行(許多SQL伺服器支援它）。</li>
+  <li>使用<code>LOAD DATA INFILE</code>裝載較大數量的數據。這比一般的插入快並且當<code>myisamchk</code>集成在<code>mysqld</code>中時，甚至將更快。</li>
+  <li>使用<code>AUTO_INCREMENT</code>列構成唯一值。</li>
+  <li>當使用動態表格式時，偶爾使用<code>OPTIMIZE TABLE</code>以避免碎片。見<a HREF="manual_Reference.html#OPTIMIZE_TABLE">7.9<code>O PTIMIZE TABLE</code>句法</a>。</li>
+  <li>可能時使用<code>HEAP</code>表以得到更快的速度。見<a HREF="manual_Server.html#Table_types">9.4 MySQL表類型</a>。</li>
+  <li>當使用一個正常Web伺服器設置時，圖像應該作為文件儲存。這僅在資料庫中儲存的一本文件的引用。這樣做的主要原因是是一個正常的Web伺服器在緩沖文件比資料庫內容要好得多，因此如果你正在使用文件，較容易得到一個較快的系統。 
+  </li>
+  <li>對經常存取的不重要數據(像有關對沒有cookie用戶最後顯示標語的資訊）使用內存表。</li>
+  <li>在不同表中具有相同資訊的列應該被聲明為相同的並有相同的名字。在版本 
+    3.23 前，你只能靠較慢的聯結。嘗試使名字簡單化(在客戶表中使用<code>name</code>而不是<code>customer_name</code>)。為了使你的名字能移植到其他SQL伺服器，你應該使他們短於18 
+    個字符。</li>
+  <li>如果你需要確實很高的速度，你應該研究一下不同SQL伺服器支援的數據儲存的底層介面！例如直接存取<strong>MySQL</strong> 
+    <code>MyISAM</code>，比起使用SQL 介面，你能得到2-5倍的速度提升。然而為了能做到它，數據必須是在與應用程式性在同一台機器的伺服器上，並且通常它只應該被一個進程存取(因為外部文件鎖定確實很慢)。通過在<strong>MySQL</strong>伺服器中引進底層<code>MyISAM</code>命令能消除以上問題(如果需要，這可能是獲得更好性能的一個容易的方法)。借助精心設計的資料庫介面，應該相當容易支援這類最佳化。 
+  </li>
+  <li>在許多情況下，從一個資料庫存取數據(使用一個實時連接)比存取一個文本文件快些，只是因為資料庫比文本文件更緊湊(如果你使用數字數據)並且這將涉及更少的磁碟存取。你也節省代碼，因為你不須分析你的文本文件來找出行和列的邊界。 
+  </li>
+  <li>你也能使用複製加速。見<a HREF="manual_Common_problems.html#Replication">19.1 
+    資料庫複製</a>。 </li>
+</ul>
+
+<h2><a NAME="Benchmarks" HREF="manual_toc.html#Benchmarks">10.8 
+使用你自己的效能測試</a></h2>
+
+<p>你決定應該測試你的應用程式和資料庫，以發現瓶頸在哪兒。通過修正它(或通過用一個“啞模組”代替瓶頸)，你能容易確定下一個瓶頸(等等)。即使對你的應用程式來說，整體性能“足夠好”，你至少應該對每個瓶頸做一個“計劃”，如果某人“確實需要修正它”，如何解決它。 
+</p>
+
+<p>對於一些可移植的效能程式的例子，參見MySQL效能套件。見<a HREF="manual_MySQL_Benchmarks.html#MySQL_Benchmarks">11 MySQL 效能套件</a>。你能利用這個套件的任何程式並且為你的需要修改它。通過這樣做，你能嘗試不同的你的問題的解決方案並測試哪一個對你是最快的解決方案。</p>
+
+<p>在系統負載繁重時發生一些問題是很普遍的，並且我們有很多與我們聯繫的客戶，他們在生產系統中有一個(測試)系統並且有負載問題。到目前為止，被一種這些的情況是與基本設計有關的問題(表掃描在高負載時表現不好)或OS/庫問題。如果系統已經不在生產系統中，它們大多數將<strong>很</strong>容易修正。 
+</p>
+
+<p>為了避免這樣的問題，你應該把一些力氣放在在可能最壞的負載下測試你的整個應用！</p>
+
+<h2><a NAME="Design" HREF="manual_toc.html#Design">10.9 設計選擇</a></h2>
+
+<p>MySQL在分開的文件中儲存行數據和索引數據。許多(幾乎全部)其他資料庫在同一個文件中混合行和索引數據。我們相信，MySQL的選擇對非常廣泛的現代系統的來說是較好的。 
+</p>
+
+<p>儲存行數據的另一個方法是在一個分開的區域保存每列資訊(例子是SDBM和Focus)。這將對每個存取多於一列的查詢獲得一個性能突破。因為在多於一列被存取時，這快速退化，我們相信這個模型對通用功能的資料庫不是最好。</p>
+
+<p>更常見的情形是索引和數據一起被儲存(就像Oracle/Sybase)。在這種情況中，你將在索引的葉子頁面上找到行資訊。有這布局的好處是它在許多情況下(取決於這個索引被緩沖得怎樣)節省一次磁碟讀。有這布局的壞處是： 
+
+<ul>
+  <li>表掃描更慢，因為你必須讀完索引以獲得數據。 </li>
+  <li>你損失很多空間，因為你必須重複來自節點的索引(因為你不能在節點上儲存行）</li>
+  <li>刪除將隨時間變化惡化資料庫表(因為節點中的索引在刪除後通常不被更新)。</li>
+  <li>你不能僅使用索引表為一個查詢檢索數據。</li>
+  <li>索引數據很難緩沖。</li>
+</ul>
+
+<h2><a NAME="Design_Limitations" HREF="manual_toc.html#Design_Limitations">10.10 MySQL設計局限/折衷</a></h2>
+
+<p>因為MySQL使用極快的表鎖定(多次讀/一次寫)，留下的最大問題是在同一個表中的一個插入的穩定數據流與慢速選擇的一個混合。 
+</p>
+
+<p>我們相信，在其他情況下，對大多數系統，異常快速的性能使它成為一個贏家。這種情形通常也可能通過表的多個副本來解決，但是它要花更多的力氣和硬件。</p>
+
+<p>對一些常見的應用環境，我們也在開發一些擴展功能以解決此問題。 
+</p>
+
+<h2><a NAME="Portability" HREF="manual_toc.html#Portability">10.11 可移植性</a></h2>
+
+<p>因為所有SQL伺服器實現了SQL的不同部分，要花功夫編寫可移植的SQL應用程式。對很簡單的選擇/插入，它是很容易的，但是你需要越多，它越困難，而且如果你想要應用程式對很多資料庫都快，它變得更難！</p>
+
+<p>為了使一個複雜應用程式可移植，你需要選擇它應該與之工作的很多SQL伺服器。</p>
+
+<p>當你能使用<strong>MySQL</strong>的crash-me 程式（<a HREF="http://www.mysql.com/crash-me-choose.htmy">http://www.mysql.com/crash-me-choose.htmy</a>）來找出你能與之使用的資料庫伺服器的選擇的函數、類型和限制。crash-me現在對任何可能的事情測試了很長時間，但是它仍然理解測試過的大約450件事情。</p>
+
+<p>例如，如果你想要能使用Informix 或 DB2，你不應該有比18個字符更長的列名。 
+</p>
+
+<p><strong>MySQL</strong>效能程式和crash-me是獨立於資料庫的。通過觀察我們怎麼處理它，你能得到一個感覺，你必須為編寫你的獨立於資料庫的應用程式做什麼。效能本身可在<strong>MySQL</strong>原始碼版本的<tt>“sql-bench”</tt>目錄下找到。他們用DBI資料庫介面以Perl寫成(它解決問題的存取部分)。</p>
+
+<p>到<a HREF="http://www.mysql.com/benchmark.html">http://www.mysql.com/benchmark.html</a>看這個效能的結果。</p>
+
+<p>正如你可在這些結果看見的那樣，所有資料庫都有一些弱點。這就是他們不同的設計折衷導致的不同行為。</p>
+
+<p>如果你為資料庫的獨立性而努力，你需要獲得每個SQL伺服器瓶頸的良好感受。<strong>MySQL</strong>在檢索和更新方面很快，但是在同一個表上混合讀者/寫者方面將有一個問題。在另一方面，當你試圖存取你最近更新了的行時，Oracle有一個很大問題(直到他們被清空到磁碟上)。事務資料庫總的來說在從記錄文件表刈谹成總結表不是很好，因為在這種情況下，行級鎖定幾乎沒用處。</p>
+
+<p>為了使你的應用程式“確實獨立於資料庫”，你需要定義一個容易的可擴展的介面，用它你可操縱你的數據。因為C++在大多數系統上可以得到的，使用資料庫的一個C++ 
+類介面是有意義的。</p>
+
+<p>如果你使用一些某個資料庫特定的功能(在<strong>MySQL</strong>中，像<code>REPLACE</code>命令)，你應該為SQL伺服器編碼一個方法以實現同樣的功能 
+(但是慢些)。用<strong>MySQL</strong>，你能使用<code>/*! */</code>語法把<strong>MySQL</strong>特定的關鍵詞加到查詢中。在<code>/**/</code>中的代碼將被大多數其他SQL伺服器視為一篇注釋(被忽略)。 
+</p>
+
+<p>如果高性能真的比準確性更重要，就像在一些web應用程式那樣。一種可能性是創建一個應用層，緩沖所有的結果以給你更高的性能。通過只是讓老的結果在短時間後‘過期’，你能保持緩存合理地刷新。這在極高負載的情況下是相當不錯的，在此情況下，你能動態地增加緩存到更大並且設定較高的過期時限直到一切回到正常。</p>
+
+<p>在這種情況下，創建資訊的表應該包含緩存初始大小和表一般應該被刷新幾次的資訊。</p>
+
+<h2><a NAME="Internal_use" HREF="manual_toc.html#Internal_use">10.12 我們已將MySQL用在何處？</a></h2>
+
+<p>在MySQL起初開發期間，MySQL的功能適合我們的最大客戶。他們為在瑞典的一些最大的零售商處理數據倉庫。</p>
+
+<p>我們從所有商店得到所有紅利卡交易的每周總結並且我們被期望為所有店主提供有用的資訊以幫助他們得出他們的廣告戰如何影響他們的顧客。</p>
+
+<p>數據是相當巨量的(大約每月7百萬宗交易總結)並且我們保存4-10年來的數據需要呈現給用戶。我們每周顧客那裡得到請求，他們想要“立刻”訪問來自該數據的新報告。</p>
+
+<p>我們通過每月將所有資訊儲存在壓縮的“交易”表中來解決它。我們有一套簡單的宏/腳本用來產生來自交易表的不同條件( 
+產品組，顧客id，商店...)的總結表。報告是由一個進行語法分析網頁的小perl腳本動態產生的網頁，在腳本中執行SQL語句並且插入結果。現在我們很想使用PHP或mod_perl，但是那時他們沒有。 
+</p>
+
+<p>對圖形數據，我們用C語言編寫了一個簡單的工具，它能基於SQL查詢的結果(對結果的一些處理)產生贈品，這也從分析<code>HTML</code>文件的perl腳本中動態地執行。</p>
+
+<p>在大多數情況下，一個新的報告通過簡單地複製一個現有腳本並且修改其中的SQL查詢來完成。在一些情況下，我們將需要把更多的字段加到一個現有的總結表中或產生一個新的，但是這也相當簡單，因為我們在磁碟上保存所有交易表。（目前我們有至少50G的交易表和200G的其他顧客數據)。 
+</p>
+
+<p>我們也讓我們的顧客直接用ODBC存取總結表以便高級用戶能自己試驗數據。</p>
+
+<p>我們用非常中檔的Sun Ultra sparcstation ( 2x200 Mz )來處理，沒有任何問題。最近我們升級了伺服器之一到一台2個CPU 
+400 Mz的Ultra sparc，並且我們現在計劃處理產品級的交易，這將意味著數據增加10番。我們認為我們能通過只是為我們的系統增加更多的磁碟就能趕上它。</p>
+
+<p>我們也在試驗Intel-Linux以便能更便宜地得到更多的cpu動力。既然我們有二進制可移植的資料庫格式(在3.32中引入)，我們將開始在應用程式的某些部分使用它。</p>
+
+<p>我們最初的感覺是Linux在低到中等負載時執行的較好，但是你開始得到導致的高負載時，Solaris將表現更好，因為磁碟IO的極限，但是我們還沒有關於這方面的任何結論。在與一些Linux核心開發者的討論以後，這可能是 
+Linux 
+的副作用，它給批處理以太多的資源使得交互的性能變得很低。當大的批處理正在進行時，這使機器感覺很慢且無反應。希望這將在未來的Linux內核中解決。</p>
+
+<hr>
+
+<p><a HREF="manual_Introduction.html">第一章</a>, <a HREF="manual_Server.html">前一章</a>, 
+<a HREF="manual_MySQL_Benchmarks.html">下一章</a>, <a HREF="manual_Concept_Index.html">最後一章</a>，<a HREF="manual_toc.html">目錄</a>. </p>
+</body>
+</html>

@@ -1,0 +1,184 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>微調與管理</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.79" />
+<link rel="HOME" title="FreeBSD 使用手冊" href="index.html" />
+<link rel="UP" title="Jails" href="jails.html" />
+<link rel="PREVIOUS" title="建立和控制 Jail" href="jails-build.html" />
+<link rel="NEXT" title="Jail 的應用" href="jails-application.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD 使用手冊</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="jails-build.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 15 Jails</td>
+<td width="10%" align="right" valign="bottom"><a href="jails-application.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="JAILS-TUNING" name="JAILS-TUNING">15.5 微調與管理</a></h1>
+
+<p>可以為 jail 設定許多不同選項，並讓 FreeBSD 的 host 系統與 jail
+以各種不同方式組合搭配，以符合更多的應用用途。 本節要介紹的是：</p>
+
+<ul>
+<li>
+<p>用以微調 jail 行為與安全限制的選項。</p>
+</li>
+
+<li>
+<p>可透過 FreeBSD Ports Collection 安裝的高階 jail 管理程式， 搭配這些程式可以達到一些
+jail-based 解決方案。</p>
+</li>
+</ul>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="JAILS-TUNING-UTILITIES" name="JAILS-TUNING-UTILITIES">15.5.1
+FreeBSD 所提供的 jail tuning 工具</a></h2>
+
+<p>對於 jail 設定的微調，基本上都是透過設定 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=sysctl&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">sysctl</span>(8)</span></a> 變數來完成。
+系統提供一組 sysctl 的特殊子樹，全部相關的選項都在該子樹內，也就是 FreeBSD kernel 中的
+<code class="VARNAME">security.jail.*</code> 子樹。 下面則是與 jail 相關的主要 sysctl
+設定及預設值，這些名稱都相當容易理解， 如欲更進一步的資訊，請參閱 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=jail&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">jail</span>(8)</span></a> 與 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=sysctl&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">sysctl</span>(8)</span></a> 說明：</p>
+
+<ul>
+<li>
+<p><code class="VARNAME">security.jail.set_hostname_allowed: 1</code></p>
+</li>
+
+<li>
+<p><code class="VARNAME">security.jail.socket_unixiproute_only: 1</code></p>
+</li>
+
+<li>
+<p><code class="VARNAME">security.jail.sysvipc_allowed: 0</code></p>
+</li>
+
+<li>
+<p><code class="VARNAME">security.jail.enforce_statfs: 2</code></p>
+</li>
+
+<li>
+<p><code class="VARNAME">security.jail.allow_raw_sockets: 0</code></p>
+</li>
+
+<li>
+<p><code class="VARNAME">security.jail.chflags_allowed: 0</code></p>
+</li>
+
+<li>
+<p><code class="VARNAME">security.jail.jailed: 0</code></p>
+</li>
+</ul>
+
+<p>系統管理者可在 <span class="emphasis"><b class="EMPHASIS">host system</b></span>
+透過修改這些設定值來增加、取消 Jail 內 <tt class="USERNAME">root</tt> 帳號的預設限制。
+請注意：有些限制是不能取消，在 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=jail&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">jail</span>(8)</span></a> 環境的 <tt
+class="USERNAME">root</tt> 不能掛載或卸載檔案系統。 此外亦不能載入、 卸載 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=devfs&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">devfs</span>(8)</span></a>
+規則、設定防火牆規則，或執行其他需修改 kernel 資料的管理作業，例如設定 kernel 的 <code
+class="VARNAME">securelevel</code> 值。</p>
+
+<p>FreeBSD base system 內附一些基本工具，可用來查閱目前使用中的 jail、 並接上(attach)
+jail 以執行管理指令。 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=jls&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">jls</span>(8)</span></a> 及 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=jexec&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">jexec</span>(8)</span></a> 均屬於
+FreeBSD base system 之一，可用來執行一些簡單工作：</p>
+
+<ul>
+<li>
+<p>列出有在使用的 jail 及其相對應的 jail identifier (<acronym
+class="ACRONYM">JID</acronym>)、<acronym class="ACRONYM">IP</acronym> address、
+hostname、路徑。</p>
+</li>
+
+<li>
+<p>接上(Attach)正在運作中的 jail，並在其中執行指令以進行管理工作。 這點在當 <tt
+class="USERNAME">root</tt> 想乾淨關閉 jail 時相當有用， <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=jexec&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">jexec</span>(8)</span></a> 也可用在 jail
+中啟動 shell 以便對其進行管理， 比如：</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">jexec <tt
+class="REPLACEABLE"><i>1</i></tt> tcsh</kbd>
+</pre>
+</li>
+</ul>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="JAILS-TUNING-ADMINTOOLS" name="JAILS-TUNING-ADMINTOOLS">15.5.2
+FreeBSD Ports Collection 所提供的高階管理工具</a></h2>
+
+<p>在諸多 third-party 所提供的 jail 管理工具當中，<a
+href="http://www.FreeBSD.org/cgi/url.cgi?ports/sysutils/jailutils/pkg-descr"><tt
+class="FILENAME">sysutils/jailutils</tt></a> 是最完整也最好用的。 該套件是由一系列 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=jail&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">jail</span>(8)</span></a>
+管理小工具所組成的。 詳情請參閱其網站介紹 。</p>
+</div>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="jails-build.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="jails-application.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">建立和控制 Jail</td>
+<td width="34%" align="center" valign="top"><a href="jails.html"
+accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">Jail 的應用</td>
+</tr>
+</table>
+</div>
+
+<p align="center"><small>本文及其他文件，可由此下載：<a
+href="ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/">ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/</a>。</small></p>
+
+<p align="center"><small>若有 FreeBSD 方面疑問，請先閱讀 <a
+href="http://www.FreeBSD.org/docs.html">FreeBSD 相關文件</a>，如不能解決的話，再洽詢
+&#60;<a href="mailto:questions@FreeBSD.org">questions@FreeBSD.org</a>&#62;。<br />
+關於本文件的問題，請洽詢 &#60;<a
+href="mailto:doc@FreeBSD.org">doc@FreeBSD.org</a>&#62;。</small></p>
+</body>
+</html>
+

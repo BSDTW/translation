@@ -1,0 +1,320 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>系統安全篇</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.79" />
+<link rel="HOME" title="FreeBSD 5.X、6.X 常見問答集" href="index.html" />
+<link rel="PREVIOUS" title="Networking" href="networking.html" />
+<link rel="NEXT" title="PPP" href="ppp.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="CHAPTER" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD 5.X、6.X 常見問答集</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="networking.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom"></td>
+<td width="10%" align="right" valign="bottom"><a href="ppp.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="CHAPTER">
+<h1><a id="SECURITY" name="SECURITY"></a>Chapter 13 系統安全篇</h1>
+
+Biing Jong Lin
+
+<div class="QANDASET">
+<dl>
+<dt>13.1. <a href="security.html#SANDBOX">什麼是 sandbox？</a></dt>
+
+<dt>13.2. <a href="security.html#SECURELEVEL">什麼是 securelevel?</a></dt>
+
+<dt>13.3. <a href="security.html#EXTRA-NAMED-PORT">BIND (<tt class="COMMAND">named</tt>)
+除了在通訊埠 53 以外也在 其他高編號通訊埠 (high-numbered port) 聆聽 (Listen)。
+這是怎麼回事？</a></dt>
+
+<dt>13.4. <a href="security.html#SENDMAIL-PORT-587">Sendmail 除了在標準的通訊埠 25
+外也在通訊埠 587 聆聽！這是怎 麼回事？</a></dt>
+
+<dt>13.5. <a href="security.html#TOOR-ACCOUNT">我發現了這個 UID 0 <tt
+class="USERNAME">toor</tt> 帳號，這是什麼 碗糕？我被黑掉了嗎？</a></dt>
+
+<dt>13.6. <a href="security.html#SUIDPERL">為什麼 <tt class="COMMAND">suidperl</tt>
+無法正常運作？</a></dt>
+</dl>
+
+<div class="QANDAENTRY">
+<div class="QUESTION">
+<p><a id="SANDBOX" name="SANDBOX"></a><b>13.1.</b> 什麼是 sandbox？</p>
+</div>
+
+<div class="ANSWER">
+<p><b></b>“Sandbox” 是系統安全用的術語，有兩個意義：</p>
+
+<ul>
+<li>
+<p>放在某些虛擬防護牆裡的執行程序，這些防護牆是用來阻止
+某些人侵入這道程序，進而出入於更大的系統中。</p>
+
+<p>這道程序可以完全在防護牆裡 “動作”。也就
+是說，它所執行的任何程式不可能會滲透到牆的外面。所以如果
+您對它有安全上的顧慮，並不需要特別去監聽它的一舉一動，反 正它只能在牆內活動。</p>
+
+<p>舉例來說，可以用 userid 來做這道防護牆，這正是 security 和 named
+說明文件中的定義。</p>
+
+<p>現在就用 <tt class="LITERAL">ntalk</tt> 這個服務作說明（見
+/etc/inetd.conf）。這個服務以前的 userid 是 <tt
+class="USERNAME">root</tt>，現在執行時則是用 <tt class="USERNAME">tty</tt>。<tt
+class="USERNAME">tty</tt> 這個使用者就是一個 sandbox，如果有人能夠順利用 ntalk
+侵入系統，現在他就算進得來也只能用這個 userid。</p>
+</li>
+
+<li>
+<p>放在某個模擬機器裡的程式，這比上述來得更嚴密。基本上
+這表示能侵入該程式的人相信他能再進入所屬的機器，但事實上
+只會進入模擬出來的機器，無法進一步修改任何真實的資料。</p>
+
+<p>達到這個目的最常用的方法，就是在某個子目錄下做出模擬的 環境，然後用 chroot
+執行該程式，這樣該程式的根目錄便是這個 子目錄，而非系統真正的根目錄。</p>
+
+<p>另一個常見作法是將某個檔案系統 mount 成唯讀，但在它
+上面另外製造出程式以為可以寫入的檔案系統。這個程式會相信
+它可以對其他檔案讀寫，但只有它看不到這個唯讀效應 - 系統 執行的一般程式都看得到。</p>
+
+<p>我們試圖將這類 sandbox 盡量透明化，讓使用者或侵入者 無法看到他是否在某個 sandbox
+裡面。</p>
+</li>
+</ul>
+
+<p>UNIX 實作兩種 sandbox，一個在程式層面，另一個則是由 userid 來達成。</p>
+
+<p>每個 UNIX 執行程序會用防火牆將它和所有其他程序隔開，某個程序
+不可以隨意修改其他程序位址的資料。這和 Windows 中，程式可以輕易
+修改其他位址資料，結果導致當機的情形大不相同。</p>
+
+<p>每個 UNIX 程序都屬於某個特定的 userid。如果該 userid 不是 <tt
+class="USERNAME">root</tt>，就會將它和其他使用者的程序隔開。 Userid
+同時也用於硬碟資料的存取權上。</p>
+</div>
+</div>
+
+<div class="QANDAENTRY">
+<div class="QUESTION">
+<p><a id="SECURELEVEL" name="SECURELEVEL"></a><b>13.2.</b> 什麼是 securelevel?</p>
+</div>
+
+<div class="ANSWER">
+<p><b></b>securelevel 是核心中所實作的一個安全機制。基本上當 securelevel
+是正值時，核心會限制某些工作；即使是 superuser (也就是 <tt class="USERNAME">root</tt>)
+也無法完成那些工作。在撰寫 本文時，securelevel
+機制在一般的限制外，還能夠限制以下的功能：</p>
+
+<ul>
+<li>
+<p>清除某些特定的檔案旗標，例如 <tt class="LITERAL">schg</tt> (系統唯讀標旗, the system
+immutable flag)</p>
+</li>
+
+<li>
+<p>經由 <tt class="DEVICENAME">/dev/mem</tt> 與 <tt class="DEVICENAME">/dev/kmem</tt>，
+將資料寫入至核心記憶體中</p>
+</li>
+
+<li>
+<p>載入核心模組</p>
+</li>
+
+<li>
+<p>更動 <a href="http://www.FreeBSD.org/cgi/man.cgi?query=ipfirewall&amp;sektion=4"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">ipfirewall</span>(4)</span></a>
+規則。</p>
+</li>
+</ul>
+
+<p>想要檢查在某個運作中的系統的 securelevel 狀態，只要執行以下 命令即可：</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">sysctl kern.securelevel</kbd>
+</pre>
+
+<p>輸出的結果會包含一個 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=sysctl&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">sysctl</span>(8)</span></a> 變數名稱
+(在這個例子中， 它是 <code class="VARNAME">kern.securelevel</code>)
+以及一個數字。後者即是 目前的 securelevel 值。如果它是一個正值 (也就是大於 0)，表示至少
+有一些 securelevel 的保護機制已經開啟了。</p>
+
+<p>你沒有辦法降低一個運作中的系統的 securelevel；如果可以的話，
+就失去了這個機制的意義了。如果你要作一些需要 securelevel 為 非正值才可以的動作的話 (例如
+<tt class="MAKETARGET">installworld</tt> 或更動日期)，你需要修改 <tt
+class="FILENAME">/etc/rc.conf</tt> 內的 securelevel 設定 (找找 <code
+class="VARNAME">kern_securelevel</code> 和 <code
+class="VARNAME">kern_securelevel_enable</code> 變數)，然後重新開機。</p>
+
+<p>想要知道更多有關於 securelevel 與各個不同等級影響的細節， 請參考 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=init&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">init</span>(8)</span></a> 說明文件。</p>
+
+<div class="WARNING">
+<blockquote class="WARNING">
+<p><b>Warning:</b> securelevel 可不是萬靈丹；它有許多已知的缺陷，往往造成
+一種安全的假象。</p>
+
+<p>它一個最大的問題，就是要讓這個功能完全有效的話，在 securelevel
+發揮作用前的啟動過程中，所有使用到的檔案都 必須被保護起來。如果一個攻擊者在 securelevel
+有效前 (由於 有些系統在啟動中所作的事情，無法在較高的 securelevel 中
+正常運作，所以這會在啟動過程中後期才會運作)，能讓他們的程式 被執行的話，securelevel
+的保護就完全無效了。保護啟動程序
+中所有的檔案在技術上是可行的，但是如果真的這樣作的話，系統
+維護將會變成一場夢魘。即使只是修改一個設定檔，也必須將整個
+系統關閉，至少也得到單人模式。</p>
+
+<p>除了這點，還有許多其它的東西都在通信論壇上討論，尤其是 freebsd-security。請到 <a
+href="../../../../search/index.html" target="_top">這裡</a> 搜尋以前的 討論。有些人希望
+securelevel 能夠儘快消失，由另一個更優秀的 機制取代，不過機會有點渺茫。</p>
+
+<p>風險自行承擔。</p>
+</blockquote>
+</div>
+</div>
+</div>
+
+<div class="QANDAENTRY">
+<div class="QUESTION">
+<p><a id="EXTRA-NAMED-PORT" name="EXTRA-NAMED-PORT"></a><b>13.3.</b> BIND (<tt
+class="COMMAND">named</tt>) 除了在通訊埠 53 以外也在 其他高編號通訊埠 (high-numbered
+port) 聆聽 (Listen)。 這是怎麼回事？</p>
+</div>
+
+<div class="ANSWER">
+<p><b></b>FreeBSD 3.0 後的版本使用一個特殊的 BIND 版本，這個版本會使
+用隨機的高編號通訊埠來回應外部的查詢。如果你因為要適合防火牆的
+設定或是單純的想讓自己看來舒服一點而想用 53 通訊埠回應外部查詢，
+那麼你可以嘗試更改以下檔案相關內容 <tt class="FILENAME">/etc/namedb/named.conf</tt>：</p>
+
+<pre class="PROGRAMLISTING">
+options {
+        query-source address * port 53;
+};
+</pre>
+
+<p>你也可以將 <tt class="LITERAL">*</tt> 更改為特定 IP address， 藉以加強控制條件。</p>
+
+<p>順便恭喜你。能夠讀取你系統上的 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=sockstat&amp;sektion=1"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">sockstat</span>(1)</span></a>
+報告並且注意 不正常狀況是一件好事！</p>
+</div>
+</div>
+
+<div class="QANDAENTRY">
+<div class="QUESTION">
+<p><a id="SENDMAIL-PORT-587" name="SENDMAIL-PORT-587"></a><b>13.4.</b> Sendmail
+除了在標準的通訊埠 25 外也在通訊埠 587 聆聽！這是怎 麼回事？</p>
+</div>
+
+<div class="ANSWER">
+<p><b></b>較新版本的 Sendmail 支援 mail submission 這項功能，並且使 用通訊埠
+587。這項功能還沒有被廣泛支援但是支援的數目正在增長 中。</p>
+</div>
+</div>
+
+<div class="QANDAENTRY">
+<div class="QUESTION">
+<p><a id="TOOR-ACCOUNT" name="TOOR-ACCOUNT"></a><b>13.5.</b> 我發現了這個 UID 0 <tt
+class="USERNAME">toor</tt> 帳號，這是什麼 碗糕？我被黑掉了嗎？</p>
+</div>
+
+<div class="ANSWER">
+<p><b></b>放心。<tt class="USERNAME">toor</tt> 是一個 “alternative” 管理者帳號 (toor 是
+root 的轉向拼法)。 以往是跟隨 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=bash&amp;sektion=1&amp;manpath=FreeBSD+7.0-RELEASE+and+Ports">
+<span class="CITEREFENTRY"><span class="REFENTRYTITLE">bash</span>(1)</span></a>
+安裝而建制的，後來則成為系統內定建制的一 個帳號。這個帳號將伴隨一個非標準的 shell
+測試使用， 讓你不需要去 更改到 <tt class="USERNAME">root</tt> 的內建
+shell。因為這些其他的 shell 並沒有跟隨系統預設值安裝 (舉例來說，某些由 ports 安裝的 shell
+package)，而被內定安裝在 <tt class="FILENAME">/usr/local/bin</tt>
+目錄下，有可能存在不同的檔案系統中。 倘若 <tt class="USERNAME">root</tt> 的 shell 被放在
+<tt class="FILENAME">/usr/local/bin</tt>，且 <tt class="FILENAME">/usr</tt>
+(或是其他包含著 <tt class="FILENAME">/usr/local/bin</tt> 這個子目錄的檔案系統)
+因為某些原因並沒有被正常的 mount 起來的話，<tt class="USERNAME">root</tt>
+將無法正常的登入系統進行維修 (雖然說你重開機成單人模式就會問你要 載入哪個 shell)。</p>
+
+<p>有些人使用 <tt class="USERNAME">toor</tt> 帳號進行每日的 <tt
+class="USERNAME">root</tt> 維護工作，如此可以使用非標準的 shell，而 <tt
+class="USERNAME">root</tt> 可以保留標準 shell， 以因應單一使用者模式 (single user mode)
+或緊急狀況處理。 依照系統內定值，你將無法使用 <tt class="USERNAME">toor</tt> 登入，
+因為這個帳號尚未更改密碼設定。因此你如果你想啟動這個帳號，你需要 使用 <tt
+class="USERNAME">root</tt> 登入系統並且修改 <tt class="USERNAME">toor</tt> 的密碼。</p>
+</div>
+</div>
+
+<div class="QANDAENTRY">
+<div class="QUESTION">
+<p><a id="SUIDPERL" name="SUIDPERL"></a><b>13.6.</b> 為什麼 <tt
+class="COMMAND">suidperl</tt> 無法正常運作？</p>
+</div>
+
+<div class="ANSWER">
+<p><b></b>因為某些安全的考，<tt class="COMMAND">suidperl</tt> 內定的安裝 並沒有設定 suid
+bit。系統管理者可以依照以下命令啟動 suid 設定。</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">chmod u+s /usr/bin/suidperl</kbd>
+</pre>
+
+<p>如果你想要在由 source 升級時 <tt class="COMMAND">suidperl</tt> 內定 啟動 suid
+功能的話，編輯 <tt class="FILENAME">/etc/make.conf</tt> 加入 <code
+class="VARNAME">ENABLE_SUIDPERL=true</code> 然後執行 <tt class="COMMAND">make
+buildworld</tt>。</p>
+</div>
+</div>
+</div>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="networking.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="ppp.html" accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">Networking</td>
+<td width="34%" align="center" valign="top">&nbsp;</td>
+<td width="33%" align="right" valign="top">PPP</td>
+</tr>
+</table>
+</div>
+
+<p align="center"><small>本文及其他文件，可由此下載：<a
+href="ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/">ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/</a>。</small></p>
+
+<p align="center"><small>若有 FreeBSD 方面疑問，請先閱讀 <a
+href="http://www.FreeBSD.org/docs.html">FreeBSD 相關文件</a>，如不能解決的話，再洽詢
+&#60;<a href="mailto:questions@FreeBSD.org">questions@FreeBSD.org</a>&#62;。<br />
+關於本文件的問題，請洽詢 &#60;<a
+href="mailto:doc@FreeBSD.org">doc@FreeBSD.org</a>&#62;。</small></p>
+</body>
+</html>
+

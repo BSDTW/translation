@@ -1,0 +1,197 @@
+<title>Overview of AWK</title> 
+<h1>Overview of AWK</a></h1>
+<h2><a name="0">Why AWK</a></h2>
+<pre><h4><dd>AWK 是一種程式語言. 它具有一般程式語言常見的功能.
+因AWK語言具有某些特點, 如 : 使用直譯器(Interpreter)不需先行
+編譯; 變數無型別之分(Typeless), 可使用文字當陣列的註標
+(Associative Array)...等特色. 因此, 使用AWK撰寫程式比起
+使用其它語言更簡潔便利且節省時間. AWK還具有一些內建
+功能, 使得AWK擅於處理具資料列(Record), 欄位(Field)型
+態的資料; 此外, AWK內建有pipe的功能, 可將處理中的資料
+傳送給外部的 Shell命令加以處理, 再將Shell命令處理後的
+資料傳回AWK程式, 這個特點也使得AWK程式很容易使用
+系統資源.
+   
+<dd>由於AWK具有上述特色, 在問題處理的過程, 可輕易使用
+AWK來撰寫一些小工具; 這些小工具並非用來解決整個大問題, 
+它們只個別扮演解決問題過程的某些角色, 可藉由Shell所提供的
+pipe將資料按需要傳送給不同的小工具進行處理, 以解決整個
+大問題. 這種解題方式, 使得這些小工具可因不同需求而被重覆
+組合及使用(reuse); 也可藉此方式來先行測試大程式原型的可行性
+與正確性, 將來若需要較高的執行速度時再用C語言來改寫.
+ 這是AWK最常被應用之處. 若能常常如此處理問題, 讀者可以
+以更高的角度來思考抽象的問題, 而不會被拘泥於細節的部份. 
+本手冊為AWK入門的學習指引, 其內容將先強調如何撰寫AWK程式,
+未列入進一步解題方式的應用實例, 這部分將留待UNIX進階手冊中
+再行討論.</h4></pre>
+<h2><a name="1">如何取得 AWK</a></h2>
+<pre><h5>
+一般的UNIX作業系統, 本身即附有AWK. 不同的UNIX作業系統
+所附的AWK其版本亦不盡相同. 若讀者所使用的系統上未附有AWK,
+ 可透過 anonymous ftp 到下列地方取得 :
+         phi.sinica.edu.tw:/pub/gnu
+         ftp.edu.tw:/UNIX/gnu
+         prep.ai.mit.edu:/pub/gnu</h4></pre><hr>
+<h2><a name="2">How AWK works  </a></h2> 
+ <pre><h4>
+為便於解釋AWK程式架構, 及有關術語(terminology), 先以一個
+員工薪資檔(emp.dat ), 來加以介紹.
+
+         A125  & Jenny  &100  &210   
+         A341  & Dan    &110  &215 
+         P158  & Max    &130  &209 
+         P148  & John   &125  &220 
+         A123  & Linda  & 95  &210      
+<dd>檔案中各欄位依次為 員工ID, 姓名, 薪資率,及 實際工時. ID
+中的第一碼為部門識別碼. ``A'',''P''分別表示``組裝''及``包裝''部門.
+本小節著重於說明AWK程式的主要架構及工作原理, 並對一些重要
+的名詞輔以必要的解 釋. 由這部分內容, 讀者可體會出AWK語言
+的主要精神及AWK與其它語程式言的差異處. 為便於說明, 以條列
+方式說明於後. 
+<ul>
+<li>名詞定義 
+<ol>
+<li> 資料列: AWK從資料檔上讀取資料的基本單位.以上列檔案
+ emp.dat為例, AWK讀入的
+   第一筆資料列是 "A125   Jenny  100  210"
+   第二筆資料列是 "A341   Dan    110  215"
+   一般而言, 一筆資料列相當於資料檔上的一行資料. 
+   (參考 : 附錄 B 內建變數``RS'' )</li>
+
+<li> 欄位(Field) : 為資料列上被分隔開的子字串.
+          以資料列``A125   Jenny  100  210''為例,
+<table border>
+<tr><th colspan=3>第一欄<th colspan=3>第二欄
+       <th colspan=3>第三欄<th colspan=3>第四欄
+<tr><th colspan=3>``A125'' <th colspan=3>``Jenny''
+<th colspan=3>100 <th colspan=3>210  
+</table>
+一般是以空白字元來分隔相鄰的欄位. ( 參考 : 附錄 D  內建
+變數``FS'' )
+</ol>
+<li> 如何執行AWK
+於UNIX的命令列上鍵入諸如下列格式的指令: ( ``$''表Shell命令
+列上的提示符號)
+ $awk 'AWK程式'  資料檔檔名  
+則AWK會先編譯該程式, 然後執行該程式來處理所指定的資料檔.
+       (上列方式係直接把程式寫在UNIX的命令列上)
+<li> AWK程式的主要結構 :
+      AWK程式中主要語法是 Pattern  { Actions}, 故常見之AWK
+程式其型態如下 :
+                Pattern1  { Actions1 }
+                Pattern2  { Actions2 }
+                ......
+                Pattern3  { Actions3 }</li>
+   
+<li>  Pattern 是什麼 ?
+ AWK 可接受許多不同型態的 Pattern. 一般常使用 ``關係判斷式'
+(Relational expres sion) 來當成 Pattern.
+例如 :
+    x  > 34 是一個Pattern, 判斷變數 x 與 34 是否存在 大於 的關係.
+
+   x == y 是一個Pattern, 判斷變數 x 與變數 y 是否存在等於的關係.
+
+    上式中 x  >34 , x == y 便是典型的Pattern.
+
+    AWK 提供 C 語言中常見的關係運算元(Relational Operators) 如
+     >, <,  >=,  <=, ==, !=.
+    此外, AWK 還提供 ~ (match) 及 !~(not match) 二個關係運算元
+ (註一). 其用法與涵義如下:
+ 若 A 表一字串, B 表一 Regular Expression   
+        A  ~ B 判斷 字串A 中是否 包含   能合於(match)B式樣的
+       子字串.
+        A !~ B 判斷 字串A 中是否 未包含 能合於(match)B式樣的
+       子字串.
+         
+        例如 : 
+
+  ``banana'' ~ /an/ 整個是一個Pattern.
+    因為``banana''中含有可match /an/的子字串, 故此關係式
+    成立(true),
+    整個Pattern的值也是true.
+相關細節請參考 附錄 A Patterns, 附錄 E Regular Expression 
+ [註 一 :] 有少數AWK論著, 把 ~, !~ 當成另一類的 Operator,
+並不視為一種 Relational Operator. 本手冊中將這兩個運算元
+當成一種 Relational Operator. 
+
+<li> Actions 是什麼?
+      Actions 是由許多AWK指令構成. 而AWK的指令與 C 語言中的
+指令十分類似.</li>
+        例如 :
+AWK的 I/O指令 :  print, printf( ),  getline..
+AWK的 流程控制指令 :  if(...){..} else{..},  while(...){...}...
+
+ (請參考 附錄 B --- ``Actions'' )
+    
+
+<li> AWK 如何處理 Pattern { Actions } ?
+      AWK 會先判斷(Evaluate) 該 Pattern 之值, 若 Pattern 判斷
+(Evaluate)後之值為true(或不為0的數字,或不是空的字串), 則 AWK 
+將執行該 Pattern 所對應的 Actions. 
+      反之, 若 Pattern 之值不為 true, 則AWK將不執行該 Pattern 
+      所對應的 Actions.
+      例如 :  若AWK程式中有下列兩指令
+
+
+              50   > 23  :        {print "Hello! The word!!" }
+            "banana" ~ /123/  { print "Good morning !" }
+
+AWK會先判斷 50  >23 是否成立. 因為該式成立, 所以AWK將印出
+"Hello! The word!!". 而另一 Pattern 為 "banana" ~/123/, 因為
+"banana" 內未含有任何子字串可 match /123/, 該 Pattern 之值為            
+false, 故AWK將不會印出 "Good morning !"</li>
+
+<li>   AWK 如何處理{ Actions } 的語法?(缺少Pattern部分)
+        有時語法 Pattern { Actions }中, Pattern 部分被省略, 
+        只剩 {Actions}.
+        這種情形表示 ``無條件執行這個 Actions''.  </li>
+
+<li> AWK 的欄位變數
+AWK 所內建的欄位變數及其涵意如下 :
+<table border>
+<tr><th colspan=4 align=left>欄位變數 <th colspan=22 align=left> 涵意
+<tr><th colspan=4 align=left>$0<th colspan=22 align=left>為一字串, 其內容為目前 AWK 所讀入的資料列.
+<tr><th colspan=4 align=left>$1<th colspan=22 align=left>        代表 $0 上第一個欄位的資料.      
+<tr><th colspan=4 align=left> $2<th colspan=22 align=left>        代表 $0 上第二欄個位的資料. 
+<tr><th colspan=4 align=left>... <th colspan=22 align=left>其餘類推 
+</table>
+
+讀入資料列時, AWK如何修正(update)這些內建的欄位變數
+<ol>
+<li> 當 AWK 從資料檔中讀取一筆資料列時, AWK 會使用內建變數
+$0 予以記錄.</li>
+<li> 每當 $0 被異動時 (例如 : 讀入新的資料列 或 自行變更 $0,...)
+      AWK 會立刻重新分析 $0 的欄位情況, 並將 $0 上各欄位的資料
+用 $1, $2, ..予以記錄.</li>
+</ol></li>
+
+<li> AWK的內建變數(Built-in Variables)
+ AWK 提供了許多內建變數, 使用者於程式中可使用這些變數
+來取得相關資訊.常見的內建變數有 :
+<table border> 
+ <tr><th colspan=5 align=left>內建變數 <th colspan=25 align=left> 涵意 
+
+<tr><th colspan=5 align=left> NF<th colspan=25 align=left>(Number of Fields)為一整數, 其值表$0上所存在的欄位數目. 
+ <tr><th colspan=5 align=left>NR<th colspan=25 align=left>(Number of Records)為一整數, 其值表AWK已讀入的資料列數目. 
+<tr><th colspan=5align=left>FILENAME<thcolspan=25 align=left>AWK正在處理的資料檔檔名. 
+</TABLE>
+ 例如 : AWK 從資料檔 emp.dat 中讀入第一筆資料列
+  "A125  Jenny  100  210" 之後, 程式中:
+   $0  之值將是 "A125   Jenny  100  210"
+   $1  之值為 "A125"    $2  之值為 "Jenny"
+   $3  之值為 100       $4  之值為 210
+   NF 之值為 4         $NF   之值為 210
+   NR 之值為 1         FILENAME 之值為 ``emp.dat'' </li>
+
+<li> AWK的工作流程 :</li>
+       執行AWK時, 它會反複進行下列四步驟.
+<ol>       
+<li>  自動從指定的資料檔中讀取一筆資料列.</li>
+<li>  自動更新(Update)相關的內建變數之值. 如 :  NF, NR, $0...</li>
+<li>  逐次執行程式中 所有 的 Pattern { Actions } 指令.</li>
+<li>  當執行完程式中所有 Pattern { Actions } 時, 若資料檔中還
+        有未讀取的資料, 則反覆執行步驟1到步驟4.</li>
+</ol>
+        AWK會自動重覆進行上述4個步驟, 使用者不須於程式中
+撰寫這個迴圈 (Loop).
+</ul></h4></pre><hr>

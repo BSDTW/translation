@@ -1,0 +1,233 @@
+<HTML>
+
+<LINK HREF="style.css" REL="STYLESHEET" TYPE="text/css">
+
+<HEAD>
+<TITLE>Tutorial: Understanding the Message Loop</TITLE>
+</HEAD>
+
+<BODY>
+<FONT SIZE="-1">
+[ <A HREF="./index.html">contents</A>
+| <A HREF="http://www.winprog.org/">#winprog</A>
+]
+</FONT>
+<HR>
+
+
+<H1>Understanding the Message Loop</H1>
+
+<P>
+Understanding the message loop and entire message sending structure of windows
+programs is essential in order to write anything but the most trivial programs.
+Now that we've tried out message handling a little, we should look a little deeper
+into the whole process, as things can get very confusing later on if you don't 
+understand why things happen the way they do.
+
+<H3>What is a Message?</H3>
+
+A message is an integer value.  If you look up in your header files (which is
+good and common practice when investigating the workings of API's) you can find
+things like:
+
+<PRE CLASS="SNIP">
+#define WM_INITDIALOG                   0x0110
+#define WM_COMMAND                      0x0111
+
+#define WM_LBUTTONDOWN                  0x0201
+</PRE>
+
+...and so on.  Messages are used to communicate pretty much everything in
+windows at least on basic levels.  If you want a window or control (which is
+just a specialized window) to do something you send it a message.  If another
+window wants you to do something it sends you a message.  If an event happens
+such as the user typing on the keyboard, moving the mouse, clicking a button,
+then messages are sent by the system to the windows affected.  If you are
+one of those windows, you handle the message and act accordingly.
+
+<P>
+Each windows message may have up to two parameters, <CODE>wParam</CODE> and <CODE>lParam</CODE>.
+Originally <CODE>wParam</CODE> was 16 bit and <CODE>lParam</CODE> was 32 bit, but in Win32 they are
+both 32 bit.  Not every message uses these parameters, and each message uses
+them differently.  For example the <CODE>WM_CLOSE</CODE> message doesn't use either, and
+you should ignore them both.  The <CODE>WM_COMMAND</CODE> message uses both, <CODE>wParam</CODE> contains
+<I>two</I> values, <CODE>HIWORD(wParam)</CODE> is the notification message (if applicable)
+and <CODE>LOWORD(wParam)</CODE> is the control or menu id that sent the message.  <CODE>lParam</CODE>
+is the <CODE>HWND</CODE> (window handle) to the control which sent the message or <CODE>NULL</CODE> if
+the messages isn't from a control.
+
+<P>
+<CODE>HIWORD()</CODE> and <CODE>LOWORD()</CODE> are macros defined by windows that single
+out the two high bytes (High Word) of a 32 bit value (<CODE>0x<B>FFFF</B>0000</CODE>) and the low word
+(<CODE>0x0000<B>FFFF</B></CODE>) respectively.  In Win32 a <CODE>WORD</CODE> is a 16bit value, making
+<CODE>DWORD</CODE> (or Double Word) a 32bit value. 
+
+<P>
+To send a message you can use <CODE>PostMessage()</CODE> or <CODE>SendMessage()</CODE>.  
+<CODE>PostMessage()</CODE> puts the message into the <I>Message Queue</I> and returns immediatly.  
+That means once the call to <CODE>PostMessage()</CODE> is done the message may or may not have been
+processed yet.  <CODE>SendMessage()</CODE> sends the message directly to the window and
+does not return untill the window has finished processing it.  If we wanted
+to close a window we could send it a <CODE>WM_CLOSE</CODE> message like this
+<CODE>PostMessage(hwnd, WM_CLOSE, 0, 0);</CODE>  which would
+have the same effect as clicking on the <IMG SRC="images/button_close.gif" ALT="[x]"> button on the top of the window.
+Notice that <CODE>wParam</CODE> and <CODE>lParam</CODE> are both <CODE>0</CODE>.  This is because, as mentioned,
+they aren't used for <CODE>WM_CLOSE</CODE>.
+
+<H3>Dialogs</H3>
+
+<P>
+Once you begin to use dialog boxes, you will need to send messages to the controls in order
+to communicate with them.  You can do this either by using <CODE>GetDlgItem()</CODE> first
+to get the handle to the control using the ID and then use <CODE>SendMessage()</CODE>, OR
+you can use <CODE>SendDlgItemMessage()</CODE> which combines the steps.  You give it a window
+handle and a child ID and it will get the child handle, and then send it the message.  
+<CODE>SendDlgItemMessage()</CODE> and similar APIs like <CODE>GetDlgItemText()</CODE> will
+work on all windows, not just dialog boxes.
+
+<H3>What is the Message Queue</H3>
+
+<P>
+Lets say you were busy handling the <CODE>WM_PAINT</CODE> message and suddenly the user types
+a bunch of stuff on the keyboard.  What should happen?  Should you be interrupted
+in your drawing to handle the keys or should the keys just be discarded?
+Wrong!  Obviously neither of these options is reasonable, so we have the message
+queue, when messages are posted they are added to the message queue and when
+you handle them they are removed.  This ensure that you aren't going to miss
+messages, if you are handling one, the others will be queued up untill you get to
+them.
+
+<H3>What is a Message Loop</H3>
+
+<PRE CLASS="SNIP">
+while(GetMessage(&Msg, NULL, 0, 0) > 0)
+{
+    TranslateMessage(&Msg);
+    DispatchMessage(&Msg);
+}
+</PRE>
+
+<OL>
+<LI>The message loop calls <CODE>GetMessage()</CODE>, which looks in your message queue.  If the
+message queue is empty your program basically stops and waits for one (it <I>Blocks</I>).
+<LI>When an event occures causing a message to be added to the queue (for example the system 
+registers a mouse click) <CODE>GetMessages()</CODE> returns <B>a positive value</B> indicating there is a message
+to be processed, and that it has filled in the members of the <CODE>MSG</CODE> structure we passed it.  
+It returns <CODE>0</CODE> if it hits <CODE>WM_QUIT</CODE>, and <B>a negative value</B> if an error occured.
+<LI>We take the message (in the <CODE>Msg</CODE> variable)
+and pass it to <CODE>TranslateMessage()</CODE>, this does a bit of additional processing,
+translating virtual key messages into character messages.  This step is actually optional, but
+certain things won't work if it's not there.
+<LI>Once that's done we pass the message to <CODE>DispatchMessage()</CODE>.  What <CODE>DispatchMessage()</CODE> does is take
+the message, checks which window it is for and then looks up the Window
+Procedure for the window.  It then calls that procedure, sending as parameters
+the handle of the window, the message, and <CODE>wParam</CODE> and <CODE>lParam</CODE>.
+<LI>In your window procedure you check the message and it's parameters, and do whatever you
+want with them!  If you aren't handling the specific message, you almost always call <CODE>DefWindowProc()</CODE>
+which will perform the default actions for you (which often means it does nothing).
+<LI>Once you have finished processing the message, your windows procedure returns, <CODE>DispatchMessage()</CODE>
+returns, and we go back to the beginning of the loop.
+</OL>
+
+<P>
+This is a very important concept for windows programs.  Your window procedure is not magically
+called by the system, in effect <I>you call it yourself</I> indirectly by calling <CODE>DispatchMessage()</CODE>.
+If you wanted, you could use <CODE>GetWindowLong()</CODE> on the window handle that the message is destined for
+to look up the window's procedure and call it directly!
+
+<PRE CLASS="SNIP">
+while(GetMessage(&Msg, NULL, 0, 0) > 0)
+{
+    WNDPROC fWndProc = (WNDPROC)GetWindowLong(Msg.hwnd, GWL_WNDPROC);
+    fWndProc(Msg.hwnd, Msg.message, Msg.wParam, Msg.lParam);
+}
+</PRE>
+
+<P>
+I tried this with the previous example code, and it does work, however there are various
+issues such as Unicode/ANSI translation, calling timer callbacks and so forth that this
+method will not account for, and very likely will break all but trivial applications.  So
+do it to try it, but don't do it in real code :)
+
+<P>
+Notice that we use <CODE>GetWindowLong()</CODE> to retreive the window procedure associated
+with the window.  Why don't we just call our <CODE>WndProc()</CODE> directly?  Well our message
+loop is responsible for ALL of the windows in our program, this includes things like buttons
+and list boxes that have their own window procedures, so we need to make sure that we
+call the right procedure for the window.  Since more than one window can use the same 
+window procedure, the first parameter (the handle to the window) is used to tell the
+window procedure which window the message is intended for.
+
+<P>
+As you can see, your application spends the majority of it's time spinning round and round
+in this message loop, where you joyfully send out messages to the happy windows that will 
+process them.  But what do you do when you want your program to exit?  Since we're using
+a <CODE>while()</CODE> loop, if <CODE>GetMessage()</CODE> were to return <CODE>FALSE</CODE> (aka <CODE>0</CODE>), 
+the loop would end and we would reach the end of our <CODE>WinMain()</CODE> thus exiting the program.
+This is exactly what <CODE>PostQuitMessage()</CODE> accomplishes.  It places a <CODE>WM_QUIT</CODE>
+message into the queue, and instead of returning a positive value, <CODE>GetMessage()</CODE> fills 
+in the Msg structure and returns <CODE>0</CODE>.  At this point, the <CODE>wParam</CODE> member 
+of <CODE>Msg</CODE> contains the value that you passed to <CODE>PostQuitMessage()</CODE>
+and you can either ignore it, or return it from <CODE>WinMain()</CODE> which will then be used
+as the exit code when the process terminates.
+
+<P>
+<B>IMPORTANT:</B> <CODE>GetMessage()</CODE> will return <CODE><B>-1</B></CODE> if it encounters an error.
+Make sure you remember this, or it will catch you out at some point... even though <CODE>GetMessage()</CODE>
+is defined as returning a <CODE>BOOL</CODE>, it can return values other than <CODE>TRUE</CODE> or <CODE>FALSE</CODE>, since
+<CODE>BOOL</CODE> is defined as <CODE>UINT</CODE> (<CODE>unsigned int</CODE>).  The following are examples of
+code that may <I>seem</I> to work, but will not process certian conditions correctly:
+
+<PRE CLASS="SNIP">
+    while(GetMessage(&Msg, NULL, 0, 0))
+</PRE>
+<PRE CLASS="SNIP">
+    while(GetMessage(&Msg, NULL, 0, 0) != 0)
+</PRE>
+<PRE CLASS="SNIP">
+    while(GetMessage(&Msg, NULL, 0, 0) == TRUE)
+</PRE>
+
+<B>The above are all wrong!</B>  It may be of note that I used to use the first of these throughout the tutorial,
+since as I just mentioned, it works fine as long as <CODE>GetMessage()</CODE> never fails, which when your code
+is correct it won't.  However I failed to take into consideration that if you're reading this, your code probably
+won't be correct a lot of the time, and <CODE>GetMessage()</CODE> will fail at some point :)  
+I've gone through and corrected this, but forgive me if I've missed a few spots.
+
+<PRE CLASS="SNIP">
+    while(GetMessage(&Msg, NULL, 0, 0) > 0)
+</PRE>
+
+This, or code that has the same effect should always be used.
+
+
+<P>
+I hope you now have a better understanding of the windows message loop, if not, do not fear,
+things will make more sense once you have been using them for a while.
+
+
+<HR>
+<FONT SIZE="-1">
+Copyright &copy; 1998-2003, Brook Miles (<A HREF="mailto:forger(nospam)winprog.org">theForger</A>).  All rights reserved.
+</FONT>
+
+<SCRIPT language="JavaScript">
+<!--
+   var re = /\(nospam\)/ig;
+   var str;
+
+   for(i = 0;i < document.links.length;i++) 
+   {
+      str = "" + document.links(i).href;
+      if(str.search(re) != -1)
+         document.links(i).href = str.replace(re, "@");
+
+      str = "" + document.links(i).innerHTML;
+      if(str.search(re) != -1)
+         document.links(i).innerHTML = str.replace(re, "@");
+   }
+-->
+</SCRIPT>
+
+</BODY>
+</HTML>

@@ -1,0 +1,126 @@
+
+
+<!-- Vignette StoryServer 4 Sat Mar 11 15:43:24 2000 --> 
+<style type=text/css>
+<!--
+p,div {font-size:12pt; line-height:14pt; font-family:宋體;}
+.p1{font-size:12pt;font-family:宋體;}
+.p2{font-size:12pt;font-family:宋體;line-height:14pt;}
+.p3{font-size:14.8px;font-family:宋體;}
+.p4{font-size:14.8px;font-family:宋體;line-height:14pt;}
+.p5{font-size:1pt}
+a:hover{color:red;}
+a.t1:visited{color:red;}
+-->
+</style>
+<title>FreeBSD使用大全</title></head>
+
+<body bgcolor="#FFFFFF" text="#000000" link="#383098" vlink="#336699" alink="#FF0000" topmargin="0">
+<!-- Vignette StoryServer 4 Thu Mar 23 10:01:54 2000 --> <!-- Vignette StoryServer 4 Thu Mar 23 15:34:35 2000 --> 
+
+<!--開始：新聞內容-->
+<TABLE WIDTH=750 BORDER=0 CELLSPACING=0 CELLPADDING=0>
+
+<tr valign=top>
+
+
+
+<TD  valign=top>
+<CENTER><FONT COLOR=#000066 size=5><B>FreeBSD連載(19)：檢查硬碟調整檔案系統的目錄結構</B><br></FONT></CENTER>
+
+<HR  ALIGN="center" SIZE=1>
+<CENTER><FONT FACE="Arial" SIZE=2> 1999年11月21日 18:29 </FONT><FONT COLOR="#990000" SIZE=2>王波</FONT></CENTER><p>
+
+<h1 align=center>維護檔案系統</h1>
+
+<p>　　由於檔案系統是系統中非常重要的部分，因此維護檔案系統的任務也非常重要。這個任務包括檢查、修復檔案系統，
+以及調整目錄樹以適合系統的變化，增添新存儲設備等。
+</p>
+
+<ul><P><LI><h2>檢查硬碟</h2></LI></P></ul>
+
+<p>　　正常情況下使用FreeBSD的時候，檔案系統不會出現問題。然而在某些情況下，如沒有正常關機操作就切斷了
+電腦的電源，就會造成檔案系統出現問題。此外，出於系統維護的目的，也需要經常檢查磁碟的正確性。這就需要使用檔案
+系統檢查工具fsck。
+</p>
+
+<table bgcolor=cccccc width=100% cellpadding=3><tr><td>
+<pre># fsck /dev/wd0s3e
+<br>** /dev/rwd0s3e
+<br>** Last Mounted on /var
+<br>** Phase 1 - Check Blocks and Sizes
+<br>** Phase 2 - Check Pathnames
+<br>** Phase 3 - Check Connectivity
+<br>** Phase 4 - Check Reference Counts
+<br>** Phase 5 - Check Cyl groups
+<br>573files,3387used,26340free(132frags,3276blocks,0.4%fragmentation)
+</td></pre></tr></table>
+
+<p>　　fsck使用raw方式存取磁碟，因此即使使用普通塊設備/dev/wd0s3e為參數，fsck也將使用對
+應的raw方式設備檔案/dev/rwd0s3e進行操作。為了避免與目前磁碟的存取操作衝突，因此要求在進行檢查之
+前先將檔案系統卸載，否則檔案系統的狀態總是不正確（沒有被正確的卸載）。</p>
+
+<p>　　為了不影響系統中正運行的進程，進行磁碟維護，最好首先進入單用戶狀態。這個狀態下將關閉所有不必要的進程，
+系統也只安裝了根檔案系統，其他檔案都沒有安裝，而且即使是根檔案系統，也是以只讀方式安裝的，這樣能保証不會發生存
+取衝突，導致檔案系統出現錯誤。</p>
+
+<p>　　一旦磁碟被檢查出錯誤，fsck將提示管理員是否進行修改，可以使用 “-y” 參數，使得fsck自動進行
+修復工作，而不進行任何提示。系統每次啟動的時候，都會使用這個參數自動檢查和修復檔案系統。
+</p>
+
+<ul><P><LI><h2>調整檔案系統的目錄結構</h2></LI></P></ul>
+
+<p>　　系統安裝時在目錄樹上安裝了不同的檔案系統，隨著時間的推移，有些目錄使用的檔案系統就會被檔案數據占滿，而
+有些目錄下的檔案系統卻很少使用，使得檔案系統不太適合系統的需求，此時或者增加新的硬碟設備，或者將檔案在不同檔案
+系統中進行調整。</p>
+
+<p>　　例如，如果FreeBSD系統被用作一台News伺服器，讀者發表文章將保存在/var目錄所在的檔案系統，
+而預設情況/var目錄空間有限，那麼這個目錄就會被占滿。如果不斷在系統中安裝各種應用軟體，那麼/usr/loc
+al目錄所在的檔案系統會被占滿，等等。管理者就需要根據實際情況進行調整，可以使用df命令來查看檔案系統的目前狀
+態信息。
+</p>
+
+
+<table bgcolor=cccccc width=100% cellpadding=3><tr><td>
+<pre># df
+<br>Filesystem  512-blocks     Used     Avail  Capacity  Mounted on
+<br>/dev/wd0s3a      63550    50822      7644     87%    /
+<br>/dev/wd0s3f    1693228   977436    580334     63%    /usr
+<br>/dev/wd0s3e      59454     6772     47926     12%    /var
+<br>profs                8        8         0    100%    /proc
+<br>/dev/wd0s1     2055744  2032096     23648     99%    /mnt/dosc
+</td></pre></tr></table>
+
+<p>　　df報告的信息包括這個檔案系統的大小和剩余空間（包括使用大小、剩余大小和已使用空間的百分比），如果一個
+檔案系統中的剩余空間不足，而另一個檔案系統還剩余足夠的空間，就可以通過調整來充分利用現有空間。</p>
+
+<p>　　有時，df報告已使用空間的百分比會超過100%，這是由於UFS檔案系統中有一些冗余空間可用。這樣就給用
+戶一個機會，可以不必因為檔案系統滿而中斷目前正在寫檔案的操作，而清除同一個檔案系統中其他不必要的檔案，在這個文
+件系統中騰出存儲空間，從而保証數據最後能被可以正確的保存在檔案系統中。</p>
+
+<p>　　調整檔案系統空間的基本方法是使用符號連接，可以先將該檔案系統中的一個子目錄中數據全部轉移或復制到其他文
+件系統中的另一個目錄中，然後將原有目錄改名或刪除，再建立一個對新目錄的符號連接來達到目的。例如可以將/usr/local
+目錄轉移到另一個安裝到/disk2的檔案系統中：
+</p>
+
+<table bgcolor=cccccc width=100% cellpadding=3><tr><td>
+<pre># cd /usr/local
+<br># tar cf - * | (cd /disk2; tar xf -)
+<br># mv /usr/local /usr/local.old
+<br># ln -s /disk2/local /usr/local
+</td></pre></tr></table>
+
+<p>　　為了保証數據安全，這裡例子中沒有使用mv直接移動數據，而是使用tar將數據復制到另一個目錄中，之所以使
+用tar而非cp -R命令，是為了保証復制檔案和目錄時保留它們的屬主、權限控制屬性的一致性。
+</p>
+
+
+
+<BR>
+
+</TD>
+</TR></TABLE>
+
+
+</BODY>
+</HTML>

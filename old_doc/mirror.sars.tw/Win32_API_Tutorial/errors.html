@@ -1,0 +1,147 @@
+<HTML>
+
+<LINK HREF="style.css" REL="STYLESHEET" TYPE="text/css">
+
+<HEAD>
+<TITLE>Win32 Tutorial - Solutions to Common Errors</TITLE>
+</HEAD>
+
+<BODY>
+<FONT SIZE="-1">
+[ <A HREF="./index.html">contents</A>
+| <A HREF="http://www.winprog.org/">#winprog</A>
+]
+</FONT>
+<HR>
+
+
+<H1>Solutions to Common Errors</H1>
+
+<UL>
+	<LI><A HREF="#_main">Error LNK2001: unresolved external symbol _main</A>
+	<LI><A HREF="#C2440">Error C2440: cannot convert from 'void*' to 'HICON__ *'</A> (or similar)
+	<LI><A HREF="#RC1015">Fatal error RC1015: cannot open include file 'afxres.h'</A>
+	<LI><A HREF="#LNK2001">Error LNK2001: unresolved external symbol InitCommonControls</A>
+	<LI><A HREF="#Dialog">Dialog does not display when certain controls are added</A>
+</UL>
+
+<H2>Error <A NAME="_main">LNK2001</A>: unresolved external symbol _main</H2>
+
+An unresolved external occurs when some code has a call to a function in another module
+and the linker can't find that function in any of the modules or libraries that you are
+currently linking to.
+
+<P>
+In this specific case, it means one of two things.  Either you are trying to write a Win32
+GUI application (or non-console application) and accidently compiled it as a Console 
+application... or you really are trying to compile a console application and didn't write or
+properly compile in a main() function.
+
+<P>
+Generally the first is the most common, if you specify Win32 Console as the project type
+in VC++ when you create your project you will get this error.  You will also likely get it
+if you try to compile from the command line using BC++ but you neglect to specify the 
+correct parameters to tell it to make a Win32 GUI application instead of a console app
+which is the default.
+
+<H3>Fixing</H3>
+
+If you're using VC++ re-create your project and select the Win32 Application project type
+(NOT "Console").
+<P>
+If you're using BC++ command line compiler, use -tW to specify a windows application.
+
+<H2>Error <A NAME="C2440">C2440</A>: cannot convert from 'void*' to 'HICON__ *' (or similar)</H2>
+
+If you're compiling the code from this tutorial, it means that you are trying to compile it as 
+C++ code.  The code is written for the bcc32 and VC++ C compilers, and as such may not compile
+exactly the same under C++ since C++ has much stricter rules about converting types.  C will
+just let it happen, C++ wants to you to make it explicit.
+
+<P>
+VC++ (and most compilers) will automatically compile a file with a .cpp extension as C++ code, and
+a file with a .c extension as C code.  If you have added the tutorial code to a .cpp file, this
+is the most likely reason of getting this error.
+
+<P>
+If you're compiling code not from this tutorial, I can't guarantee that it's correct and therefor
+it may actually be an error that needs resolving.  You'll have to use your own judgement to
+determine if it's safe to cast the value and remove the error, or if you are actually trying
+to make a variable be something it's not.
+
+<H3>Fixing</H3>
+
+If you want to use C, simply rename your file from .cpp to .c.  Otherwise, simply add a cast, all of the 
+code in the tutorial will work without any other changes when compiled as C++.
+
+<P>
+For example, in C this will work:
+
+<P>
+<PRE CLASS="SNIP">
+	HBITMAP hbmOldBuffer = SelectObject(hdcBuffer, hbmBuffer);
+</PRE>
+
+<P>
+But in C++ requires a cast:
+
+<P>
+<PRE CLASS="SNIP">
+	HBITMAP hbmOldBuffer = (HBITMAP)SelectObject(hdcBuffer, hbmBuffer);
+</PRE>
+
+<H2>Fatal error <A NAME="RC1015">RC1015</A>: cannot open include file 'afxres.h'.</H2>
+
+Oddly enough, VC++ adds <CODE>afxres.h</CODE> to resource files even when you aren't using an MFC project, and yet 
+the file may only be installed if you install MFC.  This perticular file isn't actually required, so to fix the error
+you can edit the .rc file in notepad and replace both occurances of <CODE>"afxres.h" </CODE>with <CODE>"winres.h"</CODE> 
+(note that there should be two of them, and you need to change both).
+
+<H2>Error <A NAME="LNK2001">LNK2001</A>: unresolved external symbol InitCommonControls</H2>
+
+You aren't linking to comctl32.lib which this API is defined in.  This library is not included by
+default so you will either need to add it to the libraries on your command line, or add it
+in your VC++ project settings on the Link tab.
+
+<H2><A NAME="Dialog">Dialog</A> does not display when certain controls are added</H2>
+
+Controls such as the ListView, TreeView, Hotkey, Progress Bar, and others are classified as Common Controls,
+as they were added to windows in comctl32.dll and were not available prior to Windows 95.  Controls such
+as BUTTON, EDIT, LISTBOX, etc... while no doubt being common, are not "Common Controls" and I generally
+refer to them as "Standard Controls".
+
+<P>
+If you add a Common Control to a dialog and it fails to display, you most likely failed to call <CODE>InitCommonControls()</CODE>
+before running your dialog, or perhaps at all.  The best place to call it is first thing in <CODE>WinMain()</CODE>.  Calling
+it in <CODE>WM_INITDIALOG</CODE> is too late, since the dialog will fail before it reaches this point and it will never
+get called.
+
+<P>
+Some people and documentation may tell you that <CODE>InitCommonControls()</CODE> is deprecated and you should use <CODE>InitCommonControlsEx()</CODE>.
+Feel free to do this if you want, <CODE>InitCommonControls()</CODE> is just simpler and there's nothing wrong with using it.
+
+<HR>
+<FONT SIZE="-1">
+Copyright &copy; 1998-2003, Brook Miles (<A HREF="mailto:forger(nospam)winprog.org">theForger</A>).  All rights reserved.
+</FONT>
+
+<SCRIPT language="JavaScript">
+<!--
+   var re = /\(nospam\)/ig;
+   var str;
+
+   for(i = 0;i < document.links.length;i++) 
+   {
+      str = "" + document.links(i).href;
+      if(str.search(re) != -1)
+         document.links(i).href = str.replace(re, "@");
+
+      str = "" + document.links(i).innerHTML;
+      if(str.search(re) != -1)
+         document.links(i).innerHTML = str.replace(re, "@");
+   }
+-->
+</SCRIPT>
+
+</BODY>
+</HTML>

@@ -1,0 +1,169 @@
+<HTML>
+
+<LINK HREF="style.css" REL="STYLESHEET" TYPE="text/css">
+
+<HEAD>
+<TITLE>App Part 1: Creating controls at runtime</TITLE>
+</HEAD>
+
+<BODY>
+<FONT SIZE="-1">
+[ <A HREF="./index.html">contents</A>
+| <A HREF="http://www.winprog.org/">#winprog</A>
+]
+</FONT>
+<HR>
+
+
+<H1>App Part 1: Creating controls at runtime</H1>
+
+<P>Example: app_one</P>
+<IMG SRC="images/app_one.gif" ALT="[images/app_one.gif]" ALIGN="right">
+
+<P>
+I thought that since an example on creating controls on the fly, although usefull, would be quite pointless 
+unless the application actually did something, so in this entry I will start the workings of a text editor 
+and build upon it untill we reach a nearly useful program that supports opening, editing and saving text 
+documents.
+
+<P>
+The first step, which this particular page covers will be simply creating the window and the EDIT control
+that will serve as the center of our program.
+
+<P>
+Starting with the skeleton code from the Simple Window application we add a <CODE>#define</CODE> as our control
+ID and the following two message handlers into our window procedure:
+
+<PRE CLASS="SNIP">
+#define IDC_MAIN_EDIT	101
+</PRE>
+
+<PRE CLASS="SNIP">
+    case WM_CREATE:
+    {
+        HFONT hfDefault;
+        HWND hEdit;
+
+        hEdit = CreateWindowEx(WS_EX_CLIENTEDGE, "EDIT", "", 
+            WS_CHILD | WS_VISIBLE | WS_VSCROLL | WS_HSCROLL | ES_MULTILINE | ES_AUTOVSCROLL | ES_AUTOHSCROLL, 
+            0, 0, 100, 100, hwnd, (HMENU)IDC_MAIN_EDIT, GetModuleHandle(NULL), NULL);
+        if(hEdit == NULL)
+            MessageBox(hwnd, "Could not create edit box.", "Error", MB_OK | MB_ICONERROR);
+
+        hfDefault = GetStockObject(DEFAULT_GUI_FONT);
+        SendMessage(hEdit, WM_SETFONT, (WPARAM)hfDefault, MAKELPARAM(FALSE, 0));
+    }
+    break;
+    case WM_SIZE:
+    {
+        HWND hEdit;
+        RECT rcClient;
+
+        GetClientRect(hwnd, &rcClient);
+
+        hEdit = GetDlgItem(hwnd, IDC_MAIN_EDIT);
+        SetWindowPos(hEdit, NULL, 0, 0, rcClient.right, rcClient.bottom, SWP_NOZORDER);
+    }
+    break;
+</PRE>
+
+<H3>Creating controls</H3>
+
+Creating controls, like creating any other window, is done through the <CODE>CreateWindowEx()</CODE> API.  We
+pass in pre-registered class that we want, in this case the "EDIT" control class, and we get a standard edit
+control window.  When using dialogs to create our controls, we are basically writing a list of controls to create
+so that then you call <CODE>DialogBox()</CODE> or <CODE>CreateDialog()</CODE> the system reads through the list
+of controls in the dialog resource and calls <CODE>CreateWindowEx()</CODE> for each one with the position and 
+styles that were defined in the resource.
+
+<PRE CLASS="SNIP">
+    hEdit = CreateWindowEx(WS_EX_CLIENTEDGE, "EDIT", "", 
+        WS_CHILD | WS_VISIBLE | WS_VSCROLL | WS_HSCROLL | ES_MULTILINE | ES_AUTOVSCROLL | ES_AUTOHSCROLL, 
+        0, 0, 100, 100, hwnd, (HMENU)IDC_MAIN_EDIT, GetModuleHandle(NULL), NULL);
+    if(hEdit == NULL)
+        MessageBox(hwnd, "Could not create edit box.", "Error", MB_OK | MB_ICONERROR);
+</PRE>
+
+You can see that this call to <CODE>CreateWindowEx()</CODE> specifies quite a few styles, and it's not uncommon
+to have many more, especially for the Common Controls which have a hearty list of options.  The first 4 <CODE>WS_</CODE>
+styles should be fairly obvious, we are creating the control as a child of our window, we want it to be visible, and
+have vertical and horizontal scroll bars.  
+
+<P>
+The 3 styles that are specific to EDIT controls (<CODE>ES_MULTILINE | ES_AUTOVSCROLL | ES_AUTOHSCROLL</CODE>) specify
+that the EDIT control should contain multiple lines of text, and scroll automatically as you type beyond the bottom and 
+right hand side of the control respectively.
+
+<P>
+The regular window styles (<CODE>WS_*</CODE>) are 
+<A HREF="http://msdn.microsoft.com/library/default.asp?url=/library/en-us/winui/windows_2v90.asp">listed  here</A>.
+And the extended windows styles (<CODE>WS_EX_*</CODE>) are explained under the 
+<A HREF="http://msdn.microsoft.com/library/default.asp?url=/library/en-us/winui/windows_1w6w.asp"><CODE>CreateWindowEx()</CODE></A> 
+reference in MSDN, where you can also find links to the styles that are specific to each control 
+(<CODE>ES_*</CODE> in our case of the edit control).
+
+<P>
+We have specified our window handle as the parent of the control, and assigned it an ID of <CODE>IDC_MAIN_EDIT</CODE> which
+we'll use later on to refer to the control just as you would if the control had been created on a dialog.  The position
+and size parameters don't mean too much at the moment since we will be resizing the control dynamically in the <CODE>WM_SIZE</CODE>
+message so that it will always fit our window.
+
+<H3>Sizing of dynamically created controls</H3>
+
+Generally if your window is sizeable you'll want some code to resize or reposition the controls you created within it
+so that they are always layed out properly.
+
+<PRE CLASS="SNIP">
+    GetClientRect(hwnd, &rcClient);
+
+    hEdit = GetDlgItem(hwnd, IDC_MAIN_EDIT);
+    SetWindowPos(hEdit, NULL, 0, 0, rcClient.right, rcClient.bottom, SWP_NOZORDER);
+</PRE>
+
+<P>
+Since we only have one control for now, the task is relatively simple.  We use <CODE>GetClientRect()</CODE> to get the dimentions
+of the Client Area of the window, the big (up untill now) blank area that does not include the borders, menu or caption.  This
+will fill in our <CODE>RECT</CODE> structure with the value, the <CODE>left</CODE> and <CODE>top</CODE> values will always
+be 0, so you can usually just ignore them.  The <CODE>right</CODE> and <CODE>bottom</CODE> values will give you the width and the
+hight of the client area.
+
+<P>
+Next we simply get a handle to our edit control using <CODE>GetDlgItem()</CODE> which works just as well on regular windows as
+it does on dialogs, and the call <CODE>SetWindowPos()</CODE> to move and size it to fill the entire client area.  You can of course
+change the values you pass into <CODE>SetWindowPos()</CODE> to do something like only fill half of the window's height, leaving
+the bottom free to place other controls.
+
+<H3>Creating other controls at runtime</H3>
+
+I'm not going to give examples of dynamically creating the other controls like LISTBOX, BUTTON, etc... because it's basically
+the same and it gets kinda boring after a while :)  If you follow the links into MSDN above, or look in your local Win32 API reference
+you will be able to find all of the information needed to create any of the other standard controls.
+
+<P>
+We'll be doing more of this with the common controls in the next couple of sections so you'll get more practice eventually.
+
+<HR>
+<FONT SIZE="-1">
+Copyright &copy; 1998-2003, Brook Miles (<A HREF="mailto:forger(nospam)winprog.org">theForger</A>).  All rights reserved.
+</FONT>
+
+<SCRIPT language="JavaScript">
+<!--
+   var re = /\(nospam\)/ig;
+   var str;
+
+   for(i = 0;i < document.links.length;i++) 
+   {
+      str = "" + document.links(i).href;
+      if(str.search(re) != -1)
+         document.links(i).href = str.replace(re, "@");
+
+      str = "" + document.links(i).innerHTML;
+      if(str.search(re) != -1)
+         document.links(i).innerHTML = str.replace(re, "@");
+   }
+-->
+</SCRIPT>
+
+</BODY>
+</HTML>

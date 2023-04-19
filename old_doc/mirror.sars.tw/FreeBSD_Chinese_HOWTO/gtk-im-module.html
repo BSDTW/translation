@@ -1,0 +1,124 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>GTK_IM_MODULE - 新的 GTK IM 選擇方式</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.7" />
+<link rel="HOME" title="FreeBSD Chinese HOWTO" href="index.html" />
+<link rel="UP" title="中文的顯示及輸入" href="view.html" />
+<link rel="PREVIOUS" title="SCIM - Smart Common Input Method platform"
+href="scim.html" />
+<link rel="NEXT" title="chinput - 簡體中文 XIM Server" href="chinput.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD Chinese HOWTO</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="scim.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 7. 中文的顯示及輸入</td>
+<td width="10%" align="right" valign="bottom"><a href="chinput.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="GTK-IM-MODULE" name="GTK-IM-MODULE">7.10. GTK_IM_MODULE - 新的
+GTK IM 選擇方式</a></h1>
+
+<p>GTK2 本身也提供不少輸入法供使用者選用， 您可以透過 <tt
+class="COMMAND">gtk-query-immodules-2.0</tt> 來取得有那些 Input Method Module，
+不過仍然沒有內建中文的輸入法模組， 所以他也支援非他本身所提供的其他方式來輸入， 例如
+XIM。 GTK_IM_MODULE 在某些情況下的優先權會比 XMODIFIERS 還高， 如果為了保險起見，
+可以設定為 xim。</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">%</samp> <kbd class="USERINPUT">setenv GTK_IM_MODULE xim</kbd>
+</pre>
+
+<p>如果要跨入 immodule 可以注意一下 <a
+href="http://www.FreeBSD.org/cgi/url.cgi?ports/japanese/uim/pkg-descr"><tt
+class="FILENAME">japanese/uim</tt></a>。 uim 的目標是作為發展新 immodule 的基礎平台，
+目前已經有不少 Emacs 的輸入法在上面，像是 PinYin。 或是
+文具(wenju)，他已經在上面開發五筆和拼音輸入法， 他利用 TIM(Table-based Input Method) 這個
+GTK2 鍵盤輸入模組，
+將輸入法以轉換碼表的方式控制，可以方便的修改或新增碼表來定義新的輸入法， wenju
+的網站有詳細介紹 TIM 的安裝與使用方式。 某個大陸的輸入法 SCIM 也有做對 immodule
+的支援。</p>
+
+<p>筆者把 xcin25 的注音，倉頡，嘸蝦米的 .cin 轉成了 wenju 的 .tim， 有興趣的可以安裝
+outta-port/wenju，然後設定 GTK_IM_MODULE 來選擇輸入法， 或是在視窗上按右鍵選擇。 注音是
+phone.tim，倉頡是 cj.tim，嘸蝦米是 liu.tim， 如果要使用注音可以輸入如下:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">%</samp> <kbd class="USERINPUT">setenv GTK_IM_MODULE phone.tim</kbd>
+</pre>
+
+<pre class="PROGRAMLISTING">
+以下是轉換 .cin 到 .tim 的方式
+# echo "TIMName=注音" &#62; phone.tim.big5
+# sed -e '/%/d' -e '/^#/d' phone.cin | awk '{print $1, $2}' | sort | uniq | \
+      awk '{ if ( b == $1 ) { line = line "|" $2 } else { line = line "\n" $1 "=" $2 } b = $1 } END { print line }' \
+      &#62;&#62; phone.tim.big5
+# iconv -c -f big5 -t utf-8 phone.tim.big5 &#62; /usr/X11R6/share/wenju/phone.tim
+# gtk-query-immodules-2.0 &#62; /usr/X11R6/etc/gtk-2.0/gtk.immodules
+
+以下是輸入法的使用方式
+Shift+Space 可切換英數輸入法
+.           下一個字或詞
+&gt;           下十個字或詞
+,           上一個字或詞
+&lt;           上十個字或詞
+Space       選擇第零個字或詞
+Ctrl+數字   選擇第幾個字或詞
+Enter       送出
+</pre>
+
+<p>剛切換到 wenju 的時候，OverTheSpot 會在最左上角，
+可以任意輸入一個字然後按方向鍵，他就會跑到正確的位置上。 不過選字的方式還需改進，目前是由
+0 至 9， 通常是習慣 1 至 0 的鍵盤排列順序。</p>
+
+<p>WWW: <a href="http://sourceforge.jp/projects/anthy/files/" target="_top">UIM input
+method collection</a></p>
+
+<p>WWW: <a href="http://wenju.sourceforge.net/" target="_top">文具(wenju) - Writing
+Tools</a></p>
+
+<p>WWW: <a href="http://www.turbolinux.com.cn/~suzhe/scim/" target="_top">Smart Common
+Input Method(SCIM)</a></p>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="scim.html" accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="chinput.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">SCIM - Smart Common Input Method platform</td>
+<td width="34%" align="center" valign="top"><a href="view.html" accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">chinput - 簡體中文 XIM Server</td>
+</tr>
+</table>
+</div>
+</body>
+</html>
+

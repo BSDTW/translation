@@ -1,0 +1,296 @@
+
+
+<!-- Vignette StoryServer 4 Sat Mar 11 15:43:24 2000 --> 
+<style type=text/css>
+<!--
+p,div {font-size:12pt; line-height:14pt; font-family:宋體;}
+.p1{font-size:12pt;font-family:宋體;}
+.p2{font-size:12pt;font-family:宋體;line-height:14pt;}
+.p3{font-size:14.8px;font-family:宋體;}
+.p4{font-size:14.8px;font-family:宋體;line-height:14pt;}
+.p5{font-size:1pt}
+a:hover{color:red;}
+a.t1:visited{color:red;}
+-->
+</style>
+<title>FreeBSD使用大全</title></head>
+
+<body bgcolor="#FFFFFF" text="#000000" link="#383098" vlink="#336699" alink="#FF0000" topmargin="0">
+<!-- Vignette StoryServer 4 Thu Mar 23 10:01:54 2000 --> <!-- Vignette StoryServer 4 Thu Mar 23 15:34:35 2000 --> 
+
+<!--開始：新聞內容-->
+<TABLE WIDTH=750 BORDER=0 CELLSPACING=0 CELLPADDING=0>
+
+<tr valign=top>
+
+
+
+<TD  valign=top>
+<CENTER><FONT COLOR=#000066 size=5><B>FreeBSD連載(72)：設置和使用DHCP</B><br></FONT></CENTER>
+
+<HR  ALIGN="center" SIZE=1>
+<CENTER><FONT FACE="Arial" SIZE=2> 2000年1月13日 15:16 </FONT><FONT COLOR="#990000" SIZE=2>王波</FONT></CENTER><p>
+
+<h1 align=center>設置和使用DHCP</h1>
+
+<p>　　在FreeBSD的Packages Collection中，有兩個不同的DHCP客戶機和伺服器軟體，一
+個為ISC-DHCP，另一個為WIDE-DHCP，兩個軟體都包括了DHCP客戶軟體和伺服器軟體，其中ISC-DHCP
+更為常用一些，這裡就以ISC-DHCP為例介紹在FreeBSD上安裝和設置DHCP。</p>
+
+<p>　　為了支持DHCP，首先要確認系統核心支持偽設備bpfilter，如果沒有，就需要重新編譯核心。偽設備bpfilter
+是一個允許應用程序接收網路的原始數據包的界面，這樣應用程序就能接收目的地址非本機IP地址的數據包
+了。DHCP使用bpfilter的原因是在DHCP設置好電腦的TCP/IP之前，由於電腦本身沒有定義IP地
+址，而TCP/IP堆棧本身不會接收不具備本機IP地址的數據包。要接收DHCP伺服器發送回客戶的數據包，就需要繞
+過TCP/IP堆棧，而必須使用偽設備bpfilter。</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>pseudo-device    bpfilter    4 </td></pre></tr></table>
+
+<P>　　定制核心之後，還要保証/dev/目錄下具有對應bpfilter的設備檔案。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># cd /dev
+# sh MAKEDEV bpf0 bpf1 bpf2 bpf3</td></pre></tr></table>
+
+<P>　　從Packages Collecion中安裝DHCP軟體，這將DHCP軟體中的dhcpd，dhclient和dhcprelay
+安裝到/usr/local/sbin目錄下。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>$ ls /usr/local/sbin/dhc*
+/usr/local/sbin/dhclient   /usr/local/sbin/dhcpd
+/usr/local/sbin/dhcrelay</td></pre></tr></table>
+
+<ul><h2><P><LI>設置伺服器</LI></P></h2></ul>
+
+<P>　　為了設置DHCP伺服器dhcpd，首先就要設置其配置檔案/etc/dhcpd.conf。這個配置檔案
+語法簡單，比較容易理解。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>server-identifier 192.168.3.1;
+
+subnet 192.168.3.0 netmask 255.255.255.0 {
+        range 192.168.3.10 192.168.3.20;
+        default-lease-time 600;
+        max-lease-time 7200;
+        option subnet-mask 255.255.255.0;
+        option broadcast-address 192.168.3.255;
+        option routers 192.168.3.1;
+        option domain-name-servers 192.168.3.1;
+        option domain-name "exampleorg.org.cn";
+}
+host a1 {
+        hardware ethernet 00:90:27:4e:92:09;
+        fixed-address 192.168.3.32;
+        option subnet-mask 255.255.255.0;
+        option broadcast-address 192.168.3.255;
+        option routers 192.168.3.1;
+        option domain-name-servers 192.168.3.1;
+        option domain-name "exampleorg.org.cn";
+}</td></pre></tr></table>
+
+<p>　　基本的dhcpd.conf首先使用server-identifier定義了本伺服器的IP地址，這對於有
+多個IP地址的伺服器系統十分重要，一般不必設置這個參數，dhcpd能自動偵測。然後定義要分配IP地址的客戶機組
+，每組擁有一個可用的IP地址範圍。有兩種客戶機組的劃分方式，一種為指定子網段來區分，一種為指定主機來區分。</p>
+
+<p>　　這個例子中的第一組定義了一個子網192.168.3.0/24，這個子網段內，可供DHCP伺服器分配的I
+P地址範圍為192.168.3.10到192.168.3.20，這個地址範圍也可以不是連續的，不連續的地址可以
+使用多個range設置參數來設置。此外，還設置了這一組內分配的IP地址的租期限制default-lease-time
+和max-lease-time，可以使用預設值，而不必改動。後面的option參數設置DHCP的附加功能
+，例如設置DHCP客戶的網路掩碼、廣播地址、DNS伺服器、域名等等。事實上這些option設置選項也可以被用作
+全局選項設置，即放置在server-identifier之後，對所有的客戶機組起作用。</p>
+
+<p>　　例子的第二組是針對某個特定主機a1進行的設置，這個主機被限定為以太網地址為hardware ethernet
+參數值的電腦，將給這個電腦分配一個固定地址。這種分配方式實際等價於固定地址分配方式，唯一的好處就是能
+夠對IP地址進行集中管理，不必每個電腦分別設置了。這裡同樣也可以使用option參數，設置TCP/IP的參數
+。</p>
+
+<p>　　dhcpd.conf中還能有更多的組，包括對非本網段的子網上的客戶機指定的組。</p>
+
+<p>　　當設置了dhcpd.conf之後，就能啟動dhcpd守護進程了，由於電腦會有多個網路界面，需要指定dhcpd
+伺服器的網路界面，以便回應相應界面上的DHCP請求。</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># /usr/local/sbin/dhcpd fxp0</td></pre></tr></table>
+
+<p>　　在調試階段，可以使用-d參數，這樣dhcpd就不會進入後台運行，而一直保留在前台，並顯示各個與客戶計算
+機通信的過程。當一切都調試完畢之後，就能去除-d參數，並將執行命令放入rc.local啟動腳本中，以便系統能夠
+自動執行。</p>
+
+<p>　　此後，dhcpd正常運行的時候，會將每一次客戶請求及其回應的IP地址分配的記錄，都記錄在/var/run/dhcpd.leases
+檔案中。為了使dhcpd能正常進行日誌記錄，應該在啟動dhcpd之前使用touch
+命令，生成一個新的日誌檔案。以後就可以查看這個日誌檔案的內容，以得到目前DHCP伺服器的狀態和客戶機IP地址分
+配的情況。以下是一個日誌檔案的部分內容。</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>       lease 192.168.3.11 {
+          starts 3 1998/11/26 05:46:28;
+          ends 4 1998/11/27 05:46:28;
+          hardware ethernet 0:80:c2:12:fd:d;
+          uid 1:0:80:c2:12:fd:d;
+       }</td></pre></tr></table>
+
+<P>　　touch命令的優點是在存在相關的檔案時，不刪除或更改檔案內容，只更新其訪問時間設置，只有在文
+件不存在時才生成新檔案。</P>
+
+<P>　　然後就能設置網路中的客戶電腦使用DHCP協議，獲取合法的IP地址了。通常Windows電腦的TCP/IP設置
+中能直接設置支持DHCP協議，如果為Unix（包括FreeBSD）設置DHCP客戶軟體，就需要dhclient的支持。</P>
+
+<ul><h2><P><LI>設置客戶軟體</LI></P></h2></ul>
+
+<P>　　ISC-DHCP中同樣也提供了一個客戶程序dhclient，用於FreeBSD系統從DHCP伺服器上動態獲取一個IP地
+址。這個程序同樣也要求核心支持bpfilter偽設備。</P>
+
+<P>　　dhclient使用的配置檔案為/etc/dhclient.conf，然而最一般的情況下可以不使用它，軟體本身的預設
+配置就滿足一般情況下請求IP地址的需要了。預設設置下dhclient在獲得了IP地址之後，會自動執行/etc/dhclient-script
+這個腳本程序，以針對剛獲取的動態IP地址進行必要的設置。很多依賴於IP地址的網路服務，就可以在這個腳
+本中啟動，或者針對重新分配的動態IP地址對已有的網路服務進行修正。雖然使用者也許不希望使用這個腳本
+設置網路，但如果不存在這個腳本程序，或者這個程序不可執行，那麼dhclient就不能正常執行。</P>
+
+<P>　　因此對於最一般的客戶機，一般只連接到一個網路上，僅具備一個網路界面，可以使用一個空的dhclient.conf
+和空的declient-script檔案，就能完成設置IP地址和其他TCP/IP參數的任務了。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># touch /etc/dhclient.conf
+# touch /etc/dhclient-script
+# chmod +x /etc/dhclient-script
+# /usr/local/sbin/dhclient fxp0
+Listening on BPF/fxp0/00:90:27:4e:92:09/unattached
+Sending on   BPF/fxp0/00:90:27:4e:92:09/unattached
+Sending on   Socket/fallback/fallback-net
+DHCPDISCOVER on fxp0 to 255.255.255.255 port 67 interval 22
+DHCPOFFER from 192.168.3.1
+DHCPREQUEST on fxp0 to 255.255.255.255 port 67
+DHCPACK from 192.168.3.1
+bound to 192.168.3.32 -- renewal in 3600 seconds.</td></pre></tr></table>
+
+<P>　　在更複雜的情況下，就要指定更多的內容，例如當系統有多個網卡時，要指定dhclient應該從哪個子網中獲
+得IP地址設置，就需要使用設置檔案dhclient.conf。一般除非有多個局域網網路界面，都應該使用空設置檔案，
+避免產生配置錯誤。以下為一個簡單的dhclient.conf的例子，可以用於多網路界面的情況：</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre><font size=2># Defaults 
+timeout 60; 
+reboot 10; 
+
+retry 60; 
+select-timeout 5; 
+initial-interval 2; 
+
+script "/etc/dhclient-script"; 
+
+interface "fxp0" { 
+ request subnet-mask, broadcast-address, routers, domain-name-servers, 
+         domain-name, host-name; 
+ require domain-name-servers; 
+} </font></td></pre></tr></table>
+
+<p>　　這個設置檔案主要用於重新定義一些參數，比較容易理解，更改也比較容易。</p>
+
+<p>　　成功的手工執行dhclient之後，就可以考慮將其和系統啟動檔案相結合了。因為很多網路服務是依賴於網路
+配置的，應該在啟動這些網路服務之前使用DHCP配置好TCP/IP。使用dhclient-script啟動服務的
+想法雖然也能解決問題，然而這就不能使用系統的啟動rc檔案中的相關設置啟動網路服務，而在這個dhclient-script
+中重新啟動，因此比較麻煩。更簡便的做法是僅僅在dhclient-script中設置hostname，
+而讓系統啟動檔案完成其他網路服務的啟動。這樣就要求將dhclient與系統rc檔案結合起來。</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre><font size=2>#hostname="my.domain.name" 
+network_interfaces="fxp0 lo0"    # List of network interfaces (lo0 is
+loopback). 
+ifconfig_lo0="inet 127.0.0.1"   # default loopback device configuration. 
+#ifconfig_fxp0="inet 192.168.3.12  netmask 255.255.255.0" 
+defaultrouter="NO"              # Set to default gateway (or NO).</font></td></pre></tr></table>
+
+<P>這樣就需要更改rc.conf檔案，更改一些設置語句。首先要注釋hostname設置，而在dhclient.script中進行設置，也不必設置defaultrouter，它通過DHCP協議自動設置。同時要保証network_interfaces參數中，設置了要通過dhclient來獲取IP地址的網路界面fxp0，以允許rc系統檔案能啟動該與該界面相關的設置檔案，然而卻必須注釋設置該界面的參數ifconfig_fxp0，因為這個設置參數是用於設置靜態IP地址的選項，因此要屏蔽它，而使用start_if.fxp0配置腳本來設置網路界面。</P>
+
+<P>預設情況下，不存在start_if.fxp0等start_if設置網路腳本，但是這些腳本在rc.network已經做好了設置，針對每個網路界面啟動，而不需要在rc.conf中做特別設定。對於dhclient，可以創建一個簡單的啟動腳本start_if.fxp0為：</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>#! /bin/sh
+/usr/local/sbin/dhclient fxp0</td></pre></tr></table>
+
+<p>　　這樣，dhclient就和系統啟動檔案結合起來了，在系統啟動的時候會自動設置好TCP/IP，此後再啟動
+相關的網路服務。此時需要注意的是刪除原來可能在rc.local或者在/usr/local/etc/rc.d目錄
+中的dhclient啟動命令，以避免衝突。</p>
+
+<p>　　在FreeBSD系統上不推荐使用動態IP地址，因為FreeBSD能提供大量有用的網路服務，都會與IP地
+址或域名有關，不適合使用動態IP地址。如果必須要作為DHCP客戶以保持IP地址的統一管理，建議使用dhcpd針
+對硬體地址的設置方式，在DHCP伺服器上為FreeBSD系統設定一個固定IP地址。</p>
+
+<ul><h2><P><LI>設置DHCP中轉</LI></P></h2></ul>
+
+<p>　　當網路中存在多個子網的時候，由於客戶電腦只能通過廣播發送DHCP請求，這些請求一般不能跨越路由器。為
+了在DHCP伺服器存在的子網之外的DHCP客戶分配IP地址，可以設置路由器轉發DHCP請求，即轉發相應的UDP
+端口67和68的廣播數據包。但這樣設置就增加了網路廣播，不利於減少網路流量。</p>
+
+<p>　　此外，還有另外一種方法來使得DHCP客戶電腦能使用子網之外的DHCP伺服器來分配IP地址。這就是使用
+DHCP中轉電腦來轉發DHCP的請求。DHCP中轉電腦能聽取DHCP廣播，由於它了解DHCP伺服器的IP地
+址，因此能通過正常的IP數據包將原廣播包轉發到伺服器中，然後再將伺服器的回應信息回復客戶機。這樣DHCP客戶機
+就以為本子網中也存在一個DHCP伺服器。</p>
+
+<p>　　在ISC-DHCP軟體中，提供的中轉程序為dhcrelay，這是一個簡單的程序，不需要額外的設置。啟動
+dhcrelay的標準方式為使用命令行指定將DHCP服務請求中轉到的目的DHCP伺服器，由於DHCP中允許多個
+DHCP伺服器同時為客戶提供地址，而不會產生衝突，就可以使用多個DHCP伺服器進行中轉。</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># dhcrelay dhcpsrv1 dhcpsrv2</td></pre></tr></table>
+
+<p>　　如果這台中轉伺服器為多網路界面電腦，那麼dhcrelay將偵聽所有網路界面的DHCP請求，有時不希望
+dhcrelay中轉某些界面上的請求，就可以設置dhcrelay偵聽的網路界面，這需要指定-i參數。</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># dhcrelay -i xl0 dhcpsrv1</td></pre></tr></table>
+
+
+<ul><h2><P><LI>提供備份的DHCP設置</LI></P></h2></ul>
+
+<p>　　在一個具備多個子網的大型網路中，提供冗余是一個非常重要的問題。由於DHCP協議中DHCP伺服器負責分配
+IP地址，一旦DHCP伺服器出現故障，那麼所有的客戶就無法正確獲得IP地址，從而不能訪問網路。</p>
+
+<p>　　但可以同時設置多個DHCP伺服器來提供一個冗余能力。然而DHCP伺服器本身是不提供備份能力的，不能互為
+備份。他們占用的IP地址資源也不能重疊，以免發生客戶機IP地址衝突的現象。提供容錯能力是通過分割可用的IP地址
+到不同的DHCP伺服器上，通過多個DHCP伺服器同時為一個網路服務，從而使得一個伺服器發生故障還能正常執行操作
+。通常為了進一步增強可靠性，還可以將不同的DHCP伺服器放置在不同子網中，互相使用中轉提供服務。</p>
+
+<p>　　例如在兩個子網上各自有一個DHCP伺服器，標準的做法可以不使用DHCP中轉，各個子網上的伺服器為各個子
+網服務就行了。然而為了達到容錯的目的，可以互相為另一個子網提供服務，通過設置中轉或路由器轉發廣播以達到互為服務
+的目的。</p>
+
+<p>　　例如位於192.168.3.0網路上的srv1的配置可能為：</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>subnet 192.168.3.0 netmask 255.255.255.0 {
+        range 192.168.3.10 192.168.3.199;
+}
+subnet 192.168.4.0 netmask 255.255.255.0 {
+        range 192.168.4.200 192.168.4.220;
+}</td></pre></tr></table>
+
+<P>　　位於192.168.4.0網路上的srv2的配置可能為：</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>subnet 192.168.4.0 netmask 255.255.255.0 {
+        range 192.168.4.10 192.168.4.199;
+}
+subnet 192.168.3.0 netmask 255.255.255.0 {
+        range 192.168.3.200 192.168.3.220;
+}</td></pre></tr></table>
+
+<p>　　注意，上述設置都是設置樣例，標準情況下還需分別指定各個option，用於設置IP地址及其相關設置。</p>
+
+<p>　　可以看出兩個伺服器都能對兩個網路上的客戶機分配IP地址，而各自又有一個主要服務的網路。每個網路上的IP
+地址主要放在本地的伺服器上，但也有少部分地址放在另一個子網中的伺服器上（地址資源不能衝突），這樣提供了一定的容
+錯能力。</p>
+
+<p>　　實際的多子網網路中，並不必要每個子網都設置一個伺服器，並使用另外的伺服器備份，一般網路中有2-3個DH
+CP伺服器就夠用了。其他子網可以通過DHCP中轉的方式，給該子網提供DHCP服務。</p>
+
+
+<BR>
+
+</TD>
+</TR></TABLE>
+
+
+
+</BODY>
+</HTML>

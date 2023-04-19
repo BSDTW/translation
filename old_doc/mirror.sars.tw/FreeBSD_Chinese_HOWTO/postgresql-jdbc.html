@@ -1,0 +1,165 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>PostgreSQL + JDBC + Servlet + XMLC 中文完全解決方案</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.7" />
+<link rel="HOME" title="FreeBSD Chinese HOWTO" href="index.html" />
+<link rel="UP" title="中文程式設計" href="devel.html" />
+<link rel="PREVIOUS" title="PostgreSQL 不能處理中文？" href="postgre.html" />
+<link rel="NEXT" title="Java 中文程式設計" href="java.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD Chinese HOWTO</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="postgre.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 14. 中文程式設計</td>
+<td width="10%" align="right" valign="bottom"><a href="java.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="POSTGRESQL-JDBC" name="POSTGRESQL-JDBC">14.10. PostgreSQL + JDBC
++ Servlet + XMLC 中文完全解決方案</a></h1>
+
+<p>作者：smallufo，Email：smallufo@bigfoot.com</p>
+
+<p>自古以來 Servlet 連結 Database 在中文方面總是有許多問題，尤其是在 web
+端，要考慮的因素更多了。有時候，form的文字遇到「許，功」等字，
+要使用者自行輸入“\”這個跳說字元；有時候明明把「許，功」insert
+進資料庫，但是取出來又會變成〈？〉；而中文的許多次常用字，
+例如宏碁的「碁」，等怪怪的字元，更是讓 programmer 頭髮白了一半。而 encoding
+又是個最重要的關鍵，常見的 encoding 有以下幾點：</p>
+
+<pre class="PROGRAMLISTING">
+code  +0 +1 +2 +3 +4 +5 +6 +7 +8 +9 +A +B +C +D +E +F
+F9D0                     碁 銹 裏 墻 恒 粧 嫺 ╔ ╦ ╗
+F9E0  ╠ ╬ ╣ ╚ ╩ ╝ ╒ ╤ ╕ ╞ ╪ ╡ ╘ ╧ ╛ ╓
+F9F0  ╥ ╖ ╟ ╫ ╢ ╙ ╨ ╜ ║ ═ ╭ ╮ ╰ ╯ ▓ 
+</pre>
+
+<ul>
+<li>
+<p>作業系統 Locale 的 encoding</p>
+</li>
+
+<li>
+<p>資料庫端的 encoding</p>
+</li>
+
+<li>
+<p>javac-encoding xxx</p>
+</li>
+
+<li>
+<p>ServletRequest.setContentType("texe/html; charset=xxx)</p>
+</li>
+
+<li>
+<p>web application deployment(web.xml) 所指定的 character-encoding="xxx"</p>
+</li>
+
+<li>
+<p>new String(String.getByte("xxx),"yyy)</p>
+</li>
+
+<li>
+<p>如果使用 xmlc，還有 xmlc 的 encoding 以及
+org.enhydra.xml.io.OutputOptions.setXmlEncoding("xxx")</p>
+</li>
+</ul>
+
+<p>這幾種 encoding 萬馬奔騰，常使 programmer 轉的暈頭轉向， 不知目前身在何處，不知多少
+programmer 在此浪費青春。</p>
+
+<p>中文解決方案以前在網路上有許多做法，但是通常都不太完整， 要不然就得大刀闊斧更動到 JDBC
+driver，或是重新 compile 整個資料庫系統。而為了系統的「完整性」，我並不考慮這些做法。
+我的作法可以完整保留 postgreSQL 的完整性〈以 RPM 安裝，不用重新 compile〉，而且 JDBC
+driver 不用重新 compile。 以下的步驟後半部主要是針對 XMLC 而言，不過一般「純」的 servlet
+程式，應該很容易粹取出來。</p>
+
+<p>以下是我的一些環境：</p>
+
+<p>RedHat Linux 7.0 (CLE 1.0)，其他的中文環境也應該沒問題。 如果您是英文版的，請安裝
+Chinese locale patch 即可。 重點是，當您輸入 'set' 時，可以看到 'LANG=zh_TW'
+這個環境變數。</p>
+
+<p>Servlet Engine：Resin 2.0.2</p>
+
+<p>posrgreSQL-7.1.3-1PGDG.i386.rpm，檔案大小 1164817 bytes，直接以 rpm -Uvh
+安裝即可，不用重新 compile。JDBC driver 也是直接使用 postgresql-jdbc-7.1.3-1PGDG.i386.rpm
+所安裝的 jdbc7.1-1.2.jar 即可。</p>
+
+<p>資料庫請以 Unicode 編碼〈createdb -E Unicode〉，這點最為重要。</p>
+
+<p>Web application Deployment(web.xml) 中的 &lt;web-app&gt; 不要加上
+character-encoding="xxx" 這個 attribute</p>
+
+<p>在 servlet 中，請設定 res.setcontentType("text/html; charset=CP950");</p>
+
+<p>form 的參數，直接以 getParameter("xxx") 讀取， 再 insert
+進資料庫，不用作任何轉碼。</p>
+
+<p>要從資料庫中讀取資料，得利用： new
+String(rs.getString("ColName").getBytes("8859_1"),"CP950")</p>
+
+<p>要輸出整份文件〈implement org.enhydra.xml.xmlc.html.HTMLObject 的文件〉時， 不要用
+out.println(doc.toDocument())，請改用如下的方法：</p>
+
+<pre class="PROGRAMLISTING">
+org.enhydra.xml.io.OutputOptions options = new OutputOptions();
+options.setOmitEncoding(false);
+options.setXmlEncoding("Big5");
+DOMFormatter formatter = new DOMFormatter(options);
+if(iChingVotingsPage.getDelefate() != null) {
+  out.println(formatter.toString(iChingVotingsPage.getDelegate()));
+) else {
+  out.println(formatter.toString(iChingVoringPage));
+}
+</pre>
+
+<p>Servlet 檔案要以 javac -encoding CP950 來編譯。</p>
+
+<p>大功告成，如此解決方案，則可以完全正常處理所有罕見以及特殊字元，
+不論是插入資料庫，從資料庫取出來在網頁上，都沒有問題。</p>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="postgre.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="java.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">PostgreSQL 不能處理中文？</td>
+<td width="34%" align="center" valign="top"><a href="devel.html"
+accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">Java 中文程式設計</td>
+</tr>
+</table>
+</div>
+</body>
+</html>
+

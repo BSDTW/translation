@@ -1,0 +1,227 @@
+
+
+<!-- Vignette StoryServer 4 Sat Mar 11 15:43:24 2000 --> 
+<style type=text/css>
+<!--
+p,div {font-size:12pt; line-height:14pt; font-family:宋體;}
+.p1{font-size:12pt;font-family:宋體;}
+.p2{font-size:12pt;font-family:宋體;line-height:14pt;}
+.p3{font-size:14.8px;font-family:宋體;}
+.p4{font-size:14.8px;font-family:宋體;line-height:14pt;}
+.p5{font-size:1pt}
+a:hover{color:red;}
+a.t1:visited{color:red;}
+-->
+</style>
+<title>FreeBSD使用大全</title></head>
+
+<body bgcolor="#FFFFFF" text="#000000" link="#383098" vlink="#336699" alink="#FF0000" topmargin="0">
+<!-- Vignette StoryServer 4 Thu Mar 23 10:01:54 2000 --> <!-- Vignette StoryServer 4 Thu Mar 23 15:34:35 2000 --> 
+
+<!--開始：新聞內容-->
+<TABLE WIDTH=750 BORDER=0 CELLSPACING=0 CELLPADDING=0>
+
+<tr valign=top>
+
+
+
+<TD  valign=top>
+<CENTER><FONT COLOR=#000066 size=5><B>FreeBSD連載(56)：手工編譯安裝程序</B><br></FONT></CENTER>
+
+<HR  ALIGN="center" SIZE=1>
+<CENTER><FONT FACE="Arial" SIZE=2> 1999年12月28日 11:11 </FONT><FONT COLOR="#990000" SIZE=2>王波</FONT></CENTER><p>
+
+<h1 align=center>手工編譯安裝程序</h1>
+
+<p>　　雖然使用Ports Collection編譯和安裝軟體非常簡便，然而仍有兩個理由來
+使用手工編譯安裝方式。一方面是Ports Collection中並不能涵蓋所有的軟體，有很
+多軟體沒有收入Ports Collection中。有很多原因使得一些很優秀的軟體沒有被收集
+入Ports Collection，例如，版權因素，或者沒有志願者對它移植到FreeBSD進行維
+護。另一方面，即使是通過Port來定制軟體，仍需要了解了手工編譯安裝的過程和各
+種編譯工具的使用，才能正常進行定制工作。</p>
+
+<p>　　通常在FreeBSD下編譯並安裝應用程序並不困難，因為FreeBSD是一種非常標
+準的Unix，為Unix開發的標準C程序很容易就能在它上面編譯運行。</p>
+
+<ul><h2><P><LI>編譯和軟體工具</LI></P></h2></ul>
+
+<P>　　為了編譯和安裝一個應用程序，必須要了解編譯和運行軟體的一般方法。對
+於大型程序和要求高效率的軟體，通常用高級語言C來開發，使用C語言編譯器將C源
+程序編譯成執行程序。由於使用高級語言不依賴於硬體結構，這使得軟體非常容易移
+植。Unix不僅提供了編譯器，而且還提供了眾多的工具來幫助進行編譯和維護，最有
+用的工具為make。</P>
+
+<ul><h2><P><LI>GNU C與編譯連接過程</LI></P></h2></ul>
+
+<P>　　C作為一種編譯型的高級語言，這就是說運行C程序之前要將其先編譯成可執
+行的由機器指令構成的執行程序，因此就需要使用一個編譯器來對C原始碼進行處理
+，FreeBSD使用的是GNU的C編譯器。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>$ cc hello.c
+$ ./a.out
+Hello, world!</td></pre></tr></table>
+
+<P>　　UNIX下預設使用a.out作為生成的檔案名，可以使用-o參數指出生成的執行文
+件名。</P>
+
+<P>　　事實上前面的編譯生成執行檔案的過程由兩步組成，一是生成目標檔案，通
+常使用.o為後綴，然後進行連接生成執行檔案。因此，可以使用ar將多個目標檔案組
+合成一個函數庫檔案，而可以使用nm來查看庫檔案的內容。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>$ cc -c f1.c
+$ cc -c f2.c
+$ ar c mlib.a f1.o f2.o
+$ nm mlib.a</td></pre></tr></table>
+
+<P>　　FreeBSD使用的C語言編譯器gcc是一種非常流行的，多平台、高效率的C語言
+編譯器，它提供了多種選項用於生成應用軟體。以下為常用的一些選項：</P>
+
+<P ALIGN="center"><TABLE CELLSPACING=0 BORDER=0 CELLPADDING=7 WIDTH=476>
+<TR><TD WIDTH="25%" VALIGN="TOP">
+<P>-L</TD>
+<TD WIDTH="75%" VALIGN="TOP">
+<P>定義連接庫檔案的目錄</TD>
+</TR>
+<TR><TD WIDTH="25%" VALIGN="TOP">
+<P>-I </TD>
+<TD WIDTH="75%" VALIGN="TOP">
+<P>定義C源碼的頭檔案的目錄</TD>
+</TR>
+<TR><TD WIDTH="25%" VALIGN="TOP">
+<P>-o</TD>
+<TD WIDTH="75%" VALIGN="TOP">
+<P>後面跟的參數為要生成的執行檔案的名</TD>
+</TR>
+<TR><TD WIDTH="25%" VALIGN="TOP">
+<P>-O</TD>
+<TD WIDTH="75%" VALIGN="TOP">
+<P>進行編譯優化，可以指定使用不同的優化級別，從O2到O6，每個不同的級別使用的優化設置不同。</P>
+<P>相關的選項還有定義生成的指令碼類型的參數，如-m486生成486指令，預設的gcc版本（2.7.2）不支持Pentium代碼。</TD>
+</TR>
+<TR><TD WIDTH="25%" VALIGN="TOP">
+<P>-g </TD>
+<TD WIDTH="75%" VALIGN="TOP">
+<P>加入調試代碼，可以在完成後使用strip命令刪除用於調試的信息</TD>
+</TR>
+<TR><TD WIDTH="25%" VALIGN="TOP">
+<P>-c</TD>
+<TD WIDTH="75%" VALIGN="TOP">
+<P>僅僅進行編譯而不進行連接，生成目標檔案</TD>
+</TR>
+<TR><TD WIDTH="25%" VALIGN="TOP">
+<P>-fPic</TD>
+<TD WIDTH="75%" VALIGN="TOP">
+<P>生成相對地址的代碼，用於最後生成動態連接庫</TD>
+</TR>
+<TR><TD WIDTH="25%" VALIGN="TOP">
+<P>-static</TD>
+<TD WIDTH="75%" VALIGN="TOP">
+<P>強制生成靜態連接的程序</TD>
+</TR>
+<TR><TD WIDTH="25%" VALIGN="TOP">
+<P>-aout</TD>
+<TD WIDTH="75%" VALIGN="TOP">
+<P>生成a.out格式的執行檔案、目標代碼等，預設使用ELF格式</TD>
+</TR>
+<TR><TD WIDTH="25%" VALIGN="TOP">
+<P>-elf</TD>
+<TD WIDTH="75%" VALIGN="TOP">
+<P>3.0之後為預設設置，生成ELF格式的目標和執行代碼</TD>
+</TR>
+</TABLE>
+</P>
+
+<P>　　可以通過命令行參數查看目前使用的GNU C編譯器的版本：</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>$ cc □version
+Gcc version 2.7.2.1</td></pre></tr></table>
+
+<P>　　FreeBSD目前使用GNU的C編譯器gcc的版本為gcc 2.7.2.1，這不是
+gcc編譯器的最新版本，但穩定性非常好。雖然目前新版本的gcc 2.8已經
+很穩定了，但是由於編譯器在系統中的重要性，編譯器出現問題會造成系
+統的穩定問題，因此FreeBSD還沒有轉向gcc 2.8。另一個沒有完全使用
+gcc 2.8的重要原因是生成的執行檔案格式問題，gcc 2.8不再支持生成a.out
+執行格式的二進制程序。但完全轉向gcc 2.8版本是必然趨勢，在目前正在
+開發的FreeBSD 4.0-current中，已經使用了gcc 2.8作為標準配置。</P>
+
+<P>　　在3.1系統中，如果想使用gcc 2.8，就需要安裝Packages Collection
+中提供的gcc-2.8軟體包（或者使用Ports Collection對原始碼進行編譯）。
+事實上還有另外兩個更強大的根據gcc進一步開發的編譯器，pgcc支持Pentium
+代碼（標準的gcc只支持生成486代碼），egcc除了支持Pentium代碼之外，還
+提供了更大的優化能力。這些版本是商業公司依據gcc進行的開發，但根據GPL
+許可，任意使用者都可以根據需要選擇使用，使用這些編譯器版本能進一步發
+揮系統的能力。</P>
+
+<ul><h2><P><LI>make</LI></P></h2></ul>
+
+<P>　　通常應用程序都比較複雜，那麼其源程序就不僅包括一個檔案，而是
+由多個檔案構成，這樣應用程序的編譯和連接過程就相對複雜得多。最簡單
+的情況下可以使用shell程序來自動完成這個任務，然而由於並不是每次都更
+改了所有的檔案，每次都完全重新編譯所有的代碼，不但浪費了處理器資源，
+也使得每次作一次小改變就得編譯所有得檔案，效率低下。最好是能夠按照需
+要，編譯改動過的代碼檔案，而對沒有更新過的檔案就不必重新編譯，這樣就
+節約了系統的處理能力。</P>
+
+<P>　　如果要使用shell腳本來處理這些依賴關系來，則要求根據檔案的更新
+時間進行維護，需要的shell腳本就比較複雜。Unix提供了一個程序──make，
+來幫助按照代碼之間的時間依賴關系來進行維護工作。</P>
+
+<P>　　make與其他解釋語言不同，不是直接告訴make需要執行的命令，而是給
+定一些依賴規則，即在什麼條件下應該執行什麼處理，那麼make就自動分析檔案
+的更新時間，完成剩下的工作。規定make規則的檔案一般命名為Makefile，這
+是一個make指令的集合，這個檔案中包括目標定義、執行命令、宏定義和make
+偽指令。下面為一個簡單的Makefile：</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>CC = /usr/local/bin/egcc
+hello:	hello.c
+		$(CC) -o hello hello.c
+clean: 
+		echo delete files!
+		rm hello</td></pre></tr></table>
+
+<P>　　這個例子中首先定義了一個宏CC，然後定義一個執行目標hello，這個
+目標依賴於hello.c檔案，一旦hello.c更新，就需要執行下面的編譯指令。注意
+，位於定義目標之後的執行命令應該使用一個 “Tab” 制表符引導，而不是其他空
+白字符。執行命令中首先將宏替換為它的值，再執行egcc命令編譯程序。</P>
+
+<P>　　一個Makefile檔案中可以定義多個目標，如上面例子中的hello和clean，
+如果不使用任何命令行參數來啟動make，那麼預設使用第一個目標。為了應用其
+他的make目標，則必須使用make的命令行參數。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>$ make clean
+delete files!</td></pre></tr></table>
+
+<P>　　make使用的預設檔案名為目前目錄下的makefile或Makefile，如果使用
+其他檔案，必須使用命令行參數-f指定檔案名。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>$ make -f newmakefile</td></pre></tr></table>
+
+<P>　　GNU的make命令首先查看的檔案名為GNUmakefile。</P>
+
+<P>　　使用了make，對大型的應用軟體進行維護就會容易一些。然而不同的系
+統有一些與系統相關的定義，這些定義需要在Makefile中依據不同的系統重新設
+置，例如X Window的目錄等，這樣要完成可以適合多個不同系統的Makefile檔案
+，仍然具有困難。有一些工具能幫助進行這些系統相關的設置，並生成Makefile
+檔案，例如X Window系統使用xmkmf命令和imake模板檔案來產生本地的Makefile
+檔案，這樣就能正確偵知本地系統中有關X Window的正確設置，但軟體開發者首
+先要完成Imakefile檔案，以使用xmkmf。而GNU的軟體使用autoconf工具，它使
+用configure命令用來偵測很多系統相關的設置，如編譯器、頭檔案、庫函數等
+等，然後使用預設置的Makefile.in模板檔案來產生相應的Makefile。有了這些
+工具，進行編譯各種多平台的應用程序都不再是困難的了。</P>
+
+
+<BR>
+
+</TD>
+</TR></TABLE>
+
+
+
+</BODY>
+</HTML>

@@ -1,0 +1,603 @@
+
+
+<!-- Vignette StoryServer 4 Sat Mar 11 15:43:24 2000 --> 
+<style type=text/css>
+<!--
+p,div {font-size:12pt; line-height:14pt; font-family:宋體;}
+.p1{font-size:12pt;font-family:宋體;}
+.p2{font-size:12pt;font-family:宋體;line-height:14pt;}
+.p3{font-size:14.8px;font-family:宋體;}
+.p4{font-size:14.8px;font-family:宋體;line-height:14pt;}
+.p5{font-size:1pt}
+a:hover{color:red;}
+a.t1:visited{color:red;}
+-->
+</style>
+<title>FreeBSD使用大全</title></head>
+
+<body bgcolor="#FFFFFF" text="#000000" link="#383098" vlink="#336699" alink="#FF0000" topmargin="0">
+<!-- Vignette StoryServer 4 Thu Mar 23 10:01:54 2000 --> <!-- Vignette StoryServer 4 Thu Mar 23 15:34:35 2000 --> 
+
+<!--開始：新聞內容-->
+<TABLE WIDTH=750 BORDER=0 CELLSPACING=0 CELLPADDING=0>
+
+<tr valign=top>
+
+
+
+<TD  valign=top>
+<CENTER><FONT COLOR=#000066 size=5><B>FreeBSD連載(36)：PPP協議</B><br></FONT></CENTER>
+
+<HR  ALIGN="center" SIZE=1>
+<CENTER><FONT FACE="Arial" SIZE=2> 1999年12月8日 13:09 </FONT><FONT COLOR="#990000" SIZE=2>王波</FONT></CENTER><p>
+
+<h1 align=center>PPP協議</h1>
+
+<p>　　通過電話連接使用IP協議有兩種協議，一種為SLIP協議，另一種為PPP協議，FreeBSD支持這兩種協
+議，但是SLIP協議已經過時，目前已經很少有ISP使用這種方式提供接入服務了，而PPP協議則成為了標準。</p>
+
+<p>　　建立一個PPP連接需要以下過程：</p>
+
+<ul>
+<P><LI>在PPP的兩端建立一條物理連接，通常為電話連接，但也有直接電纜連接或虛擬的tunnel連
+接的形式。具體如何建立連接，例如撥號等，並不屬於PPP協議本身的任務。</LI></P>
+
+<P><LI>由PPP的伺服器端對客戶端進行驗証，可以有最簡單登錄的驗証方式、PAP或CHAP等驗証方式
+。由於PAP和CHAP並不在線路上傳輸密碼本身，因此更為安全，不必擔心密碼會泄露出去。</LI></P>
+
+<P><LI>驗証完畢之後，PPP伺服器將按照配置，分配給客戶IP地址，並將網關地址和其他的一些配
+置信息傳送給客戶。如果是Microsoft客戶，還可以按照MS的擴展協議分配給客戶NetBIOS名字服務
+器的地址。這樣就建立了一條PPP連接。</LI></P>
+</ul>
+
+<p>　　FreeBSD對PPP提供了兩種不同方式的支持，一種為核心級PPP，它將PPP協議代碼編譯進核心，並運
+行一個PPP守護進程pppd，提供對PPP的支持，這是一種傳統的方法，但配置起來較困難。另一種為用戶級PPP，
+它使用一個應用程序ppp，通過通用tunnel設備傳遞PPP數據，配置較為容易。一般情況下可以使用用戶級PPP
+來建立撥號方式的Internet連接。</p>
+
+<p>　　要建立PPP連接，首先要檢查串口、modem和電話線連接是否正確。可以使用一些通信軟體來幫助進行診斷，
+例如minicom，如果使用minicom能正常撥號，並在撥ISP的撥號伺服器時能出現username和password
+提示，就說明串口和modem的配置正確無誤。接下來就可以配置PPP連接。</p>
+
+<ul><h2><P><LI>用戶級PPP設置</LI></P></h2></ul>
+
+<p>　　用戶級PPP使用tunnel設備進行PPP數據的傳遞，因此核心中必須支持相應的tunnel設備，通常為
+tun0。預設核心中支持這個偽設備（pesudo-device tun），/dev目錄下也具備相應的設備檔案t
+un0。如果同時需要多個撥號連接，就可以增加核心中支持的偽設備數量和相應的設備檔案。</p>
+
+<p>　　要使用ppp，還需要設置它的配置檔案，這些檔案位於/etc/ppp目錄中。預設情況下，/etc/ppp
+目錄下安裝了這些檔案的例子：</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre><font size=2># ls -l /etc/ppp
+<br>  total 21
+<br>  drwxr-xr-x   2 root     wheel         512 Aug 17 16:18 .
+<br>  drwxr-xr-x   8 root     wheel        1536 Aug 29 18:31 ..
+<br>  -rw-r--r--   1 root     wheel        5112 May 20 20:06 ppp.conf.sample
+<br>  -rw-r--r--   1 root     wheel        1130 May 20 20:06 ppp.conf.server.sample
+<br>  -rw-r--r--   1 root     wheel        1894 May 20 20:06 ppp.deny
+<br>  -rw-r--r--   1 root     wheel        1665 May 20 20:06 ppp.dialup.sample
+<br>  -rw-r--r--   1 root     wheel        1402 May 20 20:06 ppp.linkdown.sample
+<br>  -rw-r--r--   1 root     wheel        1422 May 20 20:06 ppp.linkup.sample
+<br>  -rw-r--r--   1 root     wheel        1705 May 20 20:06 ppp.pap.dialup.sample
+<br>  -rw-r--r--   1 root     wheel         313 May 20 20:06 ppp.secret.sample</font></td></pre></tr></table>
+
+<P>　　這些以sample結尾的檔案都給出了最常用的配置，因此只需復制生成正確的設置檔案，再稍加修改，
+就能用於使用者自己的撥號連接。</P>
+
+<ul><h2><P><LI>手工撥號</LI></P></h2></ul>
+
+<P>　　ppp.conf是用戶級PPP的主要配置檔案，可以從ppp.conf.sample生成適合自己的ppp.conf。ppp.conf
+檔案使用帶有冒號的標籤標識不同的選項，第一項標籤通常為default：，用於設置預設的選項。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre><font size=2>default:
+<br> set log Phase Chat Connect Carrier LCP IPCP CCP tun command
+<br> set device /dev/cuaa2
+<br> set speed 115200
+<br> deny lqr
+<br> set dial "ABORT BUSY ABORT NO\\sCARRIER TIMEOUT 5 \"\"
+ AT OK-AT-OK ATE1Q0 OK \\dATDT\\T TIMEOUT 40 CONNECT"</font></td></pre></tr></table>
+
+<p>　　注意default:為這一項的標籤，必須位於一行的開始，而其他的行是這一項的具體配置，因此使用一個空白
+字符開頭。否則語法錯誤就造成不能ppp不能正常建立連接的問題。</p>
+
+<p>　　第一個設置set log用於設置連接過程中要記錄的日誌內容，這有助於幫助解決連接過程中出現的故障﹔第二
+項設置set device設置連接使用的串口設備，本檔案中設為第三個串口cuaa2﹔第三項設置了串口與mode
+m的連接速度，115200為PC常用的串口通信芯片UART 16550的最大通信速率﹔第四項在該medom上屏
+蔽線路質量請求lpr﹔最後一項為發送到medom的一些命令和相應的回應，通常稱這些為交談腳本（chat script
+），上例中這個設備跨越了兩行，實際上它應該位於同一行內。</p>
+
+<p>　　設置了default項之後，就可以進入ppp程序測試這些設置是否正確了。</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># ppp
+<br>ppp &gt; term
+<br>atdt 163
+<br>username: pppuser
+<br>password: 
+<br>PPP &gt;</td></pre></tr></table>
+
+<p>　　進入ppp程序之後，輸入term命令可以進入終端模式，這個模式下用戶可以直接輸入modem認可的AT指
+令控制modem，本例中使用atdt 163撥接163，連接之後系統將進行提示輸入用戶名和密碼，此後ppp就建
+立起PPP連接，而ppp的提示符改變為大寫的PPP。</p>
+
+<ul><h2><P><LI>設置撥號連接</LI></P></h2></ul>
+
+<P>　　使用手工輸入的連接方法不很方便，而且也不適合使用PAP或CHAP等安全認証方式的連接，因此
+最好在ppp.conf對指定的連接進行配置。這要求對每個要連接的ISP，都配置相應的設置。例如對CHINANET
+的接入，使用下列chinanet標籤配置：</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>chinanet:
+<br> set phone 163
+<br> set login "TIMEOUT 5 ogin:--sername: pppuser word: key123"
+<br> set timeout 120
+<br> set ifaddr 10.0.0.1/0 10.0.0.2/0 255.255.255.0 0.0.0.0
+<br> delete ALL
+<br> add 0 0 HISADDR</td></pre></tr></table>
+
+<p>　　這個例子中使用chinanet作為設置的標籤，設置了電話號碼為163，登錄時使用sername匹配對用
+戶名的提示Username，接收到這個字符串後自動輸入用戶名pppuser，使用word匹配對密碼的提示Pas
+sword，然後自動輸入密碼。這裡只使用了提示信息的一部分來進行匹配，這是為了避免匹配時出現問題。對於不同的系
+統，這些提示還有所不同，對於使用Unix作登錄伺服器的提示為通常的Login，而大多數專用撥號伺服器的提示為U
+sername。</p>
+
+<p>　　set ifaddr用於設置本地PPP連接的IP地址，由於PPP協議在客戶和伺服器之間協商客戶的IP地
+址，通常由撥號伺服器從自己控制的自由IP地址池中分配給撥號的電腦一個動態IP地址，因此這裡的設置只是客戶端對
+地址協商進行的限制。可以針對本地要申請的IP地址，和遠端電腦的IP地址進行限制，本地的IP地址和網路掩碼為s
+et ifaddr的第一個參數，而遠端的IP地址和網路掩碼為set ifaddr的第二個參數，前兩個參數的網路
+掩碼是用於限制IP地址所在的網路，可以是真實網路的網路掩碼，也可以不是，第三個參數才是用來指定PPP界面使用的
+網路掩碼。</p>
+
+<p>　　一般情況下，不需要對雙方的IP地址範圍進行限制，撥號之後可以接受任意的IP地址，就如上例中設置本地IP
+地址和遠端IP地址的限制網路掩碼長度都為0，由於網路掩碼長度為0使得任意IP地址都符合要求，此時掩碼前面的IP
+地址就沒有意義了。</p>
+
+<p>　　如果想讓撥號的電腦擁有一個靜態IP地址，就必須設置網路掩碼為32，明確指定IP地址，此時也可以省略掩
+碼，直接使用IP地址本身。例如，本地每次連接都使用靜態IP地址192.168.1.98，另一端的IP地址為19
+2.168.1.64，那麼這一項就應為：</p>
+
+<p>　　set ifaddr 192.168.1.98 192.168.1.64 255.255.255.0</p>
+
+<p>　　使用靜態IP地址就能使FreeBSD使用固定的IP地址，從而能使用DNS域名，以方便提供更多的服務。然
+而，這個set ifaddr的配置命令可以更靈活，可以在協商IP地址時指定本機使用的IP地址範圍，或者指定對方
+所在的IP地址範圍，進行地址限制。例如：</p>
+
+<p>　　set ifaddr 192.168.1.98/24 192.168.1.64/24 255.255.
+255.0</p>
+
+<p>　　這種限制撥號網路IP地址範圍的機制對於使用自動撥號的情況十分有用，通常可以使用帶參數的命令ppp -a
+uto將ppp程序放入後台，一旦有網路請求就立即撥號建立連接。但是FreeBSD上有多個網路界面，就需要判斷這
+個網路請求需要使用哪個撥號網路界面進行網路傳輸，否則如果使用錯誤的撥號網路進行撥號，即使建立了連接，也不能找到
+目的電腦建立連接。由於每個連接請求中都具備目的IP地址，便需要根據這個IP地址來進行判斷。然而普通的撥號網路
+在建立連接之前是沒有分配IP地址的，因此還是無法確定對這個IP地址的連接請求應該通過那個撥號網路界面進行傳輸。
+但是，如果指定了ppp網路界面的IP地址範圍，就可以根據這個地址範圍來判斷連接請求中的IP地址是否在這個範圍內
+，以決定是否使用這個網路界面進行撥號。</p>
+
+<p>　　delete all指出刪除不必要的路由配置，add 0 0 HISADDR指出將預設路由設為對方的地
+址，由於使用動態IP時，在建立連接前對方的IP是未知的，因此使用HISADDR代替。如果已知撥號伺服器的IP地
+址，也可以直接填上這個IP地址。也可以不將撥號伺服器作為預設路由，而只將它作為對某個子網的路由，那麼在這個配置
+中就不可以使用0作為IP地址和網路掩碼，必須使用正確的IP地址和子網掩碼進行設置。例如add 192.168.
+1.0 255.255.255.0 HISADDR，就將對方作為通向192.168.1子網的路由器。事實上這些
+設置路由的指令等價於執行對應的route指令，以設置路由，如route add 192.168.1.0 HIS
+ADDR -netmask 255.255.255.0。</p>
+
+<p>　　然而對於動態分配IP的情況，問題在於在ppp進行撥號的時候，對方的IP地址HISADDR還沒有確定，因
+此這些設置路由的指令往往不能正確執行。必須在撥號完成，建立了PPP連接之後，HISADDR才能確定，因此設置路
+由的命令應該放在更合適的位置：ppp連接建立之後立即執行的檔案ppp.linkup中。
+</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>MYADDR:
+<br> delete 0
+<br> add 0 0 HISADDR
+<br>192.168.1.98:
+<br> add 192.168.1.0 0 HISADDR
+<br>chinanet:
+<br> delete ALL
+<br> add 0 0 HISADDR
+<br> !bg /etc/ppp/ppp.fetchemail</td></pre></tr></table>
+
+<p>　　ppp.linkup檔案格式與ppp.conf檔案相同，它在PPP連接建立後執行，執行與撥號使用的標籤
+相同的項，以及客戶獲得的地址為標籤的項。通常使用MYADDR表示本機得到的IP地址，因此這個標籤下的內容都將執
+行﹔而192.168.1.98項表示獲得這個地址時增加下面的路由，最後一項以chinanet為標籤，與ppp.
+conf相同，表示進行這個chinanet撥號後執行的相關動作，其中包括在後台執行的取郵件的腳本ppp.fet
+chmail。</p>
+
+<p>　　如果撥號伺服器要求使用PAP或CHAP認証，而不是普通的登錄認証方式，則要在ppp.conf中的使用不
+同的配置選項：</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>chinanet:
+<br> set phone 163
+<br> set login
+<br> set authname pppuser
+<br> set authkey key123
+<br> set timeout 120
+<br> set ifaddr 10.0.0.1/0 10.0.0.2/0 255.255.255.0 0.0.0.0
+<br> delete ALL
+<br> add 0 0 HISADDR</td></pre></tr></table>
+
+<P>　　使用authname和authkey來定義PAP或CHAP認証方式下的用戶名和密碼，就能連接到使用PAP或CHAP
+的撥號伺服器，而具體使用哪種認証方式則由撥號伺服器決定。</P>
+
+<ul><h2><P><LI>進行撥號連接</LI></P></h2></ul>
+
+<P>　　設置了針對具體撥號連接的配置之後，撥號就非常方便了，直接使用該撥號服務的標籤進行操作。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># ppp
+<br>ppp &gt; dial chinanet
+<br>PPP &gt;</td></pre></tr></table>
+
+<p>　　使用ppp的dial命令發起連接之後，ppp連接被建立，提示符也由原來的小寫ppp&gt;變為大寫PPP&gt;，
+這就表示PPP連接已經正確設立了。這個時候如果使用ifconfig進行查看，就可以看到網路界面tun0
+已經設置正確，並可以使用了。</p>
+
+<p>　　當要結束連接時，使用close或quit命令關閉連接。結束連接時將執行/etc/ppp目錄下的ppp.linkdown
+腳本。ppp.linkdown腳本和ppp.linkup格式相同，都會依據相同的標籤執行操作。</p>
+
+<p>　　如果使用者租用了一條模擬專線，專門用於Internet連接。這樣就不希望每次傳輸時都重新進行連接，而希
+望建立一條永久連接，ppp在後台自動撥號連接到Internet上，並一直維護這個連接。這樣就可以使用-ddial
+參數啟動ppp。</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># ppp -ddial chinanet</td></pre></tr></table>
+
+<P>　　-ddial參數使得ppp立即使用相應參數對應標籤設置的撥號連接建立永久連接，而不管有沒有實際的
+數據傳輸。而絕大多數情況下，使用者並沒有租用專線，還是希望在有數據傳輸時才建立網路連接，在沒有
+數據傳輸時斷開網路連接，以減少電話連接時間。這樣就可以使用-auto參數啟動ppp。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># ppp -auto chinanet</td></pre></tr></table>
+
+<P>　　這樣啟動的ppp將一直停留在後台，但並不立即進行連接，而是在應用程序發出網路請求時才進行撥
+號，這個網路請求的目的地址應該在chinanet標籤定義的網路地址範圍內。而如果一段時間內沒有任何數據
+傳輸，就斷開連接（這個時間由set timeout命令設置，單位為秒）。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># ppp -backgroud chinanet</td></pre></tr></table>
+
+<P>　　-background選項使PPP立即進行撥號，並停留在後台。但與-auto不同在於，在一段沒有數據傳輸的
+時間間隔後ppp將斷開連接，但是ppp程序也停止執行，而不象auto參數那樣，ppp一直駐留在後台監視網路
+連接，要再次建立連接必須重新執行ppp程序。這個選項適合最普通的網路客戶，使用戶能明確什麼時候才
+建立連接。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># ppp -alias -ddial chinanet</td></pre></tr></table>
+
+<P>　　ppp程序的另一個有用的選項是alias。如果撥號用戶內部有自己的局域網，用戶或許希望讓整
+個網路內的電腦共享一個撥號連接。使用ppp的alias選項能使FreeBSD將局域網上的網路連接請求中的
+本地IP地址替換為FreeBSD系統的ppp網路使用的IP地址，從而使其他用戶也能訪問外部網路。-alias參數
+應該和auto或ddial參數聯合使用，以駐留在後台提供服務。這種方式比較簡潔、易用，當然代理伺服器
+和網路地址轉換的方法能提供更多的控制能力。</P>
+
+<P>　　當使用這些參數執行ppp程序時，ppp程序將切換在後台維護PPP連接。然而由於ppp程序在後台運行，就
+無法輸入指令以控制ppp程序的執行。為了方便使用者控制後台運行的ppp程序，ppp提供了通過socket連接
+的方式來接受外部輸入。為了支持這個特性，便需要設置set server選項。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>    set server 6670 MySecretpassword</td></pre></tr></table>
+
+<P>　　這個選項將使ppp程序監聽6670端口，並使用MySecretpassword作為連接時認証的密碼，以免ppp程序
+被非法控制。此後，就可以使用pppctl向ppp程序發送指令，這些指令都是ppp的標準指令。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># pppctl -p MySecretpassword 6670 set timeout 300\; dial</td></pre></tr></table>
+
+<P>　　除了使用標準的Intenet套接字接收pppctl的連接之外，ppp還能通過本地Unix套接字來接收輸入。這
+就需要設置一個套接字使用的檔案及其訪問屬性，具備更好的安全性。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>    set server /tmp/ppp MySecretPassword 0177</td></pre></tr></table>
+
+<P>　　而在pppctl中應該使用對應的參數以指明相應的Unix套接字：</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># pppctl -p MySecretpassword /tmp/ppp set timeout 300\; dial</td></pre></tr></table>
+
+<ul><h2><P><LI>核心級PPP及撥號程序</LI></P></h2></ul>
+
+<P>　　PPP協議只是定義了兩台電腦之間如何進行通信的方式，並沒有定義如何進行撥號建立連
+接。用戶級PPP由於以應用程序的方式來實現了PPP協議，因此它可以集成撥號程序，使用起來很方
+便。但核心級PPP並非如此，它使用一個守護進程pppd來實現ppp協議，因而必須首先使用外部撥號
+程序建立連接。核心級PPP比較難以使用，因此FreeBSD使用者通常使用用戶級ppp。</P>
+
+<P>　　但是pppd是實現PPP協議的最早方式，其他繼承BSD Unix網路代碼的Unix系統中也使用這種
+PPP實現方式，這樣pppd使用的廣泛性就不僅局限於FreeBSD。很多使用者對核心級PPP進行封裝，
+實現了多種圖形化的連接工具，假如想使用這些圖形化撥號連接工具的話，就需要對pppd有一定了
+解。因此這裡只對pppd的撥號方式加以簡單介紹，事實上使用ppp程序建立連接更為常用和方便。</P>
+
+<P>　　用來配合pppd的撥號程序有很多，最常使用的是chat，此外如kermit、tip也可以用於和
+pppd進行配合。由於撥號程序要和pppd相互配合，因此需要將要發送給撥號程序的命令放入一個
+檔案中，而在啟動撥號程序時使用相關參數告訴它到該檔案中讀取命令。</P>
+
+<P>　　對於chat撥號程序，通常將它的撥號程序命名為chat.script，放在/etc/ppp目錄下。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>ABORT BUSY
+ABORT 'NO CARRIER'
+# Wait up to 5 seconds for the reply to each of these
+TIMEOUT 5
+'' ATZ
+OK ATDT163
+# Wait 40 seconds for connection
+TIMEOUT 40
+CONNECT
+TIMEOUT 5
+serrname:-\\r-sername: pppuser
+assword: 123456</td></pre></tr></table>
+
+<P>　　使用chat -f /etc/ppp/chat.script可以啟動chat進行撥號，chat程序等待PPP伺服器發送
+Username:提示，發送用戶名，等待PPP伺服器發送Password:提示，發送用戶密碼。然而，chat程序
+只能負責撥號，至於撥號完成之後的任務，就必須由pppd來負責了。</P>
+
+<P>　　pppd使用網路界面ppp0，當然可以在核心配置中增添配置值並重新編譯核心，就可以根據需
+要增加可使用的ppp界面的數量。例如將可以使用的ppp界面改變為3個，則核心配置檔案應包括 “
+pseudo-device   ppp     3” ，這樣在重新編譯核心，建立相應的設備檔案並重新啟動後，就可
+以使用ifconfig命令來查看可以利用的網路界面：</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># ifconfig -a
+<br>ppp0: flags=8010&lt;POINTOPOINT,MULTICAST&gt; mtu 1500
+<br>ppp1: flags=8010&lt;POINTOPOINT,MULTICAST&gt; mtu 1500
+<br>ppp2: flags=8010&lt;POINTOPOINT,MULTICAST&gt; mtu 1500
+<br>lo0: flags=8008&lt;LOOPBACK,MULTICAST&gt; mtu 16384
+<br>        inet 127.0.0.1 netmask 0xff000000</td></pre></tr></table>
+
+<P>　　核心還可以配置ppp界面在傳輸時對ppp數據進行壓縮，事實上用戶級ppp和核心級ppp都支持
+傳輸壓縮，但核心級ppp多支持兩種方式，一種是ppp的BSD壓縮標準，另一種為delalte壓縮標準。一
+般都可以在核心配置中加上這兩個選項，使ppp連接中可以使用這些選項，以提供更高的傳輸效率。
+那麼核心配置檔案中的ppp相應配置應包括：</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>pseudo-device   ppp     3
+<br>options PPP_BSDCOMP
+<br>options PPP_DEFLATE</td></pre></tr></table>
+
+<P>　　核心級ppp使用的配置檔案也放在/etc/ppp目錄下，檔案名為options，此外各個用戶可以使
+用自己的配置檔案~/.ppprc。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># cat /etc/ppp/options
+<br>defaultroute
+<br>domain example.com.cn
+<br>crtscts 
+<br>modem 
+<br>deflate 12,12
+<br>idle 300
+<br>lock </td></pre></tr></table>
+
+<P>　　defaultroute項將在ppp連接設定之後，將預設網關設置為PPP伺服器上﹔domain設置本機的
+域名﹔crtscts告訴ppp使用modem的硬體流量控制，如果硬體不支持這種方式，就只好使用另一種軟
+件流量控制方式為xonxoff﹔modem行使ppp使用DCD信號來判斷連接是否正常，有無掉線現象﹔deflate
+使pppd使用defalte壓縮方式﹔idle設置了一個時間限制，當在300秒的時間內沒有數據傳送，就斷
+開連接﹔lock則創建一個鎖定檔案，其他程序在發現存在這個檔案後，就能得知相應的串口已經被使用。</P>
+
+<P>　　配置好配置檔案之後，就可以使用pppd進行連接了：</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre><font size=2># pppd /dev/cuaa1 57600 connect 'chat -f /etc/ppp/chat.script' user pppuser</font></td></pre></tr></table>
+
+<P>　　預設情況下，使用pppd命令立即進行撥號連接，在超過idle參數設定的時間內沒有數據傳送的條
+件下斷開連接並退出。然而在options檔案中可以使用persist參數告訴pppd建立一條永久連接，或者使
+用demond參數告訴pppd停留在後台，監視網路數據，一旦有要求就立即進行連網，超時後就斷開連接，
+但pppd仍然停留在後台等待下次數據傳送。這兩種形式分別等價於ppp程序的ddial和auto模式。</P>
+
+<ul><h2><P><LI>撥號訪問FreeBSD</LI></P></h2></ul>
+
+<P>　　FreeBSD不但能夠能通過PPP協議和遠程撥號伺服器相連接，也能夠提供撥號服務，讓其他計算
+機能夠撥入本機。事實上PPP協議本身，並不沒有區分客戶機和伺服器，PPP伺服器只需要比客戶機多完
+成一些額外的工作，如用戶認証、分配IP等。然而PPP必須建立在已經設定好的連接上，而為了設定連
+接，撥號伺服器和客戶端的設置就有不同的地方。首先在硬體上，伺服器上的modem必須能接受連接，
+建立物理連接，然後伺服器和客戶軟體要進行額外的驗証過程，最後雙方才啟動ppp，設定ppp連接。</P>
+
+<ul><h2><P><LI>接受撥號終端訪問</LI></P></h2></ul>
+
+<P>　　早期的Unix使用字符終端訪問主機，將字符終端通過串口連接到電腦上之後，就能通過這些
+終端登錄進Unix系統了。但是FreeBSD下預設屏蔽了串口的終端登錄過程，要完成這個任務，管理員還
+必須更改/etc/ttys檔案，為串口指定一個getty進程，以監視串口，一旦發現有連接請求，便立即啟動
+登錄進程login接受用戶的登錄。</P>
+
+<P>　　在/etc/ttys中有下面的行是與串行端口相關的，對應於個人電腦的四個串口，使用getty進程
+進行監控，但預設狀態為off，並沒有打開這個功能。如果要使用某個串口進行終端連接，就需要改變相
+應行的設置為on，同時還可以改變第三列中的終端類型設置及最後一列的安全設置。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre><font size=2>ttyd0     "/usr/libexec/getty std.9600" unknown   off secure
+<br>ttyd1     "/usr/libexec/getty std.9600" unknown   off secure
+<br>ttyd2     "/usr/libexec/getty std.9600" unknown   off secure
+<br>ttyd3     "/usr/libexec/getty std.9600" unknown   off secure</font></td></pre></tr></table>
+
+<p>　　getty的第一個參數std.9600指明了串口的各項參數，這個參數在/etc/gettytab中定義
+，定義了如波特率、校驗方式、數據位、停止位以及流控方式等。預設使用9600，指明了連接速率為9600bps，現
+代串口連接通常使用的連接速率要比這個設置高，因此要根據自己的串口和modem的型號，選擇gettytab中的更
+高速率，如std.19200或std.57600。</p>
+
+<p>　　更改系統之後，可以使用kill -1 1使FreeBSD重新讀取ttys檔案，或者重起電腦，才可以使
+用終端連接。這時在連接在串口上的終端鍵碟上按下幾次回車鍵後，字符終端將連接到電腦上，會出現登錄提示。如果沒有
+出現提示，就說明終端設置和使用的gettytab檔案中的設置項不匹配，可以更改終端設置或gettytab檔案中
+的設置，使兩者使用的校驗、停止位、流控等設置選項保持一致。</p>
+
+<p>　　如果沒有專用的字符終端設備，可以使用終端仿真軟體，如Windows下的超級終端，Unix下的minicom
+等，都能通過串口登錄到FreeBSD下。</p>
+
+<p>　　可以看到，使用串口連接，那麼再加上modem和電話，就能夠使得遠程電腦能連接到這個FreeBSD系統
+上了。對於提供登錄服務的電腦來講，並不會注意一個連接是從串口直接相連的，還是通過modem建立的。然而這就要
+設置伺服器的modem，必須設置為能進行應答，以接通客戶電腦打入的電話來設定連接。因此必須首先初始化modem
+，需要使用AT命令AT&amp;C1&amp;D2&amp;S0=1&amp;R2&amp;W。可以通過mi
+nicom或ppp的term模式，直接輸入這個AT指令設置modem。</p>
+
+<p>　　當雙方都配置好串口，連接設置好modem，並且連接上電話線之後，兩台遠程電腦相連接的準備工作就完成了
+。這時可以使用通信軟體，例如minicom或kermit，從一台電腦遠程登錄到另一台電腦上，除了需要撥號，
+與本地連接沒有什麼兩樣。</p>
+
+<ul><h2><P><LI>設定PPP伺服器</LI></P></h2></ul>
+
+<P>　　如果遠程電腦能正常登錄進入FreeBSD，那麼說明撥號連接沒有問題，那麼下一步就是分別配置PPP客
+戶端和伺服器端。事實上對於PPP來講，建立連接之後，客戶端和伺服器端就沒有區別了，區別在於建立連接的
+過程中，伺服器要驗証用戶的登錄並為其分配IP地址等。</P>
+
+<P>　　使用用戶級PPP和核心級PPP均可實現PPP伺服器，由於用戶級PPP配置起來更為容易，因此更為常用。同樣，這
+也需要更改配置檔案/etc/ppp/ppp.conf。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>dailserver:
+<br> allow users
+<br> enable proxy
+<br> set ifaddr 192.168.1.64 192.168.1.123</td></pre></tr></table>
+
+<P>　　以上是一個ppp程序做撥入伺服器的設置例子，這個例子中允許普通可以啟動這個ppp程序，並打開了代
+理ARP功能，使其他電腦能通過這個電腦同客戶正常通信，為連接上的客戶電腦分配IP地址。</P>
+
+<P>　　當ppp客戶電腦連接到ppp伺服器上之後，通過ppp伺服器的路由能力，ppp客戶就能和外部電腦通信了。
+並且兩個ppp客戶機之間的通信也必須經過ppp伺服器轉發。由於在每個ppp客戶看來，其他的ppp客戶是與它自己位於
+同一個網段內，因而它就廣播ARP請求詢問對方的MAC地址，以便進行直接通信。而在事實上，ppp客戶之間並沒有物理
+連接，它們之間無法直接通信，因而廣播的ARP請求也不可能傳送給目的電腦。此時，具備代理ARP能力的ppp伺服器
+就能代替某個客戶，回應發送ARP請求的客戶。此後這個客戶就以為ppp客戶的物理地址就為ppp伺服器的物理地址，所
+有的數據包都先轉發給ppp伺服器，然後它再轉發到另一個ppp客戶機中。這個代理內部的電腦回應ARP請求的功能就
+被稱為Proxy ARP，它能夠對外隱藏內部的網路結構，如內部子網或ppp連接。</P>
+
+<P>　　同時配置PPP用戶的登錄腳本為立即啟動使用伺服器標籤的ppp程序，因此一個簡單PPP用戶登錄腳本應為：</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>#! /bin/sh
+<br>exec /usr/sbin/ppp -direct dialserver</td></pre></tr></table>
+
+<P>　　direct參數就用於在標準Unix認証之後，立即啟動ppp進程，使客戶端直接與伺服器端ppp交談，以建立ppp
+連接。這個檔案應該是一個可執行的檔案，最簡單的登錄腳本可以讓不同的PPP用戶共同使用一個撥號伺服器標籤，
+更複雜的情況應該為每個撥號用戶都設置獨立的選項，並在登錄腳本區分用戶，啟動不同的撥號選項。</P>
+
+<P>　　由於getty在接收到連接請求之後，就立即執行login認証過程，因此系統認証提示為Login，而與前面ppp客
+戶設置中使用Username的認証提示不同，需要修改前面的設置，才能使用前面的認証登錄上伺服器。但也由於getty
+必須執行login認証，因此使用getty作為ppp伺服器的端口監控進程，就無法進一步支持PAP或CHAP認証。為了支持這
+些複雜的認証方式，就需要使用mgetty或類似的端口監控進程來監視是否有連接請求。</P>
+
+<P>　　在FreeBSD的Handbook中有使用mgetty設置ppp伺服器的例子。</P>
+
+<ul><h2><P><LI>PPP程序的其他功能</LI></P></h2></ul>
+
+<P>　　除了最常見撥號連接上Internet之外，還可以利用ppp程序的功能來完成其他幾種任務。在預設的ppp.conf中
+給出了幾個例子，這些例子能幫助使用者進一步了解ppp程序的能力。</P>
+
+<ul><h2><P><LI>串口線連接</LI></P></h2></ul>
+
+<P>　　使用串口線直接連接與使用medom除了不需要撥號之外並無不同，但是通常要在兩端都使用LQR，用於
+幫助判斷電纜的連接情況。此時客戶端的ppp.conf中的設置應為：</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>direct-client:
+<br> set dial ""
+<br> set line /dev/cuaa0
+<br> set sp 115200
+<br> set timeout 900 10 3
+<br> set log Phase Chat LQM
+<br> set login "TIMEOUT 5 ogin:--ogin: ppp word: ppp HELLO"
+<br> set ifaddr 10.0.4.2 10.0.4.1
+<br> enable lqr
+<br> accept lqr</td></pre></tr></table>
+
+<P>　　而ppp伺服器應該設置為：</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>direct-server:
+<br> set timeout 900 10 3
+<br> set log Phase LQM
+<br> set ifaddr 10.0.4.1 10.0.4.2
+<br> enable lqr
+<br> accept lqr</td></pre></tr></table>
+
+<ul><h2><P><LI>TCP上的PPP通道</LI></P></h2></ul>
+
+<P>　　可以將PPP建立在TCP網路連接之礎上，而非通過電話網路，這樣就在TCP/IP網路上建立了一條
+PPP通道。tcp-client為客戶端電腦的設置，這裡使用一個網路連接作為連接設備，tcpsrv為遠程計
+算機的主機名，1234為tcpsrv上的TCP端口：</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>tcp-client:
+<br> set device tcpsrv:1234
+<br> set dial
+<br> set login
+<br> set escape 0xff
+<br> set ifaddr 10.0.5.1 10.0.4.1 255.255.255.0</td></pre></tr></table>
+
+<P>　　tcp-server為伺服器端電腦的設置：</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>tcp-server:
+<br> set escape 0xff
+<br> set ifaddr 10.0.4.1 10.0.5.1 255.255.255.0</td></pre></tr></table>
+
+<P>　　當ppp客戶端使用tcp-client進行連接時，它將向tcpsrv的1234端口發送ppp連接請求。這就要求
+tcpsrv能偵測到對1234端口的連接請求，並啟動ppp伺服器來建立連接。因此就可以使用inetd監聽上面
+定義的端口1234，並負責啟動ppp伺服器。就需要在/etc/services中應該增加相應的端口：</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre><font size=2>pppsrv&#9;&#9;  1234/tcp
+<br>並在/etc/inetd.conf中增加相應的選項：
+<br>pppsrv &#9;stream&#9;tcp&#9;nowait&#9;root&#9;/usr/sbin/ppp ppp -direct tcp-server</font></td></pre></tr></table>
+
+<P>　　修改好inetd.conf之後，向inetd發送SIGHUP信號使得其重讀設置檔案。然後就可以使用ppp建
+立虛擬連接了。在ssh等加密傳輸軟體的幫助下，還可以進一步設定為安全的虛擬通道連接。</P>
+
+<ul><h2><P><LI>數據包過濾</LI></P></h2></ul>
+
+<P>　　在ppp的auto模式下，需要根據超時設置斷開連接，但是網路中一些協議會定時發送一些數
+據包，這些數據包主要用於保持網路數據的及時更新，大部分情況下不影響網路應用。但是這些數
+據包會引起ppp刷新時間設置，從而使得ppp一直保持撥號連接。</P>
+
+<P>　　這時可以使用ppp的過濾機制中的afilter過濾器，它定義了在auto模式時應濾掉的數據包，
+使得數據包不會影響超時時間。下面的三行分別不允許ICMP包和DNS包通過，最後一行允許其余的包
+通過。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>    set afilter 0 deny icmp
+<br>    set afilter 1 deny udp src eq 53
+<br>    set afilter 2 deny udp dst eq 53
+<br>    set afilter 3 permit 0/0 0/0</td></pre></tr></table>
+
+<P>　　使用dial參數的情況下，也有相似的限制，這時使用dfilter主要來限制icmp數據包。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>    set dfilter 0 deny icmp
+<br>    set dfilter 1 permit 0/0 0/0</td></pre></tr></table>
+
+<P>　　另外，還可以使用包過濾能力，按照端口、地址來允許或屏蔽某些TCP數據包。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>    set ifilter 0 permit tcp dst eq 80
+<br>    set ofilter 0 permit tcp src eq 80
+<br>    set ifilter 1 permit 192.168.1.0/24 0/0
+<br>    set ofilter 1 permit 0/0 192.168.1.0/24</td></pre></tr></table>
+
+<P>　　ifilter表示對進入的數據包進行過濾，ofilter表示對出去的數據包進行過濾，因此上
+面的設置允許進行WWW瀏覽（80端口），並允許與192.168.1.0這個網段內的電腦進行連接。每
+一個過濾器最多可以定義20個規則。</P>
+
+<ul><h2><P><LI>撥號網關</LI></P></h2></ul>
+
+<p>　　當一個局域網上的一台FreeBSD通過PPP連接到Internet上之後，其他電腦也能通過這台FreeBSD
+訪問Internet，從而共享同一條撥號線路。這必須使用ppp的alias選項啟動ppp，這樣當內部計
+算機的數據包到達這台FreeBSD之後，由ppp將這些數據包中的IP地址更換為本機ppp界面上的IP，同時也會
+對端口地址進行調整，再發送到外部的Internet上。</p>
+
+<p>　　要完成這個任務，還需要將這台FreeBSD配置為允許轉發IP數據包，在/etc/rc.conf中配置
+gateway的值為YES。但為了使得路由保持正確，不能啟動routed或gated等動態路由程序，因為這些程序
+會動態更改路由表，如果改動與ppp相關的路由數據，就會使得FreeBSD不能正確路由數據包。</p>
+
+<p>　　使用這種連接方式，再加上ppp的簡單過濾能力，FreeBSD就能作為一個簡易的具備一定防火牆能力的
+Internet訪問網關，能夠提供整個內部網路訪問Internet的能力，並將內部網與Internet相隔離。然而
+這個簡易的撥號網關僅限於使用ppp界面，並且功能也有限。FreeBSD提供了更強大的防火牆能力，能完成要求更為
+複雜的各種任務。</p>
+
+
+<BR>
+
+</TD>
+</TR></TABLE>
+
+
+
+</BODY>
+</HTML>

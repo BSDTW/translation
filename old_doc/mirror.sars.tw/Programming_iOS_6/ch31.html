@@ -1,0 +1,468 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>Chapter 31. Address Book</title>
+    <link rel="stylesheet" type="text/css" href="docbook-xsl-mymods.css" />
+    <meta name="generator" content="DocBook XSL Stylesheets V1.76.0" />
+    <link rel="home" href="index.html" />
+    <link rel="up" href="pt06.html" />
+    <link rel="prev" href="ch30.html" />
+    <link rel="next" href="ch32.html" />
+  </head>
+  <body>
+    <div class="mattnotice">
+      <p>As a courtesy, this is a <b>full free</b> rendering of my book, <i>Programming iOS 6</i>, by Matt Neuburg. Copyright 2013 Matt Neuburg. Please note that this book has now been completely superseded by two more recent books, <a href="http://shop.oreilly.com/product/0636920032465.do">iOS 7 Fundamentals</a> and <a href="http://shop.oreilly.com/product/0636920031017.do">Programming iOS 7</a>. If my work has been of help to you, please <b>consider purchasing</b> one or both of them. Thank you!
+	</p>
+    </div>
+    <div class="navfooter">
+      <table width="100%" summary="Navigation footer">
+        <tr>
+          <td width="40%" align="left"><a accesskey="p" href="ch30.html">Prev</a> </td>
+          <td width="20%" align="center">
+            <a accesskey="u" href="pt06.html">Up</a>
+          </td>
+          <td width="40%" align="right"> <a accesskey="n" href="ch32.html">Next</a></td>
+        </tr>
+        <tr>
+          <td width="40%" align="left" valign="top">Chapter 30. Photo Library and Image Capture </td>
+          <td width="20%" align="center">
+            <a accesskey="h" href="index.html">Table of Contents</a>
+          </td>
+          <td width="40%" align="right" valign="top"> Chapter 32. Calendar</td>
+        </tr>
+      </table>
+    </div>
+    <div class="chapter">
+      <div class="titlepage">
+        <div>
+          <div>
+            <h2 class="title"><a id="chap_id31"></a>Chapter 31. Address Book</h2>
+          </div>
+        </div>
+      </div>
+      <p>The user’s address book, which the user sees through the Contacts app, is effectively a database that can be accessed directly through a C API provided by the Address Book framework. You’ll link to <span class="emphasis"><em>AddressBook.framework</em></span> and import <code class="literal">&lt;AddressBook/AddressBook.h&gt;</code>.<a id="idm441641435968" class="indexterm"></a>
+<a id="idm441641434672" class="indexterm"></a><a id="idm441641433760" class="indexterm"></a><a id="idm441641432848" class="indexterm"></a><a id="idm441641431952" class="indexterm"></a></p>
+      <p>A user interface for interacting with the address book is also provided, through Objective-C classes, by the Address Book UI framework. You’ll link to <span class="emphasis"><em>AddressBookUI.framework</em></span> and import <code class="literal">&lt;AddressBookUI/AddressBookUI.h&gt;</code>.<a id="idm441641429232" class="indexterm"></a>
+<a id="idm441641427952" class="indexterm"></a></p>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_address_book_database"></a>Address Book Database</h2>
+            </div>
+          </div>
+        </div>
+        <p>The address book is an ABAddressBookRef obtained by calling <code class="literal">ABAddressBookCreateWithOptions</code>. This method is new in iOS 6. There are in fact no options to pass, so the first parameter is always nil. The important thing is the second parameter, a pointer to a CFErrorRef; if the result is nil, the CFErrorRef describes the error. The reason there can be an error is that the user can now deny your app access to the address book:</p>
+        <pre class="screen">CFErrorRef err = nil;
+ABAddressBookRef adbk = ABAddressBookCreateWithOptions(nil, &amp;err);
+if (nil == adbk) {
+    NSLog(@"error: %@", err);
+    return;
+}</pre>
+        <p>The very first time your app tries to access the address book, a system alert will appear, prompting the user to grant your app permission to access the user’s Contacts. You can modify the body of this alert by setting the “Privacy — Contacts Usage Description” key (<code class="literal">NSContactsUsageDescription</code>) in your app’s <span class="emphasis"><em>Info.plist</em></span> to tell the user <span class="emphasis"><em>why</em></span> you want to access the address book. This is a kind of “elevator pitch”; you need to persuade the user in very few words.<a id="idm441641421392" class="indexterm"></a>
+<a id="idm441641419744" class="indexterm"></a></p>
+        <p>You can learn beforehand whether access has been explicitly denied by calling <code class="literal">ABAddressBookGetAuthorizationStatus</code>:</p>
+        <pre class="screen">ABAuthorizationStatus stat = ABAddressBookGetAuthorizationStatus();
+if (stat==kABAuthorizationStatusDenied ||
+    stat==kABAuthorizationStatusRestricted) {
+    NSLog(@"%@", @"no access");
+    return;
+}</pre>
+        <p>If the user <span class="emphasis"><em>has</em></span> denied your app access, you can’t make the system alert appear again. You can, of course, use some other interface to request that the user grant access in the Settings app, under Privacy → Contacts.</p>
+        <div class="note" style="margin-left: 0; margin-right: 10%;">
+          <h3 class="title">Note</h3>
+          <p>To retest the system alert and other access-related behaviors, go to the Settings app and choose General → Reset → Reset Location &amp; Privacy. This causes the system to forget that it has ever asked about access for any app.</p>
+        </div>
+        <div class="warning" style="margin-left: 0; margin-right: 10%;">
+          <h3 class="title">Warning</h3>
+          <p>If the user in fact switches to the Settings app and enables access for your app under Privacy → Contacts, your app will crash in the background! This is unfortunate, but is probably not a bug; Apple presumably feels that in this situation your app cannot continue coherently and should start over from scratch.</p>
+        </div>
+        <p>Another new iOS 6 function, <code class="literal">ABAddressBookRequestAccessWithCompletion</code>, is pointless, and I don’t recommend using it. If the user has already denied your app access, this function won’t make the system alert appear again; if the user has already granted your app access, this function is needless; and if the user has never seen the app before, the system alert will appear anyway when you try to access the address book. Thus this function does nothing that you can’t accomplish by a combination of <code class="literal">ABAddressBookGetAuthorizationStatus</code> and <code class="literal">ABAddressBookCreateWithOptions</code>.</p>
+        <p>Assuming that access has been granted, <code class="literal">ABAddressBookCreateWithOptions</code> returns an actual ABAddressBookRef object. This method’s name contains “Create,” so you must <code class="literal">CFRelease</code> the ABAddressBookRef when you’re finished with it, as discussed in <a class="xref" href="ch12.html">Chapter 12</a>. (But don’t release it until you <span class="emphasis"><em>are</em></span> finished with it!) The address book’s data starts out exactly the same as the user’s Contacts data. If you make any changes to the data, they are not written through to the user’s real address book until you call <code class="literal">ABAddressBookSave</code>.</p>
+        <p>The primary constituent record of the address book database is the <a id="idm441641406144" class="indexterm"></a>ABPerson. You’ll typically extract persons from the address book by using these functions:</p>
+        <div class="itemizedlist">
+          <ul class="itemizedlist" type="disc">
+            <li class="listitem">
+<code class="literal">ABAddressBookGetPersonCount</code>
+</li>
+            <li class="listitem">
+<code class="literal">ABAddressBookGetPersonWithRecordID</code>
+</li>
+            <li class="listitem">
+<code class="literal">ABAddressBookCopyPeopleWithName</code>
+</li>
+            <li class="listitem">
+<code class="literal">ABAddressBookCopyArrayOfAllPeople</code>
+</li>
+          </ul>
+        </div>
+        <p>The result of the latter two is a CFArrayRef. Their names contain “Copy,” so you must <code class="literal">CFRelease</code> the array when you’re finished with it. (I’m going to stop reminding you about memory management from here on.)</p>
+        <p>An ABPerson doesn’t formally exist as a type; it is actually an ABRecord (ABRecordRef), and by virtue of this has an ID, a type, and properties with values. To fetch the value of a property, you’ll call <code class="literal">ABRecordCopyValue</code>, supplying a property identifier to specify the property that interests you. ABPerson properties, as you might expect, include things like first name, last name, and email.<a id="idm441641395776" class="indexterm"></a></p>
+        <p>Working with a property value is a little tricky because the way you treat it depends on what type of value it is. You can learn a property value’s type dynamically by calling <code class="literal">ABPersonGetTypeOfProperty</code>, but usually you’ll know in advance. Some values are simple, but some are not. For example, a last name is a string, which is straightforward. But a person can have more than one email, so an email value is a “multistring.” To work with it, you’ll treat it as an ABMultiValue (ABMultiValueRef). This is like an array of values where each value also has a label and an identifier. The label categorizes (for example, a Home email as opposed to a Work email) but is not a unique specifier (because a person might have, say, two or more Work emails); the identifier is the unique specifier.<a id="idm441641394528" class="indexterm"></a></p>
+        <p>A person’s address is even more involved because not only is it an ABMultiValue (a person can have more than one address), but also a particular address is itself a dictionary (a CFDictionary). Each dictionary may have a key for street, city, state, country, and so on.</p>
+        <p>There is a lot more to parsing address book information, but that’s enough to get you started. We are now ready to illustrate by an example. Assume we have successfully obtained a reference to the address book, <code class="literal">adbk</code>, as I showed earlier. Now I’ll fetch my own record out of the address book database on my device and detect that I’ve got two email addresses:</p>
+        <pre class="screen">ABRecordRef moi = nil;
+CFArrayRef matts =
+    ABAddressBookCopyPeopleWithName(adbk, (CFStringRef)@"Matt");
+// might be multiple matts, but let's find the one with last name Neuburg
+for (CFIndex ix = 0; ix &lt; CFArrayGetCount(matts); ix++) {
+    ABRecordRef matt = CFArrayGetValueAtIndex(matts, ix);
+    CFStringRef last = ABRecordCopyValue(matt, kABPersonLastNameProperty);
+    if (last &amp;&amp; CFStringCompare(last, (CFStringRef)@"Neuburg", 0) == 0)
+        moi = matt;
+    if (last) CFRelease(last);
+}
+if (nil == moi) {
+    NSLog(@"Couldn't find myself");
+    if (matts) CFRelease(matts);
+    if (adbk) CFRelease(adbk);
+    return;
+}
+// parse my emails
+ABMultiValueRef emails = ABRecordCopyValue(moi, kABPersonEmailProperty);
+for (CFIndex ix = 0; ix &lt; ABMultiValueGetCount(emails); ix++) {
+    CFStringRef label = ABMultiValueCopyLabelAtIndex(emails, ix);
+    CFStringRef value = ABMultiValueCopyValueAtIndex(emails, ix);
+    NSLog(@"I have a %@ address: %@", label, value);
+    if (label) CFRelease(label);
+    if (value) CFRelease(value);
+}
+if (emails) CFRelease(emails);
+if (matts) CFRelease(matts);
+/*
+output:
+I have a _$!&lt;Home&gt;!$_ address: matt@tidbits.com
+I have a _$!&lt;Work&gt;!$_ address: mattworking@tidbits.com
+*/</pre>
+        <p>You can also modify an existing record, add a new record (<code class="literal">ABAddressBookAddRecord</code>), and delete a record (<code class="literal">ABAddressBookRemoveRecord</code>). In this example, I’ll create a person called Snidely Whiplash with a Home email <code class="literal">snidely@villains.com</code>, add him to the database, and save the database:</p>
+        <pre class="screen">ABRecordRef snidely = ABPersonCreate();
+ABRecordSetValue(snidely, kABPersonFirstNameProperty, @"Snidely", nil);
+ABRecordSetValue(snidely, kABPersonLastNameProperty, @"Whiplash", nil);
+ABMutableMultiValueRef addr =
+    ABMultiValueCreateMutable(kABStringPropertyType);
+ABMultiValueAddValueAndLabel(addr, @"snidely@villains.com",
+                             kABHomeLabel, nil);
+ABRecordSetValue(snidely, kABPersonEmailProperty, addr, nil);
+ABAddressBookAddRecord(adbk, snidely, nil);
+ABAddressBookSave(adbk, nil);
+if (addr) CFRelease(addr);
+if (snidely) CFRelease(snidely);</pre>
+        <p>Sure enough, if we then check the state of the database through the Contacts app, the new person exists (<a class="xref" href="ch31.html#FIGsnidely">Figure 31.1</a>).</p>
+        <div class="figure">
+          <a id="FIGsnidely"></a>
+          <div class="figure-contents">
+            <div class="mediaobject">
+              <img src="figs/pios_3101.png" alt="figs/pios_3101.png" />
+            </div>
+          </div>
+          <p class="title">Figure 31.1. A contact created programmatically</p>
+        </div>
+        <br class="figure-break" />
+        <p>There are also groups (ABGroup); a group, like a person, is a record (ABRecord), so you can add a new group, delete an existing group, add a person to a group, and remove a person from a group (which is more than the Contacts app allows the user to do!). A group doesn’t own a person, nor a person a group; they are independent, and a person can be associated with multiple groups just as a group is associated with multiple persons. At an even higher level, there are sources (yet another kind of ABRecord): a person or group might be on the device, but it might instead come from an Exchange server or a CardDAV server. In this case the source really does, in a sense, own the group or person; a person can’t belong to two sources. A complicating factor, however, is that the same <span class="emphasis"><em>real</em></span> person might appear in two different sources as two different ABPersons; to deal with this, it is possible for multiple persons to be linked, indicating that they are the same person. For a practical introduction to groups and sources, see Apple’s ABUIGroups sample code.</p>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_address_book_interface"></a>Address Book Interface</h2>
+            </div>
+          </div>
+        </div>
+        <p>The Address Book UI framework puts a user interface, similar to the Contacts app, in front of common tasks involving the address book database. This is a great help, because designing your own interface to do the same thing would be tedious and involved. The framework provides four UIViewController subclasses:<a id="idm441641378432" class="indexterm"></a><a id="idm441641377520" class="indexterm"></a></p>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+<code class="literal">ABPeoplePickerNavigationController</code>
+</span>
+            </dt>
+            <dd>
+Presents a navigation interface, effectively the same as the Contacts app but without an Edit button: it lists the people in the database and allows the user to pick one and view the details.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">ABPersonViewController</code>
+</span>
+            </dt>
+            <dd>
+Presents an interface showing the properties of a specific person in the database, possibly editable.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">ABNewPersonViewController</code>
+</span>
+            </dt>
+            <dd>
+Presents an interface showing the editable properties of a new person.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">ABUnknownPersonViewController</code>
+</span>
+            </dt>
+            <dd>
+Presents an interface showing a proposed person with a partial set of noneditable properties.
+</dd>
+          </dl>
+        </div>
+        <p>These view controllers operate coherently with respect to the question of whether your app has access to the address book. For example, if the user has never granted or denied your app access to the address book, attempting to use ABPeoplePickerNavigationController will cause the system alert to appear, requesting access. If the user has denied your app access to the address book, the ABPeoplePickerNavigationController’s view will appear, but it will be empty (like <a class="xref" href="ch30.html#FIGphotoAccess2">Figure 30.2</a>). ABNewPersonViewController, similarly, will lack interface for saving into the database if your app has been denied access, and the user’s only option will be to back out of the view controller. On the other hand, you can’t even get started usefully with ABPersonViewController if you don’t already have access, so if you lack access, you’ll discover that fact beforehand.</p>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_abpeoplepickernavigationcontroller"></a>ABPeoplePickerNavigationController</h3>
+              </div>
+            </div>
+          </div>
+          <p>An <a id="idm441641362368" class="indexterm"></a>ABPeoplePickerNavigationController is a UINavigationController. With it, the user can survey groups, along with the names of all persons in each group. Presenting it can be as simple as instantiating it, assigning it a delegate, and showing it as a presented view controller. On the iPad, you’ll probably use a popover; presenting the view controller does work, but a popover looks better. (For the structure of a universal app, see <a class="xref" href="ch29.html#EXmodalOrPop">Example 29.1</a>.) Here’s the code for an iPhone:</p>
+          <pre class="screen">ABPeoplePickerNavigationController* picker =
+    [ABPeoplePickerNavigationController new];
+picker.peoplePickerDelegate = self; // note: not merely "delegate"
+[self presentViewController:picker animated:YES completion:nil];</pre>
+          <p>You should certainly provide a delegate, because without it the presented view will never be dismissed. This delegate is <span class="emphasis"><em>not</em></span> the controller’s <code class="literal">delegate</code> property! It is the controller’s <code class="literal">peoplePickerDelegate</code> property. You should implement all three delegate methods:</p>
+          <div class="variablelist">
+            <dl>
+              <dt>
+                <span class="term">
+<code class="literal">peoplePickerNavigationController:shouldContinueAfterSelectingPerson:</code>
+</span>
+              </dt>
+              <dd>
+                <p class="simpara">
+The user has tapped a person in the contacts list, provided to you as an ABRecordRef. You have two options:
+</p>
+                <div class="itemizedlist">
+                  <ul class="itemizedlist" type="disc">
+                    <li class="listitem">
+Return NO. The user has chosen a person and that’s all you wanted done. The selected person remains selected unless the user chooses another person. You are likely to dismiss the picker at this point.
+</li>
+                    <li class="listitem">
+Return YES (and don’t dismiss the picker). The view will navigate to a view of the person’s properties. You can limit the set of properties the user will see at this point by setting the ABPeoplePickerNavigationController’s <code class="literal">displayedItems</code>. This is an array of NSNumbers wrapping the property identifiers such as <code class="literal">kABPersonEmailProperty</code>.
+</li>
+                  </ul>
+                </div>
+              </dd>
+              <dt>
+                <span class="term">
+<code class="literal">peoplePickerNavigationController:shouldContinueAfterSelectingPerson:property:identifier:</code>
+</span>
+              </dt>
+              <dd>
+                <p class="simpara">
+The user is viewing a person’s properties and has tapped a property. Note that you are not handed the value of this property! You can fetch that yourself if desired, because you have the person and the property; plus, if the property has multiple values, you are handed an identifier so you can pick the correct one out of the array of values by calling <code class="literal">ABMultiValueGetIndexForIdentifier</code> and fetching the value at that index. You have two options:
+</p>
+                <div class="itemizedlist">
+                  <ul class="itemizedlist" type="disc">
+                    <li class="listitem">
+Return NO. The view is now still sitting there, displaying the person’s properties. You are likely to dismiss the picker at this point.
+</li>
+                    <li class="listitem">
+Return YES. This means that if the property is one that can be displayed in some other app, we will switch to that app. For example, if the user taps an address, it will be displayed in the Maps app; if the user taps an email, we will switch to the Mail app and compose a message addressed to that email.
+</li>
+                  </ul>
+                </div>
+              </dd>
+              <dt>
+                <span class="term">
+<code class="literal">peoplePickerNavigationControllerDidCancel:</code>
+</span>
+              </dt>
+              <dd>
+The user has cancelled; you should dismiss the picker.
+</dd>
+            </dl>
+          </div>
+          <p>In this example, we want the user to pick an email. We have limited the display of properties to emails only:</p>
+          <pre class="screen">picker.displayedProperties = @[@(kABPersonEmailProperty)];</pre>
+          <p>We return YES from the first delegate method. The second delegate method fetches the value of the tapped email and dismisses the picker:</p>
+          <pre class="screen">- (BOOL)peoplePickerNavigationController:
+        (ABPeoplePickerNavigationController *)peoplePicker
+        shouldContinueAfterSelectingPerson:(ABRecordRef)person
+        property:(ABPropertyID)property
+        identifier:(ABMultiValueIdentifier)identifier {
+    ABMultiValueRef emails = ABRecordCopyValue(person, property);
+    CFIndex ix = ABMultiValueGetIndexForIdentifier(emails, identifier);
+    CFStringRef email = ABMultiValueCopyValueAtIndex(emails, ix);
+    NSLog(@"%@", email); // do something with the email here
+    if (email) CFRelease(email);
+    if (emails) CFRelease(emails);
+    [self dismissViewControllerAnimated:YES completion:nil];
+    return NO;
+}</pre>
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_abpersonviewcontroller"></a>ABPersonViewController</h3>
+              </div>
+            </div>
+          </div>
+          <p>An <a id="idm441641337008" class="indexterm"></a>ABPersonViewController is a UIViewController. To use it, instantiate it, set its <code class="literal">displayedPerson</code> and <code class="literal">personViewDelegate</code> (<span class="emphasis"><em>not</em></span> <code class="literal">delegate</code>), and push it onto an existing navigation controller’s stack. The user’s only way out of the resulting interface will be through the Back button. Presuming that the displayed person is to be someone in the database, you’ll need access to the address book in order to get started. For example:</p>
+          <pre class="screen">CFErrorRef err = nil;
+ABAddressBookRef adbk = ABAddressBookCreateWithOptions(nil, &amp;err);
+if (nil == adbk) {
+    NSLog(@"error: %@", err);
+    return;
+}
+CFArrayRef snides =
+    ABAddressBookCopyPeopleWithName(adbk, (CFStringRef)@"Snidely Whiplash");
+if (CFArrayGetCount(snides) &lt; 1) {
+    NSLog(@"%@", @"No Snidely!");
+    return;
+}
+ABRecordRef snidely = CFArrayGetValueAtIndex(snides, 0);
+ABPersonViewController* pvc = [ABPersonViewController new];
+pvc.displayedPerson = snidely;
+pvc.personViewDelegate = self;
+[self.navigationController pushViewController:pvc animated:YES];
+if (snides) CFRelease(snides);
+if (adbk) CFRelease(adbk);</pre>
+          <p>On the iPad, the same interface works, or alternatively you can use a popover. In the latter case you’ll probably make the ABPersonViewController the root view of a UINavigationController created on the fly, especially if you intend to set <code class="literal">allowsEditing</code> to YES, since without the navigation interface the Edit button won’t appear. No Back button is present or needed, because the user can dismiss the popover by tapping outside it.</p>
+          <p>You can limit the properties to be displayed, as with ABPeoplePickerNavigationController, by setting the <code class="literal">displayedProperties</code>. You can highlight a property with <code class="literal">setHighlightedItemForProperty:withIdentifier:</code>.</p>
+          <p>The delegate is notified when the user taps a property. As with ABPeoplePickerNavigationController’s second delegate method, you’ll return YES to allow some other app, such as Maps or Mail, to open the tapped value; return NO to prevent this.</p>
+          <p>If ABPersonViewController’s <code class="literal">allowsActions</code> is YES, then buttons such as Send Message, FaceTime, Share Contact, and Add to Favorites appear in the interface. (Exactly what buttons appear depends on what categories of information are displayed.)</p>
+          <p>If ABPersonViewController’s <code class="literal">allowsEditing</code> is YES, the right bar button is an Edit button. If the user taps this, the interface is transformed into the same sort of editing interface as <code class="literal">ABNewPersonViewController</code>. The user can tap Done or Cancel; if Done, the edits are automatically saved into the database. Either way, the user returns to the original display of the person’s properties.</p>
+          <p>Your code is not notified that the user has edited the person, or that the user has returned from the person view controller to the main interface. If that’s the kind of thing you need to know, consider one of the next two view controllers.</p>
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_abnewpersonviewcontroller"></a>ABNewPersonViewController</h3>
+              </div>
+            </div>
+          </div>
+          <p>An <a id="idm441641320848" class="indexterm"></a>ABNewPersonController is a UIViewController. To use it, instantiate it, set its <code class="literal">newPersonViewDelegate</code> (<span class="emphasis"><em>not</em></span> <code class="literal">delegate</code>), instantiate a UINavigationController with the ABNewPersonController as its root view, and present the navigation controller:</p>
+          <pre class="screen">ABNewPersonViewController* npvc = [ABNewPersonViewController new];
+npvc.newPersonViewDelegate = self;
+UINavigationController* nc =
+    [[UINavigationController alloc] initWithRootViewController:npvc];
+[self presentViewController:nc animated:YES completion:nil];</pre>
+          <p>The presented view controller works on the iPad as well. Alternatively, you can display the UINavigationController in a popover; the resulting popover is effectively modal.</p>
+          <p>The interface allows the user to fill in all properties of a new contact. You cannot limit the properties displayed. You can provide properties with default values by creating a fresh ABRecordRef representing an ABPerson with <code class="literal">ABPersonCreate</code>, giving it any property values you like, and assigning it to the <code class="literal">displayedPerson</code> property.</p>
+          <p>The delegate has one method, <code class="literal">newPersonViewController:didCompleteWithNewPerson:</code>, which is responsible for dismissing the presented view or popover. If the new person is nil, the user tapped Cancel. Otherwise, the user tapped Done; the new person is an ABRecordRef and has already been saved into the database.</p>
+          <p>But what if you don’t want the new person saved into the database? What if you were presenting this interface merely because it’s such a convenient way of letting the user fill in the property values of an ABPerson? Then simply remove the newly created person from the database, like this:</p>
+          <pre class="screen">- (void)newPersonViewController:
+            (ABNewPersonViewController*)newPersonViewController
+        didCompleteWithNewPerson:(ABRecordRef)person {
+    if (nil != person) {
+        // if we didn't have access, we wouldn't be here!
+        ABAddressBookRef adbk = ABAddressBookCreateWithOptions(nil, nil);
+        ABAddressBookRemoveRecord(adbk, person, nil);
+        ABAddressBookSave(adbk, nil);
+        CFStringRef name = ABRecordCopyCompositeName(person);
+        NSLog(@"I have a person named %@", name);
+        // do something with new person
+        if (name) CFRelease(name);
+        if (adbk) CFRelease(adbk);
+    }
+    [self dismissViewControllerAnimated:YES completion:nil];
+}</pre>
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_abunknownpersonviewcontroller"></a>ABUnknownPersonViewController</h3>
+              </div>
+            </div>
+          </div>
+          <p>An <a id="idm441641310128" class="indexterm"></a>ABUnknownPersonViewController is a UIViewController. It presents, as it were, a proposed partial person. You can set the name displayed as the controller’s <code class="literal">alternateName</code> property, and the text below this as the controller’s <code class="literal">message</code> property. You can add actual person property values just as for an ABNewPersonViewController, namely, by creating a fresh ABRecordRef representing an ABPerson with <code class="literal">ABPersonCreate</code>, giving it some property values, and assigning it to the <code class="literal">displayedPerson</code> property.</p>
+          <p>To use ABUnknownPersonViewController, instantiate it, set the properties listed in the foregoing paragraph, set its <code class="literal">unknownPersonViewDelegate</code> (<span class="emphasis"><em>not</em></span> <code class="literal">delegate</code>), and push it onto the stack of an existing navigation controller. The user’s only way out of the resulting interface will be through the Back button. For example:</p>
+          <pre class="screen">ABUnknownPersonViewController* unk =
+    [ABUnknownPersonViewController new];
+unk.alternateName = @"Johnny Appleseed";
+unk.message = @"Person who really knows trees";
+unk.allowsAddingToAddressBook = YES;
+ABRecordRef person = ABPersonCreate();
+ABMutableMultiValueRef addr =
+    ABMultiValueCreateMutable(kABStringPropertyType);
+ABMultiValueAddValueAndLabel(addr, @"johnny@seeds.com",
+                             kABHomeLabel, nil);
+ABRecordSetValue(person, kABPersonEmailProperty, addr, nil);
+unk.displayedPerson = person;
+unk.unknownPersonViewDelegate = self;
+[self.navigationController pushViewController:unk animated:YES];
+if (person) CFRelease(person);
+if (addr) CFRelease(addr);</pre>
+          <p>On the iPad, make the ABUnknownPersonViewController the root view of a UINavigationController and present the navigation controller as a popover. No Back button is present or needed, because the user can dismiss the popover by tapping outside it.</p>
+          <p>What the user can do here depends on two other properties:</p>
+          <div class="variablelist">
+            <dl>
+              <dt>
+                <span class="term">
+<code class="literal">allowsAddingToAddressBook</code>
+</span>
+              </dt>
+              <dd>
+                <p class="simpara">
+If YES, and if your app has access to the address book, a Create New Contact button and an Add to Existing Contact button appear:
+</p>
+                <div class="itemizedlist">
+                  <ul class="itemizedlist" type="disc">
+                    <li class="listitem">
+If the user taps Create New Contact, the editing interface appears (as in ABNewPersonViewController and an editable ABPersonViewController). It is filled in with the property values of the <code class="literal">displayedPerson</code>. If the user taps Done, the person is saved into the database.
+</li>
+                    <li class="listitem">
+If the user taps Add to Existing Contact, a list of all contacts appears (as in the first screen of ABPersonViewController). The user can Cancel or tap a person. If the user taps a person, the properties from the <code class="literal">displayedPerson</code> are merged into that person’s record.
+</li>
+                  </ul>
+                </div>
+              </dd>
+              <dt>
+                <span class="term">
+<code class="literal">allowsActions</code>
+</span>
+              </dt>
+              <dd>
+If YES, buttons such as Send Message, FaceTime, and Share Contact appear. (Exactly what buttons appear depends on what categories of information are displayed.)
+</dd>
+            </dl>
+          </div>
+          <p>The delegate has two methods, the first of which is required:</p>
+          <div class="variablelist">
+            <dl>
+              <dt>
+                <span class="term">
+<code class="literal">unknownPersonViewController:didResolveToPerson:</code>
+</span>
+              </dt>
+              <dd>
+Called if <code class="literal">allowsAddingToAddressBook</code> is YES and the user finishes working in a presented editing view. The editing view has already been dismissed and the user has either cancelled (the second parameter is nil) or has tapped Done (the second parameter is the ABPerson already saved into the database).
+</dd>
+              <dt>
+                <span class="term">
+<code class="literal">un⁠known⁠Person⁠View⁠Cont⁠roller:⁠should⁠Per⁠form⁠Default⁠Action⁠For⁠Per⁠son:⁠prop⁠erty:​identifier:</code>
+</span>
+              </dt>
+              <dd>
+Return NO, as with ABPeoplePickerNavigationController, to prevent a tap on a property value from navigating to another app.
+</dd>
+            </dl>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="navfooter">
+      <table width="100%" summary="Navigation footer">
+        <tr>
+          <td width="40%" align="left"><a accesskey="p" href="ch30.html">Prev</a> </td>
+          <td width="20%" align="center">
+            <a accesskey="u" href="pt06.html">Up</a>
+          </td>
+          <td width="40%" align="right"> <a accesskey="n" href="ch32.html">Next</a></td>
+        </tr>
+        <tr>
+          <td width="40%" align="left" valign="top">Chapter 30. Photo Library and Image Capture </td>
+          <td width="20%" align="center">
+            <a accesskey="h" href="index.html">Table of Contents</a>
+          </td>
+          <td width="40%" align="right" valign="top"> Chapter 32. Calendar</td>
+        </tr>
+      </table>
+    </div>
+  </body>
+</html>

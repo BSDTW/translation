@@ -1,0 +1,464 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>Using Vinum for the Root Filesystem</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.79" />
+<link rel="HOME" title="FreeBSD 使用手冊" href="index.html" />
+<link rel="UP" title="The Vinum Volume Manager" href="vinum-vinum.html" />
+<link rel="PREVIOUS" title="Configuring Vinum" href="vinum-config.html" />
+<link rel="NEXT" title="Localization - I18N/L10N Usage and Setup" href="l10n.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD 使用手冊</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="vinum-config.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 19 The Vinum Volume Manager</td>
+<td width="10%" align="right" valign="bottom"><a href="l10n.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="VINUM-ROOT" name="VINUM-ROOT">19.9 Using Vinum for the Root
+Filesystem</a></h1>
+
+<p>For a machine that has fully-mirrored filesystems using Vinum, it is desirable to also
+mirror the root filesystem. Setting up such a configuration is less trivial than
+mirroring an arbitrary filesystem because:</p>
+
+<ul>
+<li>
+<p>The root filesystem must be available very early during the boot process, so the Vinum
+infrastructure must already be available at this time.</p>
+</li>
+
+<li>
+<p>The volume containing the root filesystem also contains the system bootstrap and the
+kernel, which must be read using the host system's native utilities (e. g. the BIOS on
+PC-class machines) which often cannot be taught about the details of Vinum.</p>
+</li>
+</ul>
+
+<p>In the following sections, the term “root volume” is generally used to describe the
+Vinum volume that contains the root filesystem. It is probably a good idea to use the
+name <tt class="LITERAL">"root"</tt> for this volume, but this is not technically
+required in any way. All command examples in the following sections assume this name
+though.</p>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN27311" name="AEN27311">19.9.1 Starting up Vinum Early Enough
+for the Root Filesystem</a></h2>
+
+<p>There are several measures to take for this to happen:</p>
+
+<ul>
+<li>
+<p>Vinum must be available in the kernel at boot-time. Thus, the method to start Vinum
+automatically described in <a href="vinum-config.html#VINUM-RC-STARTUP">Section
+19.8.1.1</a> is not applicable to accomplish this task, and the <tt
+class="LITERAL">start_vinum</tt> parameter must actually <span class="emphasis"><i
+class="EMPHASIS">not</i></span> be set when the following setup is being arranged. The
+first option would be to compile Vinum statically into the kernel, so it is available all
+the time, but this is usually not desirable. There is another option as well, to have <tt
+class="FILENAME">/boot/loader</tt> (<a href="boot-blocks.html#BOOT-LOADER">Section
+12.3.3</a>) load the vinum kernel module early, before starting the kernel. This can be
+accomplished by putting the line:</p>
+
+<pre class="PROGRAMLISTING">
+vinum_load="YES"
+</pre>
+
+<p>into the file <tt class="FILENAME">/boot/loader.conf</tt>.</p>
+</li>
+
+<li>
+<p>Vinum must be initialized early since it needs to supply the volume for the root
+filesystem. By default, the Vinum kernel part is not looking for drives that might
+contain Vinum volume information until the administrator (or one of the startup scripts)
+issues a <tt class="COMMAND">vinum start</tt> command.</p>
+
+<div class="NOTE">
+<blockquote class="NOTE">
+<p><b>Note:</b> The following paragraphs are outlining the steps needed for FreeBSD 5.X
+and above. The setup required for FreeBSD 4.X differs, and is described below in <a
+href="vinum-root.html#VINUM-ROOT-4X">Section 19.9.5</a>.</p>
+</blockquote>
+</div>
+
+<p>By placing the line:</p>
+
+<pre class="PROGRAMLISTING">
+vinum.autostart="YES"
+</pre>
+
+<p>into <tt class="FILENAME">/boot/loader.conf</tt>, Vinum is instructed to automatically
+scan all drives for Vinum information as part of the kernel startup.</p>
+
+<p>Note that it is not necessary to instruct the kernel where to look for the root
+filesystem. <tt class="FILENAME">/boot/loader</tt> looks up the name of the root device
+in <tt class="FILENAME">/etc/fstab</tt>, and passes this information on to the kernel.
+When it comes to mount the root filesystem, the kernel figures out from the device name
+provided which driver to ask to translate this into the internal device ID (major/minor
+number).</p>
+</li>
+</ul>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN27338" name="AEN27338">19.9.2 Making a Vinum-based Root
+Volume Accessible to the Bootstrap</a></h2>
+
+<p>Since the current FreeBSD bootstrap is only 7.5 KB of code, and already has the burden
+of reading files (like <tt class="FILENAME">/boot/loader</tt>) from the UFS filesystem,
+it is sheer impossible to also teach it about internal Vinum structures so it could parse
+the Vinum configuration data, and figure out about the elements of a boot volume itself.
+Thus, some tricks are necessary to provide the bootstrap code with the illusion of a
+standard <tt class="LITERAL">"a"</tt> partition that contains the root filesystem.</p>
+
+<p>For this to be possible at all, the following requirements must be met for the root
+volume:</p>
+
+<ul>
+<li>
+<p>The root volume must not be striped or RAID-5.</p>
+</li>
+
+<li>
+<p>The root volume must not contain more than one concatenated subdisk per plex.</p>
+</li>
+</ul>
+
+<p>Note that it is desirable and possible that there are multiple plexes, each containing
+one replica of the root filesystem. The bootstrap process will, however, only use one of
+these replica for finding the bootstrap and all the files, until the kernel will
+eventually mount the root filesystem itself. Each single subdisk within these plexes will
+then need its own <tt class="LITERAL">"a"</tt> partition illusion, for the respective
+device to become bootable. It is not strictly needed that each of these faked <tt
+class="LITERAL">"a"</tt> partitions is located at the same offset within its device,
+compared with other devices containing plexes of the root volume. However, it is probably
+a good idea to create the Vinum volumes that way so the resulting mirrored devices are
+symmetric, to avoid confusion.</p>
+
+<p>In order to set up these <tt class="LITERAL">"a"</tt> partitions, for each device
+containing part of the root volume, the following needs to be done:</p>
+
+<div class="PROCEDURE">
+<ol type="1">
+<li class="STEP">
+<p>The location (offset from the beginning of the device) and size of this device's
+subdisk that is part of the root volume need to be examined, using the command:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">vinum l -rv root</kbd>
+</pre>
+
+<p>Note that Vinum offsets and sizes are measured in bytes. They must be divided by 512
+in order to obtain the block numbers that are to be used in the <tt
+class="COMMAND">disklabel</tt> command.</p>
+</li>
+
+<li class="STEP">
+<p>Run the command:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">disklabel -e <tt
+class="REPLACEABLE"><i>devname</i></tt></kbd>
+</pre>
+
+<p>for each device that participates in the root volume. <tt
+class="REPLACEABLE"><i>devname</i></tt> must be either the name of the disk (like <tt
+class="DEVICENAME">da0</tt>) for disks without a slice (aka. fdisk) table, or the name of
+the slice (like <tt class="DEVICENAME">ad0s1</tt>).</p>
+
+<p>If there is already an <tt class="LITERAL">"a"</tt> partition on the device
+(presumably, containing a pre-Vinum root filesystem), it should be renamed to something
+else, so it remains accessible (just in case), but will no longer be used by default to
+bootstrap the system. Note that active partitions (like a root filesystem currently
+mounted) cannot be renamed, so this must be executed either when being booted from a
+“Fixit” medium, or in a two-step process, where (in a mirrored situation) the disk that
+has not been currently booted is being manipulated first.</p>
+
+<p>Then, the offset the Vinum partition on this device (if any) must be added to the
+offset of the respective root volume subdisk on this device. The resulting value will
+become the <tt class="LITERAL">"offset"</tt> value for the new <tt
+class="LITERAL">"a"</tt> partition. The <tt class="LITERAL">"size"</tt> value for this
+partition can be taken verbatim from the calculation above. The <tt
+class="LITERAL">"fstype"</tt> should be <tt class="LITERAL">4.2BSD</tt>. The <tt
+class="LITERAL">"fsize"</tt>, <tt class="LITERAL">"bsize"</tt>, and <tt
+class="LITERAL">"cpg"</tt> values should best be chosen to match the actual filesystem,
+though they are fairly unimportant within this context.</p>
+
+<p>That way, a new <tt class="LITERAL">"a"</tt> partition will be established that
+overlaps the Vinum partition on this device. Note that the <tt
+class="COMMAND">disklabel</tt> will only allow for this overlap if the Vinum partition
+has properly been marked using the <tt class="LITERAL">"vinum"</tt> fstype.</p>
+</li>
+
+<li class="STEP">
+<p>That's all! A faked <tt class="LITERAL">"a"</tt> partition does exist now on each
+device that has one replica of the root volume. It is highly recommendable to verify the
+result again, using a command like:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">fsck -n /dev/<tt
+class="REPLACEABLE"><i>devname</i></tt>a</kbd>
+</pre>
+</li>
+</ol>
+</div>
+
+<p>It should be remembered that all files containing control information must be relative
+to the root filesystem in the Vinum volume which, when setting up a new Vinum root
+volume, might not match the root filesystem that is currently active. So in particular,
+the files <tt class="FILENAME">/etc/fstab</tt> and <tt
+class="FILENAME">/boot/loader.conf</tt> need to be taken care of.</p>
+
+<p>At next reboot, the bootstrap should figure out the appropriate control information
+from the new Vinum-based root filesystem, and act accordingly. At the end of the kernel
+initialization process, after all devices have been announced, the prominent notice that
+shows the success of this setup is a message like:</p>
+
+<pre class="SCREEN">
+Mounting root from ufs:/dev/vinum/root
+</pre>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN27400" name="AEN27400">19.9.3 Example of a Vinum-based Root
+Setup</a></h2>
+
+<p>After the Vinum root volume has been set up, the output of <tt class="COMMAND">vinum l
+-rv root</tt> could look like:</p>
+
+<pre class="SCREEN">
+...
+Subdisk root.p0.s0:
+        Size:        125829120 bytes (120 MB)
+        State: up
+        Plex root.p0 at offset 0 (0  B)
+        Drive disk0 (/dev/da0h) at offset 135680 (132 kB)
+
+Subdisk root.p1.s0:
+        Size:        125829120 bytes (120 MB)
+        State: up
+        Plex root.p1 at offset 0 (0  B)
+        Drive disk1 (/dev/da1h) at offset 135680 (132 kB)
+   
+</pre>
+
+<p>The values to note are <tt class="LITERAL">135680</tt> for the offset (relative to
+partition <tt class="FILENAME">/dev/da0h</tt>). This translates to 265 512-byte disk
+blocks in <tt class="COMMAND">disklabel</tt>'s terms. Likewise, the size of this root
+volume is 245760 512-byte blocks. <tt class="FILENAME">/dev/da1h</tt>, containing the
+second replica of this root volume, has a symmetric setup.</p>
+
+<p>The disklabel for these devices might look like:</p>
+
+<pre class="SCREEN">
+...
+8 partitions:
+#        size   offset    fstype   [fsize bsize bps/cpg]
+  a:   245760      281    4.2BSD     2048 16384     0   # (Cyl.    0*- 15*)
+  c: 71771688        0    unused        0     0         # (Cyl.    0 - 4467*)
+  h: 71771672       16     vinum                        # (Cyl.    0*- 4467*)
+   
+</pre>
+
+<p>It can be observed that the <tt class="LITERAL">"size"</tt> parameter for the faked
+<tt class="LITERAL">"a"</tt> partition matches the value outlined above, while the <tt
+class="LITERAL">"offset"</tt> parameter is the sum of the offset within the Vinum
+partition <tt class="LITERAL">"h"</tt>, and the offset of this partition within the
+device (or slice). This is a typical setup that is necessary to avoid the problem
+described in <a href="vinum-root.html#VINUM-ROOT-PANIC">Section 19.9.4.3</a>. It can also
+be seen that the entire <tt class="LITERAL">"a"</tt> partition is completely within the
+<tt class="LITERAL">"h"</tt> partition containing all the Vinum data for this device.</p>
+
+<p>Note that in the above example, the entire device is dedicated to Vinum, and there is
+no leftover pre-Vinum root partition, since this has been a newly set-up disk that was
+only meant to be part of a Vinum configuration, ever.</p>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN27421" name="AEN27421">19.9.4 Troubleshooting</a></h2>
+
+<p>If something goes wrong, a way is needed to recover from the situation. The following
+list contains few known pitfalls and solutions.</p>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="AEN27424" name="AEN27424">19.9.4.1 System Bootstrap Loads, but
+System Does Not Boot</a></h3>
+
+<p>If for any reason the system does not continue to boot, the bootstrap can be
+interrupted with by pressing the <b class="KEYCAP">space</b> key at the 10-seconds
+warning. The loader variables (like <tt class="LITERAL">vinum.autostart</tt>) can be
+examined using the <tt class="COMMAND">show</tt>, and manipulated using <tt
+class="COMMAND">set</tt> or <tt class="COMMAND">unset</tt> commands.</p>
+
+<p>If the only problem was that the Vinum kernel module was not yet in the list of
+modules to load automatically, a simple <tt class="COMMAND">load vinum</tt> will
+help.</p>
+
+<p>When ready, the boot process can be continued with a <tt class="COMMAND">boot
+-as</tt>. The options <code class="OPTION">-as</code> will request the kernel to ask for
+the root filesystem to mount (<code class="OPTION">-a</code>), and make the boot process
+stop in single-user mode (<code class="OPTION">-s</code>), where the root filesystem is
+mounted read-only. That way, even if only one plex of a multi-plex volume has been
+mounted, no data inconsistency between plexes is being risked.</p>
+
+<p>At the prompt asking for a root filesystem to mount, any device that contains a valid
+root filesystem can be entered. If <tt class="FILENAME">/etc/fstab</tt> had been set up
+correctly, the default should be something like <tt
+class="LITERAL">ufs:/dev/vinum/root</tt>. A typical alternate choice would be something
+like <tt class="LITERAL">ufs:da0d</tt> which could be a hypothetical partition that
+contains the pre-Vinum root filesystem. Care should be taken if one of the alias <tt
+class="LITERAL">"a"</tt> partitions are entered here that are actually reference to the
+subdisks of the Vinum root device, because in a mirrored setup, this would only mount one
+piece of a mirrored root device. If this filesystem is to be mounted read-write later on,
+it is necessary to remove the other plex(es) of the Vinum root volume since these plexes
+would otherwise carry inconsistent data.</p>
+</div>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="AEN27444" name="AEN27444">19.9.4.2 Only Primary Bootstrap
+Loads</a></h3>
+
+<p>If <tt class="FILENAME">/boot/loader</tt> fails to load, but the primary bootstrap
+still loads (visible by a single dash in the left column of the screen right after the
+boot process starts), an attempt can be made to interrupt the primary bootstrap at this
+point, using the <b class="KEYCAP">space</b> key. This will make the bootstrap stop in
+stage two, see <a href="boot-blocks.html#BOOT-BOOT1">Section 12.3.2</a>. An attempt can
+be made here to boot off an alternate partition, like the partition containing the
+previous root filesystem that has been moved away from <tt class="LITERAL">"a"</tt>
+above.</p>
+</div>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="VINUM-ROOT-PANIC" name="VINUM-ROOT-PANIC">19.9.4.3 Nothing
+Boots, the Bootstrap Panics</a></h3>
+
+<p>This situation will happen if the bootstrap had been destroyed by the Vinum
+installation. Unfortunately, Vinum accidentally currently leaves only 4 KB at the
+beginning of its partition free before starting to write its Vinum header information.
+However, the stage one and two bootstraps plus the disklabel embedded between them
+currently require 8 KB. So if a Vinum partition was started at offset 0 within a slice or
+disk that was meant to be bootable, the Vinum setup will trash the bootstrap.</p>
+
+<p>Similarly, if the above situation has been recovered, for example by booting from a
+“Fixit” medium, and the bootstrap has been re-installed using <tt
+class="COMMAND">disklabel -B</tt> as described in <a
+href="boot-blocks.html#BOOT-BOOT1">Section 12.3.2</a>, the bootstrap will trash the Vinum
+header, and Vinum will no longer find its disk(s). Though no actual Vinum configuration
+data or data in Vinum volumes will be trashed by this, and it would be possible to
+recover all the data by entering exact the same Vinum configuration data again, the
+situation is hard to fix at all. It would be necessary to move the entire Vinum partition
+by at least 4 KB off, in order to have the Vinum header and the system bootstrap no
+longer collide.</p>
+</div>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="VINUM-ROOT-4X" name="VINUM-ROOT-4X">19.9.5 Differences for
+FreeBSD 4.X</a></h2>
+
+<p>Under FreeBSD 4.X, some internal functions required to make Vinum automatically scan
+all disks are missing, and the code that figures out the internal ID of the root device
+is not smart enough to handle a name like <tt class="FILENAME">/dev/vinum/root</tt>
+automatically. Therefore, things are a little different here.</p>
+
+<p>Vinum must explicitly be told which disks to scan, using a line like the following one
+in <tt class="FILENAME">/boot/loader.conf</tt>:</p>
+
+<pre class="PROGRAMLISTING">
+vinum.drives="/dev/<tt class="REPLACEABLE"><i>da0</i></tt> /dev/<tt
+class="REPLACEABLE"><i>da1</i></tt>"
+</pre>
+
+<p>It is important that all drives are mentioned that could possibly contain Vinum data.
+It does not harm if <span class="emphasis"><i class="EMPHASIS">more</i></span> drives are
+listed, nor is it necessary to add each slice and/or partition explicitly, since Vinum
+will scan all slices and partitions of the named drives for valid Vinum headers.</p>
+
+<p>Since the routines used to parse the name of the root filesystem, and derive the
+device ID (major/minor number) are only prepared to handle “classical” device names
+like <tt class="FILENAME">/dev/ad0s1a</tt>, they cannot make any sense out of a root
+volume name like <tt class="FILENAME">/dev/vinum/root</tt>. For that reason, Vinum itself
+needs to pre-setup the internal kernel parameter that holds the ID of the root device
+during its own initialization. This is requested by passing the name of the root volume
+in the loader variable <tt class="LITERAL">vinum.root</tt>. The entry in <tt
+class="FILENAME">/boot/loader.conf</tt> to accomplish this looks like:</p>
+
+<pre class="PROGRAMLISTING">
+vinum.root="root"
+</pre>
+
+<p>Now, when the kernel initialization tries to find out the root device to mount, it
+sees whether some kernel module has already pre-initialized the kernel parameter for it.
+If that is the case, <span class="emphasis"><i class="EMPHASIS">and</i></span> the device
+claiming the root device matches the major number of the driver as figured out from the
+name of the root device string being passed (that is, <tt class="LITERAL">"vinum"</tt> in
+our case), it will use the pre-allocated device ID, instead of trying to figure out one
+itself. That way, during the usual automatic startup, it can continue to mount the Vinum
+root volume for the root filesystem.</p>
+
+<p>However, when <tt class="COMMAND">boot -a</tt> has been requesting to ask for entering
+the name of the root device manually, it must be noted that this routine still cannot
+actually parse a name entered there that refers to a Vinum volume. If any device name is
+entered that does not refer to a Vinum device, the mismatch between the major numbers of
+the pre-allocated root parameter and the driver as figured out from the given name will
+make this routine enter its normal parser, so entering a string like <tt
+class="LITERAL">ufs:da0d</tt> will work as expected. Note that if this fails, it is
+however no longer possible to re-enter a string like <tt
+class="LITERAL">ufs:vinum/root</tt> again, since it cannot be parsed. The only way out is
+to reboot again, and start over then. (At the “askroot” prompt, the initial <tt
+class="FILENAME">/dev/</tt> can always be omitted.)</p>
+</div>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="vinum-config.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="l10n.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">Configuring Vinum</td>
+<td width="34%" align="center" valign="top"><a href="vinum-vinum.html"
+accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">Localization - I18N/L10N Usage and Setup</td>
+</tr>
+</table>
+</div>
+
+<p align="center"><small>This, and other documents, can be downloaded from <a
+href="ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/">ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/</a>.</small></p>
+
+<p align="center"><small>For questions about FreeBSD, read the <a
+href="http://www.FreeBSD.org/docs.html">documentation</a> before contacting &#60;<a
+href="mailto:questions@FreeBSD.org">questions@FreeBSD.org</a>&#62;.<br />
+For questions about this documentation, e-mail &#60;<a
+href="mailto:doc@FreeBSD.org">doc@FreeBSD.org</a>&#62;.</small></p>
+</body>
+</html>
+

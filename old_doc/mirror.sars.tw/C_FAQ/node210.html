@@ -1,0 +1,127 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+
+<!--Converted with LaTeX2HTML 2002-2-1 (1.71)
+original version by:  Nikos Drakos, CBLU, University of Leeds
+* revised and updated by:  Marcus Hennecke, Ross Moore, Herb Swan
+* with significant contributions from:
+  Jens Lippmann, Marek Rouchal, Martin Wilck and others -->
+<HTML>
+<HEAD>
+<TITLE>13.19 我怎樣才知道對於任意的&nbsp;sprintf&nbsp;調用需要多大的目標緩衝區？
+怎樣才能避免&nbsp;sprintf()&nbsp;目標緩衝區溢出？</TITLE>
+<META NAME="description" CONTENT="13.19 我怎樣才知道對於任意的&nbsp;sprintf&nbsp;調用需要多大的目標緩衝區？
+怎樣才能避免&nbsp;sprintf()&nbsp;目標緩衝區溢出？">
+<META NAME="keywords" CONTENT="ccfaq">
+<META NAME="resource-type" CONTENT="document">
+<META NAME="distribution" CONTENT="global">
+
+<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=utf-8">
+<META NAME="Generator" CONTENT="LaTeX2HTML v2002-2-1">
+<META HTTP-EQUIV="Content-Style-Type" CONTENT="text/css">
+
+<LINK REL="STYLESHEET" HREF="ccfaq.css">
+
+<LINK REL="next" HREF="node211.html">
+<LINK REL="previous" HREF="node209.html">
+<LINK REL="up" HREF="node191.html">
+<LINK REL="next" HREF="node211.html">
+</HEAD>
+
+<BODY >
+
+<DIV CLASS="navigation"><table width=100%> <COLGROUP><COL width="25%"><COL width="25%"><col width="25%"><col width="25%"></colgroup><tr><td align=left>
+<A NAME="tex2html3216"
+  HREF="node209.html">
+<IMG WIDTH="62" HEIGHT="25" ALIGN="BOTTOM" BORDER="0" ALT="previous" SRC="prev.png"></A></td><td align=center>
+<A NAME="tex2html3222"
+  HREF="node191.html">
+<IMG WIDTH="61" HEIGHT="25" ALIGN="BOTTOM" BORDER="0" ALT="up" SRC="up.png"></A></td><td align=center>&nbsp;
+<A NAME="tex2html3224"
+  HREF="node1.html">
+<IMG WIDTH="63" HEIGHT="25" ALIGN="BOTTOM" BORDER="0" ALT="contents" SRC="contents.png"></A>&nbsp;</td><td align=right>
+<A NAME="tex2html3226"
+  HREF="node211.html">
+<IMG WIDTH="62" HEIGHT="25" ALIGN="BOTTOM" BORDER="0" ALT="next" SRC="next.png"></A></td></tr></table>
+</DIV>
+<!--End of Navigation Panel-->
+
+<H1><A NAME="SECTION0014190000000000000000"></A>
+<A NAME="q:12.21"></A>
+<BR>
+<SPAN CLASS="arabic">13</SPAN>.<SPAN CLASS="arabic">19</SPAN> 我怎樣才知道對於任意的&nbsp;sprintf&nbsp;調用需要多大的目標緩衝區？
+怎樣才能避免&nbsp;sprintf()&nbsp;目標緩衝區溢出？
+</H1>
+當用於&nbsp;sprintf()&nbsp;的格式串已知且相對簡單時, 你有時可以預測出緩衝區的大小。
+如果格式串中包含一個或兩個&nbsp;%s, 你可以數出固定字符的個數再加上對插入的
+字符串的&nbsp;strlen()&nbsp;調用的返回值。對於整形, %d&nbsp;輸出的字符數不會超過
+<PRE>
+	((sizeof(int) * CHAR_BIT + 2) / 3 + 1)  /* +1 for '-' */
+</PRE>
+CHAR_BIT&nbsp;在&nbsp;&lt;limits.h&gt;&nbsp;中定義, 但是這個計算可能
+有些過於保守了。它計算的是數字以八進制存儲需要的字節數; 十進制的存儲可
+以保證使用同樣或更少的字節數。
+
+<P>
+當格式串更複雜或者在運行前未知的時候, 預測緩衝區大小會變得跟重新實現&nbsp;
+sprintf&nbsp;一樣困難, 而且會很容易出錯。有一種最後防線的技術, 就是&nbsp;fprintf()&nbsp;
+向一塊內存區或臨時文件輸出同樣的內容, 然後檢查&nbsp;fprintf&nbsp;的返回值或臨時文件
+的大小, 但請參見問題&nbsp;<A HREF="node320.html#q:19.12">19.14</A>, 並提防寫文件錯誤。
+
+<P>
+如果不能確保緩衝區足夠大, 你就不能調用&nbsp;sprintf(), 以防緩衝區溢出後改寫
+其它的內存區。如果格式串已知, 你可以用&nbsp;%.Ns&nbsp;控制&nbsp;%s&nbsp;擴展的長度,
+或者使用&nbsp;%.*s, 參見問題&nbsp;<A HREF="node200.html#q:12.10">12.9</A>。
+
+<P>
+要避免溢出問題, 你可以使用限制長度的&nbsp;sprintf()&nbsp;版本, 即&nbsp;snprintf()。
+這樣使用：
+<PRE>
+    snprintf(buf, bufsize, "You typed \"%s\"", answer);
+</PRE>
+snprintf()&nbsp;在幾個&nbsp;stdio&nbsp;庫中已經提供好幾年了, 包括&nbsp;GNU&nbsp;和&nbsp;4.4bsd。
+在&nbsp;C99&nbsp;中已經被標準化了。
+
+<P>
+作為一個額外的好處, C99&nbsp;的&nbsp;snprintf()&nbsp;提供了預測任意&nbsp;sprintf()&nbsp;調用所需的
+緩衝區大小的方法。C99&nbsp;的&nbsp;snprintf()&nbsp;返回它可能放到緩衝區的字符數, 而它又
+可以用&nbsp;0&nbsp;作為緩衝區大小進行調用。因此
+<PRE>
+	nch = snprintf(NULL, 0, fmtstring, /* 其它參數 */ );
+</PRE>
+這樣的調用就可以預測出格式串擴展後所需要的字符數。
+
+<P>
+另一個&nbsp;(非標準的)&nbsp;選擇是&nbsp;asprintf()&nbsp;函數, 在&nbsp;bsd&nbsp;和&nbsp;GNU&nbsp;的&nbsp;C&nbsp;庫中都有提供,
+它調用&nbsp;malloc&nbsp;為格式串分配空間, 並返回分配內存區的指針。這樣使用:
+<PRE>
+	char *buf;
+	asprintf(&amp;buf, "%d = %s", 42, "forty-two");
+	/* 現在, buf 指向含有格式串的 malloc 的內存 */
+</PRE>
+
+<P>
+參考資料: [<A
+ HREF="node388.html#c9x">C9X</A>, Sec. 7.13.6.6]。
+
+<P>
+
+<DIV CLASS="navigation"><HR> <table width=100%> <COLGROUP><COL width="25%"><COL width="25%"><col width="25%"><col width="25%"></colgroup><tr><td align=left>
+<A NAME="tex2html3216"
+  HREF="node209.html">
+<IMG WIDTH="62" HEIGHT="25" ALIGN="BOTTOM" BORDER="0" ALT="previous" SRC="prev.png"></A></td><td align=center>
+<A NAME="tex2html3222"
+  HREF="node191.html">
+<IMG WIDTH="61" HEIGHT="25" ALIGN="BOTTOM" BORDER="0" ALT="up" SRC="up.png"></A></td><td align=center>&nbsp;
+<A NAME="tex2html3224"
+  HREF="node1.html">
+<IMG WIDTH="63" HEIGHT="25" ALIGN="BOTTOM" BORDER="0" ALT="contents" SRC="contents.png"></A>&nbsp;</td><td align=right>
+<A NAME="tex2html3226"
+  HREF="node211.html">
+<IMG WIDTH="62" HEIGHT="25" ALIGN="BOTTOM" BORDER="0" ALT="next" SRC="next.png"></A></td></tr></table>
+</DIV>
+<!--End of Navigation Panel-->
+<ADDRESS>
+<small>翻譯朱群英、孫雲, LaTeX2HTML 編譯 朱群英 (2005-06-23)</small>
+</ADDRESS>
+</BODY>
+</HTML>

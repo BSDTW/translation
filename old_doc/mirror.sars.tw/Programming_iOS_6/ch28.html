@@ -1,0 +1,496 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>Chapter 28. Video</title>
+    <link rel="stylesheet" type="text/css" href="docbook-xsl-mymods.css" />
+    <meta name="generator" content="DocBook XSL Stylesheets V1.76.0" />
+    <link rel="home" href="index.html" />
+    <link rel="up" href="pt06.html" />
+    <link rel="prev" href="ch27.html" />
+    <link rel="next" href="ch29.html" />
+  </head>
+  <body>
+    <div class="mattnotice">
+      <p>As a courtesy, this is a <b>full free</b> rendering of my book, <i>Programming iOS 6</i>, by Matt Neuburg. Copyright 2013 Matt Neuburg. Please note that this book has now been completely superseded by two more recent books, <a href="http://shop.oreilly.com/product/0636920032465.do">iOS 7 Fundamentals</a> and <a href="http://shop.oreilly.com/product/0636920031017.do">Programming iOS 7</a>. If my work has been of help to you, please <b>consider purchasing</b> one or both of them. Thank you!
+	</p>
+    </div>
+    <div class="navfooter">
+      <table width="100%" summary="Navigation footer">
+        <tr>
+          <td width="40%" align="left"><a accesskey="p" href="ch27.html">Prev</a> </td>
+          <td width="20%" align="center">
+            <a accesskey="u" href="pt06.html">Up</a>
+          </td>
+          <td width="40%" align="right"> <a accesskey="n" href="ch29.html">Next</a></td>
+        </tr>
+        <tr>
+          <td width="40%" align="left" valign="top">Chapter 27. Audio </td>
+          <td width="20%" align="center">
+            <a accesskey="h" href="index.html">Table of Contents</a>
+          </td>
+          <td width="40%" align="right" valign="top"> Chapter 29. Music Library</td>
+        </tr>
+      </table>
+    </div>
+    <div class="chapter">
+      <div class="titlepage">
+        <div>
+          <div>
+            <h2 class="title"><a id="chap_id28"></a>Chapter 28. Video</h2>
+          </div>
+        </div>
+      </div>
+      <p>Basic video playback is performed in a view owned by an MPMoviePlayerController. You’ll need to link to <span class="emphasis"><em>MediaPlayer.framework</em></span> and import <code class="literal">&lt;MediaPlayer/MediaPlayer.h&gt;</code>. There are two relevant classes supplied by the Media Player framework:<a id="idm441642172800" class="indexterm"></a>
+<a id="idm441642171504" class="indexterm"></a>
+<a id="idxvideo" class="indexterm"></a><a id="idm441642169200" class="indexterm"></a><a id="idm441642168288" class="indexterm"></a></p>
+      <div class="variablelist">
+        <dl>
+          <dt>
+            <span class="term">
+MPMoviePlayerController
+</span>
+          </dt>
+          <dd>
+Vends a view that plays a movie, along with controls letting the user regulate playback.
+</dd>
+          <dt>
+            <span class="term">
+MPMoviePlayerViewController
+</span>
+          </dt>
+          <dd>
+A UIViewController subclass that owns an MPMoviePlayerController and displays its view, along with controls letting the user regulate playback.
+</dd>
+        </dl>
+      </div>
+      <div class="warning" style="margin-left: 0; margin-right: 10%;">
+        <h3 class="title">Warning</h3>
+        <p>The behavior of MPMoviePlayerController has changed significantly from one system version to the next. It is difficult to use it compatibly with multiple system versions. In this chapter, I describe only its current behavior, with no attempt to discuss earlier differences or to advise you on backward compatibility.</p>
+      </div>
+      <p>A simple interface for letting the user trim video (UIVideoEditorController) is also supplied.</p>
+      <p>Sophisticated video playing and editing can be performed through AV Foundation. I’ll introduce it at the end of this chapter, describing AVPlayer, an alternative class for playing a movie or a sound, and demonstrating AV Foundation’s video- and audio-editing capabilities.</p>
+      <p>A movie file can be in a standard movie format, such as <span class="emphasis"><em>.mov</em></span> or <span class="emphasis"><em>.mp4</em></span>, but it can also be a sound file. An MPMoviePlayerController or MPMoviePlayerViewController is thus an easy way to play a sound file, including a sound file obtained in real time over the Internet, along with standard controls for pausing the sound and moving the playhead (unlike AVAudioPlayer, which lacks a user interface: see <a class="xref" href="ch27.html">Chapter 27</a>).</p>
+      <p>A mobile device does not have unlimited power for decoding and presenting video in real time. A video that plays on your computer might not play at all on an iOS device. See the “Media Layer” chapter of Apple’s <span class="emphasis"><em>iOS Technology Overview</em></span> for a list of specifications and limits within which video is eligible for playing.</p>
+      <p>A web view (<a class="xref" href="ch24.html">Chapter 24</a>) supports the HTML 5 <code class="literal">&lt;video&gt;</code> tag. This can be a simple lightweight way to present video and to allow the user to control playback. Both web view video and MPMoviePlayerController support AirPlay.</p>
+      <div class="note" style="margin-left: 0; margin-right: 10%;">
+        <h3 class="title">Note</h3>
+        <p>If an MPMoviePlayerController or an AVPlayer produces sound, you may need to concern yourself with your application’s audio session; see <a class="xref" href="ch27.html">Chapter 27</a>. However, both MPMoviePlayerController and AVPlayer deal gracefully with the app being sent into the background, and will pause when your app is backgrounded and resume when your app comes back to the foreground.</p>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_mpmovieplayercontroller"></a>MPMoviePlayerController</h2>
+            </div>
+          </div>
+        </div>
+        <p>An <a id="idm441642152608" class="indexterm"></a>MPMoviePlayerController vends and controls a view, its <code class="literal">view</code> property; you assign it a movie described by a URL, its <code class="literal">contentURL</code>, which it will present in that view. You are responsible for instantiating and retaining the MPMoviePlayerController, and you’ll provide the <code class="literal">contentURL</code> in its initializer, <code class="literal">initWithContentURL:</code>. The movie URL can be a local file URL, so that the player can show, for example, a movie stored as a file in the app’s bundle, or obtained from the Camera Roll / Saved Photos group in the user’s photo library (see <a class="xref" href="ch30.html">Chapter 30</a>); or it can be a resource (possibly streamed) to be fetched over the Internet, in which case the MPMoviePlayerController initiates the download automatically as soon as it has the <code class="literal">contentURL</code>.</p>
+        <p>You are also responsible for placing the MPMoviePlayerController’s <code class="literal">view</code> into your interface. (MPMoviePlayerController is not a UIViewController, so you can put its view <span class="emphasis"><em>directly</em></span> into your interface.) No law says you <span class="emphasis"><em>have</em></span> to put the MPMoviePlayerController’s view into your interface, but if you don’t, the user won’t be able to see the movie or the controls that accompany it by default. An MPMoviePlayerController’s <code class="literal">view</code> is a real view; you can set its <code class="literal">frame</code>, its <code class="literal">autoresizingMask</code>, and so forth, and you can give it subviews. An MPMoviePlayerController also has a <code class="literal">backgroundView</code> which automatically appears behind its <code class="literal">view</code>; you can give the <code class="literal">backgroundView</code> subviews as well.<a id="idm441642140576" class="indexterm"></a><a id="idm441642139648" class="indexterm"></a></p>
+        <p>Before you can display a movie in your interface with an MPMoviePlayerController, you must call <code class="literal">prepareToPlay</code>, which is part of the MPMediaPlayer protocol, adopted by MPMoviePlayerController.</p>
+        <p>Things happen slowly with a movie. Even when a movie is a local file, a certain amount of it has to load before the MPMoviePlayerController knows enough about the movie and the movie’s specifications to begin playing it. The delay can be perceptible. In the case of a remote resource, this loading process will take even longer. I’ll talk in a moment about how you can know when the movie is ready to play.</p>
+        <div class="note" style="margin-left: 0; margin-right: 10%;">
+          <h3 class="title">Note</h3>
+          <p>If an MPMoviePlayerController fails to load its movie into its view when you’re testing your app in the Simulator, this may be due to an All Exceptions breakpoint. Try turning off breakpoints. This seems to be a bug in Xcode’s interaction with the Simulator.</p>
+        </div>
+        <p>If the MPMoviePlayerController’s <code class="literal">shouldAutoplay</code> property is YES (the default), play will begin as soon as possible, with no further action from you; indeed, play will begin even if you don’t put the MPMoviePlayerController’s view into your interface! If the movie has sound, the user will then hear it without being able to see it, which could be confusing. To prevent this, put the view into your interface, or set <code class="literal">shouldAutoplay</code> to NO (or both).</p>
+        <p>In this example, we create an MPMoviePlayerController, give it a reference to a movie from our app bundle, retain it through a property, and put its view into our interface:</p>
+        <pre class="screen">NSURL* m = [[NSBundle mainBundle] URLForResource:@"ElMirage"
+                                   withExtension:@"mp4"];
+MPMoviePlayerController* mp =
+    [[MPMoviePlayerController alloc] initWithContentURL:m];
+self.mpc = mp; // retain policy
+self.mpc.shouldAutoplay = NO;
+[self.mpc prepareToPlay];
+self.mpc.view.frame = CGRectMake(10, 10, 300, 250);
+self.mpc.backgroundView.backgroundColor = [UIColor redColor];
+[self.view addSubview:self.mpc.view];</pre>
+        <p>The controls (<code class="literal">controlStyle</code> is <code class="literal">MPMovieControlStyleEmbedded</code>) include a play/pause button, a slider for changing the current frame of the movie (which may be omitted if the runtime feels the view isn’t wide enough to display it), and a fullscreen button (<a class="xref" href="ch28.html#FIGmp1">Figure 28.1</a>); there may also be an AirPlay route button, if an appropriate device is found on the network.<a id="idm441642127856" class="indexterm"></a></p>
+        <div class="figure">
+          <a id="FIGmp1"></a>
+          <div class="figure-contents">
+            <div class="mediaobject">
+              <img src="figs/pios_2801.png" alt="figs/pios_2801.png" />
+            </div>
+          </div>
+          <p class="title">Figure 28.1. A movie player with controls</p>
+        </div>
+        <br class="figure-break" />
+        <p>The user can tap the view to show or hide the controls at the bottom; the controls may also disappear automatically after play begins.</p>
+        <p>The controls, when <code class="literal">controlStyle</code> is <code class="literal">MPMovieControlStyleEmbedded</code>, appear at the bottom of the view. The movie itself is centered and scaled to fill the size of the view in accordance with the MPMoviePlayerController’s <code class="literal">scalingMode</code>; the default is <code class="literal">MPMovieScalingModeAspectFit</code>, which scales to fit, keeping the correct aspect ratio, and fills the unfilled dimension with the color of the MPMoviePlayerController’s <code class="literal">backgroundView</code>.</p>
+        <p>That explains why <a class="xref" href="ch28.html#FIGmp1">Figure 28.1</a> doesn’t look very good. Our code is not sophisticated about the size of the movie; it just tells the movie’s view to adopt a certain size. Within that size, the movie itself is scaled and centered, and the controls appear at the bottom. It would be better to set the size of the view in relation to the size of the movie. You can learn the actual size and aspect ratio of the movie, perhaps so as to eliminate the excess unfilled dimension. To do this, you get the MPMoviePlayerController’s <code class="literal">naturalSize</code>, but, as I mentioned earlier, it takes time, after the content URL is set and you call <code class="literal">prepareToPlay</code>, before this value can be determined. I’ll show an example in a moment.</p>
+        <p>If the movie is actually a sound file, the controls are drawn differently: there is a start/pause button, a slider, and possibly an AirPlay route button, and that’s all. The controls are centered in the view (<a class="xref" href="ch28.html#FIGmp4">Figure 28.2</a>).</p>
+        <div class="figure">
+          <a id="FIGmp4"></a>
+          <div class="figure-contents">
+            <div class="mediaobject">
+              <img src="figs/pios_2802.png" alt="figs/pios_2802.png" />
+            </div>
+          </div>
+          <p class="title">Figure 28.2. A movie player when the movie is a sound file</p>
+        </div>
+        <br class="figure-break" />
+        <p>If the user taps the fullscreen button (or pinches outwards) to enter fullscreen mode, the controls (<code class="literal">controlStyle</code> is <code class="literal">MPMovieControlStyleFullscreen</code>) at the top include a Done button, a slider, and an increased fullscreen button, and a second set of controls appears at the bottom with a play/pause button and rewind and fast-forward buttons, plus possibly a volume slider and an AirPlay route button. The user can tap to dismiss or summon the controls, double-tap to toggle increased fullscreen mode, and tap Done to stop play and leave fullscreen mode (<a class="xref" href="ch28.html#FIGmp3">Figure 28.3</a>).</p>
+        <div class="figure">
+          <a id="FIGmp3"></a>
+          <div class="figure-contents">
+            <div class="mediaobject">
+              <img src="figs/pios_2803.png" alt="figs/pios_2803.png" />
+            </div>
+          </div>
+          <p class="title">Figure 28.3. A movie player in fullscreen mode, with controls</p>
+        </div>
+        <br class="figure-break" />
+        <p>You can also set the style of the controls (<code class="literal">controlStyle</code>) manually, though this would be an odd thing to do, because each style of control goes with a display mode (fullscreen or otherwise); you are most likely to use this feature to make it impossible for the user to summon the controls at all (<code class="literal">MPMovieControlStyleNone</code>).</p>
+        <p>The fullscreen rendering will rotate to compensate for a change in device orientation if the interface in which the MPMoviePlayerController’s view is embedded will do so. <span class="keep-together">You can</span> programmatically toggle between fullscreen and not, with <code class="literal">setFullscreen:animated:</code>. You can set an MPMoviePlayerController to fullscreen programmatically even if the movie is just a sound, whose controller lacks a fullscreen button (<a class="xref" href="ch28.html#FIGmp5">Figure 28.4</a>).</p>
+        <div class="figure">
+          <a id="FIGmp5"></a>
+          <div class="figure-contents">
+            <div class="mediaobject">
+              <img src="figs/pios_2804.png" alt="figs/pios_2804.png" />
+            </div>
+          </div>
+          <p class="title">Figure 28.4. A fullscreen movie player when the movie is a sound file</p>
+        </div>
+        <br class="figure-break" />
+        <p>The movie can be made to repeat automatically (<code class="literal">repeatMode</code>) when it reaches its end. You can get the movie’s <code class="literal">duration</code>. You can change its <code class="literal">initialPlaybackTime</code> and <code class="literal">endPlaybackTime</code> (effectively trimming the start and end off the movie). Further programmatic control over the actual playing of the movie is obtained through the MPMediaPlayback protocol, which (as I mentioned a moment ago) MPMoviePlayerController adopts. This gives you the expected <code class="literal">play</code>, <code class="literal">pause</code>, and <code class="literal">stop</code> methods, as well as commands for seeking quickly forward and backward, and you can get and set the <code class="literal">currentPlaybackTime</code> to position the playhead. You can also set the <code class="literal">currentPlaybackRate</code>, making the movie play slower or faster than normal, and even backward (though in my experience backward play doesn’t always work very well; it <span class="emphasis"><em>skips</em></span> backward, playing little forward excerpts, rather than <span class="emphasis"><em>running</em></span> backward as one might have hoped).</p>
+        <p>An MPMoviePlayerController doesn’t have a delegate. Instead, to learn of events as they happen, you must register for notifications. These notifications are how you know when, after assigning a content URL and calling <code class="literal">prepareToPlay</code>, it is safe for you to query properties of the movie such its <code class="literal">naturalSize</code> and <code class="literal">duration</code>. In this example, I’ll use a notification to embed the movie view into the interface, at the correct aspect ratio, as soon as the <code class="literal">naturalSize</code> is known (<a class="xref" href="ch28.html#FIGcorrectratio">Figure 28.5</a>):</p>
+        <pre class="screen">- (void) setUpMPC {
+    NSURL* m = [[NSBundle mainBundle] URLForResource:@"ElMirage"
+                                       withExtension:@"mp4"];
+    // ... the rest as before; do NOT add to view yet ...
+    // [self.view addSubview:self.mpc.view];
+    [[NSNotificationCenter defaultCenter]
+        addObserver:self
+          selector:@selector(finishSetup:)
+              name:MPMoviePlayerReadyForDisplayDidChangeNotification
+            object:self.mpc];
+}
+
+- (void) finishSetup: (id) n {
+    [[NSNotificationCenter defaultCenter]
+        removeObserver:self
+                  name:MPMoviePlayerReadyForDisplayDidChangeNotification
+                object:self.mpc];
+    CGRect f = self.mpc.view.bounds;
+    f.size = self.mpc.naturalSize;
+    // make width 300, keep ratio
+    CGFloat ratio = 300.0/f.size.width;
+    f.size.width *= ratio;
+    f.size.height *= ratio;
+    self.mpc.view.bounds = f;
+    [self.view addSubview:self.mpc.view];
+}</pre>
+        <div class="figure">
+          <a id="FIGcorrectratio"></a>
+          <div class="figure-contents">
+            <div class="mediaobject">
+              <img src="figs/pios_2805.png" alt="figs/pios_2805.png" />
+            </div>
+          </div>
+          <p class="title">Figure 28.5. A movie player whose view fits its movie</p>
+        </div>
+        <br class="figure-break" />
+        <div class="warning" style="margin-left: 0; margin-right: 10%;">
+          <h3 class="title">Warning</h3>
+          <p><code class="literal">MPMoviePlayerReadyForDisplayDidChangeNotification</code> is new <span class="keep-together">in iOS 6</span>, and supersedes <code class="literal">MPMovieNaturalSizeAvailableNotification</code> from iOS 5 and before. Unfortunately, it really does supersede it: <code class="literal">MPMovieNaturalSizeAvailableNotification</code> is no longer sent. No major iOS update has lacked changes to MPMoviePlayerController that break your existing code; why should iOS 6 be different?<a id="idm441642077216" class="indexterm"></a>
+<a id="idm441642075872" class="indexterm"></a></p>
+        </div>
+        <p>Additional notifications tell such things as when fullscreen mode is entered and exited, and when the movie finishes playing. One of the most important notifications is <code class="literal">MPMoviePlayerPlaybackStateDidChangeNotification</code>; to learn the actual playback state, query the MPMoviePlayerController’s <code class="literal">playbackState</code>, which will be one of these:</p>
+        <div class="itemizedlist">
+          <ul class="itemizedlist" type="disc">
+            <li class="listitem">
+<code class="literal">MPMoviePlaybackStateStopped</code>
+</li>
+            <li class="listitem">
+<code class="literal">MPMoviePlaybackStatePlaying</code>
+</li>
+            <li class="listitem">
+<code class="literal">MPMoviePlaybackStatePaused</code>
+</li>
+            <li class="listitem">
+<code class="literal">MPMoviePlaybackStateInterrupted</code>
+</li>
+            <li class="listitem">
+<code class="literal">MPMoviePlaybackStateSeekingForward</code>
+</li>
+            <li class="listitem">
+<code class="literal">MPMoviePlaybackStateSeekingBackward</code>
+</li>
+          </ul>
+        </div>
+        <p>If the content comes from the Internet, there is of course many a slip possible. Things take time; the Internet might slow down, or go away completely; the resource to be fetched might not exist. You’ll want to register for notifications that tell you when things happen, and especially when things go wrong. What I do in the TidBITS News app, where an MPMoviePlayerController is used to play a sound file located remotely across the Internet, is to register for <code class="literal">MPMoviePlayerLoadStateDidChangeNotification</code>. When the notification arrives, I check the MPMoviePlayerController’s <code class="literal">loadState</code>; it’s a bitmask, and I look to see whether the <code class="literal">MPMovieLoadStatePlaythroughOK</code> bit is set:</p>
+        <pre class="screen">if (self.mpc.loadState &amp; MPMovieLoadStatePlaythroughOK) { // ...</pre>
+        <p>If, on the other hand, the <code class="literal">MPMovieLoadStateStalled</code> bit is set, we can assume that the network is in trouble. Play will not stop automatically; the MPMoviePlayerController will keep trying to obtain data. If we want to prevent that, we have to stop it manually (at which point I’d put up an alert informing the user that there’s a problem).</p>
+        <p>Another way to detect a problem is by registering for <code class="literal">MPMoviePlayerPlaybackDidFinishNotification</code>. If there’s an error, the <code class="literal">userInfo</code> dictionary’s <code class="literal">MPMoviePlayerPlaybackDidFinishReasonUserInfoKey</code> will be an NSNumber wrapping <code class="literal">MPMovieFinishReasonPlaybackError</code>, and the dictionary may also have a key called <code class="literal">@"error"</code>, which will be an NSError; the <code class="literal">localizedDescription</code> of this NSError could be suitable for presentation to the user as a statement of the difficulty.</p>
+        <p>For extended information about the playback of a movie streamed across the Internet, look into MPMoviePlayerController’s <code class="literal">accessLog</code> and <code class="literal">errorLog</code> properties.</p>
+        <div class="note" style="margin-left: 0; margin-right: 10%;">
+          <h3 class="title"><a id="SBonlyOne"></a>There Can Be Only One</h3>
+          <p>Only one MPMoviePlayerController can display a movie in your interface. Judicious use of <code class="literal">prepareToPlay</code> can make any MPMoviePlayerController’s view the One, but if your interface displays the views of any other MPMoviePlayerControllers, those views may become empty, which doesn’t look good and may puzzle the user. To avoid confusion about why one of your MPMoviePlayerControllers is not playing its movie successfully, the simplest solution is to restrict your interface so that it contains only one MPMoviePlayerController’s view.<a id="idm441642049424" class="indexterm"></a></p>
+        </div>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_mpmovieplayerviewcontroller"></a>MPMoviePlayerViewController</h2>
+            </div>
+          </div>
+        </div>
+        <p>An <a id="idm441642046912" class="indexterm"></a>MPMoviePlayerViewController is, as its name implies, a view controller (a UIViewController subclass). It manages an MPMoviePlayerController (its <code class="literal">moviePlayer</code>) and automatically provides a fullscreen presentation of the MPMoviePlayerController’s view. Thus, an MPMoviePlayerViewController has some strong advantages of simplicity.<a id="idm441642045040" class="indexterm"></a></p>
+        <p>The documentation says that you can use an MPMoviePlayerViewController wherever you would use a UIViewController, such as a child view controller in a tab bar interface or navigation interface, but the MPMoviePlayerViewController’s own interface seems to make the most sense when it is a presented view controller. A category on UIViewController even provides a special method for presenting it, <code class="literal">presentMoviePlayerViewControllerAnimated:</code>, which uses a style of animation otherwise unavailable, whereby the current view slides out to reveal the movie view. To remove the view in code, you could then call <code class="literal">dismissMoviePlayerViewControllerAnimated</code>. Here’s a simple example:</p>
+        <pre class="screen">NSURL* m = [[NSBundle mainBundle] URLForResource:@"ElMirage"
+                                   withExtension:@"mp4"];
+MPMoviePlayerViewController* mpvc =
+    [[MPMoviePlayerViewController alloc] initWithContentURL: m];
+mpvc.moviePlayer.shouldAutoplay = NO; // optional
+[self presentMoviePlayerViewControllerAnimated:mpvc];</pre>
+        <p>In that code, I’ve set the MPMoviePlayerViewController’s <code class="literal">moviePlayer</code>’s <code class="literal">shouldAutoplay</code> property just to show that it can be done; the <code class="literal">moviePlayer</code> is an MPMoviePlayerController, and can be sent the same sorts of message you’d send it if you were using it on its own. For example, you can register for its notifications. You will not, however, need to send it <code class="literal">prepareToPlay</code>.</p>
+        <p>At present, there appears to be a bug where <code class="literal">initWithContentURL:</code> on the iPhone triggers a half dozen spurious console log messages complaining of an “invalid context.” These messages do no harm, but having them appear in the log is rather unpleasant; a workaround is to wrap that call in a fake graphics context, like this:</p>
+        <pre class="screen">UIGraphicsBeginImageContext(CGSizeMake(1,1));
+MPMoviePlayerViewController* mpvc =
+    [[MPMoviePlayerViewController alloc] initWithContentURL: m];
+UIGraphicsEndImageContext();</pre>
+        <p>You can detect the user pressing the Done button by registering for the <code class="literal">MPMoviePlayerPlaybackDidFinishNotification</code>. If the user tapped Done, the <code class="literal">MPMoviePlayerPlaybackDidFinishReasonUserInfoKey</code> in the notification’s <code class="literal">userInfo</code> dictionary will be an NSNumber wrapping <code class="literal">MPMovieFinishReasonUserExited</code>. If the MPMoviePlayerViewController is a presented view controller, it is dismissed automatically when the user taps the Done button or when the movie plays to its end (in which case the <code class="literal">MPMoviePlayerPlaybackDidFinishReasonUserInfoKey</code> is <code class="literal">MPMovieFinishReasonPlaybackEnded</code>). If you use the MPMoviePlayerViewController in some other way, the Done button stops play but that’s all, and dealing with the interface is up to you.</p>
+        <p>MPMoviePlayerViewController is a view controller, so if it is used as a presented view controller, it takes charge of whether to rotate in response to a change in the device orientation (<a class="xref" href="ch19.html">Chapter 19</a>). By default, it does nothing, meaning that it will rotate to any orientation permitted by the app and the app delegate. You can subclass MPMoviePlayerViewController to override <code class="literal">supportedInterfaceOrientations</code> if that isn’t what you want.</p>
+        <div class="note" style="margin-left: 0; margin-right: 10%;">
+          <h3 class="title">Note</h3>
+          <p>In general, the simplicity of MPMoviePlayerViewController means that a number of choices are made for you, and you may find yourself struggling against them. (For example, when an MPMoviePlayerViewController’s view is showing, it becomes a recipient of remote control events; see <a class="xref" href="ch27.html">Chapter 27</a>. This feature is convenient, but if it’s not what you want, it is not easily overcome; there is no property for turning it off.) A better approach may be to use an MPMoviePlayerController instead. In the current version of the TidBITS News app, I’ve switched from using MPMoviePlayerViewController to using MPMoviePlayerController and my own view controller, and I’m much happier: with a little more work, I get much more control.</p>
+        </div>
+        <p>After an MPMoviePlayerViewController’s view is dismissed, if your app’s revealed interface contains an MPMoviePlayerController’s view, that view will be unable to play its movie, because of the rule I stated a moment ago: There Can Be Only One. The MPMoviePlayerViewController’s view was the One, so now the MPMoviePlayerController’s view is broken. To fix it, send <code class="literal">prepareToPlay</code> to the MPMoviePlayerController.</p>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_uivideoeditorcontroller"></a>UIVideoEditorController</h2>
+            </div>
+          </div>
+        </div>
+        <p>UIVideoEditorController is a view controller that presents an interface where the user can trim video. Its view and internal behavior are outside your control, and you’re not supposed to subclass it. You are expected to show the view controller’s view as a presented view on the iPhone or in a popover on the iPad, and respond by way of its delegate.<a id="idm441642021056" class="indexterm"></a><a id="idm441642019296" class="indexterm"></a><a id="idm441642018432" class="indexterm"></a><a id="idm441642017520" class="indexterm"></a></p>
+        <p>Before summoning a UIVideoEditorController, be sure to call its class method <code class="literal">canEditVideoAtPath:</code>. Not every video format is editable, and not every device supports video editing. If this call returns NO, don’t instantiate UIVideoEditorController to edit the given file. (This call can take some noticeable time to return.) You must also set the UIVideoEditorController instance’s <code class="literal">delegate</code> and <code class="literal">videoPath</code> before presenting it; the delegate should adopt both UINavigationControllerDelegate and UIVideoEditorControllerDelegate:</p>
+        <pre class="screen">NSURL* m = [[NSBundle mainBundle] URLForResource:@"ElMirage"
+                                   withExtension:@"mp4"];
+BOOL can = [UIVideoEditorController canEditVideoAtPath:path];
+if (!can) {
+    NSLog(@"can't edit this video");
+    return;
+}
+UIVideoEditorController* vc = [UIVideoEditorController new];
+vc.delegate = self;
+vc.videoPath = path;
+if ([[UIDevice currentDevice] userInterfaceIdiom] == UIUserInterfaceIdiomPad) {
+    UIPopoverController* pop =
+        [[UIPopoverController alloc] initWithContentViewController:vc];
+    pop.delegate = self;
+    self.currentPop = pop;
+    [pop presentPopoverFromRect:[sender bounds]
+        inView:sender permittedArrowDirections:UIPopoverArrowDirectionAny
+                                      animated:NO];
+}
+else {
+    [self presentViewController:vc animated:YES completion:nil];
+}</pre>
+        <div class="warning" style="margin-left: 0; margin-right: 10%;">
+          <h3 class="title">Warning</h3>
+          <p>In actual fact I have <span class="emphasis"><em>never</em></span> been able to get a UIVideoEditorController to work properly on the iPad! I can summon the interface in a popover, but it is not the correct interface — its title is Choose Video, the right button says Use, and the Cancel button does nothing — and trying to summon the interface as a presented view controller causes a crash. This is a <span class="emphasis"><em>very</em></span> long-standing bug, and I am astounded that Apple has done nothing about it.</p>
+        </div>
+        <p>The view’s interface (on the iPhone) contains Cancel and Save buttons, a trimming box displaying thumbnails from the movie, a Play/Pause button, and the movie itself. The user slides the ends of the trimming box to set the beginning and end of the saved movie. The Cancel and Save buttons do <span class="emphasis"><em>not</em></span> dismiss the presented view; you must do that in your implementation of the delegate methods. There are three of them, and you should implement all three and dismiss the presented view in all of them:</p>
+        <div class="itemizedlist">
+          <ul class="itemizedlist" type="disc">
+            <li class="listitem">
+<code class="literal">videoEditorController:didSaveEditedVideoToPath:</code>
+</li>
+            <li class="listitem">
+<code class="literal">videoEditorControllerDidCancel:</code>
+</li>
+            <li class="listitem">
+<code class="literal">videoEditorController:didFailWithError:</code>
+</li>
+          </ul>
+        </div>
+        <p>It’s important to implement the <code class="literal">didFail...</code> method, because things can go wrong even at this stage.</p>
+        <p>Saving the trimmed video takes time. When <code class="literal">videoEditorController:didSaveEditedVideoToPath:</code> is called, the trimmed video has already been saved to a file in your app’s temporary directory (the same directory returned from a call to <code class="literal">NSTemporaryDirectory</code>). Doing something useful with the saved file is up to you; if you merely leave it in the temporary directory, you can’t rely on it to persist. In this example, I copy the edited movie into the user’s Camera Roll photo album (called Saved Photos if the device has no camera). That takes time too, so when I call <code class="literal">UISaveVideoAtPathToSavedPhotosAlbum</code>, I use the second and third arguments to call a method that dismisses the editor <span class="emphasis"><em>after</em></span> the saving is over:</p>
+        <pre class="screen">- (void) videoEditorController: (UIVideoEditorController*) editor
+        didSaveEditedVideoToPath: (NSString*) editedVideoPath {
+    if (UIVideoAtPathIsCompatibleWithSavedPhotosAlbum(editedVideoPath))
+        UISaveVideoAtPathToSavedPhotosAlbum(editedVideoPath, self,
+            @selector(video:savedWithError:ci:), nil);
+    else
+        // need to think of something else to do with it
+}</pre>
+        <p>In our secondary method (here, <code class="literal">video:savedWithError:ci:</code>), it’s important to check for errors, because things can <span class="emphasis"><em>still</em></span> go wrong. In particular, on iOS 6, the user could deny us access to the Photos library (see <a class="xref" href="ch30.html">Chapter 30</a> for more about that). If that’s the case, we’ll get an NSError whose <code class="literal">domain</code> is <code class="literal">ALAssetsLibraryErrorDomain</code>.</p>
+        <p>My implementation also has to grapple with the fact that my app’s revealed interface, after the presented UIVideoEditorController is dismissed, will contain an MPMoviePlayerController’s view (as described earlier in this chapter). That view will be broken — unable to show its movie — because, as I’ve already explained, There Can Be Only One. The solution, once again, is to call <code class="literal">prepareToPlay</code>, but this call won’t succeed until the dismissal animation is over and the video editor’s movie view has been released; even then, in iOS 6, I have to add an extra delay:</p>
+        <pre class="screen">-(void)video:(NSString*)path savedWithError:(NSError*)err ci:(void*)ci {
+    if (err)
+        // ... do something ...
+    [self dismissViewControllerAnimated:YES completion:^{
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [self.mpc prepareToPlay];
+        });
+    }];
+}</pre>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_introduction_to_av_foundation_video"></a>Introduction to AV Foundation Video</h2>
+            </div>
+          </div>
+        </div>
+        <p>A large suite of AV Foundation classes provides detailed access to media components. To access AV Foundation, you’ll need to link to <span class="emphasis"><em>AVFoundation.framework</em></span> (and probably <span class="emphasis"><em>CoreMedia.framework</em></span> as well), and import <code class="literal">&lt;AVFoundation/AVFoundation.h&gt;</code>. For a list of classes, see the <span class="emphasis"><em>AV Foundation Framework Reference</em></span>.<a id="idm441641987504" class="indexterm"></a>
+<a id="idm441641986208" class="indexterm"></a> AV Foundation is a huge topic, so there isn’t space here to do more than introduce the concepts involved.</p>
+        <p>The AV Foundation class that performs actual playing of media is <a id="idm441641984240" class="indexterm"></a>AVPlayer. An AVPlayer has an AVPlayerItem; this is its media. An AVPlayerItem comprises tracks (AVPlayerItemTrack), which can be individually enabled or disabled. It gets these from its underlying AVAsset; this is the basic media unit, as it were, providing you with access to actual tracks (AVAssetTrack) and metadata. As with an MPMoviePlayerController, you might use an AVPlayer to play a pure sound rather than a full-fledged movie.</p>
+        <p>An AVPlayer can be an AVQueuePlayer, a subclass that allows multiple AVPlayerItems to be loaded up and then played in sequence; I’ll give an example in <a class="xref" href="ch29.html">Chapter 29</a> of using an AVQueuePlayer to play a series of songs. AVQueuePlayer also has an <code class="literal">advanceToNextItem</code> method, and its list of items can be changed dynamically, so you could use it to give the user access to a set of “chapters.”</p>
+        <p>To display an AVPlayer’s movie, you need an AVPlayerLayer (a CALayer subclass). You are unlikely to take this approach unless you need the extended powers of AV Foundation or the sequential playing power of AVQueuePlayer or the flexibility of working directly with a layer and Core Animation. The AVPlayerLayer doesn’t even come with controls for letting the user play and pause a movie and visualize its progress; you have to create these yourself. Nevertheless, simply displaying a movie in this way is quite easy:<a id="idm441641979728" class="indexterm"></a></p>
+        <pre class="screen">NSURL* m = [[NSBundle mainBundle] URLForResource:@"ElMirage"
+                                   withExtension:@"mp4"];
+AVPlayer* p = [AVPlayer playerWithURL:m];
+self.player = p; // might need a reference later
+AVPlayerLayer* lay = [AVPlayerLayer playerLayerWithPlayer:p];
+lay.frame = CGRectMake(10,10,300,200);
+[self.view.layer addSublayer:lay];</pre>
+        <p>To let the user start playing the movie, we might provide a Play button. In this example, the button toggles the playing status of the movie by changing its rate:</p>
+        <pre class="screen">- (IBAction) doButton: (id) sender {
+    CGFloat rate = self.player.rate;
+    if (rate &lt; 0.01)
+        self.player.rate = 1;
+    else
+        self.player.rate = 0;
+}</pre>
+        <p>Another intriguing feature of an AVPlayer is that you can coordinate animation in your interface (<a class="xref" href="ch17.html">Chapter 17</a>) with the playing of the movie. You attach an animation to a layer in more or less the usual way, but the animation takes place in movie playback time: if the movie is stopped, the animation is stopped, and if the movie is run at double rate, the animation runs at double rate. This is done by embedding the layer to be animated in an <a id="idm441641974624" class="indexterm"></a>AVSynchronizedLayer, which is coupled with an AVPlayerItem.<a id="idm441641973824" class="indexterm"></a></p>
+        <p>To demonstrate, I’ll extend the previous example; after we insert our AVPlayerLayer into the interface, we also create and insert an AVSynchronizedLayer:</p>
+        <pre class="screen">// create synch layer, put it in the interface
+AVPlayerItem* item = p.currentItem;
+AVSynchronizedLayer* syncLayer =
+    [AVSynchronizedLayer synchronizedLayerWithPlayerItem:item];
+syncLayer.frame = CGRectMake(10,220,300,10);
+syncLayer.backgroundColor = [[UIColor whiteColor] CGColor];
+[self.view.layer addSublayer:syncLayer];
+// give synch layer a sublayer
+CALayer* subLayer = [CALayer layer];
+subLayer.backgroundColor = [[UIColor blackColor] CGColor];
+subLayer.frame = CGRectMake(0,0,10,10);
+[syncLayer addSublayer:subLayer];
+// animate the sublayer
+CABasicAnimation* anim = [CABasicAnimation animationWithKeyPath:@"position"];
+anim.fromValue = [NSValue valueWithCGPoint: subLayer.position];
+anim.toValue = [NSValue valueWithCGPoint: CGPointMake(295,5)];
+anim.removedOnCompletion = NO;
+anim.beginTime = AVCoreAnimationBeginTimeAtZero; // important trick
+anim.duration = CMTimeGetSeconds(item.asset.duration);
+[subLayer addAnimation:anim forKey:nil];</pre>
+        <p>The result is shown in <a class="xref" href="ch28.html#FIGkyle">Figure 28.6</a>. The white rectangle is the AVSynchronizedLayer, tied to our movie. The little black square inside it is its sublayer; when we animate the black square, that animation will be synchronized to the movie, changing its position from the left end of the white rectangle to the right end, starting at the beginning of the movie and with the same duration as the movie. Thus, although we attach this animation to the black square layer in the usual way, the black square <span class="emphasis"><em>doesn’t move</em></span> until we tap the button to call <code class="literal">doButton:</code> and start the movie playing. Moreover, if we tap the button again to pause the movie, the black square stops. The black square is thus <span class="emphasis"><em>automatically</em></span> representing the current play position within the movie!</p>
+        <div class="figure">
+          <a id="FIGkyle"></a>
+          <div class="figure-contents">
+            <div class="mediaobject">
+              <img src="figs/pios_2806.png" alt="figs/pios_2806.png" />
+            </div>
+          </div>
+          <p class="title">Figure 28.6. The black square’s position is synchronized to the movie</p>
+        </div>
+        <br class="figure-break" />
+        <p>For the sake of simplicity, I built the structure in that example from the top down: I started with the AVPlayer and the URL of the media, and extracted the AVPlayerItem and the corresponding <a id="idm441641962896" class="indexterm"></a>AVAsset only when I needed them. That, however, is not typical. In the more general case, you would likely build the structure from the bottom up, starting from the AVAsset, which you can obtain from the URL of the media through a subclass, AVURLAsset. This, then, amounts to the very same thing in bottom-up order:</p>
+        <pre class="screen">AVURLAsset* asset = [AVURLAsset URLAssetWithURL:m options:nil];
+AVPlayerItem* item = [AVPlayerItem playerItemWithAsset:asset];
+AVPlayer* p = [AVPlayer playerWithPlayerItem:item];
+self.player = p;
+AVPlayerLayer* lay = [AVPlayerLayer playerLayerWithPlayer:p];
+lay.frame = CGRectMake(10,10,300,200);
+[self.view.layer addSublayer:lay];</pre>
+        <p>We are now ready to create the synchronized layer. But the synchronization will initially be incorrect unless the AVPlayerLayer is itself ready to display the movie. At that moment, the AVPlayerLayer’s <code class="literal">readyForDisplay</code> property will be YES. To wait for that moment, we use key–value observing (<a class="xref" href="ch13.html">Chapter 13</a>); AV Foundation doesn’t generally use notifications, as you’re expected to use KVO instead:</p>
+        <pre class="screen">[lay addObserver:self forKeyPath:@"readyForDisplay" options:0 context:nil];</pre>
+        <p>When the AVPlayerLayer is ready for display, we complete the interface by creating the synchronized layer:</p>
+        <pre class="screen">- (void) observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object
+        change:(NSDictionary *)change context:(void *)context {
+    if ([keyPath isEqualToString:@"readyForDisplay"]) {
+        AVPlayerLayer* lay = (AVPlayerLayer*) object;
+        if (lay.readyForDisplay) {
+            [lay removeObserver:self forKeyPath:@"readyForDisplay"];
+            AVPlayerItem* item = self.player.currentItem;
+            AVSynchronizedLayer* syncLayer =
+                [AVSynchronizedLayer synchronizedLayerWithPlayerItem:item];
+            // ... and the rest is as before ...</pre>
+        <p>It takes time for media values to become available. Just as, with MPMoviePlayerController, we couldn’t fetch a movie’s <code class="literal">naturalSize</code> immediately, so too, when examining an AVAsset or AVAssetTrack property, you have to wait until that property has been loaded. To do so, you’ll call <code class="literal">loadValuesAsynchronouslyForKeys:completionHandler:</code>; see the AVAsynchronousKeyValueLoading protocol documentation. I’ll give an example in <a class="xref" href="ch29.html">Chapter 29</a>.</p>
+        <p>AV Foundation also allows you to construct your own media asset in code (AVComposition, an AVAsset subclass, along with <span class="emphasis"><em>its</em></span> subclass, AVMutableComposition). For example, you might combine part of the sound from one asset and part of the video from another into a single movie. In this (oversimplified) example, I extract two five-second snippets from a video file and put them together with a ten-second snippet from an audio file:<a id="idm441641951472" class="indexterm"></a></p>
+        <pre class="screen">NSString* type = AVMediaTypeVideo;
+NSArray* arr = [myVideoAsset tracksWithMediaType:type];
+AVAssetTrack* track = [arr lastObject];
+
+AVMutableComposition* comp = [AVMutableComposition composition];
+AVMutableCompositionTrack* comptrack =
+    [comp addMutableTrackWithMediaType:type
+     preferredTrackID:kCMPersistentTrackID_Invalid];
+[comptrack insertTimeRange:CMTimeRangeMake(CMTimeMakeWithSeconds(0,1),
+                                           CMTimeMakeWithSeconds(5,1))
+                   ofTrack:track atTime:CMTimeMakeWithSeconds(0,1) error:nil];
+[comptrack insertTimeRange:CMTimeRangeMake(CMTimeMakeWithSeconds(30,1),
+                                           CMTimeMakeWithSeconds(5,1))
+                   ofTrack:track atTime:CMTimeMakeWithSeconds(5,1) error:nil];
+
+type = AVMediaTypeAudio;
+NSURL* s = [[NSBundle mainBundle] URLForResource:@"snd" withExtension:@"m4a"];
+AVAsset* asset = [AVURLAsset URLAssetWithURL:s options:nil];
+arr = [asset tracksWithMediaType:type];
+track = [arr lastObject];
+
+comptrack = [comp addMutableTrackWithMediaType:type
+             preferredTrackID:kCMPersistentTrackID_Invalid];
+[comptrack insertTimeRange:CMTimeRangeMake(CMTimeMakeWithSeconds(0,1),
+                                           CMTimeMakeWithSeconds(10,1))
+                   ofTrack:track atTime:CMTimeMakeWithSeconds(0,1) error:nil];
+
+AVPlayerItem* item = [AVPlayerItem playerItemWithAsset:[comp copy]];</pre>
+        <p>You can also apply audio volume changes and video opacity and transform changes to the playback of individual tracks. In this example, continuing on from the previous example, we apply a fadeout to the last three seconds of the existing audio:<a id="idm441641949120" class="indexterm"></a></p>
+        <pre class="screen">AVMutableAudioMixInputParameters* params =
+    [AVMutableAudioMixInputParameters
+        audioMixInputParametersWithTrack:comptrack];
+[params setVolume:1 atTime:CMTimeMakeWithSeconds(0,1)];
+[params setVolumeRampFromStartVolume:1 toEndVolume:0
+        timeRange:CMTimeRangeMake(CMTimeMakeWithSeconds(6,1),
+                                  CMTimeMakeWithSeconds(2,1))];
+AVMutableAudioMix* mix = [AVMutableAudioMix audioMix];
+mix.inputParameters = [NSArray arrayWithObject: params];
+
+item.audioMix = mix; // item is our existing AVPlayerItem</pre>
+        <p>Here are some other things you can do with AV Foundation:</p>
+        <div class="itemizedlist">
+          <ul class="itemizedlist" type="disc">
+            <li class="listitem">
+Extract single images (“thumbnails”) from a movie (AVAssetImageGenerator).
+</li>
+            <li class="listitem">
+Export a movie in a different format (AVAssetExportSession), or read/write raw uncompressed data through a buffer to or from a track (AVAssetReader, AVAssetReaderOutput, AVAssetWriter, AVAssetWriterInput, and so on).
+</li>
+            <li class="listitem">
+Capture audio, video, and stills, on a device that supports it (such as an iPhone, or another device connected to external hardware), including capturing video frames as still images (see Technical Q&amp;A QA1702). I’ll say more about this in <a class="xref" href="ch30.html">Chapter 30</a>.
+</li>
+          </ul>
+        </div>
+        <p>It should be evident from even so brief a summary that you could use AV Foundation to write a movie editor or a sound mixer. To learn more, you’ll want to read the <span class="emphasis"><em>AV Foundation Programming Guide</em></span>.
+<a id="idm441641940736" class="indexterm"></a></p>
+      </div>
+    </div>
+    <div class="navfooter">
+      <table width="100%" summary="Navigation footer">
+        <tr>
+          <td width="40%" align="left"><a accesskey="p" href="ch27.html">Prev</a> </td>
+          <td width="20%" align="center">
+            <a accesskey="u" href="pt06.html">Up</a>
+          </td>
+          <td width="40%" align="right"> <a accesskey="n" href="ch29.html">Next</a></td>
+        </tr>
+        <tr>
+          <td width="40%" align="left" valign="top">Chapter 27. Audio </td>
+          <td width="20%" align="center">
+            <a accesskey="h" href="index.html">Table of Contents</a>
+          </td>
+          <td width="40%" align="right" valign="top"> Chapter 29. Music Library</td>
+        </tr>
+      </table>
+    </div>
+  </body>
+</html>

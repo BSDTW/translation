@@ -1,0 +1,305 @@
+
+
+<!-- Vignette StoryServer 4 Sat Mar 11 15:43:24 2000 --> 
+<style type=text/css>
+<!--
+p,div {font-size:12pt; line-height:14pt; font-family:宋體;}
+.p1{font-size:12pt;font-family:宋體;}
+.p2{font-size:12pt;font-family:宋體;line-height:14pt;}
+.p3{font-size:14.8px;font-family:宋體;}
+.p4{font-size:14.8px;font-family:宋體;line-height:14pt;}
+.p5{font-size:1pt}
+a:hover{color:red;}
+a.t1:visited{color:red;}
+-->
+</style>
+<title>FreeBSD使用大全</title></head>
+
+<body bgcolor="#FFFFFF" text="#000000" link="#383098" vlink="#336699" alink="#FF0000" topmargin="0">
+<!-- Vignette StoryServer 4 Thu Mar 23 10:01:54 2000 --> <!-- Vignette StoryServer 4 Thu Mar 23 15:34:35 2000 --> 
+
+<!--開始：新聞內容-->
+<TABLE WIDTH=750 BORDER=0 CELLSPACING=0 CELLPADDING=0>
+
+<tr valign=top>
+
+
+
+<TD  valign=top>
+<CENTER><FONT COLOR=#000066 size=5><B>FreeBSD連載(84)：配置Apache伺服器(1)</B><br></FONT></CENTER>
+
+<HR  ALIGN="center" SIZE=1>
+<CENTER><FONT FACE="Arial" SIZE=2> 2000年1月25日 13:29 </FONT><FONT COLOR="#990000" SIZE=2>王波</FONT></CENTER><p>
+
+<h1 align=center>配置Apache伺服器(1)</h1>
+
+<p>　　Apache伺服器的設置檔案位於/usr/local/etc/apache目錄下，傳統上使用三個配置文
+件httpd.conf,access.conf和srm.conf，來配置Apache伺服器的行為。httpd.
+conf提供了最基本的伺服器配置，是對守護程序httpd如何運行的技術描述﹔srm.conf是伺服器的資源映射
+檔案，告訴伺服器各種檔案的MIME類型，以及如何支持這些檔案﹔access.conf用於配置伺服器的訪問權限，
+控制不同用戶和電腦的訪問限制﹔這三個配置檔案控制著伺服器的各個方面的特性，因此為了正常運行伺服器便需要設置好
+這三個檔案。</p>
+
+<p>　　除了這三個設置檔案之外，Apache還使用mime.types檔案用於標識不同檔案對應的MIME類型，
+magic檔案設置不同MIME類型檔案的一些特殊標識，使得Apache伺服器從文檔後綴不能判斷出檔案的MIME
+類型時，能通過檔案內容中的這些特殊標記來判斷文檔的MIME類型。</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre><font size=2>bash-2.02$ ls -l /usr/local/etc/apache
+total 100
+-rw-r--r--   1 root  wheel    348 Apr 16 16:01 access.conf
+-rw-r--r--   1 root  wheel    348 Feb 13 13:33 access.conf.default
+-rw-r--r--   1 root  wheel  30331 May 26 08:55 httpd.conf
+-rw-r--r--   1 root  wheel  29953 Feb 13 13:33 httpd.conf.default
+-rw-r--r--   1 root  wheel  12441 Apr 19 15:42 magic
+-rw-r--r--   1 root  wheel  12441 Feb 13 13:33 magic.default
+-rw-r--r--   1 root  wheel   7334 Feb 13 13:33 mime.types
+-rw-r--r--   1 root  wheel    383 May 13 17:01 srm.conf
+-rw-r--r--   1 root  wheel    357 Feb 13 13:33 srm.conf.default</font></td></pre></tr></table>
+
+<p>　　事實上目前版本的Apache將原來httpd.conf、srm.conf與access.conf中的所
+有配置參數均放在了一個配置檔案httpd.conf中，只是為了與以前的版本兼容的原因（使用這三個設置檔案的方式
+來源於NCSA-httpd），才使用三個配置檔案。而提供的access.conf和srm.conf檔案中沒有具
+體的設置。</p>
+
+<p>　　新版本Apache使用的配置檔案為apache.conf，它就等價於httpd.conf。</p>
+
+<p>　　由於在新版本的Apache中，所有的設置都被放在了httpd.conf中，因此只需要調整這個檔案中的設
+置。以下使用預設提供的httpd.conf為例，解釋Apache伺服器的各個設置選項。然而不必因為它提供設置的
+參數太多而煩惱，基本上這些參數都很明確，也可以不加改動運行Apache伺服器。但如果需要調整Apache伺服器
+的性能，以及增加對某種特性的支持，就需要了解這些設置參數的含義。</p>
+
+<p>　　關於Apache伺服器的性能，在Internet上存在很大的爭議，基本上使用過Apache的使用者幾乎
+都不懷疑它的優秀性能，Apache也支撐了很多著名的高負載的網站，但是在商業機構的評測中，Apache往往得分
+不高。很多人指出，在這些評測中，商業Web伺服器及其操作系統往往由其專業公司的工程師進行過性能調整，而Free
+的操作系統和Web伺服器往往就使用其預設配置或僅僅作很小的更改。需要指出的是，除了操作系統的性能調整之外，Apache
+伺服器本身的預設配置絕不是最優化和最高效的，而是要適應幾乎所有種類操作系統、所有種類硬體下的設置，多平
+台的軟體不可能為特定平台和特定硬體提供最優化的預設配置。因此要使用Apache的時候，性能調整是必不可少的。</p>
+
+<p>　　在商業評測中忽略了的另一個事實是，評測時往往對不同種類的功能進行比較，例如使用Apache的標準CGI
+的性能與ISAPI，NSAPI等伺服器端API比較，事實上Apache伺服器與此可以比較的功能為modperl
+，FastCGI，與ASP類似的功能為PHP3等等，只不過由於Apache的開放模式，這些功能是由獨立的開發組
+，作為獨立的模塊來實現的。但是在評測中，測試人員沒有加入相應的模塊評測其性能。</p>
+
+<ul><h2><P><LI>HTTP守護進程的運行參數</LI></P></h2></ul>
+
+<p>　　httpd.conf中首先定義了一些httpd守護進程運行時需要的參數，來決定其運行方式和運行環境。</p>
+
+<p>　　ServerType standalone</p>
+
+<p>　　<B>ServerType</B>定義伺服器的啟動方式，預設值為獨立方式standalone，http
+d伺服器將由其本身啟動，並駐留在主機中監視連接請求。在FreeBSD下將在啟動檔案/usr/local/etc
+/rc.d/apache.sh中自動啟動Web伺服器，這種方式是推荐設置。</p>
+
+<p>　　啟動Apache伺服器的另一種方式是inet方式，使用超級伺服器inetd監視連接請求並啟動伺服器。當
+需要使用inetd啟動方式時，便需要更改為這個設置，並屏蔽/usr/local/etc/rc.d/apache
+.sh檔案，以及更改/etc/inetd.conf並重起inetd，那麼Apache就能從inetd中啟動了。
+</p>
+<p>　　兩種方式的區別是獨立方式是由伺服器自身管理自己的啟動進程，這樣在啟動時能立即啟動伺服器的多個副本，每個
+副本都駐留在內存中，一有連接請求不需要生成子進程就可以立即進行處理，對於客戶瀏覽器的請求反應更快，性能較高。而
+inetd方式要由inetd發現有連接請求後才去啟動http伺服器，由於inetd要監聽太多的端口，因此反應較
+慢、效率較低，但節約了沒有連接請求時Web伺服器占用的資源。因此inetd方式只用於偶爾被訪問並且不要求訪問速
+度的伺服器上。事實上inetd方式不適合http的突發和多連接的特性，因為一個頁面可能包含多個圖象，而每個圖象
+都會引起一個連接請求，即使雖然訪問人數造成教少，但瞬間的連接請求並不少，這就受到inetd性能的限制，甚至會影
+響由inetd啟動的其他伺服器程序。</p>
+
+<p>　　ServerRoot "/usr/local"</p>
+
+<p>　　<B>ServerRoot</B>用於指定守護進程httpd的運行目錄，httpd在啟動之後將自動將進
+程的目前目錄改變為這個目錄，因此如果設置檔案中指定的檔案或目錄是相對路徑，那麼真實路徑就位於這個ServerR
+oot定義的路徑之下。</p>
+
+<p>　　由於httpd會經常進行並發的檔案操作，就需要使用加鎖的方式來保証檔案操作不衝突，由於NFS檔案系統在
+檔案加鎖方面能力有限，因此這個目錄應該是本地磁碟檔案系統，而不應該使用NFS檔案系統。</p>
+
+<p>　　#LockFile /var/run/httpd.lock</p>
+
+<p>　　<B>LockFile</B>參數指定了httpd守護進程的加鎖檔案，一般不需要設置這個參數，Apac
+he伺服器將自動在ServerRoot下面的路徑中進行操作。但如果ServerRoot為NFS檔案系統，便需要
+使用這個參數指定本地檔案系統中的路徑。</p>
+
+<p>　　PidFile /var/run/httpd.pid</p>
+
+<p>　　<B>PidFile</B>指定的檔案將記錄httpd守護進程的進程號，由於httpd能自動復制其自身
+，因此系統中有多個httpd進程，但只有一個進程為最初啟動的進程，它為其他進程的父進程，對這個進程發送信號將影
+響所有的httpd進程。PidFILE定義的檔案中就記錄httpd父進程的進程號。</p>
+
+<p>　　ScoreBoardFile /var/run/httpd.scoreboard</p>
+
+<p>　　httpd使用<B>ScoreBoardFile</B>來維護進程的內部數據，因此通常不需要改變這個參
+數，除非管理員想在一台電腦上運行幾個Apache伺服器，這時每個Apache伺服器都需要獨立的設置檔案htt
+pd.conf，並使用不同的ScoreBoardFile。</p>
+
+<p>　　#ResourceConfig conf/srm.conf<br>　　#AccessConfig conf/access.conf</p>
+
+<p>　　這兩個參數<B>ResourceConfig</B>和<B>AccessConfig</B>，就用於和
+使用srm.conf和access.conf設置檔案的老版本Apache兼容。如果沒有兼容的需要，可以將對應的
+設置檔案指定為/dev/null，這將表示不存在其他設置檔案，而僅使用httpd.conf一個檔案來保存所有的
+設置選項。</p>
+
+<p>　　Timeout 300</p>
+
+<p>　　<B>Timeout</B>定義客戶程序和伺服器連接的超時間隔，超過這個時間間隔（秒）後伺服器將斷開與
+客戶機的連接。</p>
+
+<p>　　KeepAlive On</p>
+
+<p>　　在HTTP 1.0中，一次連接只能作傳輸一次HTTP請求，而<B>KeepAlive</B>參數用於支
+持HTTP 1.1版本的一次連接、多次傳輸功能，這樣就可以在一次連接中傳遞多個HTTP請求。雖然只有較新的瀏覽
+器才支持這個功能，但還是打開使用這個選項。</p>
+
+<p>　　MaxKeepAliveRequests 100</p>
+
+<p>　　<B>MaxKeepAliveRequests</B>為一次連接可以進行的HTTP請求的最大請求次數。
+將其值設為0將支持在一次連接內進行無限次的傳輸請求。事實上沒有客戶程序在一次連接中請求太多的頁面，通常達不到這
+個上限就完成連接了。</p>
+
+<p>　　KeepAliveTimeout 15</p>
+
+<p>　　<B>KeepAliveTimeout</B>測試一次連接中的多次請求傳輸之間的時間，如果伺服器已經完
+成了一次請求，但一直沒有接收到客戶程序的下一次請求，在間隔超過了這個參數設置的值之後，伺服器就斷開連接。</p>
+
+<p>　　MinSpareServers 5MaxSpareServers 10</p>
+
+<p>　　在使用子進程處理HTTP請求的Web伺服器上，由於要首先生成子進程才能處理客戶的請求，因此反應時間就有
+一點延遲。但是，Apache伺服器使用了一個特殊技術來擺脫這個問題，這就是預先生成多個空余的子進程駐留在系統中
+，一旦有請求出現，就立即使用這些空余的子進程進行處理，這樣就不存在生成子進程造成的延遲了。在運行中隨著客戶請求
+的增多，啟動的子進程會隨之增多，但這些伺服器副本在處理完一次HTTP請求之後並不立即退出，而是停留在電腦中等
+待下次請求。但是空余的子進程副本不能光增加不減少，太多的空余子進程沒有處理任務，也占用伺服器的處理能力，因此也
+要限制空余副本的數量，使其保持一個合適的數量，使得既能及時回應客戶請求，又能減少不必要的進程數量。</p>
+
+<p>　　因此就可以使用參數<B>MinSpareServers</B>來設置最少的空余子進程數量， 以及使用參
+數<B>MaxSpareServers </B>來限制最多的空閑子進程數量，多余的伺服器進程副本就會退出。根據
+伺服器的實際情況來進行設置，如果伺服器性能較高，並且也被頻繁訪問，就應該增大這兩個參數的設置。對於高負載的專業
+網站，這兩個值應該大致相同，並且等同於系統支持的最多伺服器副本數量，也減少不必要的副本退出。</p>
+
+<p>　　StartServers 5</p>
+
+<p>　　<B>StartServers</B>參數就是用來設置httpd啟動時啟動的子進程副本數量，這個參數與
+上面定義的MinSpareServers和MaxSpareServers參數相關，都是用於啟動空閑子進程以提高
+伺服器的反應速度的。這個參數應該設置為前兩個值之間的一個數值，小於MinSpareServers和大於MaxS
+pareServers都沒有意義。</p>
+
+<p>　　MaxClients 150</p>
+
+<p>　　在另一方面，伺服器的能力畢竟是有限的，不可能同時處理無限多的連接請求，因此參數<B>Maxclient
+s</B>就用於規定伺服器支持的最多並發訪問的客戶數，如果這個值設置得過大，系統在繁忙時不得不在過多的進程之間
+進行切換來為太多的客戶進行服務，這樣對每個客戶的反應就會減慢，並降低了整體的效率。如果這個值設置的較小，那麼系
+統繁忙時就會拒絕一些客戶的連接請求。當伺服器性能較高時，就可以適當增加這個值的設置。對於專業網站，應該使用提高
+伺服器效率的策略，因此這個參數不能超過硬體本身的限制，如果頻繁出現拒絕訪問現象，就說明需要升級伺服器硬體了。對
+於非專業網站，不太在意對客戶瀏覽器的反應速度，或者認為反應速度較慢也比拒絕連接好，就也可以略微超過硬體條件來設
+置這個參數。</p>
+
+<p>　　這個參數限制了MinSpareServers和MaxSpareServers的設置，它們不應該大於這個
+參數的設置。</p>
+
+<p>　　MaxRequestsPerChild 30</p>
+
+<p>　　使用子進程的方式提供服務的Web服務，常用的方式是一個子進程為一次連接服務，這樣造成的問題就是每次連接
+都需要生成、退出子進程的系統操作，使得這些額外的處理過程占據了電腦的大量處理能力。因此最好的方式是一個子進程
+可以為多次連接請求服務，這樣就不需要這些生成、退出進程的系統消耗，Apache就採用了這樣的方式，一次連接結束
+後，子進程並不退出，而是停留在系統中等待下一次服務請求，這樣就極大的提高了性能。</p>
+
+<p>　　但由於在處理過程中子進程要不斷的申請和釋放內存，次數多了就會造成一些內存垃圾，就會影響系統的穩定性，並
+且影響系統資源的有效利用。因此在一個副本處理過一定次數的請求之後，就可以讓這個子進程副本退出，再從原始的htt
+pd進程中重新復制一個干淨的副本，這樣就能提高系統的穩定性。這樣，每個子進程處理服務請求次數由<B>MaxRe
+questPerChild</B>定義。 預設的設置值為30，這個值對於具備高穩定性特點的FreeBSD系統來
+講是過於保守的設置，可以設置為1000甚至更高，設置為0支持每個副本進行無限次的服務處理。</p>
+
+<p>　　#Listen 3000<br>　　#Listen 12.34.56.78:80<br>　　#BindAddress *</p>
+
+<p>　　<B>Listen</B>參數可以指定伺服器除了監視標準的80端口之外，還監視其他端口的HTTP請求。
+由於FreeBSD系統可以同時擁有多個IP地址，因此也可以指定伺服器只聽取對某個<B>BindAddress<
+/B>的IP地址的HTTP請求。如果沒有配置這一項，則伺服器會回應對所有IP的請求。</p>
+
+<p>　　即使使用了<B>BindAddress</B>參數，使得伺服器只回應對一個IP地址的請求，但是通過使用
+擴展的<B>Listen</B>參數，仍然可以讓HTTP守護進程回應對其他IP地址的請求。此時Listen參數
+的用法與上面的第二個例子相同。這種比較複雜的用法主要用於設置虛擬主機。此後可以用VirtualHost參數定義
+對不同IP的虛擬主機，然而這種用法是較早的HTTP 1.0標準中設置虛擬主機的方法，每針對一個虛擬主機就需要一
+個IP地址，實際上用處並不大。在HTTP 1.1中，增加了對單IP地址多域名的虛擬主機的支持，使得虛擬主機的設
+置具備更大的意義。</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre><font size=2>LoadModule mime_magic_module  libexec/apache/mod_mime_magic.so
+LoadModule info_module        libexec/apache/mod_info.so
+LoadModule speling_module     libexec/apache/mod_speling.so
+LoadModule proxy_module       libexec/apache/libproxy.so
+LoadModule rewrite_module     libexec/apache/mod_rewrite.so
+LoadModule anon_auth_module   libexec/apache/mod_auth_anon.so
+LoadModule db_auth_module     libexec/apache/mod_auth_db.so
+LoadModule digest_module      libexec/apache/mod_digest.so
+LoadModule cern_meta_module   libexec/apache/mod_cern_meta.so
+LoadModule expires_module     libexec/apache/mod_expires.so
+LoadModule headers_module     libexec/apache/mod_headers.so
+LoadModule usertrack_module   libexec/apache/mod_usertrack.so
+LoadModule unique_id_module   libexec/apache/mod_unique_id.so
+ 
+ClearModuleList
+AddModule mod_env.c
+AddModule mod_log_config.c
+AddModule mod_mime_magic.c
+AddModule mod_mime.c
+AddModule mod_negotiation.c
+AddModule mod_status.c
+AddModule mod_info.c
+AddModule mod_include.c
+AddModule mod_autoindex.c
+AddModule mod_dir.c
+AddModule mod_cgi.c
+AddModule mod_asis.c
+AddModule mod_imap.c
+AddModule mod_actions.c
+AddModule mod_speling.c
+AddModule mod_userdir.c
+AddModule mod_proxy.c
+AddModule mod_alias.c
+AddModule mod_rewrite.c
+AddModule mod_access.c
+AddModule mod_auth.c
+AddModule mod_auth_anon.c
+AddModule mod_auth_db.c
+AddModule mod_digest.c
+AddModule mod_cern_meta.c
+AddModule mod_expires.c
+AddModule mod_headers.c
+AddModule mod_usertrack.c
+AddModule mod_unique_id.c
+AddModule mod_so.c
+AddModule mod_setenvif.c</font></td></pre></tr></table>
+
+<p>　　Apache伺服器的一個重要特性就是其模塊化的結構，這不但表現為其能在編譯時能通過新的模塊加入新的功能
+，還表現為其模塊可以動態加載入http服務程序中，而不必載入不需要的模塊。使用Apache的動態加載模塊只需要
+設置好<B>LoadModule</B>和<B>AddModule</B>參數就可以了，這種特性就是Apache的
+DSO（Dynamic Shared Object）特性，然而要想充分使用DSO特性仍然不是一個簡單的事情
+，不適當的改動這裡的設置就可能造成伺服器不能正常啟動。因此如果不是要增加或減少伺服器提供的功能，就不要改動這裡
+的設置。</p>
+
+<p>　　上面這些列表就顯示了FreeBSD下的預設Apache伺服器支持的模塊，事實上很多模塊是沒有必要的，不
+必要模塊不會被載入內存。模塊可以靜態連接到Apache伺服器內部，也可以這樣動態加載，將Apache的特性都編
+譯成動態可加載模塊是該Port的做法，而不是Apache的預設做法，這樣就以犧牲很小的性能的同時，帶來極大的靈
+活性。</p>
+
+<p>　　因而動態可加載的能力還是對性能有輕微的影響，因此可以重新編譯Apache，將自己所需要的功能編譯進Apache
+伺服器內部，可以讓系統顯得更為干淨，效率也有輕微的提高。通常僅僅為了這一個目的就重新編譯Apache是
+沒有必要的，如果需要增加其他特性而重新編譯Apache，不妨在增加其他模塊的同時將所有的模塊都靜態連接入Apache
+伺服器。有的使用者更喜歡動態加載模塊，那麼也不妨全部都使用動態加載模塊。</p>
+
+<p>　　這些模塊都被Ports Collection放置到/usr/local/libexec/apache目
+錄下，每個模塊對應Apache伺服器的一個特性。詳細解釋每個模塊的功能需要相當多的篇幅，其中比較重要的特性將在
+後面相應的地方中進行解釋，而具體每個模塊的功能及用法就需要查看Apache的文檔。</p>
+
+<p>　　#ExtendedStatus On</p>
+
+<p>　　Apache伺服器可以通過特殊的HTTP請求，來報告自身的運行狀態，打開這個<B>ExtendedStatus</B>
+參數可以讓伺服器報告更全面的運行狀態信息。</p>
+
+
+<BR>
+
+</TD>
+</TR></TABLE>
+
+
+
+</BODY>
+</HTML>

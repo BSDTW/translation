@@ -1,0 +1,273 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN">
+
+<html>
+
+<head>
+
+<meta http-equiv="content-type" content="text/html; charset=iso-8859-1">
+
+<title>Debian Reference - The Linux kernel under Debian</title>
+
+</head>
+
+<body>
+
+<p><a name="ch-kernel"></a></p>
+<hr>
+
+<p>
+[ <a href="ch-package.en.html">previous</a> ]
+[ <a href="index.en.html#contents">Contents</a> ]
+[ <a href="ch-preface.en.html">1</a> ]
+[ <a href="ch-system.en.html">2</a> ]
+[ <a href="ch-install.en.html">3</a> ]
+[ <a href="ch-tutorial.en.html">4</a> ]
+[ <a href="ch-woody.en.html">5</a> ]
+[ <a href="ch-package.en.html">6</a> ]
+[ 7 ]
+[ <a href="ch-tips.en.html">8</a> ]
+[ <a href="ch-tune.en.html">9</a> ]
+[ <a href="ch-gateway.en.html">10</a> ]
+[ <a href="ch-edit.en.html">11</a> ]
+[ <a href="ch-vcs.en.html">12</a> ]
+[ <a href="ch-program.en.html">13</a> ]
+[ <a href="ch-gnupg.en.html">14</a> ]
+[ <a href="ch-support.en.html">15</a> ]
+[ <a href="ap-appendix.en.html">A</a> ]
+[ <a href="ch-tips.en.html">next</a> ]
+</p>
+
+<hr>
+
+<h1>
+Debian Reference
+<br>Chapter 7 - The Linux kernel under Debian
+</h1>
+
+<hr>
+
+<p>
+Debian has its own method of recompiling the kernel and related modules.  See
+also <a href="ch-system.en.html#s-kernel-details">Debian and the kernel,
+Section 2.7</a>.
+</p>
+
+<hr>
+
+<h2><a name="s-kernel-compile"></a>7.1 Kernel (re)compile</h2>
+
+<p>
+The use of <code>gcc</code>, <code>binutils</code>, and
+<code>module-init-tools</code> from Debian <samp>unstable</samp> may help when
+compiling the latest Linux kernel.  See
+<code>file:///usr/share/doc/kernel-package/README.gz</code>, especially the
+bottom of this, for the official information.
+</p>
+
+<p>
+Since it is a moving target, kernel compilation is a difficult subject that may
+confuse even the most admired developer:
+</p>
+<dl>
+<dt>Manoj Srivastava wrote:</dt>
+<dd>
+<p>
+<samp>--initrd</samp> requires a Debian-only cramfs patch.
+</p>
+</dd>
+<dt>Herbert Xu wrote:</dt>
+<dd>
+<p>
+No it does not, all you have to do to use a filesystem other than CRAMFS is to
+set MKIMAGE in <code>/etc/mkinitrd/mkinitrd.conf</code>.
+</p>
+</dd>
+</dl>
+
+<p>
+Be careful and always rely on the
+<code>file:///usr/share/doc/kernel-package/README.gz</code> by Manoj and Kent
+and <code><a
+href="http://kernel-handbook.alioth.debian.org/">http://kernel-handbook.alioth.debian.org/</a></code>.
+Make sure to obtain the latest unstable version of the
+<code>kernel-package</code> package if you are to compile the latest version of
+the kernel.
+</p>
+
+<p>
+<samp>initrd</samp> is not needed for a kernel compiled only for one machine.
+I use it since I want my kernel to be almost the same as the one provided by
+the kernel-image packages.  If you use <samp>initrd</samp>, make sure to read
+<code>mkinitrd(8)</code> and <code>mkinitrd.conf(5)</code>.
+</p>
+
+<hr>
+
+<h3><a name="s-kernel-headers"></a>7.1.1 Kernel headers</h3>
+
+<p>
+Most &quot;normal&quot; programs don't need kernel headers and in fact may
+break if you use them directly; instead they should be compiled against the
+headers with which <strong><code>glibc</code> was built</strong>, which are the
+versions in <code>/usr/include/linux</code> and <code>/usr/include/asm</code>
+of the Debian system.
+</p>
+
+<p>
+So do not put symlinks to the directories in <code>/usr/src/linux</code> from
+<code>/usr/include/linux</code> and <code>/usr/include/asm</code>, as suggested
+by some outdated documents.
+</p>
+
+<p>
+If you <strong>need</strong> particular kernel headers for some kernel-specific
+application programs, alter the makefile(s) so that their include path points
+to <code><var>dir-of-particular-kernel-headers</var>/include/linux</code> and
+<code><var>dir-of-particular-kernel-headers</var>/include/asm</code>.
+</p>
+
+<hr>
+
+<h2><a name="s-proc-sys"></a>7.2 Tuning the kernel through the proc filesystem</h2>
+
+<p>
+The behavior of the Linux kernel can be changed on the fly using the proc
+filesystem.
+</p>
+
+<p>
+For basic information on changing kernel parameters through the
+<code>/proc</code> filesystem, read <code>Documentation/sysctl/*</code> in the
+Linux source.
+</p>
+
+<p>
+See some examples of kernel parameter manipulations in
+<code>/etc/init.d/networking</code> and <a
+href="ch-install.en.html#s-killecn">Strange access problems with some websites,
+Section 3.8.5</a>.
+</p>
+
+<p>
+See <code>sysctl.conf(5)</code> for how to set up the boot time kernel
+configuration through <code>/proc</code> filesystem with
+<code>/etc/init.d/procps.sh</code> script usually run from
+<code>/etc/rcS.d/S30procps.sh</code>.
+</p>
+
+<hr>
+
+<h3><a name="s-many-files"></a>7.2.1 Too many open files</h3>
+
+<p>
+The Linux kernel may complain &quot;Too many open files&quot;.  This is due to
+the small default value (8096) for <samp>file-max</samp>.  To fix this problem,
+run the following command as root:
+</p>
+
+<pre>
+     # echo &quot;65536&quot;  &gt; /proc/sys/fs/file-max  # for 2.2 and 2.4 kernel
+     # echo &quot;131072&quot; &gt; /proc/sys/fs/inode-max # for 2.2 kernel only
+</pre>
+
+<p>
+or put the following into <code>/etc/sysctl.conf</code> for the permanent
+change:
+</p>
+
+<pre>
+     file-max=65536   # for 2.2 and 2.4 kernel
+     inode-max=131072 # for 2.2 kernel only
+</pre>
+
+<hr>
+
+<h3><a name="s-bdflush"></a>7.2.2 Disk flush intervals</h3>
+
+<p>
+You can change disk flush intervals through the proc filesystem.  The following
+will shorten its interval from the default five seconds to one second.
+</p>
+
+<pre>
+     # echo &quot;40 0 0 0 100 30000 60 0 0&quot;  &gt; /proc/sys/vm/bdflush
+</pre>
+
+<p>
+This may negatively impact file I/O performance a little bit.  But this secures
+file contents except for the last one second which is shorter than the default
+five seconds.  This is true even for journaling filesystems.
+</p>
+
+<hr>
+
+<h3><a name="s-over-commit"></a>7.2.3 Sluggish old low memory machines</h3>
+
+<p>
+For some old low memory systems, it may still be useful to enable over-commit
+of memory through the proc filesystem:
+</p>
+
+<pre>
+     # echo 1 &gt; /proc/sys/vm/overcommit_memory
+</pre>
+
+<hr>
+
+<h2><a name="s-udev"></a>7.3 The 2.6 kernel with udev</h2>
+
+<p>
+The udev is a dynamic replacement for <code>/dev/</code>.  Device names can be
+chosen to be very short ones.  The devfs used in the 2.4 kernel is now
+obsolete.
+</p>
+
+<p>
+Installing the new Debian 2.6 kernel provided by
+<code>kernel-image-2.6.<var>NN</var></code> with <code>udev</code> package will
+enable this.
+</p>
+
+<hr>
+
+<p>
+[ <a href="ch-package.en.html">previous</a> ]
+[ <a href="index.en.html#contents">Contents</a> ]
+[ <a href="ch-preface.en.html">1</a> ]
+[ <a href="ch-system.en.html">2</a> ]
+[ <a href="ch-install.en.html">3</a> ]
+[ <a href="ch-tutorial.en.html">4</a> ]
+[ <a href="ch-woody.en.html">5</a> ]
+[ <a href="ch-package.en.html">6</a> ]
+[ 7 ]
+[ <a href="ch-tips.en.html">8</a> ]
+[ <a href="ch-tune.en.html">9</a> ]
+[ <a href="ch-gateway.en.html">10</a> ]
+[ <a href="ch-edit.en.html">11</a> ]
+[ <a href="ch-vcs.en.html">12</a> ]
+[ <a href="ch-program.en.html">13</a> ]
+[ <a href="ch-gnupg.en.html">14</a> ]
+[ <a href="ch-support.en.html">15</a> ]
+[ <a href="ap-appendix.en.html">A</a> ]
+[ <a href="ch-tips.en.html">next</a> ]
+</p>
+
+<hr>
+
+<p>
+Debian Reference
+</p>
+
+<address>
+CVS, Mon Jun 16 21:20:26 UTC 2008<br>
+<br>
+Osamu Aoki <code><a href="mailto:osamu#at#debian.org">osamu#at#debian.org</a></code><br>
+<a href="ap-appendix.en.html#s-authors">Authors, Section A.1</a><br>
+<br>
+</address>
+<hr>
+
+</body>
+
+</html>
+

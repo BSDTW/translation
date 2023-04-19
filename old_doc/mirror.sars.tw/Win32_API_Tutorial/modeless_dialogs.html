@@ -1,0 +1,221 @@
+<HTML>
+
+<LINK HREF="style.css" REL="STYLESHEET" TYPE="text/css">
+
+<HEAD>
+<TITLE>Tutorial: Modeless Dialogs</TITLE>
+</HEAD>
+
+<BODY>
+<FONT SIZE="-1">
+[ <A HREF="./index.html">contents</A>
+| <A HREF="http://www.winprog.org/">#winprog</A>
+]
+</FONT>
+<HR>
+
+
+<H1>Modeless Dialogs</H1>
+
+<P>Example: dlg_two</P>
+<IMG SRC="images/dlg_two.gif" ALT="[images/dlg_two.gif]" ALIGN="right">
+
+<P>
+Now we take a look at <CODE>CreateDialog()</CODE>, <CODE>DialogBox()</CODE>'s 
+sister function.  The difference is that while <CODE>DialogBox()</CODE> implements
+it's own message loop and does not return untill the dialog is closed, 
+<CODE>CreateDialog()</CODE> acts more like a window created with 
+<CODE>CreateWindowEx()</CODE> in that it returns immediately and depends on your
+message loop to pump the messages as it does for your main window.  This is termed
+<I>Modeless</I>, whereas <CODE>DialogBox()</CODE> creates <I>Modal</I> dialogs.
+
+<P>
+You can create the dialog resource just like you did for the last dialog example, you
+might also want to set the "Tool window" extended style to give it's title bar the
+typical smaller caption of toolbars.  The dialog resource I created follows:
+
+<PRE CLASS="SNIP">
+IDD_TOOLBAR DIALOGEX 0, 0, 98, 52
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION
+EXSTYLE WS_EX_TOOLWINDOW
+CAPTION "My Dialog Toolbar"
+FONT 8, "MS Sans Serif"
+BEGIN
+    PUSHBUTTON      "&Press This Button",IDC_PRESS,7,7,84,14
+    PUSHBUTTON      "&Or This One",IDC_OTHER,7,31,84,14
+END
+</PRE>
+
+<P>
+You may notice that the resource editor has replaced <CODE>DIALOG</CODE> with 
+<CODE>DIALOGEX</CODE> indicating we want to set an EXSTYLE on our dialog.
+
+<P>
+Next we want to create the dialog when our program runs, I want the dialog visible right 
+away so we do this in <CODE>WM_CREATE</CODE>.  We also want to declare a global variable 
+to hold the window handle returned from <CODE>CreateDialog()</CODE> so that we can 
+use it later.  <CODE>DialogBox()</CODE> didn't return a handle to us since when <CODE>DialogBox()</CODE> 
+returns the window has been destroyed.
+
+<PRE CLASS="SNIP">
+HWND g_hToolbar = NULL;
+</PRE>
+
+<PRE CLASS="SNIP">
+    case WM_CREATE:
+        g_hToolbar = CreateDialog(GetModuleHandle(NULL), MAKEINTRESOURCE(IDD_TOOLBAR),
+            hwnd, ToolDlgProc);
+        if(g_hToolbar != NULL)
+        {
+            ShowWindow(g_hToolbar, SW_SHOW);
+        }
+        else
+        {
+            MessageBox(hwnd, "CreateDialog returned NULL", "Warning!",  
+                MB_OK | MB_ICONINFORMATION);
+        }
+    break;
+</PRE>
+
+<P>
+We check the return value, which is ALWAYS a good idea, and if it's valid (not <CODE>NULL</CODE>) we 
+show the window with <CODE>ShowWindow()</CODE>, with <CODE>DialogBox()</CODE> this isn't
+necessary since the system calls <CODE>ShowWindow()</CODE> for us.
+
+<P>
+Now we need a dialog procedure for our toolbar.
+
+<PRE CLASS="SNIP">
+BOOL CALLBACK ToolDlgProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam)
+{
+    switch(Message)
+    {
+        case WM_COMMAND:
+            switch(LOWORD(wParam))
+            {
+                case IDC_PRESS:
+                    MessageBox(hwnd, "Hi!", "This is a message", 
+                        MB_OK | MB_ICONEXCLAMATION);
+                break;
+                case IDC_OTHER:
+                    MessageBox(hwnd, "Bye!", "This is also a message", 
+                        MB_OK | MB_ICONEXCLAMATION);
+                break;
+            }
+        break;
+        default:
+            return FALSE;
+    }
+    return TRUE;
+}
+</PRE>
+
+<P>
+Most of the same message handling rules apply to dialogs created with 
+<CODE>CreateDialog()</CODE> as with <CODE>DialogBox()</CODE>, don't call 
+<CODE>DefWindowProc()</CODE>, return <CODE>FALSE</CODE> for messages you don't handle
+and <CODE>TRUE</CODE> for those you do.
+
+<P>
+One change is that we don't call <CODE>EndDialog()</CODE> for modeless dialogs, we can 
+use <CODE>DestroyWindow()</CODE> just like for regular windows.  In this case I destroy the
+dialog when the main window is destroyed.  In the main window's <CODE>WndProc()</CODE>...
+
+<PRE CLASS="SNIP">
+    case WM_DESTROY:
+        DestroyWindow(g_hToolbar);
+        PostQuitMessage(0);
+    break;
+</PRE>
+
+<P>
+Last but not least, we want to be able to display and hide our toolbar whenever we choose
+so I've added two commands to my menu to do this, and handled them so:
+
+<PRE CLASS="SNIP">
+    case WM_COMMAND:
+        switch(LOWORD(wParam))
+        {   
+            case ID_DIALOG_SHOW:
+                ShowWindow(g_hToolbar, SW_SHOW);
+            break;
+            case ID_DIALOG_HIDE:
+                ShowWindow(g_hToolbar, SW_HIDE);
+            break;
+            //... other command handlers
+        }
+    break;
+</PRE>
+
+<P>
+You should be able to create your own menu using the resource editor or manually, but if
+not (as always) take a look at the example project dlg_two provided with the tutorial.
+
+<P>
+Now when you run the program, you should be able to access both the dialog window, and
+main window at the same time.
+
+<P>
+If you've run the program at this point and tried tabbing between the two buttons, you have probably
+noticed it doesn't work, neither does hitting Alt-P or Alt-O to activate the buttons.  
+Why not?  Whereas <CODE>DialogBox()</CODE> implements it's
+own message loop and handles these events by default, <CODE>CreateDialog()</CODE> does not.
+We can do it ourselves though, by calling <CODE>IsDialogMessage()</CODE> in our message loop
+which will do the default processing for us.
+
+<PRE CLASS="SNIP">
+    while(GetMessage(&Msg, NULL, 0, 0))
+    {
+        if(!IsDialogMessage(g_hToolbar, &Msg))
+        {
+            TranslateMessage(&Msg);
+            DispatchMessage(&Msg);
+        }
+    }
+</PRE>
+
+<P>
+Here we first pass the message to <CODE>IsDialogMessage()</CODE>, if the message is
+destined for our toolbar (indicated by the window handle we pass in) the system will
+perform the default processing and return <CODE>TRUE</CODE>.  Is this case the message
+has already been handled so we don't want to call <CODE>TranslateMessage()</CODE> or <CODE>DispatchMessage()</CODE>.
+If the message is for another window we process as usual.
+
+<P>
+It's also worth noting that <CODE>IsDialogMessage()</CODE> can also be used with windows that aren't dialogs
+in order to to give them dialog-like behaviour.  Remember, a dialog is a window, and most (if not all)
+dialog APIs will work on any window.
+
+<P>
+And that is pretty much all there is to modeless dialogs!  One issue that may arise is if
+you have more than one toolbar... what do you do?  Well one possible solution is to have
+a list (either an array, an STL <CODE>std::list</CODE>, or similar) and loop through it in your message
+loop passing each handle to <CODE>IsDialogMessage()</CODE> until the right one is found, and
+if none, do the regular processing.  This is a generic programming problem, not one that is
+Win32 related, and is left as an excersize to the reader.
+
+<HR>
+<FONT SIZE="-1">
+Copyright &copy; 1998-2003, Brook Miles (<A HREF="mailto:forger(nospam)winprog.org">theForger</A>).  All rights reserved.
+</FONT>
+
+<SCRIPT language="JavaScript">
+<!--
+   var re = /\(nospam\)/ig;
+   var str;
+
+   for(i = 0;i < document.links.length;i++) 
+   {
+      str = "" + document.links(i).href;
+      if(str.search(re) != -1)
+         document.links(i).href = str.replace(re, "@");
+
+      str = "" + document.links(i).innerHTML;
+      if(str.search(re) != -1)
+         document.links(i).innerHTML = str.replace(re, "@");
+   }
+-->
+</SCRIPT>
+
+</BODY>
+</HTML>

@@ -1,0 +1,621 @@
+<html>
+
+<head>
+<meta HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=big5">
+<title>MySQL中文參考手冊-13 維護 MySQL 安裝</title>
+<style type="text/css">
+<!--
+.p14{font-size:14.8px;font-family:宋體;line-height:14pt;}
+.p5{ border: 1px solid rgb(146,201,201) }
+.a:hover{color:red;}
+a.t1:visited{color:red;}
+-->
+</style>
+</head>
+
+<body BGCOLOR="#FFFFFF" TEXT="#000000" LINK="#101090" VLINK="#7030B0" class="p4">
+
+<h1><img src="Img/mysql-logo.gif" alt="mysql-logo.gif (3082 bytes)" WIDTH="127" HEIGHT="60"><font color="#FF0000">MySQL中文參考手冊</font></h1>
+
+<p>譯者：晏子 <a href="mailto:(clyan@sohu.com">(clyan@sohu.com</a>）<br>
+GB 碼主頁：<a href="http://linuxdb.yeah.net">http://linuxdb.yeah.net</a></p>
+
+<p>Big5 轉碼者：statue <a href="mailto:statue.bbs@bbs.yzu.edu.tw">
+(statue@bbs.yzu.edu.tw</a>） <br>
+詞彙轉換：彭武興 (<a href="mailto:wilson@mailbox.com.tw">wilson@mailbox.com.tw</a>)<br>
+Big5 碼主頁：
+<a href="http://cnpa.yzu.edu.tw/~cfc/docs/mysqldoc_big5/manual_toc.html">
+http://cnpa.yzu.edu.tw/~cfc/docs/mysqldoc_big5/manual_toc.html</a><br>
+Big5 碼分站：
+<a href="http://php.wilson.gs/mysqldoc/big5/manual_toc.html">
+http://php.wilson.gs/mysqldoc/big5/manual_toc.html
+</p>
+
+<hr>
+
+<p><a HREF="manual_Introduction.html">第一章</a>, <a HREF="manual_Tools.html">前一章</a>, 
+<a HREF="manual_Adding_functions.html">下一章</a>, <a HREF="manual_Concept_Index.html">最後一章</a>，<a HREF="manual_toc.html">目錄</a>. </p>
+
+<hr>
+
+<h1><a NAME="Maintenance" HREF="manual_toc.html#Maintenance">13 維護MySQL安裝</a></h1>
+
+<h2><a NAME="Table_maintenance" HREF="manual_toc.html#Table_maintenance">13.1 使用<code>myisamchk</code>進行表的維護和崩潰恢復</a></h2>
+
+<p>為了檢查/修復MyISAM表(<code>.MYI</code>和<code>.MYD</code>)，你應該使用<code>myisamchk</code>實用程式。為了檢查/修復ISAM表(<code>.ISM</code>和<code>.ISD</code>)，你應該使用<code>isamchk</code>實用程式。見<a HREF="manual_Server.html#Table_types">9.4 MySQL 桌子類型</a>。</p>
+
+<p>在下文中，我們將討論<code>myisamchk</code>，但是也適用於老的<code>isamchk</code>。</p>
+
+<p>你可以使用<code>myisamchk</code>實用程式來獲得有關你的資料庫桌表的資訊、檢查和修復他們或最佳化他們。下列小節描述如何調用<code>myisamchk</code>（包括它的選項的描述)，如何建立一個表維護的時間表，並且如何使用<code>myisamchk</code>執行其各種功能。</p>
+
+<p>如果你用<code>--skip-locking</code>運行<code>mysqld</code>（它在一些系統上是內定的，如Linux)，當<code>mysqld</code>正在使用同一個表時，你不能可靠地使用<code>myisamchk</code>檢查一張表。如果你能肯定在你運行<code>myisamchk</code>時沒有人通過<code>mysqld</code>正在存取表，在你開始檢查表之前，你僅需做<code>mysqladmin 
+flush-tables</code>。如果你不能保証， 那麼當你檢查表時，你必須停掉<code>mysqld</code>。如果你在<code>mysqld</code>正在更新表時運行<code>myisamchk</code>，你可能得到一個表已破壞的警告，即使它沒有。</p>
+
+<p>如果你沒使用<code>--skip-locking</code>，你能在任何時間使用<code>myisamchk</code>檢查表。當你這樣時，所有試圖更新表的客戶在繼續前將等到<code>myisamchk</code>就緒。 
+</p>
+
+<p>如果你使用<code>myisamchk</code>修復或最佳化表，你<strong>必須</strong>總是保証<code>mysqld</code>伺服器不在使用表(如果你正在使用<code>--skip-locking</code>，這也適用)。如果你不停掉<code>mysqld</code>，在你運行<code>myisamchk</code>前，你至少應該做一個<code>mysqladmin 
+flush-tables</code>。</p>
+
+<p>在大多數情況下，你也可使用命令<code>OPTIMIZE TABLES</code>最佳化並修復表，但是這不如<code>myisamchk</code>快或可靠(在真正的致命錯誤的情況下)。在另一方面，<code>OPTIMIZE 
+TABLE</code>較易使用並且你不必須關心清空表。見<a HREF="manual_Reference.html#OPTIMIZE_TABLE">7.9<code>OPTIMIZE TABLE</code>句法</a>。</p>
+
+<h3><a NAME="myisamchk_syntax" HREF="manual_toc.html#myisamchk_syntax">13.1.1<code> 
+myisamchk</code>調用語法</a></h3>
+
+<p><code>myisamchk</code>這樣調用：</p>
+
+<pre>shell&gt; myisamchk [options] tbl_name
+</pre>
+
+<p><code>options</code>指定你想要<code>myisamchk</code>做什麼。他們在下面描述。（你也可以通過調用<code>myisamchk 
+--help</code>得到一張選項表。) 沒有選項，<code>myisamchk</code>簡單地檢查你的表。為了得到更多的資訊或告訴<code>myisamchk</code>執行校正操作，指定在下面和下小節描述的選項擇。</p>
+
+<p><code>tbl_name</code>是你想要檢查的資料庫表。如果你不在資料庫目錄的某處運行<code>myisamchk</code>，你必須指定到文件的路徑，因為<code>myisamchk</code>不知道你的資料庫位於哪兒。實際上，<code>myisamchk</code>別在乎你正在操作的文件是否位於一個資料庫目錄﹔你可以拷貝對應於一張資料庫表的文件到別處並且在那裡執行恢復操作。 
+</p>
+
+<p>如果你願意，你可以<code>myisamchk</code>命令行命名幾個表。你也能指定一個名字作為一個索引文件(用<tt>“ 
+.MYI”</tt>後綴)，它允許你通過使用模式<tt>“*.MYI”指定</tt>在一個目錄所有的表。例如，如果你在一個資料庫目錄，你可以這樣在目錄下檢查所有的表：</p>
+
+<pre>shell&gt; myisamchk *.MYI 
+</pre>
+
+<p>如果你不在資料庫目錄下，你可通過指定到目錄的路徑檢查所有在那裡的表： 
+</p>
+
+<pre>shell&gt; myisamchk /path/to/database_dir/*.MYI 
+</pre>
+
+<p>你甚至可以通過為<strong>MySQL</strong>數據目錄的路徑指定一個通配符來檢查所有的資料庫中的所有表：</p>
+
+<pre>shell&gt; myisamchk /path/to/datadir/*/*.MYI
+</pre>
+
+<p><code>myisamchk</code>支援下列選項： 
+
+<dl COMPACT="myisamchk_syntax">
+  <dt><code>-a, --analyze</code> </dt>
+  <dd>分析鍵值的分布。這通過讓聯結最佳化器更好地選擇表應該以什麼次序聯結和應該使用哪個鍵來改進聯結性能。 
+  </dd>
+  <dt><code>-#, --debug=debug_options</code> </dt>
+  <dd>輸出調試記錄文件。<code>debug_options</code>字符串經常是<code>'d:t:o,filename'</code>。</dd>
+  <dt><code>-d, --description</code> </dt>
+  <dd>列印出關於表的一些資訊。 </dd>
+  <dt><code>-e, --extend-check</code> </dt>
+  <dd>非常徹底地檢查表。這僅在歲N搊〞p下是必要的。通常，<code>myisamchk</code>應該找出所有錯誤，即使沒有改選項。</dd>
+  <dt><code>-f, --force</code> </dt>
+  <dd>覆蓋老的臨時文件。如果你在檢查表時使用<code>-f</code> (運行<code>myisamchk</code>沒有<code>-r</code>)，<code>myisamchk</code>在檢查期間將自動為出現一個錯誤的表用<code>-r</code>重啟。</dd>
+  <dt><code>--help</code> </dt>
+  <dd>顯示一條幫助消息並且退出。 </dd>
+  <dt><code>-i, --information</code> </dt>
+  <dd>列印有關被檢查的表的資訊統計。</dd>
+  <dt><code>-k #, --keys-used=#</code> </dt>
+  <dd>與<code>-r</code>一起使用。告訴ISAM表處理器僅更新頭<code>#</code>個索引。較高編號的索引被撤銷。這能用來使插入變得更快！撤銷的索引能通過使用<code>myisamchk 
+    -r</code>被重新激活。</dd>
+  <dt><code>-l, --no-symlinks</code> </dt>
+  <dd>在修復時，不跟隨符號連接。通常<code>myisamchk</code>修復一個符號連接所指的表。</dd>
+  <dt><code>-q, --quick</code> </dt>
+  <dd>與<code>-r</code>一起使用使得一個修復更快。通常，原來的數據文件沒被接觸﹔你能指定第二個<code>-q</code>強制使用原來的數據文件。 
+  </dd>
+  <dt><code>-r, --recover</code> </dt>
+  <dd>恢復模式。可以修復幾乎所有一切，除非唯一的鍵不是唯一。</dd>
+  <dt><code>-o, --safe-recover</code> </dt>
+  <dd>恢復模式。使用一個老的恢復方法﹔這比<code>-r</code>慢些，但是能處理一<code>-r</code>不能處理的情況。</dd>
+  <dt><code>-O var=option, --set-variable var=option</code> </dt>
+  <dd>設置一個變數的值。可能的變數列在下面。 </dd>
+  <dt><code>-s, --silent</code> </dt>
+  <dd>沉默模式。當錯誤發生時，僅寫輸出。你能使用<code>-s</code>兩次(<code>-ss</code>)非常沉默地做<code>myisamchk</code>。</dd>
+  <dt><code>-S, --sort-index</code> </dt>
+  <dd>以從高到低的順序排序索引樹塊。這將最佳化搜尋並且將使按鍵值的表掃描更快。</dd>
+  <dt><code>-R index_num, --sort-records=index_num</code> </dt>
+  <dd>根據一個索引排序記錄。這使你的數據更局部化並且可以加快在該鍵上的<code>SELECT</code>和<code>ORDER 
+    BY</code>的範圍搜索。（第一次做排序可能很慢！) 
+    為了找出一張表的索引編號，使用<code>SHOW INDEX</code>，它以<code>myisamchk</code>看見他們的相同順序顯示一張表的索引。索引從1開始編號。</dd>
+  <dt><code>-u, --unpack</code> </dt>
+  <dd>解開一個用<code>myisampack</code>壓縮的表。</dd>
+  <dt><code>-v, --verbose</code> </dt>
+  <dd>冗長模式。列印更多的資訊。這能與<code>-d</code>和<code>-e</code>一起使用。為了更冗長，使用<code>-v</code>多次(<code>-vv</code>, 
+    <code>-vvv</code>)！</dd>
+  <dt><code>-V, --version</code> </dt>
+  <dd>列印<code>myisamchk</code>版本並退出。</dd>
+  <dt><code>-w, --wait</code> </dt>
+  <dd>如果表被鎖定，等待。</dd>
+</dl>
+
+<p>對<code>--set-variable</code>(<code>-O</code>)選項，可能的變數是：</p>
+
+<pre>key_buffer_size       當前值: 16776192
+read_buffer_size      當前值: 262136
+write_buffer_size     當前值: 262136
+sort_buffer_size      當前值: 2097144
+sort_key_blocks       當前值: 16
+decode_bits           當前值: 9
+</pre>
+
+<h3><a NAME="myisamchk_memory" HREF="manual_toc.html#myisamchk_memory">13.1.2<code> 
+myisamchk</code>內存使用</a></h3>
+
+<p>當你運行<code>myisamchk</code>時，內存分配很重要。<code>myisamchk</code>使用不超過你用<code>-O</code>選項指定的內存量。如果你想在很大的文件上使用<code>myisamchk</code>，你首先應該確定你想要它使用多少內存。內定僅使用大約 
+3M 來修復。通過使用更大的值，你能使<code>myisamchk</code>更快地操作。例如，如果你有多於32M內存，你能使用例如這些選項(除了任何你可能指定的選項)：</p>
+
+<pre>shell&gt; myisamchk -O sort=16M -O key=16M -O read=1M -O write=1M ...
+</pre>
+
+<p>使用<code>-O sort=16M</code>應該可能對大多數情形就足夠了。</p>
+
+<p>必須明白，<code>myisamchk</code>使用在<code>TMPDIR</code>裡面的臨時文件。如果<code>TMPDIR</code>指向一個內存文件系統，你可能很容易得到內存溢出的錯誤。如果它發生，設定<code>TMPDIR</code>指向有更多空間的某個目錄並且重啟<code>myisamchk</code>。</p>
+
+<h2><a NAME="Maintenance_regimen" HREF="manual_toc.html#Maintenance_regimen">13.2 
+建立一個資料庫表維護規範</a></h2>
+
+<p>在一個定期基礎而非等到問題出現才實施資料庫表的檢查是一個好主意。為維護目的，你能使用<code>myisamchk 
+-s</code>檢查桌子。<code>-s</code>選項使<code>myisamchk</code>以沉默模式運行，當錯誤出現時，僅僅列印消息。</p>
+
+<p><a NAME="IDX672"></a>在伺服器啟動時檢查表是一個好主意。例如，無論何時機器在更新當中重新啟動了，你通常需要檢查所有可能被影響了的表。（這是一個“期望破壞了的表”) 
+如果重啟後有一個舊的<tt>“.pid”</tt>（進程ID)，你能為<code>safe_mysqld</code>加入一個測試，運行<code>myisamchk</code>檢查所有在過去24小時修改過的表)。（<tt>“.pid”</tt>文件在<code>mysqld</code>啟動時由它創建，並它正常終止時刪除。在系統啟動時存在一個<tt>“.pid”</tt>文件表明<code>mysqld</code>異常地終止了。）</p>
+
+<p>一個更好的測試將是檢查任何表，它的最後修改時間是比<tt>“.pid”</tt>文件更新。</p>
+
+<p>你也應該定期在正常系統操作期間檢查表。在TcX，我們運行一個<code>cron</code>任務，每周一次檢查我們所有重要的表，在一個<tt>“crontab”</tt>文件中使用這樣的行：</p>
+
+<pre>35 0 * * 0 /path/to/myisamchk -s /path/to/datadir/*/*.MYI 
+</pre>
+
+<p>這列印出損壞的表的資訊，因此我們能檢驗並且在需要時修復他們。</p>
+
+<p>當我們現在幾年(這確實是真的)都沒有任何意外損壞的表時(由於除硬件故障外的其他原因造成損壞的表)，每周一次對我們是足夠了。</p>
+
+<p>我們建議現在開始，你對所有最後24小時內被更新了表每晚都執行<code>myisamchk 
+-s</code>，直到你變得像我們那樣信任<strong>MySQL</strong>。</p>
+
+<h2><a NAME="Table-info" HREF="manual_toc.html#Table-info">13.3 
+獲得關於一個表的資訊</a></h2>
+
+<p>為了獲得關於一個表的描述或統計，使用顯示在下面的命令。我們以後更詳細地解釋某些資訊。 
+
+<dl COMPACT="Table-info">
+  <dt><code>myisamchk -d tbl_name</code> </dt>
+  <dd>以“描述模式”運行<code>myisamchk</code>，產生你的表的描述。如果你用<code>--skip-locking</code>選項啟動<strong>MySQL</strong>伺服器，<code>myisamchk</code>可以當它運行時報告被一個更新的表的錯誤。然而，既然在描述模式中<code>myisamchk</code>不改變表，沒有破壞數據的任何風險。 
+  </dd>
+  <dt><code>myisamchk -d -v tbl_name</code> </dt>
+  <dd>為了產生更多關於<code>myisamchk</code>正在做什麼的資訊，加上<code>-v</code>告訴它以冗長模式運行。 
+  </dd>
+  <dt><code>myisamchk -eis tbl_name</code> </dt>
+  <dd>僅顯示一個表最重要的資訊。因為必須讀取整個表，它很慢。 </dd>
+  <dt><code>myisamchk -eiv tbl_name</code> </dt>
+  <dd>這類似<code>-eis</code>，只是告訴你正在做什麼。 </dd>
+</dl>
+
+<p><code>myisamchk -d</code>輸出的例子： </p>
+
+<pre>MyISAM file:     company.MYI
+Record format:       Fixed length
+Data records:           1403698  Deleted blocks:         0
+Recordlength:               226
+
+table description:
+Key Start Len Index   Type
+1   2     8   unique  double
+2   15    10  multip. text packed stripped
+3   219   8   multip. double
+4   63    10  multip. text packed stripped
+5   167   2   multip. unsigned short
+6   177   4   multip. unsigned long
+7   155   4   multip. text
+8   138   4   multip. unsigned long
+9   177   4   multip. unsigned long
+    193   1           text
+</pre>
+
+<p><code>myisamchk -d -v</code>輸出的例子： </p>
+
+<pre>MyISAM file:         company
+Record format:       Fixed length
+File-version:        1
+Creation time:       1999-10-30 12:12:51
+Recover time:        1999-10-31 19:13:01
+Status:              checked
+Data records:           1403698  Deleted blocks:              0
+Datafile parts:         1403698  Deleted data:                0
+Datafilepointer (bytes):      3  Keyfile pointer (bytes):     3
+Max datafile length: 3791650815  Max keyfile length: 4294967294
+Recordlength:               226
+
+table description:
+Key Start Len Index   Type                  Rec/key     Root Blocksize
+1   2     8   unique  double                      1 15845376      1024
+2   15    10  multip. text packed stripped        2 25062400      1024
+3   219   8   multip. double                     73 40907776      1024
+4   63    10  multip. text packed stripped        5 48097280      1024
+5   167   2   multip. unsigned short           4840 55200768      1024
+6   177   4   multip. unsigned long            1346 65145856      1024
+7   155   4   multip. text                     4995 75090944      1024
+8   138   4   multip. unsigned long              87 85036032      1024
+9   177   4   multip. unsigned long             178 96481280      1024
+    193   1           text
+</pre>
+
+<p><code>myisamchk -eis</code>輸出的例子： </p>
+
+<pre>Checking MyISAM file: company
+Key:  1:  Keyblocks used:  97%  Packed:    0%  Max levels:  4
+Key:  2:  Keyblocks used:  98%  Packed:   50%  Max levels:  4
+Key:  3:  Keyblocks used:  97%  Packed:    0%  Max levels:  4
+Key:  4:  Keyblocks used:  99%  Packed:   60%  Max levels:  3
+Key:  5:  Keyblocks used:  99%  Packed:    0%  Max levels:  3
+Key:  6:  Keyblocks used:  99%  Packed:    0%  Max levels:  3
+Key:  7:  Keyblocks used:  99%  Packed:    0%  Max levels:  3
+Key:  8:  Keyblocks used:  99%  Packed:    0%  Max levels:  3
+Key:  9:  Keyblocks used:  98%  Packed:    0%  Max levels:  4
+Total:    Keyblocks used:  98%  Packed:   17%
+
+Records:          1403698    M.recordlength:     226   Packed:             0%
+Recordspace used:     100%   Empty space:          0%  Blocks/Record:   1.00
+Record blocks:    1403698    Delete blocks:        0
+Recorddata:     317235748    Deleted data:         0
+Lost space:             0    Linkdata:             0
+
+User time 1626.51, System time 232.36
+Maximum resident set size 0, Integral resident set size 0
+Non physical pagefaults 0, Physical pagefaults 627, Swaps 0
+Blocks in 0 out 0, Messages in 0 out 0, Signals 0
+Voluntary context switches 639, Involuntary context switches 28966
+</pre>
+
+<p><code>myisamchk -eiv</code>輸出的例子： </p>
+
+<pre>Checking MyISAM file: company
+Data records: 1403698   Deleted blocks:       0
+- check file-size
+- check delete-chain
+block_size 1024:
+index  1:
+index  2:
+index  3:
+index  4:
+index  5:
+index  6:
+index  7:
+index  8:
+index  9:
+No recordlinks
+- check index reference
+- check data record references index: 1
+Key:  1:  Keyblocks used:  97%  Packed:    0%  Max levels:  4
+- check data record references index: 2
+Key:  2:  Keyblocks used:  98%  Packed:   50%  Max levels:  4
+- check data record references index: 3
+Key:  3:  Keyblocks used:  97%  Packed:    0%  Max levels:  4
+- check data record references index: 4
+Key:  4:  Keyblocks used:  99%  Packed:   60%  Max levels:  3
+- check data record references index: 5
+Key:  5:  Keyblocks used:  99%  Packed:    0%  Max levels:  3
+- check data record references index: 6
+Key:  6:  Keyblocks used:  99%  Packed:    0%  Max levels:  3
+- check data record references index: 7
+Key:  7:  Keyblocks used:  99%  Packed:    0%  Max levels:  3
+- check data record references index: 8
+Key:  8:  Keyblocks used:  99%  Packed:    0%  Max levels:  3
+- check data record references index: 9
+Key:  9:  Keyblocks used:  98%  Packed:    0%  Max levels:  4
+Total:    Keyblocks used:   9%  Packed:   17%
+
+- check records and index references
+[LOTS OF ROW NUMBERS DELETED]
+
+Records:          1403698    M.recordlength:     226   Packed:             0%
+Recordspace used:     100%   Empty space:          0%  Blocks/Record:   1.00
+Record blocks:    1403698    Delete blocks:        0
+Recorddata:     317235748    Deleted data:         0
+Lost space:             0    Linkdata:             0
+
+User time 1639.63, System time 251.61
+Maximum resident set size 0, Integral resident set size 0
+Non physical pagefaults 0, Physical pagefaults 10580, Swaps 0
+Blocks in 4 out 0, Messages in 0 out 0, Signals 0
+Voluntary context switches 10604, Involuntary context switches 122798
+</pre>
+
+<p>這是對於用在上述例子中的表的數據大小和索引文件的大小：</p>
+
+<pre>-rw-rw-r--   1 monty    tcx     317235748 Jan 12 17:30 company.MYD
+-rw-rw-r--   1 davida   tcx      96482304 Jan 12 18:35 company.MYM
+</pre>
+
+<p>對<code>myisamchk</code>產生資訊的類型在下面解釋。“keyfile”是索引文件。“記錄”和“行”是同義詞。 
+
+<dl COMPACT="Table-info">
+  <dt><code>ISAM file</code> </dt>
+  <dd>ISAM(索引)文件名。 </dd>
+  <dt><code>Isam-version</code> </dt>
+  <dd>ISAM格式的版本。當前總是2。 </dd>
+  <dt><code>Creation time</code> </dt>
+  <dd>數據文件被創建的時間。 </dd>
+  <dt><code>Recover time</code> </dt>
+  <dd>索引/數據文件上次被重建的時間。</dd>
+  <dt><code>Data records</code> </dt>
+  <dd>在表中有多少記錄。 </dd>
+  <dt><code>Deleted blocks</code> </dt>
+  <dd>有多少刪除的塊仍然保留著空間。你可以最佳化表以使這個空間減到最小。見<a HREF="manual_Maintenance.html#Optimization">13.4.3 表最佳化</a>。 </dd>
+  <dt><code>Datafile: Parts</code> </dt>
+  <dd>對動態記錄格式，這指出有多少數據塊。對於一個沒有碎片的最佳化過的表，這與<code>Data 
+    records</code>相同。 </dd>
+  <dt><code>Deleted data</code> </dt>
+  <dd>不能回收的刪除數據有多少字節。你可以最佳化表以使這個空間減到最小。見<a HREF="manual_Maintenance.html#Optimization">13.4.3 表最佳化</a>。 </dd>
+  <dt><code>Datafile pointer</code> </dt>
+  <dd>數據文件指針的大小，以字節計。它通常是2、3、4或5個字節。大多數表用2個字節管理，但是目前這還不能從<strong>MySQL</strong>控制。對固定表，這是一個記錄地址。對動態表，這是一個字節地址。</dd>
+  <dt><code>Keyfile pointer</code> </dt>
+  <dd>索引文件指針的大小，以字節計。它通常是1、2或3個字節。大多數表用 
+    2 個字節管理，但是它自動由<strong>MySQL</strong>計算。它總是一個塊地址。 
+  </dd>
+  <dt><code>Max datafile length</code> </dt>
+  <dd>表的數據文件(<code>.MYD</code>文件)能夠有多長，以字節計。 </dd>
+  <dt><code>Max keyfile length</code> </dt>
+  <dd>表的關鍵字文件(<code>.MYI</code>文件)能夠有多長，以字節計。 </dd>
+  <dt><code>Recordlength</code> </dt>
+  <dd>每個記錄占多少空間，以字節計。 </dd>
+  <dt><code>Record format</code> </dt>
+  <dd>用於儲存表行的格式。上面的例子使用<code>Fixed length。</code>其他可能的值是<code>Compressed</code>和<code>Packed</code>. 
+  </dd>
+  <dt><code>table description</code> </dt>
+  <dd>在表中所有鍵值的一張表。對每個鍵，給出一些底層的資訊： <dl COMPACT="manual_Maintenance.html#Optimization">
+      <dt><code>Key</code> </dt>
+      <dd>該鍵的編號。 </dd>
+      <dt><code>Start</code> </dt>
+      <dd>該索引部分從記錄的哪裡開始。 </dd>
+      <dt><code>Len</code> </dt>
+      <dd>該索引部分是多長。對於緊湊的數字，這應該總是列的全長。對字符串，它可以比索引的列的全長短些，因為你能索引字符串列的前綴。</dd>
+      <dt><code>Index</code> </dt>
+      <dd><code>unique</code>或<code>multip</code>（multiple)。表明一個值是否能在該索引中存在多次。 
+      </dd>
+      <dt><code>Type</code> </dt>
+      <dd>這索引部分有什麼數據類型。這是一個<code>packed</code>、<code>stripped</code>或<code>empty</code>選項的 
+        ISAM 數據類型。 </dd>
+      <dt><code>Root</code> </dt>
+      <dd>根索引塊的地址。 </dd>
+      <dt><code>Blocksize</code> </dt>
+      <dd>每個索引塊的大小。內定是1024，但是值可以在編譯時改變。 </dd>
+      <dt><code>Rec/key</code> </dt>
+      <dd>這是由最佳化器使用的統計值。它告訴對該鍵的每個值有多少條記錄。唯一鍵總是有一個1值。在一個表被裝載後(或改變很大)，這可以用<code>myisamchk 
+        -a</code>更新。如果這根本沒被更新，給定一個30的內定值。</dd>
+    </dl>
+  </dd>
+  <dd>在上面第一個例子中，第個9鍵是有2個部分的多部鍵。 </dd>
+  <dt><code>Keyblocks used</code> </dt>
+  <dd>鍵塊使用的百分比是什麼。因為在例子中使用的表只能用<code>myisamchk</code>被重新組織，值非常高(很接近理論上的最大值)。 
+  </dd>
+  <dt><code>Packed</code> </dt>
+  <dd><strong>MySQL</strong>試圖用一個公共後綴壓縮鍵。這只能被用於<code>CHAR</code>/<code>VARCHAR</code>/<code>DECIMAL</code>鍵。對長字符串如姓名，這能顯著地減少使用空間。在上面的第3個例子中，第4個鍵是10個字符長並且在空間上達到60%的縮減。</dd>
+  <dt><code>Max levels</code> </dt>
+  <dd>對於該鍵的B樹有多深。有長鍵的大表有較高的值。 </dd>
+  <dt><code>Records</code> </dt>
+  <dd>表中有多少行。 </dd>
+  <dt><code>M.recordlength</code> </dt>
+  <dd>平均記錄長度。對於有定長記錄的表，這是準確的記錄長度。 </dd>
+  <dt><code>Packed</code> </dt>
+  <dd><strong>MySQL</strong>從字符串的結尾去掉空格。<code>Packed</code>值表明這樣做達到的節約的百分比。 
+  </dd>
+  <dt><code>Recordspace used</code> </dt>
+  <dd>數據文件被使用的百分比。</dd>
+  <dt><code>Empty space</code> </dt>
+  <dd>數據文件未被使用的百分比。 </dd>
+  <dt><code>Blocks/Record</code> </dt>
+  <dd>每個記錄的平均塊數 (即，一個碎片記錄由多少個連接組成)。對固定格式表，這總是1。該值應該盡可能保持接近1.0。如果它變得太大，你可用<code>myisamchk</code>重新組織表。見<a HREF="manual_Maintenance.html#Optimization">13.4.3 表最佳化</a>。 </dd>
+  <dt><code>Recordblocks</code> </dt>
+  <dd>多少塊(連接)被使用。對固定格式，它與記錄的個數相同。 </dd>
+  <dt><code>Deleteblocks</code> </dt>
+  <dd>多少塊(連接)被刪除。 </dd>
+  <dt><code>Recorddata</code> </dt>
+  <dd>在數據文件中使用了多少字節。 </dd>
+  <dt><code>Deleted data</code> </dt>
+  <dd>在數據文件中多少字節被刪除(未使用)。 </dd>
+  <dt><code>Lost space</code> </dt>
+  <dd>如果一個記錄被改為更短的長度，就損失了一些空間。這是所有這樣的損失之和，以字節計。 
+  </dd>
+  <dt><code>Linkdata</code> </dt>
+  <dd>當使用動態表格式，記錄碎片用指針連接(每個4 ～ 7字節)。 <code>Linkdata</code>被這樣的指針使用的內存量之和。 
+  </dd>
+</dl>
+
+<p>如果一張表已經用<code>myisampack</code>壓縮了，<code>myisamchk -d</code>列印每個表列的附加資訊。對於它的一個例子及其含義的描述，見<a HREF="manual_Tools.html#myisampack">12.5 MySQL壓縮只讀表產生器</a>。 </p>
+
+<h2><a NAME="Crash_recovery" HREF="manual_toc.html#Crash_recovery">13.4 使用<code>myisamchk</code>進行崩潰恢復</a></h2>
+
+<p>由<strong>MySQL</strong>用來儲存數據的文件格式以已經被廣泛地測試過，但是總是有外部情況可以導致資料庫表被破壞： 
+
+<ul>
+  <li><code>mysqld</code>進程在一個寫入當中被殺死。</li>
+  <li>計算機的意外關閉(例如，如果計算機掉電）。</li>
+  <li>一個硬件錯誤</li>
+</ul>
+
+<p>這章描述如何檢查和處理在<strong>MySQL</strong>資料庫中的數據損壞。如果你的表損壞很多，你應該嘗試找出其原因！見<a HREF="manual_Porting.html#Debugging_server">G.1 調試一個MySQL伺服器</a>。 </p>
+
+<p>在執行崩潰恢復時，理解在一個資料庫中的每一個表<code>tbl_name</code>對應的在資料庫目錄中的3個文件是很重要的：</p>
+
+<table BORDER="1" WIDTH="100%" NOSAVE="#101090" class="p4">
+  <tr>
+    <td><strong>文件</strong> </td>
+    <td><strong>用途</strong> </td>
+  </tr>
+  <tr>
+    <td><tt>“tbl_name.frm”</tt> </td>
+    <td>表定義(表格)文件</td>
+  </tr>
+  <tr>
+    <td><tt>“tbl_name.MYD”</tt> </td>
+    <td>數據文件</td>
+  </tr>
+  <tr>
+    <td><tt>“tbl_name.MYI”</tt> </td>
+    <td>索引文件</td>
+  </tr>
+</table>
+
+<p>這3個文件的每一個文件類型可能遭受不同形式的損壞，但是問題最常發生在數據文件和索引文件。 
+</p>
+
+<p><code>myisamchk</code>通過一行一行地創建一個<tt>“.MYD”</tt>（數據 )文件的副本來工作，它通過由刪除老的<tt>“.MYD 
+</tt>文件並且重命名新文件到原來的文件名結束修復階段。如果你使用<code>--quick</code>，<code>myisamchk</code>不創建一個臨時<tt>“.MYD”</tt>文件，只是假定<tt>“.MYD”</tt>文件是正確的並且僅創建一個新的索引文件，不接觸<tt>“.MYD”</tt>文件，這是安全的，因為<code>myisamchk</code>自動檢測<tt>“.MYD”</tt>文件是否損壞並且在這種情況下，放棄修復。你也可以給<code>myisamchk</code>兩個<code>--quick</code>選項。在這種情況下，<code>myisamchk</code>不會在一些錯誤上(像重複鍵)放棄，相反試圖通過修改<tt>“.MYD”</tt>文件解決它們。通常，只有在你在太少的空閑磁碟空間上實施一個正常修復，使用兩個<code>--quick</code>選項才有用。在這種情況下，你應該至少在運行<code>myisamchk</code>前做一個備份。 
+</p>
+
+<p><a NAME="IDX673"></a> </p>
+
+<h3><a NAME="Check" HREF="manual_toc.html#Check">13.4.1 怎樣檢查表的錯誤</a></h3>
+
+<p>為了檢查一張表，使用下列命令： 
+
+<dl COMPACT="Check">
+  <dt><code>myisamchk tbl_name</code> </dt>
+  <dd>這能找出所有錯誤的99.99%。它不能找出的是<strong>僅僅</strong>涉及數據文件的損壞(這很不常見)。如果你想要檢查一張表，你通常應該沒有選項地運行<code>myisamchk</code>或用<code>-s</code>或<code>--silent</code>選項的任何一個。 
+  </dd>
+  <dt><code>myisamchk -e tbl_name</code> </dt>
+  <dd>它做一個完全徹底的數據檢查(<code>-e</code>意思是“擴展檢查”)。它對每一行做每個鍵的讀檢查以証實他們確實指向正確的行。這在一個有很多鍵的大表上可能花很長時間。<code>myisamchk</code>通常將在它發現第一個錯誤以後停止。如果你想要獲得更多的資訊，你能增加<code>--verbose</code>(<code>-v</code>)選項。這使得<code>myisamchk</code>繼續一直到最多20個錯誤。在一般使用中，一個簡單的<code>myisamchk</code>（沒有除表名以外的參數)就足夠了。</dd>
+  <dt><code>myisamchk -e -i tbl_name</code> </dt>
+  <dd>像前面的命令一樣，但是<code>-i</code>選項告訴<code>myisamchk</code>還列印出一些統計資訊。</dd>
+</dl>
+
+<h3><a NAME="Repair" HREF="manual_toc.html#Repair">13.4.2 怎樣修復表</a></h3>
+
+<p>一張損壞的表的症狀通常是查詢意外中斷並且你能看到例如這些錯誤： 
+
+<ul>
+  <li><tt>“tbl_name.frm”</tt>被鎖定不能改變。</li>
+  <li>不能找到文件<tt>“tbl_name.MYI”</tt>（Errcode ：### ）。</li>
+  <li>從表處理器的得到錯誤###(此時，錯誤135是一個例外）。</li>
+  <li>意外的文件結束。</li>
+  <li>記錄文件被毀壞。</li>
+</ul>
+
+<p>在這些情況下，你必須修復表。<code>myisamchk</code>通常能檢測並且修復出錯的大部分東西。</p>
+
+<p>修復程序包含最多4個階段，在下面描述。在你開始前，你應該<code>cd</code>到資料庫目錄和檢查表文件的權限，確保他們可被運行<code>mysqld</code>的Unix用戶讀取(和你，因為你需要存取你正在檢查的文件)。如果它拒絕你修改文件，他們也必須是可被你寫入的。</p>
+
+<p><strong>階段1：檢查你的表</strong> </p>
+
+<p>運行<code>myisamchk *.MYI</code>或(<code>myisamchk -e *.MYI</code>，如果你有更多的時間)。使用<code>-s</code>（沉默)選項禁止不必要的資訊。</p>
+
+<p>你必須只修復那些<code>myisamchk</code>報告有一個錯誤的表。對這樣的表，繼續到階段2。 
+</p>
+
+<p>如果在檢查時，你得到奇怪的錯誤(例如<code>out of memory</code>錯誤)，或如果<code>myisamchk</code>崩潰，到階段3。</p>
+
+<p><strong>舞台 2 ：簡單安全的修復</strong> </p>
+
+<p>首先，試試<code>myisamchk -r -q tbl_name</code>(<code>-r -q</code>意味著“快速恢復模式”)。這將試圖不接觸數據文件來修復索引文件。如果數據文件包含它應有的一切和在數據文件指向正確地點的刪除連接，這應該管用並且表可被修復。開始修理下一張表。否則，使用下列程序： 
+
+<ol>
+  <li>在繼續前做數據文件的一個備份。 </li>
+  <li>使用<code>myisamchk -r tbl_name</code>(<code>-r</code>意味著“恢復模式”)。這將從數據文件中刪除不正確的記錄和已被刪除的記錄並重建索引文件。</li>
+  <li>如果前面的步驟失敗，使用<code>myisamchk --safe-recover tbl_name</code>。安全恢復模式使用一個老的恢復方法，處理常規恢復模式不行的少數情況(但是更慢)。</li>
+</ol>
+
+<p>如果在修復時，你得到奇怪的錯誤(例如<code>out of memory</code>錯誤)，或如果<code>myisamchk</code>崩潰，到階段3。</p>
+
+<p><strong>舞台 3 ：困難的修理</strong> </p>
+
+<p>如果在索引文件的第一個16K塊被破壞，或包含不正確的資訊，或如果索引文件丟失，你只應該到這個階段 
+。在這種情況下，創建一個新的索引文件是必要的。按如下這樣做： 
+
+<ol>
+  <li>把數據文件移更安全的地方。 </li>
+  <li>使用表描述文件創建新的(空)數據和索引文件：<pre>shell&gt; mysql db_name
+mysql&gt; DELETE FROM tbl_name;
+mysql&gt; quit
+</pre>
+  </li>
+  <li>將老的數據文件拷貝到新創建的數據文件之中。（不要只是將老文件移回新文件之中﹔你要保留一個副本以防某些東西出錯。）</li>
+</ol>
+
+<p>回到階段2。現在<code>myisamchk -r -q</code>應該工作了。（這不應該是一個無限循環)。</p>
+
+<p><strong>階段4：非常困難的修復</strong> </p>
+
+<p>只有描述文件也破壞了，你才應該到達這個階段。這應該從未發生過，因為在表被創建以後，描述文件就不再改變了。 
+
+<ol>
+  <li>從一個備份恢復描述文件並且回到階段3。你也可以恢復索引文件並且回到階段2。對後者，你應該用<code>myisamchk 
+    -r</code>啟動。 </li>
+  <li>如果你沒有一個備份但是確切地知道表是怎樣被創建的，在另一個資料庫中創建表的一個拷貝。刪除新的數據文件，然後從其他資料庫將描述和索引文件移到破壞的資料庫中。這給了你新的描述和索引文件，但是讓數據文件獨自留下來了。回到階段2並且嘗試重建索引文件。</li>
+</ol>
+
+<h3><a NAME="Optimization" HREF="manual_toc.html#Optimization">13.4.3 表最佳化</a></h3>
+
+<p>為了組合成碎片的記錄並且消除由於刪除或更新記錄而浪費的空間， 
+以恢復模式運行<code>myisamchk</code>：</p>
+
+<pre>shell&gt; myisamchk -r tbl_name
+</pre>
+
+<p>你可以用SQL的<code>OPTIMIZE TABLE</code>語句使用的相同方式來最佳化一張表，<code>OPTIMIZE 
+TABLE</code>比較容易，但是<code>myisamchk</code>更快。也沒有在一個實用程式和伺服器之間不必要的交互可能性，因為當你使用<code>OPTIMIZE 
+TABLE</code>時，伺服器做所有的工作。</p>
+
+<p><code>myisamchk</code>也有你可用來改進一個表的性能的很多其他選項： 
+
+<dl COMPACT="Optimization">
+  <dt><code>-S, --sort-index</code> </dt>
+  <dd>　</dd>
+  <dt><code>-R index_num, --sort-records=index_num</code> </dt>
+  <dd>　</dd>
+  <dt><code>-a, --analyze</code> </dt>
+  <dd>　</dd>
+</dl>
+
+<p>對於選項完整的描述見<a HREF="manual_Maintenance.html#myisamchk_syntax">13.1.1<code> 
+myisamchk</code>調用語法</a>。 </p>
+
+<h2><a NAME="Log_files" HREF="manual_toc.html#Log_files">13.5 日誌文件維護</a></h2>
+
+<p>當<strong>MySQL</strong>與日誌文件一起使用時，你有時想要刪除/備份舊的日誌文件並且告訴<strong>MySQL</strong>在新文件中開始記錄。見<a HREF="manual_Server.html#Update_log">9.2 更新日誌</a>。 </p>
+
+<p>在一個 Linux (<code>Redhat</code>)的安裝上，你可為此使用<code>mysql-log-rotate</code>腳本。如果你從RPM分發安裝<strong>MySQL</strong>，腳本應該自動被安裝了。</p>
+
+<p>在其他系統上，你必須自己安裝一個短腳本，你可從<code>cron</code>啟動來處理日誌文件。</p>
+
+<p>你可以通過使用<code>mysqladmin flush-logs</code>或SQL命令<code>FLUSH LOGS</code>來強制<strong>MySQL</strong>開始使用新的日誌文件。如果你正在使用<strong>MySQL</strong> 
+3.21，你必須使用<code>mysqladmin refresh</code>。</p>
+
+<p>上面的命令做下列事情： 
+
+<ul>
+  <li>如果使用標準日誌(<code>--log</code>)，關閉並重新打開日誌文件。(<tt>“ 
+    mysql.log”</tt>為內定)。 </li>
+  <li>如果使用更新日誌(<code>--log-update</code>)，關閉更新日誌並且重新打開有一個更高的順序閉編號的新日誌文件。</li>
+</ul>
+
+<p>如果你只使用一個更新日誌，你只須清空日誌文件，然後移走舊的更新日誌文件到一個備份中。如果你使用一般的日誌，你可以這樣做：</p>
+
+<pre>shell&gt; cd mysql-data-directory
+shell&gt; mv mysql.log mysql.old
+shell&gt; mysqladmin flush-tables
+</pre>
+
+<p>然後做一個備份並刪除<tt>“mysql.old”</tt>。</p>
+
+<hr>
+
+<p><a HREF="manual_Introduction.html">第一章</a>, <a HREF="manual_Tools.html">前一章</a>, 
+<a HREF="manual_Adding_functions.html">下一章</a>, <a HREF="manual_Concept_Index.html">最後一章</a>，<a HREF="manual_toc.html">目錄</a>. </p>
+</body>
+</html>

@@ -1,0 +1,360 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>對稽核進行設定</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.79" />
+<link rel="HOME" title="FreeBSD 使用手冊" href="index.html" />
+<link rel="UP" title="資安事件的稽核" href="audit.html" />
+<link rel="PREVIOUS" title="安裝稽核支援" href="audit-install.html" />
+<link rel="NEXT" title="管理稽核子系統" href="audit-administration.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD 使用手冊</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="audit-install.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 17 資安事件的稽核</td>
+<td width="10%" align="right" valign="bottom"><a href="audit-administration.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="AUDIT-CONFIG" name="AUDIT-CONFIG">17.4 對稽核進行設定</a></h1>
+
+<p>所有用於安全稽核的設定檔，都可以在 <tt class="FILENAME">/etc/security</tt> 找到。
+要啟動稽核服務之前，必須要有下面這些檔案：</p>
+
+<ul>
+<li>
+<p><tt class="FILENAME">audit_class</tt> - 對於稽核類的定義。</p>
+</li>
+
+<li>
+<p><tt class="FILENAME">audit_control</tt> - 控制稽核子系統的特性，
+例如預設稽核類、在稽核 log 所在的卷上保留的最小空間、 稽核 log 的最大大小，等等。</p>
+</li>
+
+<li>
+<p><tt class="FILENAME">audit_event</tt> -
+文字化的系統稽核事件名稱和描述，以及每個事件屬於哪個類別。</p>
+</li>
+
+<li>
+<p><tt class="FILENAME">audit_user</tt> - 針對特定使用者的稽核需求，
+這些設定在登入時會與全局的預設值合併。</p>
+</li>
+
+<li>
+<p><tt class="FILENAME">audit_warn</tt> - 由 auditd 調用的一個可自訂的 shell script
+，用於在意外情況，如用於稽核 log 的空間過少，或稽核 log 檔案被翻轉時，產生警告資訊。</p>
+</li>
+</ul>
+
+<div class="WARNING">
+<blockquote class="WARNING">
+<p><b>Warning:</b>
+在編輯和維護稽核設定檔時一定要小心，因為設定檔中的錯誤會導致記錄事件不正確。</p>
+</blockquote>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN23380" name="AEN23380">17.4.1 事件篩選表達式</a></h2>
+
+<p>在稽核設定檔中的許多地方會用到篩選表達式來確定哪些事件是需要稽核的。
+表達式中需要指定要符合的事件類型，並使用前綴指定是否應接受或忽略符合的事件，
+此外，還可以指定一個可選項指定符合成功或失敗的操作。
+選擇表達式是按從左到右的順序計算的，而對於兩個表達式的情形，
+則是透過將後一個追加到前一個之後來實作的。</p>
+
+<p>下面列出了在 <tt class="FILENAME">audit_class</tt> 中的預設事件類型：</p>
+
+<ul>
+<li>
+<p><code class="OPTION">all</code> - <tt class="LITERAL">all</tt> -
+表示符合全部事件類。</p>
+</li>
+
+<li>
+<p><code class="OPTION">ad</code> - <tt class="LITERAL">administrative</tt> -
+所有在系統上所進行的管理性操作。</p>
+</li>
+
+<li>
+<p><code class="OPTION">ap</code> - <tt class="LITERAL">application</tt> -
+應用程式定義的動作。</p>
+</li>
+
+<li>
+<p><code class="OPTION">cl</code> - <tt class="LITERAL">file_close</tt> - 稽核對 <code
+class="FUNCTION">close</code> 系統調用的操作。</p>
+</li>
+
+<li>
+<p><code class="OPTION">ex</code> - <tt class="LITERAL">exec</tt> - 稽核程式的執行。
+對於指令參數和環境變量的稽核是透過在 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=audit_control&amp;sektion=5"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">audit_control</span>(5)</span></a> 中
+<tt class="LITERAL">policy</tt> 的 <tt class="LITERAL">argv</tt> 和 <tt
+class="LITERAL">envv</tt> 參數來控制的。</p>
+</li>
+
+<li>
+<p><code class="OPTION">fa</code> - <tt class="LITERAL">file_attr_acc</tt> -
+稽核訪問對象屬性，例如 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=stat&amp;sektion=1"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">stat</span>(1)</span></a>、<a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=pathconf&amp;sektion=2"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">pathconf</span>(2)</span></a>
+以及類似事件。</p>
+</li>
+
+<li>
+<p><code class="OPTION">fc</code> - <tt class="LITERAL">file_creation</tt> -
+稽核新增了檔案的事件。</p>
+</li>
+
+<li>
+<p><code class="OPTION">fd</code> - <tt class="LITERAL">file_deletion</tt> -
+稽核所發生的檔案刪除事件。</p>
+</li>
+
+<li>
+<p><code class="OPTION">fm</code> - <tt class="LITERAL">file_attr_mod</tt> -
+稽核檔案屬性發生變化的事件， 例如 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=chown&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">chown</span>(8)</span></a>、<a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=chflags&amp;sektion=1"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">chflags</span>(1)</span></a>、<a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=flock&amp;sektion=2"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">flock</span>(2)</span></a>， 等等。</p>
+</li>
+
+<li>
+<p><code class="OPTION">fr</code> - <tt class="LITERAL">file_read</tt> -
+稽核讀取資料、檔案以讀方式打開等事件。</p>
+</li>
+
+<li>
+<p><code class="OPTION">fw</code> - <tt class="LITERAL">file_write</tt> -
+稽核寫入資料、檔案以寫方式打開等事件。</p>
+</li>
+
+<li>
+<p><code class="OPTION">io</code> - <tt class="LITERAL">ioctl</tt> - 稽核對 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=ioctl&amp;sektion=2"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">ioctl</span>(2)</span></a>
+系統調用的使用。</p>
+</li>
+
+<li>
+<p><code class="OPTION">ip</code> - <tt class="LITERAL">ipc</tt> -
+稽核各種形式的程序間通信(IPC)， 包括 POSIX 管道和 System V <acronym
+class="ACRONYM">IPC</acronym> 操作。</p>
+</li>
+
+<li>
+<p><code class="OPTION">lo</code> - <tt class="LITERAL">login_logout</tt> -
+稽核系統中發生的 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=login&amp;sektion=1"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">login</span>(1)</span></a> 和 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=logout&amp;sektion=1"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">logout</span>(1)</span></a> 事件。</p>
+</li>
+
+<li>
+<p><code class="OPTION">na</code> - <tt class="LITERAL">non_attrib</tt> -
+稽核無法歸類的事件。</p>
+</li>
+
+<li>
+<p><code class="OPTION">no</code> - <tt class="LITERAL">no_class</tt> -
+表示不符合任何事件。</p>
+</li>
+
+<li>
+<p><code class="OPTION">nt</code> - <tt class="LITERAL">network</tt> -
+與網路操作有關的事件，例如 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=connect&amp;sektion=2"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">connect</span>(2)</span></a> 和 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=accept&amp;sektion=2"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">accept</span>(2)</span></a>。</p>
+</li>
+
+<li>
+<p><code class="OPTION">ot</code> - <tt class="LITERAL">other</tt> -
+稽核各類雜項事件。</p>
+</li>
+
+<li>
+<p><code class="OPTION">pc</code> - <tt class="LITERAL">process</tt> - 稽核程序操作，例如
+<a href="http://www.FreeBSD.org/cgi/man.cgi?query=exec&amp;sektion=3"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">exec</span>(3)</span></a> 和 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=exit&amp;sektion=3"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">exit</span>(3)</span></a>。</p>
+</li>
+</ul>
+
+<p>這些稽核事件，可以透過修改 <tt class="FILENAME">audit_class</tt> 和 <tt
+class="FILENAME">audit_event</tt> 這兩個設定檔來進行自訂。</p>
+
+<p>這個列表中，每個稽核類均包含一個表示符合成功/失敗操作的前綴，
+以及這一項是否是增加或刪去對事件類或類型的符合。</p>
+
+<ul>
+<li>
+<p>(none)稽核事件的成功和失敗實例。</p>
+</li>
+
+<li>
+<p><tt class="LITERAL">+</tt> 稽核這一類的成功事件。</p>
+</li>
+
+<li>
+<p><tt class="LITERAL">-</tt> 稽核這一類的失敗事件。</p>
+</li>
+
+<li>
+<p><tt class="LITERAL">^</tt> 不稽核本類中的成功或失敗事件。</p>
+</li>
+
+<li>
+<p><tt class="LITERAL">^+</tt> 不稽核本類中的成功事件。</p>
+</li>
+
+<li>
+<p><tt class="LITERAL">^-</tt> 不稽核本類中的失敗事件。</p>
+</li>
+</ul>
+
+<p>下面例子中的篩選字串表示篩選成功和失敗的登入/登出事件，
+而對執行事件，則只稽核成功的：</p>
+
+<pre class="PROGRAMLISTING">
+lo,+ex
+</pre>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN23530" name="AEN23530">17.4.2 設定檔</a></h2>
+
+<p>多數情況下，在設定稽核系統時， 管理員只需修改兩個檔案： <tt
+class="FILENAME">audit_control</tt> 和 <tt class="FILENAME">audit_user</tt>。
+前者控制系統級的稽核屬性和策略， 而後者則用於針對具體的使用者來微調。</p>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="AUDIT-AUDITCONTROL" name="AUDIT-AUDITCONTROL">17.4.2.1 <tt
+class="FILENAME">audit_control</tt> 檔案</a></h3>
+
+<p><tt class="FILENAME">audit_control</tt> 檔案指定了一系列用於稽核子系統的預設設置。
+透過檢視這個檔案，我們可以看到下面的內容：</p>
+
+<pre class="PROGRAMLISTING">
+dir:/var/audit
+flags:lo
+minfree:20
+naflags:lo
+policy:cnt
+filesz:0
+</pre>
+
+<p>這裡的 <code class="OPTION">dir</code> 選項可以用來設置用於儲存稽核 log
+的一或多個目錄。 如果指定了多個目錄，則將在填滿一個之後換用下一個。 一般而言，
+稽核通常都會設定為儲存在一個專用的檔案系統之下，
+以避免稽核系統與其它子系統在檔案系統滿的時候所產生的衝突。</p>
+
+<p><code class="OPTION">flags</code> 欄位用於為有主事件設定系統級的預選條件。
+在前面的例子中，所有使用者成功和失敗的登入和登出都會被稽核。</p>
+
+<p><code class="OPTION">minfree</code> 參數用於定義儲存稽核 log
+的檔案系統上剩餘空間的最小百分比。 當超過這臨界值時， 將產生一個警告。
+前面的例子中，最小剩餘空間比例設置成了兩成。</p>
+
+<p><code class="OPTION">naflags</code> 選項表示稽核類稽核無主事件，
+例如作為登入程序和系統服務的那些程序的事件。</p>
+
+<p><code class="OPTION">policy</code> 選項用於指定一個以逗號分隔的策略標志表，
+以控制一系列稽核行為。 預設的 <tt class="LITERAL">cnt</tt>
+標志表示系統應在稽核失敗時繼續執行 (強烈建議使用這個標志)。 另一個常用的標志是 <tt
+class="LITERAL">argv</tt>，它表示在稽核命令執行操作時， 同時稽核傳給 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=execve&amp;sektion=2"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">execve</span>(2)</span></a>
+系統調用的指令參數。</p>
+
+<p><code class="OPTION">filesz</code> 選項指定了稽核 log
+在自動停止記錄和翻轉之前允許的最大大小。 預設值 0 表示禁用自動 log 翻轉。
+如果設定的值不是零，但小於最小值 512k， 則這個設定會被忽略，並在 log 中記錄這一消息。</p>
+</div>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="AUDIT-AUDITUSER" name="AUDIT-AUDITUSER">17.4.2.2 <tt
+class="FILENAME">audit_user</tt> 檔</a></h3>
+
+<p><tt class="FILENAME">audit_user</tt> 檔允許管理員為了特定使用者，
+而去指定進一步的稽核需求。 每行使用兩個欄位來設定使用者的稽核： 第一個是 <tt
+class="LITERAL">alwaysaudit</tt> 欄位， 它指定了一組對該使用者總會進行稽核的事件；
+而第二個則是 <tt class="LITERAL">neveraudit</tt> 欄位，
+它指定了一系列對該使用者不稽核的事件。</p>
+
+<p>在下述 <tt class="FILENAME">audit_user</tt> 示例檔案中， 稽核了 root 使用者的
+登入/登出 事件，以及成功的命令執行事件， 此外，還稽核了 www
+使用者的檔案新增和成功的命令執行事件。 如果與前面的示範 <tt
+class="FILENAME">audit_control</tt> 檔案配合使用， 則 <tt class="LITERAL">root</tt> 的
+<tt class="LITERAL">lo</tt> 項就是多餘的， 而對 <tt class="LITERAL">www</tt>
+使用者而言，其登入/登出事件也會被稽核 ：</p>
+
+<pre class="PROGRAMLISTING">
+root:lo,+ex:no
+www:fc,+ex:no
+</pre>
+</div>
+</div>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="audit-install.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="audit-administration.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">安裝稽核支援</td>
+<td width="34%" align="center" valign="top"><a href="audit.html"
+accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">管理稽核子系統</td>
+</tr>
+</table>
+</div>
+
+<p align="center"><small>本文及其他文件，可由此下載：<a
+href="ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/">ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/</a>。</small></p>
+
+<p align="center"><small>若有 FreeBSD 方面疑問，請先閱讀 <a
+href="http://www.FreeBSD.org/docs.html">FreeBSD 相關文件</a>，如不能解決的話，再洽詢
+&#60;<a href="mailto:questions@FreeBSD.org">questions@FreeBSD.org</a>&#62;。<br />
+關於本文件的問題，請洽詢 &#60;<a
+href="mailto:doc@FreeBSD.org">doc@FreeBSD.org</a>&#62;。</small></p>
+</body>
+</html>
+

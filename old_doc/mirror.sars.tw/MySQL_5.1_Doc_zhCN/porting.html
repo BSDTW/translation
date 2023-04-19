@@ -1,0 +1,458 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><title>Appendix E. Porting to Other Systems</title><meta name="generator" content="DocBook XSL Stylesheets V1.69.1"><link rel="start" href="index.html" title="MySQL 5.1 Reference Manual"><link rel="up" href="index.html" title="MySQL 5.1 Reference Manual"><link rel="prev" href="news.html" title="Appendix D. MySQL Change History"><link rel="next" href="environment-variables.html" title="Appendix F. Environment Variables">
+<style>
+<!--
+div.Section1
+	{page:Section1;}
+span.GramE
+	{}
+-->
+</style>
+</head><body><div class="appendix"><div class="titlepage"><div><div><h2 class="title"><a name="porting"></a>
+	附錄E：移植到其它系統</h2></div></div></div><div class="toc"><p><b>目錄</b></p><dl><dt><span class="section">
+		<a href="#debugging-server">E.1. 調試MySQL伺服器</a></span></dt><dd><dl><dt><span class="section">
+			<a href="#compiling-for-debugging">E.1.1. 針對調試編譯MySQL</a></span></dt><dt><span class="section">
+			<a href="#making-trace-files">E.1.2. 建立跟蹤檔案</a></span></dt><dt><span class="section">
+			<a href="#using-gdb-on-mysqld">E.1.3. <span><strong class="command">
+			在gdb</strong></span>環境下調試<span><strong class="command">mysqld</strong></span></a></span></dt><dt><span class="section">
+			<a href="#using-stack-trace">E.1.4. 使用堆棧跟蹤</a></span></dt><dt><span class="section">
+			<a href="#using-log-files">E.1.5. 使用日誌檔案找出<span><strong class="command">mysqld</strong>出錯原因</span></a></span></dt><dt><span class="section">
+			<a href="#reproduceable-test-case">E.1.6. 如果出現資料表格崩潰，請生成測試案例</a></span></dt></dl></dd><dt><span class="section">
+		<a href="#debugging-client">E.2. 測試MySQL 客戶端</a></span></dt><dt><span class="section">
+		<a href="#the-dbug-package">E.3. DBUG 軟件包</a></span></dt><dt><span class="section">
+		<a href="#rts-threads">E.4. 關於RTS線程的註釋</a></span></dt><dt><span class="section">
+		<a href="#thread-packages">E.5. 線程軟件包之間的差異</a></span></dt></dl></div><a class="indexterm" name="id3099586"></a><p>
+    這個附錄幫助您把MySQL移植到其它作業系統。請先查看一下當前支援作業系統列資料表。請參閱<a href="installing.html#which-os" title="2.1.1. Operating Systems Supported by MySQL">2.1.1節，「MySQL支援的作業系統」</a>。如果您建立了一個新的MySQL移植（移植到列資料表上沒有的作業系統），請通知我們，以便我們能把這個作業系統列到我們網站上（<a href="http://www.mysql.com/" target="_top">http://www.mysql.com/</a>），推薦給其它的用戶。
+  </p><p>
+    注意：如果您建立一個新的MySQL移植，您可以在GPL授權證下任意複製和發佈它，但這不能使您成為MySQL的版權持有者。</p><p>
+    這個伺服器需要一個正在工作的POSIX 線程庫在。在Solaris
+    2.5 上我們使用Sun PThreads （在2.4版和更早的版本上，原生線程支援得不是很好），在Linux上，我們使用Xavier Leroy&lt;<a href="mailto:Xavier.Leroy@inria.fr">Xavier.Leroy@inria.fr</a>&gt;的LinuxThreads。
+  </p><p>
+    對於那些對原生線程支援不好的新Unix變體，移植到其上的艱難部分大概就是移植MIT-pthreads包。請參閱mit-pthreads/README 
+	和Programming POSIX
+    Threads (<a href="http://www.humanfactor.com/pthreads/" target="_top">http://www.humanfactor.com/pthreads/</a>)。</p><p>
+    直到MySQL 4.0.2版，MySQL發佈包包括來自MIT經過補丁的Chris Provenzano的Pthreads（請參閱MIT Pthreads 
+	網頁<a href="http://www.mit.edu/afs/sipb/project/pthreads/" target="_top">http://www.mit.edu/afs/sipb/project/pthreads/</a>
+    以及<a href="http://www.mit.edu:8001/people/proven/IAP_2000/" target="_top">http://www.mit.edu:8001/people/proven/IAP_2000/</a>上的編程指導）。對於某些沒有POSIX線程的作業系統可能有用。請參閱<a href="installing.html#mit-pthreads" title="2.8.5. MIT-pthreads Notes">2.8.5節，「MIT-pthreads 
+	注意事項」</a>。</p><p>
+    也可能會用到另一個名為 FSU Pthreads的用戶級線程軟件包（請參閱<a href="http://moss.csc.ncsu.edu/~mueller/pthreads/" target="_top">http://moss.csc.ncsu.edu/~mueller/pthreads/</a>）。 
+	這個工具被用來到SCO的移植。</p><p>
+    參閱
+    mysys目錄下的thr_lock.c 
+	和thr_alarm.c 程式獲取一些關於這些問題的測試/例子。
+  </p><p>
+    伺服器和客戶端需要一個能用的C++編譯器。我們在很多平台上使用<span><strong class="command">gcc</strong>。其它編譯器，據瞭解，可用的編譯器是</span>SPARCworks, Sun Forte, Irix <span><strong class="command">cc</strong></span>,
+    HP-UX <span><strong class="command">aCC</strong></span>, IBM AIX <span><strong class="command">xlC_r</strong></span>),
+    Intel <span><strong class="command">ecc/icc</strong></span> 和 Compaq <span><strong class="command">cxx</strong></span>)。
+  </p><p>
+    要僅編譯客戶端，請使用<span><strong class="command">./configure
+    --without-server</strong></span>.
+  </p><p>
+    現在不支援僅編譯伺服器，也不能加這個功能，除非有人找出一個好的理由。
+  </p><p>
+    如果您想/需要改變任何Makefile 或配置指令，您也會需要到GNU Automake 和 Autoconf。請參閱<a href="installing.html#installing-source-tree" title="2.8.3. Installing from the Development Source Tree">2.8.3節
+	，「從開發源樹安裝」</a>。
+  </p><p>
+    所有步驟需要從最基本的檔案重新生成（remake）所有東西。</p><pre class="programlisting">/bin/rm */.deps/*.P
+/bin/rm -f config.cache
+aclocal
+autoheader
+aclocal
+automake
+autoconf
+./configure --with-debug=full --prefix='your installation directory'
+
+# The makefiles generated above need GNU make 3.75 or newer.
+# (called gmake below)
+gmake clean all install init-db
+</pre><p>
+    如果在新移植MySQL上遇到問題，最好做一些調試！請參閱<a href="#debugging-server" title="E.1. Debugging a MySQL Server">E.1節，「調試MySQL伺服器」</a>。
+  </p><p>
+    <span class="bold"><strong>注意</strong></span>：在您開始調試<span><strong class="command">mysqld</strong>之前，首先要讓測試程式</span>mysys/thr_alarm<span>和</span>mysys/thr_lock<span>工作。這會確保您的線程安裝只有非常小的機會能運行！</span>
+  </p><div class="section"><div class="titlepage"><div><div><h2 class="title"><a name="debugging-server"></a>E.1. 調試MySQL伺服器</h2></div></div></div><div class="toc"><dl><dt><span class="section">
+		<a href="#compiling-for-debugging">E.1.1. 為調試編譯MySQL</a></span></dt><dt><span class="section">
+		<a href="#making-trace-files">E.1.2. 建立追蹤檔案</a></span></dt><dt><span class="section">
+		<a href="#using-gdb-on-mysqld">E.1.3. 在<span><strong class="command">gdb</strong></span>環境下調試 </a></span></dt><dt><span class="section">
+		<a href="#using-stack-trace">E.1.4. 使用堆棧跟蹤</a></span></dt><dt><span class="section">
+		<a href="#using-log-files">E.1.5. 使用日誌檔案找出<span><strong class="command">mysqld</strong></span>錯誤原因 </a></span></dt><dt><span class="section">
+		<a href="#reproduceable-test-case">E.1.6. 如果發生資料表崩潰則做一個測試案例</a></span></dt></dl></div><a class="indexterm" name="id3099809"></a><a class="indexterm" name="id3099819"></a><a class="indexterm" name="id3099829"></a><p>
+      如果您使用MySQL某些非常新的功能，您可以帶--skip-new參數（這個選項禁止掉所有新的潛在不安全的功能）或帶 --safe-mode參數（它禁止掉很多可能導致問題的最佳化設置）來運行<span><strong class="command">mysqld</strong>。</span> 
+		請參閱<a href="problems.html#crashing" title="A.4.2. What to Do If MySQL Keeps Crashing">A.4.2節，「如果MySQL依舊崩潰，應該做什麼」</a>。
+    </p><p>
+      如果 <span><strong class="command">mysqld</strong></span> 
+		不啟動，您應該查證有沒有干擾您的設置的my.cnf檔案。您可以用<span><strong class="command">mysqld
+      --print-defaults</strong></span><strong class="command">...</strong>檢查my.cnf參量，並用<span><strong class="command">mysqld 
+		--no-defaults</strong>來啟動去</span>避免它們。</p><p>
+      如果<span><strong class="command">mysqld</strong></span> 
+		啟動耗盡CPU或內存資源，或者它「掛」了起來，您可以使用 <span><strong class="command">mysqladmin
+      processlist status</strong></span>去找出是否有人執行了一個佔用很長時間的查詢。如果您正面臨著性能問題或新客戶端不能連
+		之時的問題，在某些窗口中運行<span><strong class="command">mysqladmin -i10 processlist status</strong>可能是</span>一個好主意。
+    </p><p>
+      <span><strong class="command">mysqladmin debug</strong></span> 
+		命令把一些有關使用中的鎖，使用的內存以及查詢使用的訊息轉儲到MySQL日誌檔案裡。這將有助於解決一些問題。即使您沒有為調試編譯MySQL，這個命令也提供一些有用的訊息！</p><p>
+      如果問題是一些資料表變得越來越慢，您應該試著用PTIMIZE TABLE或<span><strong class="command">myisamchk</strong></span>最佳化資料表。I請參閱第<a href="database-administration.html" title="Chapter 5. Database Administration">5章：<i>資料庫管理</i></a>。您也可以用EXPLAIN檢查慢
+		的查詢。&nbsp;
+    </p><p>
+      對那些於您的環境是獨特的問題，您也應該查閱這個手冊裡OS規格的部分請參閱<a href="installing.html#operating-system-specific-notes" title="2.12. Operating System-Specific Notes"> 2.12節，「作業系統系統的注意事項」</a>。
+    </p><div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="compiling-for-debugging"></a>E.1.1. 針對調試編譯MySQL</h3></div></div></div><p>
+        如果您遇到一些非常明確的問題，您可以總是試著調試MySQL。要調試MySQL，您必須用--with-debug或--with-debug=full選項來配置MySQL。您可以檢查MySQL是否是通過<span><strong class="command">mysqld
+        --help</strong></span>來和調試一起編譯的。如果--debug標記和選項一起被列出了，您就可以調試了。在這種情況<span><strong class="command">mysqladmin ver</strong></span>下把<span><strong class="command">mysqld</strong></span>版本列成<span><strong class="command">mysql ...
+        --debug</strong>。</span>
+      </p><p>
+        如果您使用<span><strong class="command">gcc</strong></span> 或
+        <span><strong class="command">egcs</strong>，推薦的<strong class="command">configure</strong></span> 
+		行如下：</p><pre class="programlisting">CC=gcc CFLAGS="-O2" CXX=gcc CXXFLAGS="-O2 -felide-constructors \
+   -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql \
+   --with-debug --with-extra-charsets=complex
+</pre><p>
+        這避免了libstdc++庫和C++異常（很多編譯器線上程代碼裡有C++異常的問題）的問題，並編譯了一個支援所有字元編碼的MySQL版本。
+      </p><p>
+        如果您懷疑內存溢出錯誤，您可以用--with-debug=full來配置MySQL，這會安裝一個內存分配（SAFEMALLOC）檢查器。可是，運行SAFEMALLOC是非常慢的，所以如果您遇到性能上的問題，您應該
+		用--skip-safemalloc選項啟動<span><strong class="command">mysqld</strong></span>。這樣禁止掉對使用malloc()和free()的內存檢查。</p><p>
+        當您用--with-debug編譯<span><strong class="command">mysqld</strong>時，如果它不再崩潰，您大致已經在MySQL內找到一個編譯器問題或計時問題。這種情況下，您可以試著把</span>-g<span>加到上面的</span>CFLAGS<span>和</span>CXXFLAGS<span>變數，並且不使用</span>--with-debug。如果<span><strong class="command">mysqld</strong></span>失敗，您至少可以<span><strong class="command">gdb</strong></span>用附著上它或使用核心檔案上的<span><strong class="command">gdb</strong></span>去找出發生什麼問題。
+      </p><p>
+        當您為調試配置MySQL時，您就自動允許許多額外的監視<span><strong class="command">mysqld</strong></span>健康的安全檢查函數。如果它們發現一些「不期望」的事，會寫一個條目到stderr，<span><strong class="command">safe_mysqld</strong><strong class="command">，</strong></span>指引這個stderr到錯誤日誌！這也意味著如果MySQL發生什麼意外的問題，並且您正使用一個源檔案發佈版本，那麼您要做的第一件事就是去為調試配置MySQL！（第二件事是發郵件到MySQL郵件列資料表請求幫助）。請參閱<a href="introduction.html#mailing-list" title="1.7.1.1. The MySQL Mailing Lists">1.7.1.1節，「MySQL郵件列資料表」</a>。請根據您使用的MySQL版本對所有問題報告或問題使用<span><strong class="command">mysqlbug</strong></span>指令！</p><p>
+        在Windows MySQL發佈包裡，mysqld.exe預設編譯為支援追蹤檔案。</p></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="making-trace-files"></a>E.1.2. 建立跟蹤檔案</h3></div></div></div><p>
+        如果<span><strong class="command">mysqld</strong></span> 
+		伺服器沒有啟動或者您可以快速地使其崩潰，您可以建立一個跟蹤檔案來找出問題。
+      </p><p>
+        要這麼做的話，您必須有一個編譯了支援調試的<span><strong class="command">mysqld</strong>，<strong class="command"> </strong>
+		您可以通過執行</span>mysqld -V<span>來檢查一下。如果版本號後面跟著</span>-debug，它就是被編譯成支援跟蹤檔案。（在 Windows中，調試伺服器被命名為<span><strong class="command">mysqld-debug</strong></span> 
+		而不是象MySQL 4.1 那樣的<span><strong class="command">mysqld</strong></span> ）。</p><p>
+        如下命令，啟動帶跟蹤檔案的 <span><strong class="command">mysqld</strong></span> 
+		伺服器，跟蹤檔案位於Unix上的/tmp/mysqld.trace目錄裡，Windows上
+		的C:\mysqld.trace目錄裡：
+      </p><pre class="programlisting">shell&gt; <strong class="userinput">mysqld --debug</strong>
+</pre><p>
+        在Windows上，您也可以使用--standalone參數，啟動<span><strong class="command">mysqld</strong>讓它不</span>作為服務。在控制台窗口，使用這個命令：
+      </p><pre class="programlisting">C:\&gt; <strong class="userinput">mysqld-debug --debug --standalone</strong>
+</pre><p>
+        完畢之後，您可以使用第二個窗口中的 mysql.exe 
+		命令行工具重新製造問題。您可以用<span><strong class="command">mysqladmin shutdown</strong></span>命令停止<span><strong class="command">mysqld</strong></span>伺服器。
+      </p><p>
+        注意，跟蹤檔案會變得<span class="bold"><strong>很大</strong></span>！如果您想生成一個小一點的跟蹤檔案，您可以使用類似這樣的調製選項：
+      </p><p>
+        <span><strong class="command">mysqld
+        --debug=d,info,error,query,general,where:O,/tmp/mysqld.trace</strong></span>
+      </p><p>
+        這樣就僅把帶最感興趣標記的訊息寫進跟蹤檔案裡.
+      </p><p>
+        如果您生成一個有關於此的問題報告，請只用把跟蹤檔案中的相關行發送到恰當的郵件列資料表去，那裡關注您報告出問題的部分。如果您不能找出哪裡出問題，您可以ftp上載整個跟蹤檔案到<a href="ftp://ftp.mysql.com/pub/mysql/upload/" target="_top">ftp://ftp.mysql.com/pub/mysql/upload/</a>，並附有完全的問題報告，MySQL開發人員會看到它的。
+      </p><p>
+        追蹤檔案是由Fred Fish用<span class="bold"><strong>DBUG</strong></span>軟件包生成的，請參閱<a href="#the-dbug-package" title="E.3. The DBUG Package">E.3節，「DBUG軟件包」</a>。
+      </p></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="using-gdb-on-mysqld"></a>E.1.3. 在<span><strong class="command">gdb</strong>環境下調試<strong class="command">mysqld</strong></span></h3></div></div></div><a class="indexterm" name="id3100337"></a><p>
+        如果<span><strong class="command">mysqld</strong></span>崩潰了，在大多數系統上，您也可是從<span><strong class="command">gdb</strong></span>啟動<span><strong class="command">mysqld</strong></span>來獲取更多訊息。
+      </p><p>
+        Linux上，有一些老版本的<span><strong class="command">gdb</strong></span>，如果您想要能調試<span><strong class="command">mysqld</strong></span>線程，您必須使用run --one-threadsome。在這種情況下，您可以一次只激活一個線程。我們推薦您升級到gdb 5.1 ASAP 
+		，這個版本上線程調試工作得更好！
+      </p><p>
+        NTPL 線程（Linux上的新線程庫）可能會在<span><strong class="command">gdb</strong></span>下運行<span><strong class="command">mysqld</strong></span>時遇到問題。一些症狀如下：</p><div class="itemizedlist"><ul type="disc"><li><p>
+            <span><strong class="command">mysqld</strong></span> 在啟動過程中掛起（在它寫ready for connections之前）。
+          </p></li><li><p>
+            <span><strong class="command">mysqld</strong></span> 在使用pthread_mutex_lock()或pthread_mutex_unlock()過程中崩潰。
+          </p></li></ul></div><p>
+        在這種情況下您應該在啟動<span><strong class="command">gdb</strong></span>之前在外殼上設置如下環境變數：
+      </p><pre class="programlisting">LD_ASSUME_KERNEL=2.4.1
+export LD_ASSUME_KERNEL
+</pre><p>
+        在<span><strong class="command">gdb</strong></span>下運行<span><strong class="command">mysqld</strong></span>時，您應該用--skip-stack-trace來禁止堆棧跟蹤，以便能捕獲<span><strong class="command">gdb</strong></span>內的段錯誤。</p><p>
+        在MySQL 4.0.14和以上版本，您應該對mysqld使用--gdb選項。 這會為SIGINT安裝一個中斷處理器（需要用^C停止<span><strong class="command">mysqld</strong></span>來設置斷點），並且禁止堆棧跟蹤和核心檔案處理。</p><p>
+        當<span><strong class="command">gdb</strong></span>沒有給舊線程釋放內存的整個時間裡，如果您做了大量的新連接，在<span><strong class="command">gdb</strong></span>下調試MySQL是非常困難的。您可以通過帶 -O thread_cache_size= 'max_connections
+        +1' 啟動<span><strong class="command">mysqld</strong> 
+		來避免這個問題。在多數情況下，只使用</span>-O
+        thread_cache_size=5'就受益無窮了！
+      </p><p>
+        如果<span><strong class="command">mysqld</strong>帶著</span>SIGSEGV信號死掉了，而您想在Linux上轉儲核心，您可以帶--core-file選項啟動<span><strong class="command">mysqld</strong>。這個核心檔案可以被用來生成
+		向後跟蹤，它可以幫您找出<strong class="command">mysqld</strong> 
+		為何死掉：</span>
+      </p><pre class="programlisting">shell&gt; <strong class="userinput">gdb mysqld core</strong>
+gdb&gt;   backtrace full
+gdb&gt;   exit
+</pre><p>
+        請參閱<a href="problems.html#crashing" title="A.4.2. What to Do If MySQL Keeps Crashing">A.4.2節，「如果MySQL依舊崩潰，該如何去做」</a>。
+      </p><p>
+        如果您在Linux上使用<span><strong class="command">gdb</strong></span> 4.17.x 
+		或以上版本，您應該安裝一個帶有如下訊息的 .gdb 檔案到您當前目錄：
+      </p><pre class="programlisting">set print sevenbit off
+handle SIGUSR1 nostop noprint
+handle SIGUSR2 nostop noprint
+handle SIGWAITING nostop noprint
+handle SIGLWP nostop noprint
+handle SIGPIPE nostop
+handle SIGALRM nostop
+handle SIGHUP nostop
+handle SIGTERM nostop noprint
+</pre><p>
+        如果您用<span><strong class="command">gdb</strong></span>調試線程遇到問題，您應該下載gdb 5.x版本並用它試一下調試。新版本的 <span><strong class="command">gdb</strong></span> 
+		大大改善了線程處理！
+      </p><p>
+        下面是如何調試mysqld的例子：</p><pre class="programlisting">shell&gt; <strong class="userinput">gdb /usr/local/libexec/mysqld</strong>
+gdb&gt; run
+...
+backtrace full # Do this when mysqld crashes
+</pre><p>
+        把上面的輸入寫進一個用<span><strong class="command">mysqlbug</strong></span>生成的郵件裡，發送到綜合MySQL郵件列資料表。請參閱<a href="introduction.html#mailing-list" title="1.7.1.1. The MySQL Mailing Lists">1.7.1.1節，「MySQL 
+		郵件列資料表」</a>。
+      </p><p>
+        如果<span><strong class="command">mysqld</strong></span> 掛起，您可以試著用一些諸如strace 
+		或
+        /usr/proc/bin/pstack 這樣的系統工具連檢查<span><strong class="command">mysqld</strong></span> 
+		在哪裡掛起。
+      </p><pre class="programlisting">strace /tmp/log libexec/mysqld
+</pre><a class="indexterm" name="id3100636"></a><a class="indexterm" name="id3100645"></a><a class="indexterm" name="id3100654"></a><a class="indexterm" name="id3100663"></a><p>
+        如果您使用 Perl DBI 接口，您可以使用trace方法或設置DBI_TRACE環境變數來打開調試訊息。
+      </p></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="using-stack-trace"></a>E.1.4. 使用堆棧跟蹤</h3></div></div></div><p>
+        在一些作業系統上，如果<span><strong class="command">mysqld</strong></span>意外死掉，錯誤日誌包含一個堆棧跟蹤。您可以用它來找出<span><strong class="command">mysqld</strong></span>
+        在哪裡（也授權能找出為什麼）死掉。請參閱<a href="database-administration.html#error-log" title="5.11.1. The Error Log">5.11.1節，「錯誤日誌」</a>。要獲得堆棧跟蹤，您不能用-fomit-frame-pointer 
+		選項編譯<span><strong class="command">mysqld</strong></span> 為gcc。 請參閱<a href="#compiling-for-debugging" title="E.1.1. Compiling MySQL for Debugging">E.1.1節，「針對調試編譯MySQL」</a>。
+      </p><p>
+        如果錯誤檔案包含類似下面的一些內容：</p><pre class="programlisting">mysqld got signal 11;
+The manual section 'Debugging a MySQL server' tells you how to use a
+stack trace and/or the core file to produce a readable backtrace that may
+help in finding out why mysqld died
+Attempting backtrace. You can use the following information to find out
+where mysqld died.  If you see no messages after this, something went
+terribly wrong...
+stack range sanity check, ok, backtrace follows
+0x40077552
+0x81281a0
+0x8128f47
+0x8127be0
+0x8127995
+0x8104947
+0x80ff28f
+0x810131b
+0x80ee4bc
+0x80c3c91
+0x80c6b43
+0x80c1fd9
+0x80c1686
+</pre><p>
+        您可以使用如下步驟找出<span><strong class="command">mysqld</strong></span>在什麼地方出現問題：</p><div class="orderedlist"><ol type="1"><li><p>
+            複製前面的數字到一個檔案，如mysqld.stack。
+          </p></li><li><p>
+            為 <span><strong class="command">mysqld</strong></span> 伺服器生成符號檔案：
+          </p><pre class="programlisting">nm -n libexec/mysqld &gt; /tmp/mysqld.sym
+</pre><p>
+            注意，多數MySQL二進制發佈包（"debug" 軟件包，包含這些訊息的地方就在二進制發佈包本身之內）帶上述檔案，在其中這些檔案名為mysqld.sym.gz。在這種情況下，您可以簡單地解壓縮它：
+          </p><pre class="programlisting">gunzip &lt; bin/mysqld.sym.gz &gt; /tmp/mysqld.sym
+</pre></li><li><p>
+            執行 resolve_stack_dump -s /tmp/mysqld.sym -n
+            mysqld.stack.
+          </p><p>
+            這個命令會打印出<span><strong class="command">mysqld</strong></span>死在哪裡。如果這個不能幫您找出<span><strong class="command">mysqld</strong></span>為什麼死掉，您應該生成一個問題報告，並在問題報告裡包含上述命令的輸出結果。</p><p>
+            注意，儘管在多數情況下，僅有一個堆棧跟蹤不能幫助我們找出問題的原因。為了定位問題或找到一個大致範圍，我們在大多數情況下需要知道殺掉<span><strong class="command">mysqld</strong></span>的查詢，並最好知道一個測試案例
+			，以便我們能重複問題！請參閱<a href="introduction.html#bug-reports" title="1.7.1.3. How to Report Bugs or Problems">1.7.1.3節，「如何報告問題和問題」</a>。
+          </p></li></ol></div></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="using-log-files"></a>E.1.5. 使用日誌檔案找出<span><strong class="command">mysqld中</strong></span>的錯誤原因 </h3></div></div></div><p>
+        注意，在帶--log選項啟動 <span><strong class="command">mysqld</strong></span>之前，您應該用<span><strong class="command">myisamchk</strong></span>檢查所有的資料表。請參閱<a href="database-administration.html" title="Chapter 5. Database Administration">第5章：<i>資料庫管理</i></a>.
+      </p><p>
+        如果 <span><strong class="command">mysqld</strong></span> 死了或掛起，您應該用--log啟動
+        <span><strong class="command">mysqld</strong></span> 。當<span><strong class="command">mysqld</strong></span> 
+		再次死掉時，您可以檢查日誌檔案的最後，找出殺掉<span><strong class="command">mysqld</strong></span>的查詢。</p><p>
+        如果您不帶檔案名使用 --log ，日誌被保存在<em class="replaceable">名為host_name</em>.log的資料庫目錄裡。在多數情況下，日誌檔案中的最後一個查詢殺掉<span><strong class="command">mysqld</strong>，但如果有可能，您應該重啟<strong class="command">mysqld</strong>並從<strong class="command">mysq</strong>命令行工具執行找到的查詢來驗證一下。如果這個查詢殺掉<strong class="command">了mysqld</strong>，您也應該測試所有沒有完成的複雜查詢</span>。
+      </p><p>
+        您也可以在所有佔用長時間的SELECT聲明上用命令EXPLAIN來確認 <span><strong class="command">mysqld</strong></span>正適當地使用索引。請參閱<a href="optimization.html#explain" title="7.2.1. EXPLAIN Syntax (Get Information About a SELECT)">7.2.1節，「EXPLAIN 
+		語法（獲得關於SELECT<span>的訊息</span>）」</a>。
+      </p><p>
+        您可以帶
+        --log-slow-queries啟動<span><strong class="command">mysqld</strong></span>來找出佔用長時間來執行的查詢。請參閱<a href="database-administration.html#slow-query-log" title="5.11.4. The Slow Query Log">5.11.4節
+		，「緩慢查詢日誌」</a>。
+      </p><p>
+        如果您在錯誤日誌檔案（通常名為hostname.err）中發現 mysqld restarted 
+		字樣，您大致已經找到導致<span><strong class="command">mysqld</strong></span>的查詢。如果發生這種情況，您應該用<span><strong class="command">myisamchk</strong></span>檢查所有資料表（參閱 
+		<a href="database-administration.html" title="Chapter 5. Database Administration">
+		第5章：<i>資料庫管理</i></a>），並在MySQL日誌檔案中測試這些查詢看是否有不執行的。如果找到這樣一個查詢，試著升級到最新的MySQL版本。如果這樣不能幫助您，您不能在mysql郵件存檔中發現任何相關內容，您應該把問題報告給MySQL郵件列資料表。郵件列資料表在<a href="http://lists.mysql.com/" target="_top">http://lists.mysql.com/</a>訂閱，這個地址上也有連到線上列資料表存檔的連結。
+      </p><p>
+        如果您已經用myisam-recover啟動了<span><strong class="command">mysqld</strong></span>，MySQL自動檢查並試著修復MyISAM 
+		資料表，看是否它們被標誌為「未正常關閉」或「崩潰」。如果發生這種情況，MySQL在檔案hostname.err
+        寫一個條目'Warning: Checking table ...'，後面跟著警告：如果資料表需要修復，請修復它。如果您遇上大量的這些錯誤而<span><strong class="command">mysqld</strong></span>沒有意外死掉，那就是有問題了，需要進一步調查。請參閱<a href="database-administration.html#server-options" title="5.3.1. mysqld Command-Line Options">5.3.1節，「<strong class="command"><span>mysqld</span></strong>命令行選項」</a>。
+      </p><p>
+        如果<span><strong class="command">mysqld</strong></span>意外死掉，這可不是一個好兆頭，但在這種情況下不用研究Checking table...訊息，而是要找出<span><strong class="command">mysqld</strong></span>為什麼死掉。</p></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="reproduceable-test-case"></a>E.1.6. 如果出現資料表崩潰，請生成測試案例</h3></div></div></div><p>
+        如果在一些更新命令之後，<span><strong class="command">mysqld</strong></span>總是當掉，或者如果您遇到被破壞的資料表，您可以用下面的操作測試看這個問題是否是可重複產生的：
+      </p><div class="itemizedlist"><ul type="disc"><li><p>
+            卸掉MySQL守護程序（用<span><strong class="command">mysqladmin
+            shutdown</strong>）。</span>
+          </p></li><li><p>
+            給該資料表做備份（防止修復操作反而搞壞這種很不可能出現的情況）。
+          </p></li><li><p>
+            用 <span><strong class="command">myisamchk -s
+            database/*.MYI</strong> 檢查所有的資料表，用<strong class="command">myisamchk -r
+            database/<em class="replaceable">table</em>.MYI</strong>修理有錯誤的資料表。</span>
+          </p></li><li><p>
+            對該資料表做第二次備份。
+          </p></li><li><p>
+            如果需要更多的空間就從MySQL資料庫目錄刪除（或移走）舊日誌檔案。
+          </p></li><li><p>
+            帶--log-bin啟動Start <span><strong class="command">mysqld</strong></span> 
+			。請參閱<a href="database-administration.html#binary-log" title="5.11.3. The Binary Log">5.11.3節，「二進制日誌」</a>。如果您想找出搞<span>垮<strong class="command">mysqld</strong></span>的查詢，您應該使用use
+            --log --log-bin。
+          </p></li><li><p>
+            當您已經遭遇一個被破壞的資料表時，請停止mysqld server 。</p></li><li><p>
+            還原備份。
+          </p></li><li><p>
+            不帶--log-bin重啟動<span><strong class="command">mysqld</strong></span> 
+			伺服器。&nbsp;
+          </p></li><li><p>
+            重新執行<span><strong class="command">mysqlbinlog
+            update-log-file | mysql</strong></span>命令。更新的日誌用名字hostname-bin.#保存在MySQL資料庫目錄下。
+          </p></li><li><p>
+            如果該資料表再次被破壞，或者您可用上訴命令讓<span><strong class="command">mysqld</strong></span> 
+			死掉，您就已經找到可重複產生的問題，它應該很容易被修復！可以ftp上傳資料表和二進制日誌到
+            <a href="ftp://ftp.mysql.com/pub/mysql/upload/" target="_top">ftp://ftp.mysql.com/pub/mysql/upload/</a> 
+			然後把它輸入我們在
+            <a href="http://bugs.mysql.com/" target="_top">http://bugs.mysql.com/</a>上的問題系統。（請注意，/pub/mysql/upload/ 
+			在FTP時是不可以列出（內容）的，所以不能在FTP客戶端看見您已經上載的東西。）如果您是一個支援客戶，您可以使用 MySQL客戶支援中心<a href="https://support.mysql.com/" target="_top">https://support.mysql.com/</a> 
+			來 提醒MySQL 技術人員這個問題，讓這個問題盡快得到解決。
+          </p></li></ul></div><p>
+        如果您想縮小問題的範圍，您也可以使用 mysql_find_rows指令來只執行一些
+		更新語句。
+      </p></div></div><div class="section"><div class="titlepage"><div><div><h2 class="title"><a name="debugging-client"></a>E.2. 調試MySQL客戶端</h2></div></div></div><a class="indexterm" name="id3101320"></a><a class="indexterm" name="id3101330"></a><p>
+      為能夠用集成的調試軟件包調試MySQL客戶端 ，您應該用--with-debug或--with-debug=full配置MySQL。請參閱<a href="installing.html#configure-options" title="2.8.2. Typical configure Options">2.8.2節，「典型的配置選項」</a>。
+    </p><a class="indexterm" name="id3101358"></a><a class="indexterm" name="id3101368"></a><p>
+      在運行客戶端之前，您應該設置
+      MYSQL_DEBUG環境變數：</p><pre class="programlisting">shell&gt; <strong class="userinput">MYSQL_DEBUG=d:t:O,/tmp/client.trace</strong>
+shell&gt; <strong class="userinput">export MYSQL_DEBUG</strong>
+</pre><p>
+      這會導致客戶端在
+      /tmp/client.trace目錄產生一個跟蹤檔案。
+    </p><p>
+      如果您自己的客戶端代碼有問題，您應該試著連接到伺服器，用已知可用的客戶端運行您的查詢。在調試模式下，按下面命令運行（假設您已經帶調試編譯了MySQL）：
+    </p><pre class="programlisting">shell&gt; <strong class="userinput">mysql --debug=d:t:O,/tmp/client.trace</strong>
+</pre><p>
+      萬一您要發送一個問題報告郵件，這會提供給您有用的訊息。請查閱<a href="introduction.html#bug-reports" title="1.7.1.3. How to Report Bugs or Problems">「如何報告問題或問題」</a>。
+    </p><p>
+      如果您的客戶端在一些看起來合法的代碼處崩潰了，您應該檢查您的mysql.h檔案是否包括匹配您的MySQL庫檔案。一個常見的錯誤就是用新的版本的MySQL庫使用一個來自老版本安裝的mysql.h檔案。
+    </p></div><div class="section"><div class="titlepage"><div><div><h2 class="title"><a name="the-dbug-package"></a>
+		E.3.&nbsp;DBUG軟件包</h2></div></div></div><a class="indexterm" name="id3101464"></a><p>
+      MySQL伺服器和多數MySQL客戶端都帶著由Fred Fish初創的DBUG 軟件包編譯成的。當您為調試配置MytSQL之時，這個軟件使您可以得到一個程式正在調試什麼的跟蹤檔案。請參閱<a href="#making-trace-files" title="E.1.2. Creating Trace Files">E.1.2節，「建立跟蹤檔案」</a>。
+    </p><p>
+      這一節總結了您對已建立支援調試的MySQL程式在命令行的調試選項處可以指定的參量值。要獲取更多使用DBUG軟件包來編程的訊息，請參閱MySQL源發佈包裡dbug目錄下的DBUG手冊。最好使用最近的MySQL 
+		5.1發佈包以獲得最近更新的DBUG手冊。</p><p>
+      您通過用--debug="..."或the -#...
+      選項使用一個程式來使用調試軟件包。</p><p>
+      多數MySQL程式有預設的調試字串，如果您不給--debug指定一個選項，就使用這個預設的。預設的跟蹤檔案通常是/tmp/program_name.trace（在Unix上）和\program_name.trace 
+		（在Windows上）。
+    </p><p>
+      調試字串是一系列冒號隔開的區段，如下：</p><pre class="programlisting">&lt;field_1&gt;:&lt;field_2&gt;:...:&lt;field_N&gt;
+</pre><p>
+      每個區段包含一個強制標誌字元，後面跟著已和可選的 『,』 以及一列用逗號隔開的修改量：
+    </p><pre class="programlisting">flag[,modifier,modifier,...,modifier]
+</pre><p>
+      當前被識別的標記符號是：
+    </p><div class="informaltable"><table border="1"><colgroup><col><col></colgroup><tbody><tr><td><span class="bold"><strong>
+			標記</strong></span></td><td><span class="bold"><strong>描述</strong></span></td></tr><tr><td>d</td><td>
+				允許對當前狀態從DBUG_&lt;N&gt;宏輸出。可能跟著一列關鍵詞，這些關鍵詞僅對那些帶有關鍵詞的DBUG宏選擇輸出。一個空的關鍵詞列意味著對所有宏輸出。</td></tr><tr><td>D</td><td>
+				在每個調試起輸出行後延遲。參量一個十分之一秒為單位來延遲的數，它受限於機器的能力。比如 -#D,20
+              	指定一個2秒的延遲。</td></tr><tr><td>f</td><td>
+				限制調試和/或跟蹤，以及簡單設定於列出名字的函數。注意，空列將禁止所用函數。應該給出適當的d 
+				或
+              t 標記，如果它們被允許了，這個標記僅限制它們的動作。</td></tr><tr><td>F</td><td>
+				對調試或跟蹤輸出的每一行識別源檔案名。</td></tr><tr><td>i</td><td>
+				對調試或跟蹤輸出的每一行用PID或線程ID識別程序。</td></tr><tr><td>g</td><td>
+				允許解析，建立名為的dbugmon.out檔案，它包含可用來簡單設定程式的訊息。可能跟著一列關鍵詞，它們是選擇只對列中的函數做簡單設定。一個空列意味著所有函數都要考慮到。</td></tr><tr><td>L</td><td>
+				為調試或跟蹤輸出的每一行識別源檔案行號。</td></tr><tr><td>n</td><td>
+				為調試或跟蹤輸出的每一行打印當前函數嵌套深度。</td></tr><tr><td>N</td><td>
+				給調試輸出的每一行編號。</td></tr><tr><td>o</td><td>
+				重定向調試器輸出流到指定檔案。預設輸出是stderr 檔案。</td></tr><tr><td>O</td><td>
+				類似於 o，但是檔案在每次寫操作之間被沖刷。當需要之時，檔案在每次寫操作之間被關閉然後重新打開。</td></tr><tr><td>p</td><td>
+				限制調試器作用於指定程序。為使調試器動作，一個程序必須用DBUG_PROCESS宏來識別，且匹配列資料表中的一個。</td></tr><tr><td>P</td><td>
+				為調試或跟蹤輸出的每一行打印當前程序名字。</td></tr><tr><td>r</td><td>
+				當推出一個新狀態時，不繼承前狀態的操作嵌套深度級別。當輸出在左邊空白開始時有用。</td></tr><tr><td>S</td><td>
+				在每個調試過的函數做_sanity(_file_,_line_)函數直到 _sanity() 
+				返回不同於0的結果。（大多數的時候與safemalloc 
+				一起用來找出內存漏洞）。</td></tr><tr><td>t</td><td>
+				允許函數使用/退出跟蹤行。可能跟著一個給出最大跟蹤級別的數字列（只含一個修改量），超過這個數字，調試中或跟蹤中的宏不能產生任何輸出。
+				預設為一個編譯時間選項。</td></tr></tbody></table></div><p>
+      可能出現在外殼命令行（-# 典型地被用來引入一個控制字串到一個應用程式中） 
+		的調試控制字串的一些例子如下：</p><pre class="programlisting">-#d:t
+-#d:f,main,subr1:F:L:t,20
+-#d,input,output,files:n
+-#d:t:i:O,\\mysqld.trace
+</pre><p>
+      在MySQL中, 打印的一般標記是（用 d
+      選項）是 enter, exit,
+      error, warning,
+      info, 和 loop 。
+    </p></div><div class="section"><div class="titlepage"><div><div><h2 class="title"><a name="rts-threads"></a>E.4. 關於RTS線程的註釋</h2></div></div></div><a class="indexterm" name="id3101904"></a><a class="indexterm" name="id3101911"></a><p>
+      我曾嘗試讓MySQL使用RTS線程軟件包，但是在下面的問題上遇到阻礙：
+    </p><p>
+      RTS線程軟件包很多老版本的POSIX使用，對所有函數的寫封裝就很枯燥。我傾向於認為把線程庫換成最新的POSIX規格，會更容易些。。</p><p>
+      一些封裝正在編寫中。更多訊息請參閱mysys/my_pthread.c 檔案。</p><p>
+      至少下面說道的應該改變一下：</p><p>
+      pthread_get_specific該使用一個參量。
+      sigwait應該使用兩個參量。很多函數（至少pthread_cond_wait,
+      pthread_cond_timedwait()）應該返回錯誤的錯誤代碼。現在它們返回 -1 
+		且設置
+      errno。</p><p>
+      另一個問題是，用戶級線程使用ALRM信號，這會終止很多函數（read, write,
+      open...）。MySQL應該重試一下所有這上面的中斷，但是這並非很容易去驗證。
+    </p><p>
+      最大的未解決問題如下：</p><p>
+      要獲得線程級警報，我使用pthread_cond_timedwait()改變
+      mysys/thr_alarm.c，讓它在警報之間等待。但是它發生EINTR錯誤，終止了。我試著調試線程庫找出為什麼會出這個錯誤，但是找不到一個簡便
+		的解決辦法。
+    </p><p>
+      如果人人想要用RTS線程跑一下MySQL，我建議以下幾點：</p><div class="itemizedlist"><ul type="disc"><li><p>
+          把MySQL使用的函數從線程庫變到POSIX。這不會佔據那麼長時間。
+        </p></li><li><p>
+          用-DHAVE_rts_threads編譯所有庫。</p></li><li><p>
+          編譯thr_alarm。
+        </p></li><li><p>
+          若在執行中有一些小的差異，可以改變my_pthread.h和my_pthread.c來修復它們。
+        </p></li><li><p>
+          運行thr_alarm。如果它沒有任何警告，錯誤或終止訊息地運行，您就做對了。這裡是一個在Solaris成功運行的例子：
+        </p><pre class="programlisting">Main thread: 1
+Thread 0 (5) started
+Thread: 5  Waiting
+process_alarm
+Thread 1 (6) started
+Thread: 6  Waiting
+process_alarm
+process_alarm
+thread_alarm
+Thread: 6  Slept for 1 (1) sec
+Thread: 6  Waiting
+process_alarm
+process_alarm
+thread_alarm
+Thread: 6  Slept for 2 (2) sec
+Thread: 6  Simulation of no alarm needed
+Thread: 6  Slept for 0 (3) sec
+Thread: 6  Waiting
+process_alarm
+process_alarm
+thread_alarm
+Thread: 6  Slept for 4 (4) sec
+Thread: 6  Waiting
+process_alarm
+thread_alarm
+Thread: 5  Slept for 10 (10) sec
+Thread: 5  Waiting
+process_alarm
+process_alarm
+thread_alarm
+Thread: 6  Slept for 5 (5) sec
+Thread: 6  Waiting
+process_alarm
+process_alarm
+
+...
+thread_alarm
+Thread: 5  Slept for 0 (1) sec
+end
+</pre></li></ul></div></div><div class="section"><div class="titlepage"><div><div><h2 class="title"><a name="thread-packages"></a>E.5. 線程軟件包之間的差異</h2></div></div></div><a class="indexterm" name="id3102117"></a><p>
+      MySQL非常依賴使用中的線程軟件包。 所以當為MySQL選擇一個好平台的時候，線程軟件包就非常重要。</p><p>
+      至少有三種線程軟件包：</p><div class="itemizedlist"><ul type="disc"><li><p>
+          用戶線程在單個程序中。線程切換用警報管理，線程庫用鎖管理所有非線程安全函數。讀，寫和選擇操作通常被線程專有的切換器管理，
+			如果運行中的線程要等待數據，這個切換器就會切換操作到另一個線程。如果用戶線程軟件包集成在標準庫（FreeBSD 和 BSDI 線程軟件包）裡，這樣的
+			線程軟件包比那些不得不映射所有不安全使用（MIT-pthreads, FSU Pthreads 和 RTS 線程軟件包）的線程軟件包需要更少的系統開銷。在某些環境下（如SCO），所有系統使用都是線程安全的，所以映射非常容易（SCO上的FSU Pthreads包）。不足之處是：所有映射的使用佔用很少的時間，於是想要能處理所有的情況就相當繁雜。有一些系統使用通常不被線程軟件包（類似MIT-pthreads 
+			and sockets包）處理。線程計劃不總是最最佳化的。
+        </p></li><li><p>
+          在分離程序中的用戶線程。線程切換是由內核來做，且所有的數據線上程之間共享。線程軟件包管理標準線程使用，允許線上程之間共享數據。LinuxThreads包就使用這種方法。不足之處：太多程序。線程建立得慢，如果一個線程死掉了，其餘得線程通常就掛起來，您必須在重啟之前殺掉這些掛起的線程。線程切換開銷有些大。</p></li><li><p>
+          內核線程。線程切換由線程庫或內核來做，並且非常快。一個程序就可以了。但在一些系統中<span><strong class="command">ps</strong>可能顯示不同線程。如果一個線程終止，整個程序就終止了。多數系統
+			使用是線程安全的，並且只要非常小的系統開銷。</span>Solaris, HP-UX, AIX 
+			和OSF/1
+          都有內核線程。</p></li></ul></div><p>
+      在一些系統中內核線程被系統庫中整合用戶級線程管理。在這種情況下，線程切換只能由線程庫來做，而內核並不是真正的「線程感知」的。</p></div></div><div><hr><p>
+      這是MySQL參考手冊的翻譯版本，關於MySQL參考手冊，<span class="GramE">請訪問</span><a target="_top"  href="http://dev.mysql.com/doc/mysql/en">dev.mysql.com</a>。 
+		原始參考手冊為英文版，與英文版參考手冊相比，本翻譯版可能不是最新的。</p></div>
+</body></html>

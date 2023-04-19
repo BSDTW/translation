@@ -1,0 +1,2747 @@
+<html xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns:st1="urn:schemas-microsoft-com:office:smarttags" xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <title>Chapter&nbsp;20.&nbsp;Stored Procedures and Functions</title>
+  <link rel="start" href="index.html" title="MySQL 5.1 Reference Manual">
+  <link rel="up" href="index.html" title="MySQL 5.1 Reference Manual">
+  <link rel="prev" href="spatial-extensions-in-mysql.html" title="Chapter&nbsp;19.&nbsp;Spatial Extensions in MySQL">
+  <link rel="next" href="triggers.html" title="Chapter&nbsp;21.&nbsp;Triggers">
+</head>
+<body>
+<div class="Section1">
+
+<div>
+
+<div>
+
+<div>
+
+<div>
+
+<h2><a name="stored-procedures"></a><span>
+第20章：儲存程式和函數</span></h2>   
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+<div>
+
+<p><b><span>目錄</span></b></p>
+
+
+
+<p><span class="section"><span><a href="#stored-procedure-privileges">20.1. 
+儲存程式和授權資料表</a></span></span></p>   
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+<p><span class="section"><span><a href="#stored-procedure-syntax">20.2.   
+儲存程式的語法</a></span></span></p>
+
+
+
+<div>
+
+<div>
+
+<p><span class="section"><span><a href="#create-procedure">20.2.1. CREATE PROCEDURE和CREATE FUNCTION</a></span></span><span><o:p></o:p></span></p>   
+
+
+
+<p><span class="section"><span><a href="#alter-procedure">20.2.2. ALTER PROCEDURE和ALTER FUNCTION</a></span></span><span><o:p></o:p></span></p>   
+
+
+
+<p><span class="section"><span><a href="#drop-procedure">20.2.3. DROP PROCEDURE和和DROP FUNCTION</a></span></span><span><o:p></o:p></span></p>   
+
+
+
+<p><span class="section"><span><a href="#show-create-procedure">20.2.4. SHOW CREATE   
+PROCEDURE和SHOW CREATE FUNCTION</a></span></span><span><o:p></o:p></span></p>   
+
+
+
+<p><span class="section"><span><a href="#show-procedure-status">20.2.5. SHOW   
+PROCEDURE STATUS和SHOW FUNCTION STATUS</a></span></span><span><o:p></o:p></span></p>   
+
+
+
+<p><span class="section"><span><a href="#call">20.2.6.   
+CALL語句</a></span></span><span><o:p></o:p></span></p>
+
+
+
+<p><span class="section"><span><a href="#begin-end">20.2.7.   
+BEGIN ... END復合語句</a></span></span></p>
+
+
+
+<p><span class="section"><span><a href="#declare">20.2.8.   
+DECLARE語句</a></span></span></p>
+
+
+
+<p><span class="section"><span><a href="#variables-in-stored-procedures">20.2.9. 
+儲存程式中的變數</a></span></span></p>   
+
+
+
+<p><span class="section"><span><a href="#conditions-and-handlers">20.2.10. 條件和處理程式</a></span></span></p>   
+
+
+
+<p><span class="section"><span><a href="#cursors">20.2.11.   
+光標</a></span></span><span><o:p></o:p></span></p>
+
+
+
+<p><span class="section"><span><a href="#flow-control-constructs">20.2.12. 
+流程控制構造</a></span></span></p>   
+
+
+
+<p><span class="section"><span><a href="#stored-procedure-replication-faq">20.3.   
+儲存程式、函數、觸發程式和複製：常見問題</a></span></span><span><o:p></o:p></span></p>
+
+
+
+<p><span class="section"><span><a href="#stored-procedure-logging">20.4. 
+儲存子程式和觸發程式的二進制日誌功能</a></span></span></p>   
+
+
+
+</div>
+
+
+
+<p><a name="id2991946"></a><a name="id2991953"></a>MySQL<span> 
+5.1版支援存</span><span>儲程式和函數。一個儲存程式是可以被儲存在伺服器中的一套</span><span>SQL語句。一旦它被儲存了，客戶端不需要再重新發佈單獨的語句，而是可以引用儲存程式來替代</span><span>。 <o:p></o:p></span></p>   
+
+
+
+<p><span>下面一些情況下儲存程式尤其有用： <o:p></o:p></span></p>
+
+
+
+<div>
+
+<p>
+<span>&middot;<span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+</span></span><span>
+當用不同語言編寫多客戶應用程式，或多客戶應用程式在不同平台上運行且需要執行相同的資料庫操作之時。</span></p>   
+
+
+
+<p><span><span>&middot;<span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+</span></span>
+<span>
+安全極為重要之時。比如，銀行對所有普通操作使用儲存程式。這提供一個堅固而安全的環境，程式可以確保每一個操作都被妥善記入日誌。在這樣一個設置中，應用程式和用戶不可能直接訪問資料庫資料表，但是僅可以執行指定的儲存程式</span></span><span>。 <o:p></o:p></span></p>
+
+
+
+</div>
+
+
+
+<p><span>存</span><span>儲程式可以提供改良後的性能，因為只有較少的訊息需要在伺服器和客戶算之間傳送。代價是增加資料庫伺服器系統的負荷，因為更多的工作在伺服器這邊完成，更少的在客戶端（應用程式）那邊完成上。如果許多客戶端機器（比如網頁伺服器）只由一個或少數幾個資料庫伺服器提供服務，可以考慮一下儲存程式。</span></p>
+
+
+
+<p><span>
+儲存程式也允許您在資料庫伺服器上有函數庫。這是一個被現代應用程式語言共享的特徵，它允許這樣的內部設計，比如通過使用類。使用這些客戶端應用程式語言特徵</span><span>對甚至於資料庫使用範圍以外的</span><span>編程人員都有好處。</span></p>
+
+
+
+<p><span>MySQL為儲存程式遵循SQL:2003語法，這個語法也被用在</span><span>IBM的DB2資料庫上。</span><span> <o:p></o:p></span></p>
+
+
+
+<p><span>MySQL對儲存程式的實現還在進度中。所有本章敘述的語法都被支援，在有限制或延伸的地方會恰當地指出來。有關使用
+儲存程式的限制的更多討論在<a href="restrictions.html" title="Appendix&nbsp;I.&nbsp;Feature Restrictions">附錄&nbsp;I,   
+<i>特性限制</i></a>裡提到。 <o:p></o:p></span></p>   
+
+
+
+<p><span>如<a href="#stored-procedure-logging" title="20.4.&nbsp;Binary Logging of Stored Routines and Triggers">20.4節，「<span>儲存子程式和觸發程式的二進制日誌功能&rdquo;</span></a>裡所說的，
+儲存子程式的二進制日誌功能已經完成。 <o:p></o:p></span></p>   
+
+
+
+<div>
+
+<div>
+
+<div>
+
+<div>
+
+<h2><a name="stored-procedure-privileges"></a><span>20.1.&nbsp;儲存程式和授權資料表</span></h2>   
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+</div>
+<p><span>儲存程式需要在mysql資料庫中有proc資料表。這個資料表在MySQL    
+5.1安裝過程中建立。如果您從早期的版本升級到MySQL 5.1 ，請確定更新您的授權資料表以確保proc資料表的存在。請參閱<a href="installing.html#upgrading-grant-tables" title="2.10.2.&nbsp;Upgrading the Grant Tables">2.10.2節 <span>&ldquo;升級授權資料表&rdquo;</span></a>。 <o:p></o:p></span></p>   
+
+
+
+<p><span>在MySQL 5.1中，授權系統如下考慮儲存子程式： <o:p></o:p></span></p>   
+
+
+
+<div>
+
+<p>
+<span>&middot;<span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+</span></span><span>
+建立儲存子程式需要CREATE   
+ROUTINE權限。</span></p>
+
+
+
+<p>
+<span>&middot;<span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+</span></span><span>
+提醒或移除儲存子程式需要ALTER   
+ROUTINE權限。這個權限自動授予子程式的建立者。 <o:p></o:p></span></p>   
+
+
+
+<p>
+<span>&middot;<span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+</span></span><span>執行子程式需要EXECUTE權限。然而，這個權限自動授予
+子程式的建立者。同樣，子程式預設的SQL
+SECURITY 特徵是DEFINER，它允許用該子程式訪問資料庫的用戶與執行子程式聯繫到一起。 <o:p></o:p></span></p>   
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+<div>
+
+<div>
+
+<div>
+
+<div>
+
+<h2><a name="stored-procedure-syntax"></a><span>20.2.&nbsp;儲存程式的語法</span></h2>
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+<div>
+
+<p><span class="section"><span><a href="#create-procedure">20.2.1. CREATE   
+PROCEDURE和CREATE FUNCTION</a></span></span><span><o:p></o:p></span></p>   
+
+
+
+<p><span class="section"><span><a href="#alter-procedure">20.2.2. ALTER   
+PROCEDURE和ALTER FUNCTION</a></span></span><span><o:p></o:p></span></p>   
+
+
+
+<p><span class="section"><span><a href="#drop-procedure">20.2.3. DROP   
+PROCEDURE和DROP FUNCTION</a></span></span><span><o:p></o:p></span></p>   
+
+
+
+<p><span class="section"><span><a href="#show-create-procedure">20.2.4. SHOW   
+CREATE PROCEDURE和SHOW CREATE FUNCTION</a></span></span><span><o:p></o:p></span></p>   
+
+
+
+<p><span class="section"><span><a href="#show-procedure-status">20.2.5. SHOW   
+PROCEDURE STATUS和SHOW FUNCTION STATUS</a></span></span><span><o:p></o:p></span></p>   
+
+
+
+<p><span class="section"><span><a href="#call">20.2.6. CALL語句</a></span></span></p>   
+
+
+
+<p><span class="section"><span><a href="#begin-end">20.2.7. BEGIN ... END復合語句</a></span></span></p>   
+
+
+
+<p><span class="section"><span><a href="#declare">20.2.8. DECLARE語句</a></span></span></p>   
+
+
+
+<p><span class="section"><span><a href="#variables-in-stored-procedures">20.2.9.   
+儲存程式中的變數</a></span></span></p>
+
+
+
+<p><span class="section"><span><a href="#conditions-and-handlers">20.2.10.   
+條件和處理程式</a></span></span></p>
+
+
+
+<p><span class="section"><span><a href="#cursors">20.2.11. 光標</a></span></span></p>   
+
+
+
+<p><span class="section"><span><a href="#flow-control-constructs">20.2.12. 
+流程控制構造</a></span></span></p>   
+
+
+
+</div>
+
+
+
+<p><span>儲存程式和函數是用CREATE PROCEDURE和CREATE
+FUNCTION語句建立的子程式。一個子程式要麼是一個程式要麼是一個函數。使用CALL</span><span>語句</span><span>來使用
+程式，程式只能用輸出變數傳回值。就像別其它函數使用一樣，函數可以被從語句外使用（即通過引用函數名），函數能返回標量值。
+儲存子程式也可以使用其它儲存子程式。 <o:p></o:p></span></p>
+
+
+
+<p><span>在MySQL 5.1中，一個儲存子程式或函數與特定的資料庫相聯繫。這裡有幾個意思：</span></p>   
+
+
+
+<div>
+
+<p>
+<span>&middot;<span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+</span></span><span>
+當一個子程式被使用時，一個隱含的USE <i>db_name</i> 被執行（當子程式終止時停止執行）。</span><span>儲存子程式內的</span><span>USE語句時不允許的。</span></p>   
+
+
+
+<p>
+<span>&middot;<span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+</span></span><span>
+您可以使用資料庫名限定子程式名。這可以被用來引用一個不在當前資料庫中的子程式。比如，要引用一個與test</span><span>資料庫關聯的</span><span>儲存程式p或函數f，您可以說CALL test.p()或test.f()。</span></p>   
+
+
+
+<p>
+<span>&middot;<span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+</span></span><span>
+資料庫移除的時候，與它關聯的所有儲存子程式也都被移除。 <o:p></o:p></span></p>   
+
+
+
+</div>
+
+
+
+<p><span>MySQL 支援非常有用的延伸，即它允許在儲存程式中使用常規的SELECT語句（那就是說，不使用光標或
+局部變數）。這個一個查詢的結果包被簡單地直接送到客戶端。多SELECT語句生成多個結果包，所以客戶端必須使用支援多結果包的MySQL客戶端庫。這意味這客戶端必須
+使用至少</span><span>MySQL    
+4.1以來的近期版本上的客戶端庫。</span></p>
+
+
+
+<p><span>下面一節描述用來建立，改變，移除和查詢儲存程式和函數的語法。</span></p>
+
+
+
+<div>
+
+<div>
+
+<div>
+
+<div>
+
+<h3><a name="create-procedure"></a><st1:chsdate year="1899" month="12" day="30" islunardate="False" isrocdate="False" w:st="on"><span>20.2.1</span></st1:chsdate><span>.&nbsp;</span><span>CREATE PROCEDURE</span><span>和</span><span>CREATE FUNCTION</span><span><o:p></o:p></span></h3>   
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+<pre><a name="id2992284"></a><a name="id2992293"></a><span>CREATE PROCEDURE <i>sp_name</i> ([<i>proc_parameter</i>[,...]])<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp; </span>[<i>characteristic</i> ...] <i>routine_body</i><o:p></o:p></span></pre>
+
+<pre><span><o:p>&nbsp;</o:p></span></pre>
+
+<pre><span>CREATE FUNCTION <i>sp_name</i> ([<i>func_parameter</i>[,...]])<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp; </span>RETURNS <i>type</i><o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp; </span>[<i>characteristic</i> ...] <i>routine_body</i><o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp; </span><o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp;&nbsp;</span><i>proc_parameter</i>:<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp; </span>[ IN | OUT | INOUT ] <i>param_name</i> <i>type</i><o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp; </span><o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp;&nbsp;</span><i>func_parameter</i>:<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp; </span><i>param_name</i> <i>type</i><o:p></o:p></span></pre>
+
+<pre><span><o:p>&nbsp;</o:p></span></pre>
+
+<pre><i><span>type</span></i><span>:<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp; </span><i>Any valid MySQL data type</i><o:p></o:p></span></pre>
+
+<pre><span><o:p>&nbsp;</o:p></span></pre>
+
+<pre><i><span>characteristic</span></i><span>:<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp; </span>LANGUAGE SQL<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp; </span>| [NOT] DETERMINISTIC<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp; </span>| { CONTAINS SQL | NO SQL | READS SQL DATA | MODIFIES SQL DATA }<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp; </span>| SQL SECURITY { DEFINER | INVOKER }<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp; </span>| COMMENT '<i>string</i>'<o:p></o:p></span></pre>
+
+<pre><span><o:p>&nbsp;</o:p></span></pre>
+
+<pre><i><span>routine_body</span></i><span>:<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp; </span><i>Valid SQL procedure statement or statements</i><o:p></o:p></span></pre>
+
+
+
+<p><span>這些語句建立儲存子程式。要在</span><span>MySQL    
+5.1中建立子程式，必須具有</span><span>CREATE   
+ROUTINE權限，並且ALTER ROUTINE和EXECUTE</span><span>權限被自動授予它的建立者。如果二進制日誌功能被允許，您也可能需要</span><span>SUPER</span><span>權限，請參閱</span><a href="#stored-procedure-logging" title="20.4.&nbsp;Binary Logging of Stored Routines and Triggers"><span>20.4節</span><span>，</span><span style>「儲存子程式和觸發程式的二進制日誌功能&rdquo;</span></a><span>。 <o:p></o:p></span></p>   
+
+
+
+<p><span>
+預設地，子程式與當前資料庫關聯。要明確地把子程式與一個給定資料庫關聯起來，可以在建立子程式的時候指定其名字為<i>db_name.sp_name</i>。</span></p>
+
+
+
+<p><span>如果子程式名和內建的</span><span>SQL函數名一樣，定義子程式時，您需要在這個名字和隨後括號中間插入一個空格，否則發生語法錯誤。當您隨後使用子程式的時候也要插入。為此，即使有可能出現這種情況，我們還是建議最好避免給您自己的
+儲存子程式取與存在的SQL函數一樣的名字。</span></p>
+
+
+
+<p><span>由括號包圍的參數列必須總是存在。如果沒有參數，也該使用一個空參數列()。每個參數
+預設都是一個IN參數。要指定為其它參數，可在參數名之前使用關鍵詞 OUT或INOUT</span></p>   
+
+
+
+<p><strong><span>注意</span></strong><span>: 指定參數為IN,   
+OUT, 或INOUT 只對PROCEDURE是合法的。（FUNCTION參數總是被認為是IN參數） <o:p></o:p></span></p>   
+
+
+
+<p>
+<span>RETURNS字句只能對FUNCTION</span>做<span>指定，對函數而言這是強制的。它用來指定函數的返回類型，而且函數體必須包含一個</span><span>RETURN value語句。 <o:p></o:p></span></p>   
+
+
+
+<p>
+<span><i>routine_body</i>
+包含合法的SQL過程語句。可以使用復合語句語法，請參閱<a href="#begin-end" title="20.2.7.&nbsp;BEGIN ... END Compound Statement">20.2.7節，「BEGIN ... END復合語句<span>&rdquo;</span></a>。復合語句可以包含
+聲明，循環和其它控制結構語句。這些語句的語法在本章後免介紹，舉例，請參閱<a href="#declare" title="20.2.8.&nbsp;DECLARE Statement">20.2.8節，「DECLARE語句<span>&rdquo;</span></a>和<a href="#flow-control-constructs" title="20.2.12.&nbsp;Flow Control Constructs">20.2.12節，「<span>流程控制構造」</span></a>。 <o:p></o:p></span></p>   
+
+
+
+<p>
+<span>CREATE FUNCTION語句被用在更早的MySQL版本上</span><span>以</span><span>支援UDF （自行定義函數）。請參閱<a href="extending-mysql.html#adding-functions" title="27.2.&nbsp;Adding New Functions to MySQL">27.2節，「<span>給MySQL新增新函數&rdquo;</span></a>。 UDF繼續被支援，即使現在
+有了儲存函數。UDF會被認為一個外部儲存函數。然而，不要讓儲存函數與</span><span>UDF函數共享名字空間。</span><span> <o:p></o:p></span></p>   
+
+
+
+<p>
+<span>外部儲存程式的框架將在不久的將來引入。這將允許您用</span><span>SQL之外的語言編寫儲存程式。最可能的是，第一個被支援語言是PHP，因為核心PHP引擎很小，線程安全，且可以被方便地嵌入。因為框架是公開的，它希望許多其它語言也能被支援。</span></p>
+
+
+
+<p>
+<span>
+如果程式或線程總是對同樣的輸入參數產生同樣的結果，則被認為它是&ldquo;確定的&rdquo;，否則就是&ldquo;非確定&rdquo;的。如果既沒有給定DETERMINISTIC也沒有給定NOT
+DETERMINISTIC，預設的就是NOT DETERMINISTIC。 <o:p></o:p> </span></p>   
+
+
+
+<p><span>為進行複製，使用NOW()函數（或它的同義詞）或<st1:place w:st="on">RAND</st1:place>()函數會不必要地使得一個子程式非確定。對NOW()而言，二進制日誌包括時間戳並被正確複製。<st1:place w:st="on">RAND</st1:place>() 
+只要在一個子程式被內應用一次也會被正確複製。（您可以把子程式執行時間戳和隨機數種子認為強制輸入，它們在主從上是同樣的。） <o:p></o:p></span></p>   
+
+
+
+<p><span>當前來講，DETERMINISTIC特徵被接受，但還沒有被最佳化程式所使用。然而如果二進制日誌功能被允許了，這個特徵影響到</span><span>MySQL是否會接受子程式定義。</span><span>請參閱<a href="#stored-procedure-logging" title="20.4.&nbsp;Binary Logging of Stored Routines and Triggers">20.4</a></span><a href="#stored-procedure-logging" title="20.4.&nbsp;Binary Logging of Stored Routines and Triggers"><span>節</span><span>，「<span>儲存子程式和觸發程式的二進制日誌功能&rdquo;</span></span></a><span>。 <o:p></o:p></span></p>   
+
+
+
+<p><span>一些特徵提供子程式使用數據的內在訊息。CONTAINS SQL資料表示子程式不包含讀或寫數據的語句。NO SQL資料表示子程式不包含SQL語句。READS
+SQL DATA資料表示子程式包含讀數據的語句，但不包含寫數據的語句。MODIFIES SQL DATA</span><span>資料表示</span><span>子程式包含寫數據的語句。如果</span><span>這些特徵沒有明確給定，</span><span>預設的是CONTAINS SQL。 <o:p></o:p></span></p>   
+
+
+
+<p>
+<span>SQL SECURITY</span><span>特徵可以用來指定
+子程式該用建立子程式者的授權來執行，還是使用使用者的授權來執行。預設值是</span><span>DEFINER。在SQL:2003中者是一個新特性。建立者或使用者必須由訪問
+子程式關聯的資料庫的授權。在MySQL 5.1中，必須有EXECUTE權限才能執行子程式。必須擁有這個權限的用戶要麼是定義者，要麼是使用者，這取決於SQL SECURITY特徵是如何設置的。 <o:p></o:p></span></p>   
+
+
+
+<p><span>MySQL儲存sql_mode系統變數設置，這個設置在子程式被建立的時候起作用，MySQL總是強制使用這個設置來執行
+子程式。 <o:p></o:p></span></p>   
+
+
+
+<p><span>COMMENT子句是一個MySQL的延伸，它可以被用來描述
+儲存程式。這個訊息被SHOW CREATE PROCEDURE和 SHOW CREATE   
+FUNCTION語句來顯示。 <o:p></o:p></span></p>   
+
+
+
+<p><span>MySQL允許子程式包含DDL語句，如CREATE和DROP。MySQL也允許儲存程式（但不是
+儲存函數）包含SQL 交互語句，如COMMIT。儲存函數不可以包含那些做明確的和絕對的提交或者做回滾的語。SQL標準不要求對這些語句的支援，SQL標準聲明每個DBMS提供商可以決定是否允許支援這些語句。 <o:p></o:p></span></p>   
+
+
+
+<p><span>儲存子程式不能使用LOAD DATA   
+INFILE。 <o:p></o:p></span></p>   
+
+
+
+<p><span>返回結果包的語句不能被用在儲存函數種。這包括不使用INTO給變數讀取
+列值的SELECT語句，SHOW
+語句，及其它諸如EXPLAIN這樣的語句。對於可在函數定義時間被決定要返回一個結果包的語句，發生一個允許從函數錯誤返回結果包的Not（ER_SP_NO_RETSET_IN_FUNC）。對於只可在運行時決定要返回一個結果包的語句，  
+發生一個不能在給定上下文錯誤返回結果包的PROCEDURE %s 
+（ER_SP_BADSELECT)。 <o:p></o:p></span></p>   
+
+
+
+<p><span>下面是一個使用OUT參數的簡單的儲存程式的例子。例子為，在
+程式被定義的時候，用<strong><span>mysql</span></strong>客戶端delimiter命令來把語句定界符從 ;變為//。這就允許用在
+程式體中的;定界符被傳遞到伺服器而不是被<strong><span>mysql</span></strong>自己來解釋。<o:p></o:p></span></p> 
+
+
+
+<pre><span>mysql&gt; <b>delimiter //</b><o:p></o:p></span></pre>
+
+<pre><span><o:p>&nbsp;</o:p></span></pre>
+
+<pre><span>mysql&gt; <b>CREATE PROCEDURE simpleproc (OUT param1 INT)</b><o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp; </span>-&gt; <b>BEGIN</b><o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp; </span>-&gt;<span>&nbsp;&nbsp; </span><b>SELECT COUNT(*) INTO param1 FROM t;</b><o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp; </span>-&gt; <b>END</b><o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp; </span>-&gt; <b>//</b><o:p></o:p></span></pre>
+
+<pre><span>Query OK, 0 rows affected (0.00 sec)<o:p></o:p></span></pre>
+
+<pre><span><o:p>&nbsp;</o:p></span></pre>
+
+<pre><span>mysql&gt; <b>delimiter ;</b><o:p></o:p></span></pre>
+
+<pre><span><o:p>&nbsp;</o:p></span></pre>
+
+<pre><span>mysql&gt; <b>CALL simpleproc(@a);</b><o:p></o:p></span></pre>
+
+<pre><span>Query OK, 0 rows affected (0.00 sec)<o:p></o:p></span></pre>
+
+<pre><span><o:p>&nbsp;</o:p></span></pre>
+
+<pre><span>mysql&gt; <b>SELECT @a;</b><o:p></o:p></span></pre>
+
+<pre><span>+------+<o:p></o:p></span></pre>
+
+<pre><span>| @a<span>&nbsp;&nbsp; </span>|<o:p></o:p></span></pre>
+
+<pre><span>+------+<o:p></o:p></span></pre>
+
+<pre><span>| 3<span>&nbsp;&nbsp;&nbsp; </span>|<o:p></o:p></span></pre>
+
+<pre><span>+------+<o:p></o:p></span></pre>
+
+<pre><span>1 row in set (0.00 sec)<o:p></o:p></span></pre>
+
+
+
+<p><span>當使用delimiter命令時，您應該避免使用反斜槓(</span><span>&lsquo;<span>\</span>&rsquo;<span>)</span></span><span>字元，因為那是MySQL的
+轉義字元。 <o:p></o:p></span></p>  
+
+
+
+<p><span>下列是一個例子，一個採用參數的函數使用一個SQL函數執行一個操作，並返回結果： <o:p></o:p></span></p>  
+
+
+
+<pre><span>mysql&gt; <b>delimiter //</b><o:p></o:p></span></pre>
+
+<pre><span><o:p>&nbsp;</o:p></span></pre>
+
+<pre><span>mysql&gt; <b>CREATE FUNCTION hello (s CHAR(20)) RETURNS CHAR(50)</b><o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp; </span>-&gt; <b>RETURN CONCAT('Hello, ',s,'!');</b><o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp; </span>-&gt; <b>//</b><o:p></o:p></span></pre>
+
+<pre><span>Query OK, 0 rows affected (0.00 sec)<o:p></o:p></span></pre>
+
+<pre><span><o:p>&nbsp;</o:p></span></pre>
+
+<pre><span>mysql&gt; <b>delimiter ;</b><o:p></o:p></span></pre>
+
+<pre><span><o:p>&nbsp;</o:p></span></pre>
+
+<pre><span>mysql&gt; <b>SELECT hello('world');</b><o:p></o:p></span></pre>
+
+<pre><span>+----------------+<o:p></o:p></span></pre>
+
+<pre><span>| hello('world') |<o:p></o:p></span></pre>
+
+<pre><span>+----------------+<o:p></o:p></span></pre>
+
+<pre><span>| Hello, world!<span>&nbsp; </span>|<o:p></o:p></span></pre>
+
+<pre><span>+----------------+<o:p></o:p></span></pre>
+
+<pre><span>1 row in set (0.00 sec)<o:p></o:p></span></pre>
+
+
+
+<p><span>如果在儲存函數中的RETURN語句返回一個類型不同於在函數的</span><span>RETURNS子句中指定類型的值，返回值被強制為恰當的類型。比如，如果一個函數返回一個ENUM或SET值，但是RETURN語句返回一個整數，對於SET成員集的相應的ENUM成員，從函數返回的值是字串。 <o:p></o:p></span></p>
+
+
+
+</div>
+
+
+
+<div>
+
+<div>
+
+<div>
+
+<div>
+
+<h3><a name="alter-procedure"></a><span>20.2.2.&nbsp;</span><span>ALTER PROCEDURE</span><span>和</span><span>ALTER FUNCTION</span><span><o:p></o:p></span></h3>   
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+<pre><a name="id2992984"></a><a name="id2992993"></a><span>ALTER {PROCEDURE | FUNCTION} <i>sp_name</i> [<i>characteristic</i> ...]<o:p></o:p></span></pre>
+
+<pre><span><o:p>&nbsp;</o:p></span></pre>
+
+<pre><i><span>characteristic</span></i><span>:<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp; </span>{ CONTAINS SQL | NO SQL | READS SQL DATA | MODIFIES SQL DATA }<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp; </span>| SQL SECURITY { DEFINER | INVOKER }<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp; </span>| COMMENT '<i>string</i>'<o:p></o:p></span></pre>
+
+
+
+<p><span>這個語句可以被用來改變一個儲存程式或函數的特徵。在MySQL  
+5.1中，您必須用ALTER ROUTINE權限才可用此子程式。這個權限被自動授予子程式的建立者。如<a href="#stored-procedure-logging" title="20.4.&nbsp;Binary Logging of Stored Routines and Triggers">20.4節，「</a></span><a href="#stored-procedure-logging" title="20.4.&nbsp;Binary Logging of Stored Routines and Triggers"><span>儲存子程式和觸發程式的二進制日誌功能&rdquo;</span></a><span>中所述，</span><span> 
+如果二進制日誌功能被允許了，您可能也需要SUPER權限。<o:p></o:p></span></p>  
+
+
+
+<p><span>在ALTER PROCEDURE和ALTER FUNCTION語句中，可以指定超過一個的改變。</span></p>
+
+
+
+</div>
+
+
+
+<div>
+
+<div>
+
+<div>
+
+<div>
+
+<h3><a name="drop-procedure"></a><span>20.2.3.&nbsp;</span><span>DROP PROCEDURE</span>和<span>DROP FUNCTION</span><span><o:p></o:p></span></h3>   
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+<pre><a name="id2993080"></a><a name="id2993089"></a><span>DROP {PROCEDURE | FUNCTION} [IF EXISTS] <i>sp_name</i><o:p></o:p></span></pre>
+
+
+
+<p><span>這個語句被用來移除一個儲存程式或函數。即，從伺服器移除一個制定的子程式。在MySQL  
+5.1中，您必須有ALTER ROUTINE權限才可用此子程式。這個權限被自動授予子程式的建立者。 <o:p></o:p></span></p>  
+
+
+
+<p><span> IF EXISTS  子句是一個MySQL的延伸。如果程式或函數不儲存，它防止發生錯誤。產生一個可以用SHOW 
+WARNINGS查看的警告。 <o:p></o:p></span></p>  
+
+
+
+</div>
+
+
+
+<div>
+
+<div>
+
+<div>
+
+<div>
+
+<h3><a name="show-create-procedure"></a><span>20.2.4.&nbsp;</span><span>SHOW CREATE PROCEDURE</span><span>和</span><span>SHOW CREATE FUNCTION</span><span><o:p></o:p></span></h3>   
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+<pre><a name="id2993148"></a><a name="id2993158"></a><span>SHOW CREATE {PROCEDURE | FUNCTION} <i>sp_name</i><o:p></o:p></span></pre>
+
+
+
+<p><span>這個語句是一個MySQL的延伸。類似於SHOW CREATE TABLE，它返回一個可用來重新建立已命名
+子程式的確切字串。 <o:p></o:p></span></p>  
+
+
+
+<pre><span>mysql&gt; <b>SHOW CREATE FUNCTION test.hello\G</b><o:p></o:p></span></pre>
+
+<pre><span>*************************** 1. row ***************************<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </span>Function: hello<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </span>sql_mode:<o:p></o:p></span></pre>
+
+<pre><span>Create Function: CREATE FUNCTION `test`.`hello`(s CHAR(20)) RETURNS CHAR(50)<o:p></o:p></span></pre>
+
+<pre><span>RETURN CONCAT('Hello, ',s,'!')<o:p></o:p></span></pre>
+
+</div>
+
+
+
+<div>
+
+<div>
+
+<div>
+
+<div>
+
+<h3><a name="show-procedure-status"></a><span>20.2.5.&nbsp;</span><span>SHOW PROCEDURE STATUS</span><span>和</span><span>SHOW FUNCTION STATUS</span><span><o:p></o:p></span></h3>   
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+<pre><a name="id2993212"></a><a name="id2993221"></a><span>SHOW {PROCEDURE | FUNCTION} STATUS [LIKE '<i>pattern</i>']<o:p></o:p></span></pre>
+
+
+
+<p><span>這個語句是一個MySQL的延伸。它返回子程式的特徵，如資料庫，名字，類型，建立者及建立和修改日期。如果沒有指定樣式，根據您使用的語句，所有
+儲存程式和所有儲存函數的訊息都被列出。<o:p></o:p></span></p>
+
+
+
+<pre><span>mysql&gt; <b>SHOW FUNCTION STATUS LIKE 'hello'\G</b><o:p></o:p></span></pre>
+
+<pre><span>*************************** 1. row ***************************<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </span>Db: test<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </span>Name: hello<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </span>Type: FUNCTION<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </span>Definer: testuser@localhost<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp;&nbsp; </span>Modified: 2004-08-03 15:29:37<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </span>Created: 2004-08-03 15:29:37<o:p></o:p></span></pre>
+
+<pre><span>Security_type: DEFINER<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </span>Comment:<o:p></o:p></span></pre>
+
+
+
+<p><span>您可以從INFORMATION_SCHEMA中的ROUTINES資料表獲得有關儲存子程式的訊息。請參閱<a href="information-schema.html#routines-table" title="23.1.14.&nbsp;The INFORMATION_SCHEMA ROUTINES Table">23.1.14節，「INFORMATION_SCHEMA  
+ROUTINES  資料表<span>&rdquo;</span></a>。 <o:p></o:p></span></p>   
+
+
+
+</div>
+
+
+
+<div>
+
+<div>
+
+<div>
+
+<div>
+
+<h3><a name="call"></a><span>20.2.6.&nbsp;</span><span>CALL</span><span>語句</span></h3>
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+<pre><a name="id2993290"></a><span>CALL <i>sp_name</i>([<i>parameter</i>[,...]])<o:p></o:p></span></pre>
+
+
+
+<p>
+<span>CALL語句使用一個先前用CREATE 
+PROCEDURE建立的程式。 <o:p></o:p></span></p>   
+
+
+
+<p><span>CALL</span><span>語句</span><span>可以用
+聲明為OUT或的INOUT參數的參數給它的使用者傳回值。它也&ldquo;返回&rdquo;受影響的行數，客戶端程式可以在</span><span>SQL級別通過使用<span>ROW_COUNT()</span></span><span>函數</span><span>獲得這個數，從C中是使用the    
+mysql_affected_rows() </span><span>C API函數</span>來<span>獲得。</span></p>   
+
+
+
+</div>
+
+
+
+<div>
+
+<div>
+
+<div>
+
+<div>
+
+<h3><a name="begin-end"></a><span>20.2.7.&nbsp;</span><span>BEGIN ... END</span><span>復合</span><span>語句</span></h3>   
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+<pre><a name="id2993366"></a><a name="id2993375"></a><span>[<i>begin_label</i>:] BEGIN<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp; </span>[<i>statement_list</i>]<o:p></o:p></span></pre>
+
+<pre><span>END [<i>end_label</i>]<o:p></o:p></span></pre>
+
+
+
+<p><span>儲存子程式可以使用</span><span>BEGIN ... END復合語句來包含多個語句。<i>statement_list</i>   
+代資料表一個或多個語句的列資料表。<i>statement_list</i>之內每個語句都必須用分號（；）來結尾。 <o:p></o:p></span></p>   
+
+
+
+<p><span>復合語句可以被標記。除非<i>begin_label</i>存在,否則<i>end_label</i>不能被給出,並且如果二者都存在,他們必須是同樣的。 <o:p></o:p></span></p>   
+
+
+
+<p><span>請注意，可選的[NOT] 
+ATOMIC子句現在還不被支援。這意味著在指令塊的開始沒有交互的儲存點被設置，並且在上下文中用到的BEGIN子句對當前交互動作沒有影響。</span></p>
+
+
+
+<p><span>使用多重語句需要客戶端能發送包含語句定界符;的查詢字串。這個符號在命令行客戶端被用delimiter命令來處理。改變查詢結尾定界符;（比如改變為//）使得; 
+可被用在子程式體中。</span></p> 
+
+
+
+</div>
+
+
+
+<div>
+
+<div>
+
+<div>
+
+<div>
+
+<h3><a name="declare"></a><span>20.2.8.&nbsp;</span><span>DECLARE</span><span>語句</span></h3>
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+<p><a name="id2993493"></a><span>DECLARE語句被用來把不同項目局域到一個
+子程式：局部變數（請參閱<a href="#variables-in-stored-procedures" title="20.2.9.&nbsp;Variables in Stored Procedures">20.2.9節，「</a></span><a href="#variables-in-stored-procedures" title="20.2.9.&nbsp;Variables in Stored Procedures"><span>儲存程式中的變數&rdquo;</span></a><span>)，條件和
+處理程式（請參閱<a href="#conditions-and-handlers" title="20.2.10.&nbsp;Conditions and Handlers">20.2.10節，「</a></span><a href="#conditions-and-handlers" title="20.2.10.&nbsp;Conditions and Handlers"><span>條件和處理程式&rdquo;</span></a><span>)  
+及光標（請參閱<a href="#cursors" title="20.2.11.&nbsp;Cursors">20.2.11節，「</a></span><a href="#cursors" title="20.2.11.&nbsp;Cursors"><span>光標&rdquo;</span></a><span>)。SIGNAL和RESIGNAL語句當前還不被支援。 <o:p></o:p></span></p>   
+
+
+
+<p><span>DECLARE僅被用在BEGIN ... END復合語句裡，並且必須在復合語句的開頭，在任何其它語句之前。 <o:p></o:p></span></p>  
+
+
+
+<p><span>光標必須在聲明處理程式之前被聲明，並且變數和條件必須在聲明光標或處理程式之前被聲明。</span></p>
+
+
+
+</div>
+
+
+
+<div>
+
+<div>
+
+<div>
+
+<div>
+
+<h3><a name="variables-in-stored-procedures"></a><span>20.2.9.&nbsp;儲存程式中的變數</span></h3>
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+<div>
+
+<p><span class="section"><a href="#declare-local-variables"><span>20.2.9.1. DECLARE</span><span>局部變數</span></a></span><span><o:p></o:p></span></p>   
+
+
+
+<p><span class="section"><span>
+<a href="#set-statement">20.2.9.2. 變數SET語句</a></span></span></p>   
+
+
+
+<p><span class="section"><span>
+<a href="#select-into-statement">20.2.9.3. SELECT ...   
+INTO語句</a></span></span></p>
+
+
+
+</div>
+
+
+
+<p><span>您可以在子程式中聲明並使用變數。</span></p>
+
+
+
+<div>
+
+<div>
+
+<div>
+
+<div>
+
+<h4><a name="declare-local-variables"></a><span>
+20.2.9.1.&nbsp;DECLARE局部變數<o:p></o:p></span></h4>
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+<pre><span>DECLARE <i>var_name</i>[,...] <i>type</i> [DEFAULT <i>value</i>]<o:p></o:p></span></pre>
+
+
+
+<p><span>這個語句被用來聲明局部變數。要給變數提供一個預設值，請包含一個DEFAULT子句。值可以被指定為一個資料表達式，不需要為一個常數。如果沒有DEFAULT子句，初始值為NULL。 
+<o:p></o:p></span></p> 
+
+
+
+<p><span>局部變數的作用範圍在它被聲明的BEGIN ... END塊內。它可以被用在嵌套的塊中，除了那些用相同名字
+聲明變數的塊。 <o:p></o:p></span></p>  
+
+
+
+</div>
+
+
+
+<div>
+
+<div>
+
+<div>
+
+<div>
+
+<h4><a name="set-statement"></a><span>20.2.9.2. 變數SET語句<o:p></o:p></span></h4>   
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+<pre><a name="id2993642"></a><span>SET <i>var_name</i> = <i>expr</i> [, <i>var_name</i> = <i>expr</i>] ...<o:p></o:p></span></pre>
+
+
+
+<p><span>在儲存程式中的SET語句是一般SET語句的延伸版本。被參考變數可能是子程式內聲明的變數，或者是全局伺服器變數。 <o:p></o:p></span></p>  
+
+
+
+<p><span>在儲存程式中的SET語句作為預先存在的SET語法的一部分來實現。這允許SET a=x, b=y, ...這樣的延伸語法。其中不同的變數類型（局域
+聲明變數及全局和集體變數）可以被混合起來。這也允許把局部變數和一些只對系統變數有意義的選項合併起來。在那種情況下，此選項被識別，但是被忽略了。</span></p>
+
+
+
+</div>
+
+
+
+<div>
+
+<div>
+
+<div>
+
+<div>
+
+<h4><a name="select-into-statement"></a><span>20.2.9.3.&nbsp;SELECT
+... INTO語句<o:p></o:p></span></h4>
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+<pre><a name="id2993719"></a><span>SELECT <i>col_name</i>[,...] INTO <i>var_name</i>[,...] <i>table_expr</i><o:p></o:p></span></pre>
+
+
+
+<p><span>這個SELECT語法把選定的列直接儲存到變數。因此，只有單一的行可以被取回。 <o:p></o:p></span></p>  
+
+
+
+<pre><span>SELECT id,data INTO x,y FROM test.t1 LIMIT 1;<o:p></o:p></span></pre>
+
+
+
+<p><span>注意，用戶變數名在MySQL 5.1中是對大小寫不敏感的。請參閱<a href="language-structure.html#variables" title="9.3.&nbsp;User Variables">9.3節，「</a></span><a href="language-structure.html#variables" title="9.3.&nbsp;User Variables"><span>用戶變數&rdquo;</span></a><span>。   
+<o:p></o:p></span></p>
+
+
+
+<p><strong><span>重要</span></strong><span>: SQL變數名不能和列名一樣。如果SELECT ... INTO這樣的SQL語句包含一個對列的參考，並包含一個與列相同名字的
+局部變數，MySQL當前把參考解釋為一個變數的名字。例如，在下面的語句中，xname   
+被解釋為到xname <em><span>variable</span></em>  
+的參考而不是到xname <em><span>column</span></em>的： <o:p></o:p></span></p>  
+
+
+
+<pre><span>CREATE PROCEDURE sp1 (x VARCHAR(5))<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp; </span>BEGIN<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp; </span>DECLARE xname VARCHAR(5) DEFAULT 'bob';<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp; </span>DECLARE newname VARCHAR(5);<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp; </span>DECLARE xid INT;<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp; </span><o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp;&nbsp;</span>SELECT xname,id INTO newname,xid <o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>FROM table1 WHERE xname = xname;<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp; </span>SELECT newname;<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp; </span>END;<o:p></o:p></span></pre>
+
+
+
+<p><span>當這個程式被使用的時候，無論table.xname列的值是什麼，變數newname將返回值&lsquo;bob&rsquo;。 <o:p></o:p></span></p>   
+
+
+
+<p><span>請參閱<a href="restrictions.html#routine-restrictions" title="I.1.&nbsp;Restrictions on Stored Routines and Triggers">I.1節，「<span>儲存子程式和觸發程式的限制&rdquo;</span></a>。 <o:p></o:p></span></p>   
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+<div>
+
+<div>
+
+<div>
+
+<div>
+
+<h3><a name="conditions-and-handlers"></a><span>20.2.10.&nbsp;條件和處理程式</span></h3>
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+<div>
+
+<p><span class="section"><a href="#declare-conditions"><span>20.2.10.1. DECLARE</span><span>條件</span></a></span></p>   
+
+
+
+<p><span class="section"><a href="#declare-handlers"><span>20.2.10.2. DECLARE</span><span>處理程式</span></a></span></p>   
+
+
+
+</div>
+
+
+
+<p><span>特定條件需要特定處理。這些條件可以聯繫到錯誤，以及子程式中的一般流程控制。 <o:p></o:p></span></p>
+
+
+
+<div>
+
+<div>
+
+<div>
+
+<div>
+
+<h4><a name="declare-conditions"></a><span>20.2.10.1.&nbsp;DECLARE條件</span></h4>
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+<pre><a name="id2993872"></a><span>DECLARE <i>condition_name</i> CONDITION FOR <i>condition_value</i><o:p></o:p></span></pre>
+
+<pre><span><o:p>&nbsp;</o:p></span></pre>
+
+<pre><i><span>condition_value</span></i><span>:<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp; </span>SQLSTATE [VALUE] <i>sqlstate_value</i><o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp; </span>| <i>mysql_error_code</i><o:p></o:p></span></pre>
+
+
+
+<p><span>這個語句指定需要特殊處理的條件。它將一個名字和指定的錯誤條件關聯起來。這個名字可以隨後被用在DECLARE HANDLER語句中。請參閱<a href="#declare-handlers" title="20.2.10.2.&nbsp;DECLARE Handlers">20.2.10.2節，「DECLARE處理程式<span>&rdquo;</span></a>。 <o:p></o:p></span></p>   
+
+
+
+<p><span>除了SQLSTATE值，也支援MySQL錯誤代碼。 <o:p></o:p></span></p>   
+
+
+
+</div>
+
+
+
+<div>
+
+<div>
+
+<div>
+
+<div>
+
+<h4><a name="declare-handlers"></a><span>20.2.10.2.&nbsp;DECLARE</span><span>處理程式</span></h4>
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+<pre><a name="id2993936"></a><span>DECLARE <i>handler_type</i> HANDLER FOR <i>condition_value</i>[,...] <i>sp_statement</i><o:p></o:p></span></pre>
+
+<pre><span><o:p>&nbsp;</o:p></span></pre>
+
+<pre><i><span>handler_type</span></i><span>:<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp; </span>CONTINUE<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp; </span>| EXIT<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp; </span>| UNDO<o:p></o:p></span></pre>
+
+<pre><span><o:p>&nbsp;</o:p></span></pre>
+
+<pre><i><span>condition_value</span></i><span>:<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp; </span>SQLSTATE [VALUE] <i>sqlstate_value</i><o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp; </span>| <i>condition_name</i><o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp; </span>| SQLWARNING<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp; </span>| NOT FOUND<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp; </span>| SQLEXCEPTION<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp; </span>| <i>mysql_error_code</i><o:p></o:p></span></pre>
+
+
+
+<p><span>這個語句指定每個可以處理一個或多個條件的處理程式。如果產生一個或多個條件，指定的語句被執行。 <o:p></o:p></span></p>  
+
+
+
+<p><span>對一個CONTINUE處理程式，當前子程式的執行在執行
+處理程式語句之後繼續。對於EXIT處理程式，當前BEGIN...END復合語句的執行被終止。UNDO  
+處理程式類型語句還不被支援。</span></p> 
+
+
+
+<div>
+
+<p>
+<span>&middot;<span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+</span></span><span>SQLWARNING</span><span>是對所有以01開頭的SQLSTATE代碼的速記。</span></p>
+
+
+
+<p>
+<span>&middot;<span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+</span></span><span>NOT FOUND</span><span>是對所有以02開頭的SQLSTATE代碼的速記。</span></p> 
+
+
+
+<p>
+<span>&middot;<span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+</span></span><span>SQLEXCEPTION</span><span>是對所有沒有被SQLWARNING或NOT 
+FOUND捕獲的SQLSTATE代碼的速記。</span></p>
+
+
+
+</div>
+
+
+
+<p><span>除了SQLSTATE值，MySQL錯誤代碼也不被支援。</span></p>
+
+
+
+<p><span>例如: <o:p></o:p></span></p>  
+
+
+
+<pre><span>mysql&gt; <b>CREATE TABLE test.t (s1 int,primary key (s1));</b><o:p></o:p></span></pre>
+
+<pre><span>Query OK, 0 rows affected (0.00 sec)<o:p></o:p></span></pre>
+
+<pre><span><o:p>&nbsp;</o:p></span></pre>
+
+<pre><span>mysql&gt; <b>delimiter //</b><o:p></o:p></span></pre>
+
+<pre><span><o:p>&nbsp;</o:p></span></pre>
+
+<pre><span>mysql&gt; <b>CREATE PROCEDURE handlerdemo ()</b><o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp; </span>-&gt; <b>BEGIN</b><o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp; </span>-&gt;<span>&nbsp;&nbsp; </span><b>DECLARE CONTINUE HANDLER FOR SQLSTATE '23000' SET @x2 = 1;</b><o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp; </span>-&gt;<span>&nbsp;&nbsp; </span><b>SET @x = 1;</b><o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp; </span>-&gt;<span>&nbsp;&nbsp; </span><b>INSERT INTO test.t VALUES (1);</b><o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp; </span>-&gt;<span>&nbsp;&nbsp; </span><b>SET @x = 2;</b><o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp; </span>-&gt;<span>&nbsp;&nbsp; </span><b>INSERT INTO test.t VALUES (1);</b><o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp; </span>-&gt;<span>&nbsp;&nbsp; </span><b>SET @x = 3;</b><o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp; </span>-&gt; <b>END;</b><o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp; </span>-&gt; <b>//</b><o:p></o:p></span></pre>
+
+<pre><span>Query OK, 0 rows affected (0.00 sec)<o:p></o:p></span></pre>
+
+<pre><span><o:p>&nbsp;</o:p></span></pre>
+
+<pre><span>mysql&gt; <b>CALL handlerdemo()//</b><o:p></o:p></span></pre>
+
+<pre><span>Query OK, 0 rows affected (0.00 sec)<o:p></o:p></span></pre>
+
+<pre><span><o:p>&nbsp;</o:p></span></pre>
+
+<pre><span>mysql&gt; <b>SELECT @x//</b><o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp; </span>+------+<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp; </span>| @x<span>&nbsp;&nbsp; </span>|<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp; </span>+------+<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp; </span>| 3<span>&nbsp;&nbsp;&nbsp; </span>|<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp; </span>+------+<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp; </span>1 row in set (0.00 sec)<o:p></o:p></span></pre>
+
+
+
+<p><span>注意到，@x是3，這表明MySQL被執行到程式的末尾。如果DECLARE 
+CONTINUE HANDLER FOR SQLSTATE '23000' SET @x2 = 1;  這一行不在，第二個INSERT因PRIMARY KEY強制而失敗之後,MySQL可能已經採取
+預設(EXIT)路徑，並且SELECT @x可能已經返回2。 <o:p></o:p></span></p>  
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+<div>
+
+<div>
+
+<div>
+
+<div>
+
+<h3><a name="cursors"></a><span>20.2.11.&nbsp;</span><span>光標</span></h3>
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+<div>
+
+<p><span class="section"><span>
+<a href="#declare-cursors">20.2.11.1.聲明光標</a></span></span></p>   
+
+
+
+<p><span class="section"><a href="#open"><span>20.2.11.2. 光標OPEN</span><span>語句</span></a></span></p>   
+
+
+
+<p><span class="section"><span><a href="#fetch">20.2.11.3. 光標FETCH語句</a></span></span></p>   
+
+
+
+<p><span class="section"><span><a href="#close">20.2.11.4. 光標CLOSE語句</a></span></span></p>   
+
+
+
+</div>
+
+
+
+<p><a name="id2994183"></a><span>簡單光標在儲存程式和函數內被支援。語法如同在嵌入的SQL中。光標當前是不敏感的，只讀的及不滾動的。不敏感意為伺服器可以活不可以複製它的結果資料表。 <o:p></o:p></span></p>   
+
+
+
+<p><span>光標必須在聲明處理程式之前被聲明，並且變數和條件必須在聲明光標或處理程式之前被聲明。</span></p>
+
+
+
+<p><span>例如：</span></p>
+
+
+
+<pre><span>CREATE PROCEDURE curdemo()<o:p></o:p></span></pre>
+
+<pre><span>BEGIN<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp; </span>DECLARE done INT DEFAULT 0;<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp; </span>DECLARE a CHAR(16);<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp; </span>DECLARE b,c INT;<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp; </span>DECLARE cur1 CURSOR FOR SELECT id,data FROM test.t1;<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp; </span>DECLARE cur2 CURSOR FOR SELECT i FROM test.t2;<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp; </span>DECLARE CONTINUE HANDLER FOR SQLSTATE '02000' SET done = 1;<o:p></o:p></span></pre>
+
+<pre><span><o:p>&nbsp;</o:p></span></pre>
+
+<pre><span><span>&nbsp; </span>OPEN cur1;<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp; </span>OPEN cur2;<o:p></o:p></span></pre>
+
+<pre><span><o:p>&nbsp;</o:p></span></pre>
+
+<pre><span><span>&nbsp; </span>REPEAT<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp; </span>FETCH cur1 INTO a, b;<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp; </span>FETCH cur2 INTO c;<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp; </span>IF NOT done THEN<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </span>IF b &lt; c THEN<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </span>INSERT INTO test.t3 VALUES (a,b);<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </span>ELSE<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </span>INSERT INTO test.t3 VALUES (a,c);<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </span>END IF;<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp; </span>END IF;<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp; </span>UNTIL done END REPEAT;<o:p></o:p></span></pre>
+
+<pre><span><o:p>&nbsp;</o:p></span></pre>
+
+<pre><span><span>&nbsp; </span>CLOSE cur1;<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp; </span>CLOSE cur2;<o:p></o:p></span></pre>
+
+<pre><span>END<o:p></o:p></span></pre>
+
+
+
+<div>
+
+<div>
+
+<div>
+
+<div>
+
+<h4><a name="declare-cursors"></a><span>
+20.2.11.1.聲明光標</span></h4>   
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+<pre><span>DECLARE <i>cursor_name</i> CURSOR FOR <i>select_statement</i><o:p></o:p></span></pre>
+
+
+
+<p><span>這個語句聲明一個光標。也可以在子程式中定義多個光標，但是一個塊中的每一個光標必須有唯一的名字。<o:p></o:p></span></p>
+
+
+
+<p><span>SELECT語句不能有INTO子句。 <o:p></o:p></span></p>   
+
+
+
+</div>
+
+
+
+<div>
+
+<div>
+
+<div>
+
+<div>
+
+<h4><a name="open"></a><span>20.2.11.2.&nbsp;光標OPEN語句</span></h4>
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+<pre><a name="id2994279"></a><span>OPEN <i>cursor_name</i><o:p></o:p></span></pre>
+
+
+
+<p><span>這個語句打開先前聲明的光標。</span></p>
+
+
+
+</div>
+
+
+
+<div>
+
+<div>
+
+<div>
+
+<div>
+
+<h4><a name="fetch"></a><span>20.2.11.3.&nbsp;光標FETCH語句</span></h4>
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+<pre><a name="id2994315"></a><span>FETCH <i>cursor_name</i> INTO <i>var_name</i> [, <i>var_name</i>] ...<o:p></o:p></span></pre>
+
+
+
+<p><span>這個語句用指定的打開光標讀取下一行（如果有下一行的話），並且前進光標指針。 <o:p></o:p></span></p>   
+
+
+
+</div>
+
+
+
+<div>
+
+<div>
+
+<div>
+
+<div>
+
+<h4><a name="close"></a><span>20.2.11.4.&nbsp;光標CLOSE語句</span></h4>
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+<pre><a name="id2994359"></a><span>CLOSE <i>cursor_name</i><o:p></o:p></span></pre>
+
+
+
+<p><span>這個語句關閉先前打開的光標。 <o:p></o:p></span></p>   
+
+
+
+<p><span>如果未被明確地關閉，光標在它被聲明的復合語句的末尾被關閉。 <o:p></o:p></span></p>
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+<div>
+
+<div>
+
+<div>
+
+<div>
+
+<h3><a name="flow-control-constructs"></a><span>20.2.12. 流程控制構造<o:p></o:p></span></h3>   
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+<div>
+
+<p><span class="section"><span>
+<a href="#if-statement">20.2.12.1. IF語句</a></span></span><span><o:p></o:p></span></p>   
+
+
+
+<p><span class="section"><span>
+<a href="#case-statement">20.2.12.2. CASE語句</a></span></span><span><o:p></o:p></span></p>   
+
+
+
+<p><span class="section"><span>
+<a href="#loop-statement">20.2.12.3. LOOP語句</a></span></span><span><o:p></o:p></span></p>   
+
+
+
+<p><span class="section"><span>
+<a href="#leave-statement">20.2.12.4. LEAVE語句</a></span></span><span><o:p></o:p></span></p>   
+
+
+
+<p><span class="section"><span>
+<a href="#iterate-statement">20.2.12.5. ITERATE語句</a></span></span><span><o:p></o:p></span></p>   
+
+
+
+<p><span class="section"><span>
+<a href="#repeat-statement">20.2.12.6. REPEAT語句</a></span></span><span><o:p></o:p></span></p>   
+
+
+
+<p><span class="section"><span>
+<a href="#while-statement">20.2.12.7. WHILE語句</a></span></span><span><o:p></o:p></span></p>   
+
+
+
+</div>
+
+
+
+<p><span>IF, CASE, LOOP,   
+WHILE, ITERATE, 及 LEAVE 構造被完全實現。 <o:p></o:p></span></p>   
+
+
+
+<p><span>這些構造可能每個包含要麼一個單獨語句，要麼是使用BEGIN ... END復合語句的一塊語句。構造可以被嵌套。 <o:p></o:p></span></p>   
+
+
+
+<p><span>目前還不支援FOR循環。 <o:p></o:p></span></p>   
+
+
+
+<div>
+
+<div>
+
+<div>
+
+<div>
+
+<h4><a name="if-statement"></a><span>20.2.12.1.&nbsp;IF</span><span>語句</span></h4>
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+<pre><a name="id2994454"></a><span>IF <i>search_condition</i> THEN <i>statement_list</i><o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp; </span>[ELSEIF <i>search_condition</i> THEN <i>statement_list</i>] ...<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp; </span>[ELSE <i>statement_list</i>]<o:p></o:p></span></pre>
+
+<pre><span>END IF<o:p></o:p></span></pre>
+
+
+
+<p><span>IF</span><span>實現了一個基本的條件構造。如果<i>search_condition</i>求值為真，相應的SQL語句列資料表被執行。如果沒有<i>search_condition</i>匹配，在ELSE子句裡的語句列資料表被執行。<i>statement_list</i>可以包括一個或多個語句。</span></p>
+
+
+
+<p><span>請注意，也有一個IF() 
+ 函數，它不同於這裡描述的IF語句。請參閱<a href="functions.html#control-flow-functions" title="12.2.&nbsp;Control Flow Functions">12.2節，「</a></span><a href="functions.html#control-flow-functions" title="12.2.&nbsp;Control Flow Functions"><span>控制流程函數&rdquo;</span></a><span>。 <o:p></o:p></span></p>   
+
+
+
+</div>
+
+
+
+<div>
+
+<div>
+
+<div>
+
+<div>
+
+<h4><a name="case-statement"></a><span>20.2.12.2.&nbsp;CASE語句</span></h4> 
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+<pre><a name="id2994550"></a><span>CASE <i>case_value</i><o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp; </span>WHEN <i>when_value</i> THEN <i>statement_list</i><o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp; </span>[WHEN <i>when_value</i> THEN <i>statement_list</i>] ...<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp; </span>[ELSE <i>statement_list</i>]<o:p></o:p></span></pre>
+
+<pre><span>END CASE<o:p></o:p></span></pre>
+
+
+
+<p><span>Or: <o:p></o:p></span></p>
+
+
+
+<pre><span>CASE<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp; </span>WHEN <i>search_condition</i> THEN <i>statement_list</i><o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp; </span>[WHEN <i>search_condition</i> THEN <i>statement_list</i>] ...<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp; </span>[ELSE <i>statement_list</i>]<o:p></o:p></span></pre>
+
+<pre><span>END CASE<o:p></o:p></span></pre>
+
+
+
+<p><span>儲存程式的CASE語句實現一個複雜的條件構造。如果<i>search_condition</i>
+ 求值為真，相應的SQL被執行。如果沒有搜索條件匹配，在ELSE子句裡的語句被執行。</span></p> 
+
+
+
+<p><strong><span>注意：</span></strong><span>這裡介紹的用在
+儲存程式裡的CASE語句與<a href="functions.html#control-flow-functions" title="12.2.&nbsp;Control Flow Functions">12.2節，「</a></span><a href="functions.html#control-flow-functions" title="12.2.&nbsp;Control Flow Functions"><span>控制流程函數」</span></a><span>裡描述的SQL CASE資料表達式的CASE語句有輕微不同。這裡的CASE語句不能有ELSE   
+NULL子句，並且用END CASE替代END來終止。  
+<o:p></o:p></span></p> 
+
+
+
+</div>
+
+
+
+<div>
+
+<div>
+
+<div>
+
+<div>
+
+<h4><a name="loop-statement"></a><span>20.2.12.3.&nbsp;LOOP語句</span></h4> 
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+<pre><a name="id2994692"></a><span>[<i>begin_label</i>:] LOOP<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp; </span><i>statement_list</i><o:p></o:p></span></pre>
+
+<pre><span>END LOOP [<i>end_label</i>]<o:p></o:p></span></pre>
+
+
+
+<p><span>LOOP</span><span>允許某特定語句或語句群的重複執行，實現一個簡單的循環構造。在循環內的語句一直重複直循環被退出，退出通常伴隨著一個</span><span>LEAVE  
+語句。</span></p> 
+
+
+
+<p><span> LOOP語句可以被標注。除非<i>begin_label</i>存在，否則<i>end_label</i>不能被給出，並且如果兩者都出現，它們必須是同樣的。 <o:p></o:p></span></p>  
+
+
+
+</div>
+
+
+
+<div>
+
+<div>
+
+<div>
+
+<div>
+
+<h4><a name="leave-statement"></a><span>20.2.12.4.&nbsp;LEAVE語句</span></h4> 
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+<pre><a name="id2994761"></a><span>LEAVE <i>label</i><o:p></o:p></span></pre>
+
+
+
+<p><span>這個語句被用來退出任何被標注的流程控制構造。它和BEGIN ... END或循環一起被使用。 <o:p></o:p></span></p>  
+
+
+
+</div>
+
+
+
+<div>
+
+<div>
+
+<div>
+
+<div>
+
+<h4><a name="iterate-statement"></a><span>20.2.12.5.&nbsp;ITERATE語句<o:p></o:p></span></h4>  
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+<pre><a name="id2994800"></a><span>ITERATE <i>label</i><o:p></o:p></span></pre>
+
+
+
+<p><span>ITERATE只可以出現在LOOP, REPEAT, 
+和WHILE語句內。ITERATE意思為：</span><span>&ldquo;再次循環。&rdquo; <span><o:p></o:p></span></span></p> 
+
+
+
+<p><span>例如：</span></p>
+
+
+
+<pre><span>CREATE PROCEDURE doiterate(p1 INT)<o:p></o:p></span></pre>
+
+<pre><span>BEGIN<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp; </span>label1: LOOP<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp; </span>SET p1 = p1 + 1;<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp; </span>IF p1 &lt; 10 THEN ITERATE label1; END IF;<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp; </span>LEAVE label1;<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp; </span>END LOOP label1;<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp; </span>SET @x = p1;<o:p></o:p></span></pre>
+
+<pre><span>END<o:p></o:p></span></pre>
+
+</div>
+
+
+
+<div>
+
+<div>
+
+<div>
+
+<div>
+
+<h4><a name="repeat-statement"></a><span>20.2.12.6.&nbsp;REPEAT語句</span></h4>
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+<pre><a name="id2994867"></a><a name="id2994876"></a><span>[<i>begin_label</i>:] REPEAT<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp; </span><i>statement_list</i><o:p></o:p></span></pre>
+
+<pre><span>UNTIL <i>search_condition</i><o:p></o:p></span></pre>
+
+<pre><span>END REPEAT [<i>end_label</i>]<o:p></o:p></span></pre>
+
+
+
+<p><span> REPEAT語句內的語句或語句群被重複，直至<i>search_condition</i> 
+為真。</span></p>
+
+
+
+<p><span> REPEAT 
+語句可以被標注。 除非<i>begin_label</i>也存在，<i>end_label</i>才能被用，如果兩者都存在，它們必須是一樣的。 <o:p></o:p></span></p> 
+
+
+
+<p>
+<span>例如</span><span>： <o:p></o:p></span></p>
+
+
+
+<pre><span>mysql&gt; <b>delimiter //</b><o:p></o:p></span></pre>
+
+<pre><span><o:p>&nbsp;</o:p></span></pre>
+
+<pre><span>mysql&gt; <b>CREATE PROCEDURE dorepeat(p1 INT)</b><o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp; </span>-&gt; <b>BEGIN</b><o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp; </span>-&gt;<span>&nbsp;&nbsp; </span><b>SET @x = 0;</b><o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp; </span>-&gt;<span>&nbsp;&nbsp; </span><b>REPEAT SET @x = @x + 1; UNTIL @x &gt; p1 END REPEAT;</b><o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp; </span>-&gt; <b>END</b><o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp; </span>-&gt; <b>//</b><o:p></o:p></span></pre>
+
+<pre><span>Query OK, 0 rows affected (0.00 sec)<o:p></o:p></span></pre>
+
+<pre><span><o:p>&nbsp;</o:p></span></pre>
+
+<pre><span>mysql&gt; <b>CALL dorepeat(1000)//</b><o:p></o:p></span></pre>
+
+<pre><span>Query OK, 0 rows affected (0.00 sec)<o:p></o:p></span></pre>
+
+<pre><span><o:p>&nbsp;</o:p></span></pre>
+
+<pre><span>mysql&gt; <b>SELECT @x//</b><o:p></o:p></span></pre>
+
+<pre><span>+------+<o:p></o:p></span></pre>
+
+<pre><span>| @x<span>&nbsp;&nbsp; </span>|<o:p></o:p></span></pre>
+
+<pre><span>+------+<o:p></o:p></span></pre>
+
+<pre><span>| 1001 |<o:p></o:p></span></pre>
+
+<pre><span>+------+<o:p></o:p></span></pre>
+
+<pre><span>1 row in set (0.00 sec)<o:p></o:p></span></pre>
+
+</div>
+
+
+
+<div>
+
+<div>
+
+<div>
+
+<div>
+
+<h4><a name="while-statement"></a><span>20.2.12.7.&nbsp;WHILE語句</span></h4>  
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+<pre><a name="id2994994"></a><span>[<i>begin_label</i>:] WHILE <i>search_condition</i> DO<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp; </span><i>statement_list</i><o:p></o:p></span></pre>
+
+<pre><span>END WHILE [<i>end_label</i>]<o:p></o:p></span></pre>
+
+
+
+<p><span> WHILE語句內的語句或語句群被重複，直至<i>search_condition</i> 
+為真。</span></p>
+
+
+
+<p><span> WHILE語句可以被標注。 
+除非<i>begin_label</i>也存在，<i>end_label</i>才能被用，如果兩者都存在，它們必須是一樣的。<o:p></o:p></span></p>
+
+
+
+<p><span>例如：</span></p>
+
+
+
+<pre><span>CREATE PROCEDURE dowhile()<o:p></o:p></span></pre>
+
+<pre><span>BEGIN<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp; </span>DECLARE v1 INT DEFAULT 5;<o:p></o:p></span></pre>
+
+<pre><span><o:p>&nbsp;</o:p></span></pre>
+
+<pre><span><span>&nbsp; </span>WHILE v1 &gt; 0 DO<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp; </span>...<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp; </span>SET v1 = v1 - 1;<o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp; </span>END WHILE;<o:p></o:p></span></pre>
+
+<pre><span>END<o:p></o:p></span></pre>
+
+</div>
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+<div>
+
+<div>
+
+<div>
+
+<div>
+
+<h2><a name="stored-procedure-replication-faq"></a><span>20.3.&nbsp;儲存程式
+、函數、觸發程式及複製：常見問題</span></h2>
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+<div>
+
+<ul type="disc"><li><span>MySQL 5.1儲存程式和函數對複製起作用嗎？&nbsp;</span><p>
+	<span style>是的，在儲存程式和函數中被執行標準行為被從主MySQL伺服器複製到從伺服器。有少數限制，它們在<a title="20.4.&nbsp;Binary Logging of Stored Routines and Triggers" href="#stored-procedure-logging">20.4節，「</a></span><a title="20.4.&nbsp;Binary Logging of Stored Routines and Triggers" href="#stored-procedure-logging"><span>儲存子程式和
+	觸發程式二進制日誌功能」</span></a><span>中詳述。</span><span style>
+	</span></li><li><span>在主伺服器上建立的儲存程式和函數可以被複製到從伺服器上麼？ </span>
+	<p><span style>是的，通過一般DDL語句執行的儲存程式和函數，其在主伺服器上的建立被複製到從伺服器，所以目標將存在兩個伺服器上。對儲存程式和函數的ALTER 
+	和DROP語句也被複製。</span></li><li><span>
+	行為如何在已複製的儲存程式和函數里發生？ </span>
+	<p><span style>MySQL紀錄每個發生在儲存程式和函數里的DML事件，並複製這些單獨的行為到從伺服器。執行儲存程式和函數的切實使用不被複製。</span></li><li>
+	<span>對一起使用儲存程式，函數和複製有什麼特別的安全要求麼？ </span>
+	<p><span style>
+	是的，因為一個從伺服器有權限來執行任何讀自主伺服器的二進制日誌的語句，指定的安全約束因與複製一起使用的儲存程式和函數而存在。如果複製或二進制日誌大體上是激活的（為point-in-time恢復的目的），那麼MySQL 
+	DBA 有兩個安全選項可選： </span><ul type="circle"><li><span>
+		任何想建立儲存程式的用戶必須被賦予SUPER權限。</span></li><li>
+		<span style>作為選擇，一個DBA可以設置log_bin_trust_routine_creators系統變數為1，它將會允許有標準CREATE 
+		ROUTINE權限的人來建立一個儲存程式和函數。</span></li></ul>
+	<div>
+&nbsp;</div>
+	</li><li><span>對複製儲存程式和函數的行為有什麼限制？</span><p><span style>
+	嵌入到儲存程式中的不確定（隨機）或時基行不能適當地複製。隨機產生的結果，僅因其本性，是您可預測的和不能被確實克隆的。因此，複製到從伺服器的隨機行為將不會鏡像那些產生在主伺服器上的。注意，
+	聲明儲存程式或函數為DETERMINISTIC或者在log_bin_trust_routine_creators中設置系統變數為0 
+	將會允許隨即值操作被使用。</span></p>
+	<p><span style>
+	此外，時基行為不能在從伺服器上重新產生，因為在儲存程式中通過對複製使用的二進制日誌來計時這樣的時基行為是不可重新產生的，因為該二進制日誌僅紀錄DML事件且不包括計時約束。 
+	</span></p>
+	<p><span style>最後，在大型DML行為（如大批插入）中非交互資料表發生錯誤，該非交互資料表可能經歷複製，在複製版的非交互資料表中主伺服器可以被部分地從DML行為更新。但是因為發生的那個錯誤，對從伺服器沒有更新。 
+	對函數的DML行為，工作區將被用IGNORE關鍵詞來執行，以便於在主伺服器上導致錯誤的更新被忽略，並且不會導致錯誤的更新被複製到從伺服器。</span></p>
+	<p>
+          &nbsp;</p></li><li><span>上述的限制會影響MySQL作 point-in-time恢復的能力嗎？</span><p>
+	<span style>影響複製的同一限制會影響point-in-time恢復。</span></li><li>
+	<span>
+	&nbsp;</span><span>MySQL要做什麼來改正前述的限制呢？</span><p>
+	<span style>將來發行的MySQL預期有一個功能去選擇複製該如何被處理：</span></p>
+	<div class="itemizedlist"><ul type="circle"><li>
+		<span>&nbsp;</span><span>基於語句的複製（當前實現）。</span></li><li><span>行級別複製（它將解決所有早先描述的限制）。</span></li></ul></div></li><li>
+	<span>觸發程式對複製起作用麼？</span><p><span>MySQL 
+	5.1中的觸發程式和複製像在大多數其它資料庫引擎中一樣工作，在那些引擎中，通過觸發程式在主伺服器上執行的行為不被複製到從伺服器。取而代之的是，位於主MySQL伺服器的資料表中的
+	觸發程式需要在那些存在於任何MySQL從伺服器上的資料表內被建立，以便於觸發程式可以也可以在從伺服器上被激活。</span></p>
+	<p><span>&nbsp;</span></li><li>
+	<span>
+	&nbsp;</span><span>一個行為如何通過從主伺服器上複製到從伺服器上的觸發程式來執行呢？ </span>
+	<p><span style>首先，主伺服器上的觸發程式必須在從伺服器上重建。一旦重建了，複製流程就像其它參與到複製中的標準DML語句一樣工作。例如：考慮一個已經插入觸發程式AFTER的EMP資料表，它位於主MySQL伺服器上。同樣的EMP資料表和AFTER插入
+	觸發程式也存在於從伺服器上。複製流程可能是：</span></li></ul>
+
+
+
+</div>
+
+
+
+<div>
+
+<p><span>1.<span>&nbsp;&nbsp;&nbsp; 
+</span></span><span>對EMP做一個INSERT語句。 <o:p></o:p></span></p>   
+
+
+
+<p><span><span>2.<span>&nbsp;&nbsp;&nbsp;</span></span>EMP上的AFTER觸發程式激活。<o:p></o:p></span></p>  
+
+
+
+<p><span>3.<span>&nbsp;&nbsp;&nbsp; 
+</span></span><span>INSERT語句被寫進二進制日誌。</span></p>  
+
+
+
+<p><span>4.<span>&nbsp;&nbsp;&nbsp; 
+</span></span><span>從伺服器上的複製拾起INSERT語句給EMP資料表，並在從伺服器上執行它。 <o:p></o:p></span></p>   
+
+
+
+<p><span>5.<span>&nbsp;&nbsp;&nbsp; 
+</span>位於從伺服器EMP</span><span>上的</span><span>AFTER觸發程式激活。</span></p>  
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+<div>
+
+<div>
+
+<div>
+
+<div>
+
+<h2><a name="stored-procedure-logging"></a><span>20.4.&nbsp;儲存子程式和觸發程式的二進制日誌功能</span></h2>
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+<p><span>，這一節介紹MySQL 5.1如何考慮二進制日誌功能來處理儲存子程式（程式和函數） 
+。這一節也適用於觸發程式。 <o:p></o:p></span></p>   
+
+
+
+<p><span>二進制日誌包含修改資料庫內容的SQL語句的訊息。這個訊息以描述修改的事件的形式保存起來。 <o:p></o:p></span></p> 
+
+
+
+<p><span>二進制日誌有兩個重要目的：</span></p>
+
+
+
+<div>
+
+<p>
+<span>&middot;<span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+</span></span><span>複製的基礎是主伺服器發送包含在二進制日誌裡的事件到從伺服器，從伺服器執行這些事件來造成與對主伺服器造成的同樣的數據改變，請參閱<a href="replication.html#replication-implementation" title="6.2.&nbsp;Replication Implementation Overview">6.2節，「</a></span><a href="replication.html#replication-implementation" title="6.2.&nbsp;Replication Implementation Overview"><span>複製概述&rdquo;</span></a><span>。 <o:p></o:p></span></p>   
+
+
+
+<p>
+<span>&middot;<span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+</span></span><span>特定的數據恢復操作許要使用二進制日誌。備份的檔案被恢復之後，備份後紀錄的二進制日誌裡的事件被重新執行。這些事件把資料庫帶從備份點的日子帶到當前。請參閱<a href="database-administration.html#backup-recovery" title="5.9.2.2.&nbsp;Using Backups for Recovery">5.9.2.2節，「</a></span><a href="database-administration.html#backup-recovery" title="5.9.2.2.&nbsp;Using Backups for Recovery"><span>使用備份恢復&rdquo;</span></a><span>。 <o:p></o:p></span></p>   
+
+
+
+</div>
+
+
+
+<p><span>MySQL中，以儲存子程式的二進制日誌功能引發了很多問題，這些在下面討論中列出，作為參考訊息。</span></p>
+
+
+
+<p><span>除了要另外注意的之外，這些談論假設您已經通過用--log-bin選項啟動伺服器允許了二進制日誌功能。（如果二進制日誌功能不被允許，複製將不可能，為數據恢復的二進制日誌也不存在。）請參閱<a href="database-administration.html#binary-log" title="5.11.3.&nbsp;The Binary Log">5.11.3節，「</a></span><a href="database-administration.html#binary-log" title="5.11.3.&nbsp;The Binary Log"><span>二進制日誌&rdquo;</span></a><span>。 <o:p></o:p></span></p>   
+
+
+
+<p><span>對儲存子程式語句的二進制日誌功能的特徵在下面列資料表中描述。一些條目指出您應該注意到的問題。但是在一些情況下，有您可以更改的婦五七設置或您可以用來處理它們的工作區。</span></p>
+
+
+
+<div>
+
+<p>
+<span>&middot;<span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+</span></span><span>CREATE   
+PROCEDURE, CREATE FUNCTION, ALTER PROCEDURE,和ALTER FUNCTION  
+語句被寫進二進制日誌，CALL, DROP PROCEDURE, 
+和DROP FUNCTION 也一樣。   
+<o:p></o:p></span></p>
+
+
+
+<p><span>儘管如此，對複製有一個安全暗示：要建立一個子程式，用戶必須有CREATE ROUTINE權限,但有這個權限的用戶不能寫一個
+子程式在從伺服器上執行任何操作。因為在從伺服器上的SQL線程用完全權限來運行。例如，如果主伺服器和從伺服器分別有伺服器ID值1和2，在主伺服器上的用戶可能建立並使用如下一個
+程式： <o:p></o:p></span></p> 
+
+
+
+<pre><span>mysql&gt; <b>delimiter //</b><o:p></o:p></span></pre>
+
+<pre><span>mysql&gt; <b>CREATE PROCEDURE mysp ()</b><o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp; </span>-&gt; <b>BEGIN</b><o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp; </span>-&gt;<span>&nbsp;&nbsp; </span><b>IF @@server_id=2 THEN DROP DATABASE accounting; END IF;</b><o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp; </span>-&gt; <b>END;</b><o:p></o:p></span></pre>
+
+<pre><span><span>&nbsp;&nbsp;&nbsp; </span>-&gt; <b>//</b><o:p></o:p></span></pre>
+
+<pre><span>mysql&gt; <b>delimiter ;</b><o:p></o:p></span></pre>
+
+<pre><span>mysql&gt; <b>CALL mysp();</b><o:p></o:p></span></pre>
+
+
+
+<p><span> CREATE PROCEDURE和CALL語句將被寫進二進制日誌，所以從伺服器將執行它們。因為從SQL線程有完全權限，它將移除accounting資料庫。 <o:p></o:p></span></p> 
+
+
+
+<p><span>要使允許二進制日誌功能的伺服器避免這個危險，MySQL 5.1已經要求
+儲存程式和函數的建立者除了通常需要的CREATE ROUTINE的權限外，還必須有SUPER  
+權限。類似地，要使用ALTER PROCEDURE或ALTER FUNCTION，除了ALTER ROUTINE權限外您必須有SUPER權限。沒有SUPER權限，將會發生一個錯誤：</span></p>
+
+
+
+<pre><span>ERROR 1419 (HY000): You do not have the SUPER privilege and<o:p></o:p></span></pre>
+
+<pre><span>binary logging is enabled (you *might* want to use the less safe<o:p></o:p></span></pre>
+
+<pre><span>log_bin_trust_routine_creators variable)<o:p></o:p></span></pre>
+
+
+
+<p><span>您可能不想強制要求子程式建立者必須有SUPER權限。例如，您系統上所有有CREATE ROUTINE權限的用戶可能是有經驗的應用程式開發者。要禁止掉對SUPER權限的要求，設置log_bin_trust_routine_creators
+ 全局系統變數為1。預設地，這個變數值為0，但您可以像這樣改變這樣：</span></p>
+
+
+
+<pre><span>mysql&gt; <b>SET GLOBAL log_bin_trust_routine_creators = 1;</b><o:p></o:p></span></pre>
+
+
+
+<p><span>您也可以在啟動伺服器之時用--log-bin-trust-routine-creators選項來設置允許這個變數。<o:p></o:p></span></p>
+
+
+
+<p><span>如果二進制日誌功能不被允許，log_bin_trust_routine_creators
+ 沒有被用上，子程式建立需要SUPER權限。 <o:p></o:p></span></p> 
+
+
+
+<p>
+<span>&middot;<span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+</span></span><span>一個執行更新的非確定子程式是不可重複的，它能有兩個不如意的影響： <o:p></o:p></span></p>   
+
+
+
+<div>
+
+<p><span>o<span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
+</span></span>它會使得從伺服器不同於主伺服器<span>。</span></p>  
+
+
+
+<p>
+-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
+</span></span><span>恢復的數據與原始數據不同。</span></p>  
+
+
+
+</div>
+
+
+
+<p><span>要解決這些問題，MySQL強制做下面要求：在主伺服器上，除非子程式被聲明為確定性的或者不更改數據，否則建立或者替換子程式將被拒絕。這意味著當您建立一個子程式的時候，您必須要麼聲明它是確定性的，要麼它不改變數據。兩套子程式特徵在這裡適用： <o:p></o:p></span></p> 
+
+
+
+<div>
+
+<p>
+-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
+</span></span><span>DETERMINISTIC</span><span>和NOT 
+DETERMINISTIC指出一個子程式是否對給定的輸入總是產生同樣的結果。如果沒有給定任一特徵，預設是NOT DETERMINISTIC，所以您必須明確指定DETERMINISTIC來
+聲明一個
+子程式是確定性的。 <o:p></o:p></span></p> 
+
+
+
+<p><span>使用NOW()  
+函數（或它的同義）或者RAND() 
+函數不是必要地使也一個子程式非確定性。對NOW()而言，二進制日誌包括時間戳並正確複製。RAND()只要在一個
+子程式內被使用一次也可以正確複製。（您可以認為子程式執行時間戳和隨機數種子作為毫無疑問地輸入，它們在主伺服器和從伺服器上是一樣的。） <o:p></o:p></span></p> 
+
+
+
+<p>
+-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;   
+</span></span><span>CONTAINS SQL</span><span>, NO   
+SQL, READS SQL DATA, 和 MODIFIES SQL數據提供子程式是讀還是寫數據的訊息。無論NO 
+SQL  還是READS SQL DATA  i都指出，子程式沒有改變數據，但您必須明白地指明這些中的一個，因為如果任何這些特徵沒有被給出，
+預設的特徵是CONTAINS SQL。 
+<o:p></o:p></span></p>
+
+
+
+</div>
+
+
+
+<p><span>預設地，要一個CREATE PROCEDURE 
+ 或 CREATE FUNCTION  語句被接受，DETERMINISTIC
+ 或 NO SQL與READS SQL DATA  
+中的一個必須明白地指定，否則會產生如下錯誤：</span></p>
+
+
+
+<pre><span>ERROR 1418 (HY000): This routine has none of DETERMINISTIC, NO SQL,<o:p></o:p></span></pre>
+
+<pre><span>or READS SQL DATA in its declaration and binary logging is enabled<o:p></o:p></span></pre>
+
+<pre><span>(you *might* want to use the less safe log_bin_trust_routine_creators<o:p></o:p></span></pre>
+
+<pre><span>variable)<o:p></o:p></span></pre>
+
+
+
+<p><span>如果設置log_bin_trust_routine_creators 
+為1, 移除對子程式必須是確定的或不修改數據的要求。 <o:p></o:p></span></p> 
+
+
+
+<p><span>注意，子程式本性的評估是基於建立者的</span><span>&ldquo;誠實度&rdquo;<span> 
+：MySQL不檢查聲明為確定性的子程式是否不含產生非確定性結果的語句。<o:p></o:p></span></span></p>
+
+
+
+<p>
+<span>&middot;<span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
+</span></span><span>如果子程式返回無錯，CALL語句被寫進二進制日誌，否則就不寫。當一個子程式修改數據失敗了，您會得到這樣的警告：</span></p>  
+
+
+
+<pre><span>·<span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </span></span><span>ERROR 1417 (HY000): A routine failed and has neither NO SQL nor<o:p></o:p></span></pre>
+
+<pre><span>·<span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </span></span><span>READS SQL DATA in its declaration and binary logging is enabled; if<o:p></o:p></span></pre>
+
+<pre><span>·<span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </span></span><span>non-transactional tables were updated, the binary log will miss their<o:p></o:p></span></pre>
+
+<pre><span>·<span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </span></span><span>changes<o:p></o:p></span></pre>
+
+
+
+<p><span>這個記日誌行為潛在地導致問題.如果一個子程式部分地修改一個非交互資料表（比如一個MyISAM資料表able）並且返回一個錯誤，二進制日誌將反映這些變化。要防止這種情況，您應該在
+子程式中使用交互資料表並且在交互動作內修改資料表。 <o:p></o:p></span></p> 
+
+
+
+<p><span>在一個子程式內，如果您在INSERT, DELETE, 
+或者UPDATE裡使用IGNORE關鍵詞來忽略錯誤，可能發生一個部分更新，但沒有錯誤產生。這樣的語句被記錄日誌，且正常複製。</span></p>
+
+
+
+<p>
+<span>&middot;<span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+</span></span><span>如果一個儲存函數在一個如SELECT這樣不修改數據的語句內被使用，即使函數本身更改數據，函數的執行也將不被寫進二進制日誌裡。這個記錄日誌的行為潛在地導致問題。假設函數myfunc()如下定義：</span></p>  
+
+
+
+<pre><span>·<span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </span></span><span>CREATE FUNCTION myfunc () RETURNS INT<o:p></o:p></span></pre>
+
+<pre><span>·<span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </span></span><span>BEGIN<o:p></o:p></span></pre>
+
+<pre><span>·<span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </span></span><span><span>&nbsp;&nbsp;</span>INSERT INTO t (i) VALUES(1);<o:p></o:p></span></pre>
+
+<pre><span>·<span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </span></span><span><span>&nbsp;&nbsp;</span>RETURN 0;<o:p></o:p></span></pre>
+
+<pre><span>·<span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </span></span><span>END;<o:p></o:p></span></pre>
+
+
+
+<p><span>按照上面定義，</span>下面的語句修改<span>資料表t，因為myfunc()修改資料表t, 
+但是語句不被寫進二進制日誌，因為它是一個SELECT語句： 
+<o:p></o:p></span></p>
+
+
+
+<pre><span>SELECT myfunc();<o:p></o:p></span></pre>
+
+
+
+<p><span>對這個問題的工作區將使用在做更新的語句裡做更新的函數。注意，雖然DO語句有時為了其估算資料表達式的副效應而被執行，DO在這裡不是一個工作區，因為它不被寫進二進制日誌。</span></p>
+
+
+
+<p>
+<span>&middot;<span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+</span></span><span>在一個子程式內執行的語句不被寫進二進制日誌。假如您發佈下列語句： <o:p></o:p></span></p>   
+
+
+
+<pre><span>·<span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </span></span><span>CREATE PROCEDURE mysp INSERT INTO t VALUES(1);<o:p></o:p></span></pre>
+
+<pre><span>·<span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </span></span><span>CALL mysp;<o:p></o:p></span></pre>
+
+
+
+<p><span>對於這個例子來說，CREATE
+PROCEDURE 和CALL語句出現在二進制日誌裡，但INSERT語句並未出現。 <o:p></o:p></span></p>   
+
+
+
+<p>
+<span>&middot;<span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+</span></span><span>在從伺服器上，當決定複製哪個來自主伺服器的事件時，下列限制被應用：--replicate-*-table規則不適用於CALL語句或子程式內的語句：在這些情況下，總是返回</span><span>「複製！&rdquo; <span><o:p></o:p></span></span></p>   
+
+
+
+</div>
+
+
+
+<p><span>觸發程式類似於儲存函數，所以前述的評論也適用於觸發程式，除了下列情況： CREATE 
+TRIGGER沒有可選的DETERMINISTIC特徵，所以觸發程式被假定為總是確定性的。然而，這個假設在一些情況下是非法的。比如，UUID()函數是非確定性的（不能複製）。您應該小心在
+觸發程式中使用這個函數。 <o:p></o:p></span></p> 
+
+
+
+<p><span>觸發程式目前不能更新資料表，但是在將來會支援。因為這個原因，如果您沒有SUPER權限且log_bin_trust_routine_creators 被設為0，得到的錯誤訊息類似於儲存子程式與CREATE TRIGGER產生的錯誤訊息。 <o:p></o:p></span></p> 
+
+
+
+<p><span>在本節中敘述的問題來自發生在SQL語句級別的二進制日誌記錄的事實。未來發行的MySQL期望能實現行級的二進制日誌記錄，記錄發生在更
+細緻的級別並且指出哪個改變作為執行SQL的結果對單個記錄而做。 <o:p></o:p></span></p> 
+
+
+
+</div>
+
+
+
+</div>
+
+
+
+<div>
+
+<div align="center"><span>
+
+<hr align="center" size="2" width="100%">
+
+</span></div>
+
+
+
+</div>
+
+
+
+<p><span>這是MySQL參考手冊的翻譯版本，關於MySQL參考手冊，請訪問<a href="http://dev.mysql.com/doc/mysql/en" target="_top">dev.mysql.com</a>。原始參考手冊為英文版，與英文版參考手冊相比，本翻譯版可能不是最新的。</span></p>
+
+
+
+<div>
+
+<div align="center"><span>
+
+<hr align="center" size="2" width="100%">
+
+</span></div>
+
+
+
+<p align="center"><span><o:p>&nbsp;</o:p></span></p>
+<p><span ><o:p>&nbsp;</o:p></span></p>
+</div>
+</div>
+</body>
+</html>

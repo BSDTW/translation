@@ -1,0 +1,305 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>硬碟效能調校(Tuning)</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.79" />
+<link rel="HOME" title="FreeBSD 使用手冊" href="index.html" />
+<link rel="UP" title="設定與效能調校(Tuning)" href="config-tuning.html" />
+<link rel="PREVIOUS" title="Tuning with sysctl" href="configtuning-sysctl.html" />
+<link rel="NEXT" title="Tuning Kernel Limits" href="configtuning-kernel-limits.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD 使用手冊</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="configtuning-sysctl.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 11 設定與效能調校(Tuning)</td>
+<td width="10%" align="right" valign="bottom"><a href="configtuning-kernel-limits.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="CONFIGTUNING-DISK" name="CONFIGTUNING-DISK">11.12
+硬碟效能調校(Tuning)</a></h1>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN16113" name="AEN16113">11.12.1 Sysctl Variables</a></h2>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="AEN16115" name="AEN16115">11.12.1.1 <code
+class="VARNAME">vfs.vmiodirenable</code></a></h3>
+
+<p>The <code class="VARNAME">vfs.vmiodirenable</code> sysctl variable may be set to
+either 0 (off) or 1 (on); it is 1 by default. This variable controls how directories are
+cached by the system. Most directories are small, using just a single fragment (typically
+1&nbsp;K) in the file system and less (typically 512&nbsp;bytes) in the buffer cache.
+With this variable turned off (to 0), the buffer cache will only cache a fixed number of
+directories even if you have a huge amount of memory. When turned on (to 1), this sysctl
+allows the buffer cache to use the VM Page Cache to cache the directories, making all the
+memory available for caching directories. However, the minimum in-core memory used to
+cache a directory is the physical page size (typically 4&nbsp;K) rather than 512&nbsp;
+bytes. We recommend keeping this option on if you are running any services which
+manipulate large numbers of files. Such services can include web caches, large mail
+systems, and news systems. Keeping this option on will generally not reduce performance
+even with the wasted memory but you should experiment to find out.</p>
+</div>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="AEN16123" name="AEN16123">11.12.1.2 <code
+class="VARNAME">vfs.write_behind</code></a></h3>
+
+<p>The <code class="VARNAME">vfs.write_behind</code> sysctl variable defaults to <tt
+class="LITERAL">1</tt> (on). This tells the file system to issue media writes as full
+clusters are collected, which typically occurs when writing large sequential files. The
+idea is to avoid saturating the buffer cache with dirty buffers when it would not benefit
+I/O performance. However, this may stall processes and under certain circumstances you
+may wish to turn it off.</p>
+</div>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="AEN16132" name="AEN16132">11.12.1.3 <code
+class="VARNAME">vfs.hirunningspace</code></a></h3>
+
+<p>The <code class="VARNAME">vfs.hirunningspace</code> sysctl variable determines how
+much outstanding write I/O may be queued to disk controllers system-wide at any given
+instance. The default is usually sufficient but on machines with lots of disks you may
+want to bump it up to four or five <span class="emphasis"><b
+class="EMPHASIS">megabytes</b></span>. Note that setting too high a value (exceeding the
+buffer cache's write threshold) can lead to extremely bad clustering performance. Do not
+set this value arbitrarily high! Higher write values may add latency to reads occurring
+at the same time.</p>
+
+<p>There are various other buffer-cache and VM page cache related sysctls. We do not
+recommend modifying these values, the VM system does an extremely good job of
+automatically tuning itself.</p>
+</div>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="AEN16142" name="AEN16142">11.12.1.4 <code
+class="VARNAME">vm.swap_idle_enabled</code></a></h3>
+
+<p>The <code class="VARNAME">vm.swap_idle_enabled</code> sysctl variable is useful in
+large multi-user systems where you have lots of users entering and leaving the system and
+lots of idle processes. Such systems tend to generate a great deal of continuous pressure
+on free memory reserves. Turning this feature on and tweaking the swapout hysteresis (in
+idle seconds) via <code class="VARNAME">vm.swap_idle_threshold1</code> and <code
+class="VARNAME">vm.swap_idle_threshold2</code> allows you to depress the priority of
+memory pages associated with idle processes more quickly then the normal pageout
+algorithm. This gives a helping hand to the pageout daemon. Do not turn this option on
+unless you need it, because the tradeoff you are making is essentially pre-page memory
+sooner rather than later; thus eating more swap and disk bandwidth. In a small system
+this option will have a determinable effect but in a large system that is already doing
+moderate paging this option allows the VM system to stage whole processes into and out of
+memory easily.</p>
+</div>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="AEN16152" name="AEN16152">11.12.1.5 <code
+class="VARNAME">hw.ata.wc</code></a></h3>
+
+<p>FreeBSD&nbsp;4.3 flirted with turning off IDE write caching. This reduced write
+bandwidth to IDE disks but was considered necessary due to serious data consistency
+issues introduced by hard drive vendors. The problem is that IDE drives lie about when a
+write completes. With IDE write caching turned on, IDE hard drives not only write data to
+disk out of order, but will sometimes delay writing some blocks indefinitely when under
+heavy disk loads. A crash or power failure may cause serious file system corruption.
+FreeBSD's default was changed to be safe. Unfortunately, the result was such a huge
+performance loss that we changed write caching back to on by default after the release.
+You should check the default on your system by observing the <code
+class="VARNAME">hw.ata.wc</code> sysctl variable. If IDE write caching is turned off, you
+can turn it back on by setting the kernel variable back to 1. This must be done from the
+boot loader at boot time. Attempting to do it after the kernel boots will have no
+effect.</p>
+
+<p>For more information, please see <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=ata&amp;sektion=4"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">ata</span>(4)</span></a>.</p>
+</div>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="AEN16164" name="AEN16164">11.12.1.6 <tt
+class="LITERAL">SCSI_DELAY</tt> (<code
+class="VARNAME">kern.cam.scsi_delay</code>)</a></h3>
+
+<p>The <tt class="LITERAL">SCSI_DELAY</tt> kernel config may be used to reduce system
+boot times. The defaults are fairly high and can be responsible for <tt
+class="LITERAL">15</tt> seconds of delay in the boot process. Reducing it to <tt
+class="LITERAL">5</tt> seconds usually works (especially with modern drives). Newer
+versions of FreeBSD (5.0 and higher) should use the <code
+class="VARNAME">kern.cam.scsi_delay</code> boot time tunable. The tunable, and kernel
+config option accept values in terms of <span class="emphasis"><b
+class="EMPHASIS">milliseconds</b></span> and <span class="emphasis"><b
+class="EMPHASIS">not</b></span> <span class="emphasis"><b
+class="EMPHASIS">seconds</b></span>.</p>
+</div>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="SOFT-UPDATES" name="SOFT-UPDATES">11.12.2 Soft Updates</a></h2>
+
+<p><a href="http://www.FreeBSD.org/cgi/man.cgi?query=tunefs&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">tunefs</span>(8)</span></a>
+這個程式可以用來調校檔案系統。 這個程式有相當多的選項，
+但現在我們只需要關心如何開啟與關閉 Soft Updates， 其透過下列指令完成：</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">tunefs -n enable /filesystem</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">tunefs -n disable /filesystem</kbd>
+</pre>
+
+<p>在檔案系統被掛載期間，是無法透過 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=tunefs&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">tunefs</span>(8)</span></a> 來修改的。
+一個好的啟動 Soft Updates 時機是在任何分割區被掛載前， 也就是在 single-user mode 下。</p>
+
+<p>Soft Updates 透過使用記憶體快取， 主要是在檔案建立和刪除方面，大大地增加了 meta-data
+的效能。 我們建議在你的所有檔案系統使用 Soft Updates。 但使用 Soft Updates
+有兩項缺點是你必須注意的： 第一，Soft Updates
+保證檔案系統在發生系統崩潰前後的資料一致性， 但很有可能在系統崩潰前幾秒鐘
+(甚至是一分鐘！) 的資料並沒有真正寫入實體硬碟中。
+一旦發生系統崩潰，你可能會比未開啟的狀態下遺失更多工作資料。 第二，Soft Updates
+會延遲釋放掉檔案系統的 block。 假如你在有一個檔案系統 (例如 root filesystem)
+快滿了的情況下，進行了主要系統升級，例如 <tt class="COMMAND">make
+installworld</tt>，這可能導致檔案系統的空間被用完， 進而使得資料更新失敗。</p>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="AEN16204" name="AEN16204">11.12.2.1 Soft Updates
+的更多細節</a></h3>
+
+<p>有兩種傳統方法將檔案系統的 meta-data 寫回硬碟。 (Meta-data 的更新指的是更新像 inodes
+或目錄這些沒有實際內容的數據)</p>
+
+<p>以往，預設的做法是同步進行 meta-data 的更新。
+若有一個目錄被更動了，則系統會一直等待直到這個更動真正寫到硬碟中。 檔案的 data buffers
+(檔案內容) 則會透過 buffer cache， 在之後非同步地寫回硬碟。
+這樣實作的好處是可以確保這項操作是安全的。 假如在更新期間發生錯誤，可以確保 meta-data
+處於一致的狀態。 檔案不是完整地建立便是沒有建立。 如果在系統崩潰時，使得 buffer cache
+無法完整寫入到該檔案在硬碟中的 data blocks， <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=fsck&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">fsck</span>(8)</span></a>
+能夠檢查出並透過將其檔案長度設為 0 來修復檔案系統。
+除此之外，這個作法實作起來即清楚又簡單。 但缺點是 meta-data 的更新很慢。例如 <tt
+class="COMMAND">rm -r</tt> 會依序觸及該目錄下的所有檔案， 但每項目錄更動 (檔案的刪除)
+都會同步寫回硬碟中。 這包括了目錄本身、inode table 的更新， 可能還包括該檔案配置的
+indirect blocks。 同樣的問題也出現在解開大的階層式檔案的情況 (<tt class="COMMAND">tar
+-x</tt>)。</p>
+
+<p>第二種作法是非同步 meta-data 更新。 這是 Linux/ext2fs 預設使用的作法，在 *BSD ufs 利用
+<tt class="COMMAND">mount -o async</tt> 指令也能使用。 所有的 meta-data 更新也透過 buffer
+cache 來傳送， 也就是它們會被混合在檔案內容的資料更新中。 這樣實作的好處是不需要等待
+meta-data 更新被寫回硬碟， 所以所有可能導致大量 meta-data
+更新的操作會比同步的方式來得更快。 同樣地，這個作法的實作仍然是清楚且簡單的，
+所以，原始碼中產生漏洞的風險很低。 缺點是其不保證檔案系統的資料一致性。 如果在更新大量
+meta-data 的期間發生了錯誤 (例如斷電或有人按下了重開鈕)， 檔案系統會處於不可預知的狀態。
+當系統重新啟動後將沒有機會去檢查檔案系統的狀態； 可能發生檔案的 data blocks
+已經寫回硬碟， 但 inode table 或相關的目錄更新卻沒有的情形。 實際上也沒有辦法利用 <tt
+class="COMMAND">fsck</tt> 來清理 (因為必要的資訊已經無法從硬碟中取得了)。
+如果文件系統在修復後損壞了， 唯一的選擇便是使用 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=newfs&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">newfs</span>(8)</span></a>
+並且利用備份來回復。</p>
+
+<p>針對這個問題，一般的解法是實作 <span class="emphasis"><b class="EMPHASIS">dirty region
+logging</b></span> 也被稱做 <span class="emphasis"><b
+class="EMPHASIS">journaling</b></span>， 儘管它的名稱不太一致，而且偶爾還會被以為是
+transaction logging 的其他型式。 在這種解法中，meta-data 更新依然是同步地寫回硬碟，
+唯一的不同是它們是寫到硬碟中的一個小區域裡。 稍後再被移到適當的位置。 因為做 logging
+的區域是硬碟中一塊小且連續的區域， 對於硬碟的讀寫頭來說，不須移動很長的距離，
+即使是在進行繁重操作的期間亦同， 所以這些操作運行起來比同步更新的方式快。
+除此之外，它的實作複雜度有限， 所以出錯的風險也很低。 缺點是所有的 meta-data
+都必須寫入兩次 (一次寫到 logging region，另一次寫到硬碟適當的位置)，
+所以對正常的工作來說，可能導致 performance “pessimization” (效能劣化)。
+另一方面，如果發生系統崩潰， 在系統重新啟動後， 所有尚未完成的 meta-data 操作可以很快地從
+logging area 回復或完成， 進而加速檔案系統的啟動。</p>
+
+<p>Kirk McKusick, Berkeley FFS 的開發者， 利用 Soft Updates 解決了這個問題：
+所有的未完成的 meta-data 更新都保留在記憶體，按照排列的順序依序寫回硬碟中 (“有序的
+meta-data 更新”)。 這樣的結果是，在繁重的 meta-data 操作中， 對於同一個
+item，如果先前的更新仍然在記憶體中， 而尚未寫入到硬碟中， 後面的更新會 “捕捉”
+到先前的更新。 所以在更新寫入到硬碟之前，
+所有的操作，比如說，目錄的操作一般會在記憶體中執行 (data blocks 會依照它們的位置做排序，
+不會比 meta-update 還早寫入到硬碟) 如果發生系統崩潰，會導致一個隱性的 “log rewind”：
+所有出現錯誤不知道如何寫入硬碟的操作就像它們從未發生一樣。 檔案系統和 30 至 60
+秒前的狀態維持一致。 其使用的演算法保證所有正被使用中的資源，例如：blocks 和 inodes
+會被標記在它們的 bitmaps 裡。 在系統崩潰後，唯一的資源配置錯誤會發生在那些 被標記成
+“used” 但實際上是 “free” 的資源中。 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=fsck&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">fsck</span>(8)</span></a>
+會檢查出這種情況， 並且釋放這些不再被使用的資源。 對於在系統崩潰後使用 <tt
+class="COMMAND">mount -f</tt> 來強制掛載的檔案系統， 忽略其 dirty state 是安全的。
+為了釋放那些可能沒被使用的資源，<a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=fsck&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">fsck</span>(8)</span></a>
+需要過一段時間後再執行。 這個想法稱為 <span class="emphasis"><b
+class="EMPHASIS">background fsck</b></span>： 在系統啟動的時候，只對檔案系統記下當時的
+<span class="emphasis"><b class="EMPHASIS">snapshot</b></span>。 <tt
+class="COMMAND">fsck</tt> 便可以過一段時間再執行。 因為所有的檔案系統都可以在 “dirty”
+的狀態下掛載， 所以系統可以啟動在多使用者模式下。 然後，為了釋放不再被使用的資源，
+background <tt class="COMMAND">fsck</tt> 會被加入排程。 (然而未使用 Soft Updates
+的檔案系統仍然需要一般的 foreground <tt class="COMMAND">fsck</tt>)</p>
+
+<p>The advantage is that meta-data operations are nearly as fast as asynchronous updates
+(i.e. faster than with <span class="emphasis"><b class="EMPHASIS">logging</b></span>,
+which has to write the meta-data twice). The disadvantages are the complexity of the code
+(implying a higher risk for bugs in an area that is highly sensitive regarding loss of
+user data), and a higher memory consumption. Additionally there are some idiosyncrasies
+one has to get used to. After a crash, the state of the filesystem appears to be somewhat
+“older”. In situations where the standard synchronous approach would have caused some
+zero-length files to remain after the <tt class="COMMAND">fsck</tt>, these files do not
+exist at all with a Soft Updates filesystem because neither the meta-data nor the file
+contents have ever been written to disk. Disk space is not released until the updates
+have been written to disk, which may take place some time after running <tt
+class="COMMAND">rm</tt>. This may cause problems when installing large amounts of data on
+a filesystem that does not have enough free space to hold all the files twice.</p>
+</div>
+</div>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="configtuning-sysctl.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="configtuning-kernel-limits.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">Tuning with sysctl</td>
+<td width="34%" align="center" valign="top"><a href="config-tuning.html"
+accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">Tuning Kernel Limits</td>
+</tr>
+</table>
+</div>
+
+<p align="center"><small>本文及其他文件，可由此下載：<a
+href="ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/">ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/</a>。</small></p>
+
+<p align="center"><small>若有 FreeBSD 方面疑問，請先閱讀 <a
+href="http://www.FreeBSD.org/docs.html">FreeBSD 相關文件</a>，如不能解決的話，再洽詢
+&#60;<a href="mailto:questions@FreeBSD.org">questions@FreeBSD.org</a>&#62;。<br />
+關於本文件的問題，請洽詢 &#60;<a
+href="mailto:doc@FreeBSD.org">doc@FreeBSD.org</a>&#62;。</small></p>
+</body>
+</html>
+

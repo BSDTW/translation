@@ -1,0 +1,661 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>硬碟空間的分配</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.79" />
+<link rel="HOME" title="FreeBSD 使用手冊" href="index.html" />
+<link rel="UP" title="安裝 FreeBSD" href="install.html" />
+<link rel="PREVIOUS" title="介紹 Sysinstall" href="using-sysinstall.html" />
+<link rel="NEXT" title="選擇想要安裝的" href="install-choosing.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD 使用手冊</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="using-sysinstall.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 2 安裝 FreeBSD</td>
+<td width="10%" align="right" valign="bottom"><a href="install-choosing.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="INSTALL-STEPS" name="INSTALL-STEPS">2.5 硬碟空間的分配</a></h1>
+
+<p>Your first task is to allocate disk space for FreeBSD, and label that space so that <b
+class="APPLICATION">sysinstall</b> can prepare it. In order to do this you need to know
+how FreeBSD expects to find information on the disk.</p>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="INSTALL-DRIVE-BIOS-NUMBERING"
+name="INSTALL-DRIVE-BIOS-NUMBERING">2.5.1 BIOS 磁碟機編號</a></h2>
+
+<p>Before you install and configure FreeBSD on your system, there is an important subject
+that you should be aware of, especially if you have multiple hard drives.</p>
+
+<p>In a PC running a BIOS-dependent operating system such as <span
+class="TRADEMARK">MS-DOS</span>&reg; or <span
+class="TRADEMARK">Microsoft</span>&reg;&nbsp;<span class="TRADEMARK">Windows</span>&reg;,
+the BIOS is able to abstract the normal disk drive order, and the operating system goes
+along with the change. This allows the user to boot from a disk drive other than the
+so-called “primary master”. This is especially convenient for some users who have found
+that the simplest and cheapest way to keep a system backup is to buy an identical second
+hard drive, and perform routine copies of the first drive to the second drive using <b
+class="APPLICATION"><span class="TRADEMARK">Ghost</span>&reg;</b> or <b
+class="APPLICATION">XCOPY</b> . Then, if the first drive fails, or is attacked by a
+virus, or is scribbled upon by an operating system defect, he can easily recover by
+instructing the BIOS to logically swap the drives. It is like switching the cables on the
+drives, but without having to open the case.</p>
+
+<p>More expensive systems with SCSI controllers often include BIOS extensions which allow
+the SCSI drives to be re-ordered in a similar fashion for up to seven drives.</p>
+
+<p>A user who is accustomed to taking advantage of these features may become surprised
+when the results with FreeBSD are not as expected. FreeBSD does not use the BIOS, and
+does not know the “logical BIOS drive mapping”. This can lead to very perplexing
+situations, especially when drives are physically identical in geometry, and have also
+been made as data clones of one another.</p>
+
+<p>When using FreeBSD, always restore the BIOS to natural drive numbering before
+installing FreeBSD, and then leave it that way. If you need to switch drives around, then
+do so, but do it the hard way, and open the case and move the jumpers and cables.</p>
+
+<table class="SIDEBAR" border="1" cellpadding="5">
+<tr>
+<td>
+<div class="SIDEBAR"><a id="AEN1682" name="AEN1682"></a>
+<p><b>範例：Bill 及 Fred 的安裝歷險</b></p>
+
+<p>Bill breaks-down an older Wintel box to make another FreeBSD box for Fred. Bill
+installs a single SCSI drive as SCSI unit zero and installs FreeBSD on it.</p>
+
+<p>Fred begins using the system, but after several days notices that the older SCSI drive
+is reporting numerous soft errors and reports this fact to Bill.</p>
+
+<p>After several more days, Bill decides it is time to address the situation, so he grabs
+an identical SCSI drive from the disk drive “archive” in the back room. An initial
+surface scan indicates that this drive is functioning well, so Bill installs this drive
+as SCSI unit four and makes an image copy from drive zero to drive four. Now that the new
+drive is installed and functioning nicely, Bill decides that it is a good idea to start
+using it, so he uses features in the SCSI BIOS to re-order the disk drives so that the
+system boots from SCSI unit four. FreeBSD boots and runs just fine.</p>
+
+<p>Fred continues his work for several days, and soon Bill and Fred decide that it is
+time for a new adventure -- time to upgrade to a newer version of FreeBSD. Bill removes
+SCSI unit zero because it was a bit flaky and replaces it with another identical disk
+drive from the “archive”. Bill then installs the new version of FreeBSD onto the new
+SCSI unit zero using Fred's magic Internet FTP floppies. The installation goes well.</p>
+
+<p>Fred uses the new version of FreeBSD for a few days, and certifies that it is good
+enough for use in the engineering department. It is time to copy all of his work from the
+old version. So Fred mounts SCSI unit four (the latest copy of the older FreeBSD
+version). Fred is dismayed to find that none of his precious work is present on SCSI unit
+four.</p>
+
+<p>Where did the data go?</p>
+
+<p>When Bill made an image copy of the original SCSI unit zero onto SCSI unit four, unit
+four became the “new clone”. When Bill re-ordered the SCSI BIOS so that he could boot
+from SCSI unit four, he was only fooling himself. FreeBSD was still running on SCSI unit
+zero. Making this kind of BIOS change will cause some or all of the Boot and Loader code
+to be fetched from the selected BIOS drive, but when the FreeBSD kernel drivers
+take-over, the BIOS drive numbering will be ignored, and FreeBSD will transition back to
+normal drive numbering. In the illustration at hand, the system continued to operate on
+the original SCSI unit zero, and all of Fred's data was there, not on SCSI unit four. The
+fact that the system appeared to be running on SCSI unit four was simply an artifact of
+human expectations.</p>
+
+<p>We are delighted to mention that no data bytes were killed or harmed in any way by our
+discovery of this phenomenon. The older SCSI unit zero was retrieved from the bone pile,
+and all of Fred's work was returned to him, (and now Bill knows that he can count as high
+as zero).</p>
+
+<p>Although SCSI drives were used in this illustration, the concepts apply equally to IDE
+drives.</p>
+</div>
+</td>
+</tr>
+</table>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="MAIN-FDISK" name="MAIN-FDISK">2.5.2 以 FDisk
+來建立分割磁區(Slices)</a></h2>
+
+<div class="NOTE">
+<blockquote class="NOTE">
+<p><b>Note:</b> No changes you make at this point will be written to the disk. If you
+think you have made a mistake and want to start again you can use the menus to exit <b
+class="APPLICATION">sysinstall</b> and try again or press <b class="KEYCAP">U</b> to use
+the <span class="GUIMENUITEM">Undo</span> option. If you get confused and can not see how
+to exit you can always turn your computer off.</p>
+</blockquote>
+</div>
+
+<p>After choosing to begin a standard installation in <b
+class="APPLICATION">sysinstall</b> you will be shown this message:</p>
+
+<pre class="SCREEN">
+                                 Message
+ In the next menu, you will need to set up a DOS-style ("fdisk")
+ partitioning scheme for your hard disk. If you simply wish to devote
+ all disk space to FreeBSD (overwriting anything else that might be on
+ the disk(s) selected) then use the (A)ll command to select the default
+ partitioning scheme followed by a (Q)uit. If you wish to allocate only
+ free space to FreeBSD, move to a partition marked "unused" and use the
+ (C)reate command. 
+                                [  OK  ] 
+
+                      [ Press enter or space ]
+</pre>
+
+<p>Press <b class="KEYCAP">Enter</b> as instructed. You will then be shown a list of all
+the hard drives that the kernel found when it carried out the device probes. <a
+href="install-steps.html#SYSINSTALL-FDISK-DRIVE1">Figure 2-16</a> shows an example from a
+system with two IDE disks. They have been called <tt class="DEVICENAME">ad0</tt> and <tt
+class="DEVICENAME">ad2</tt>.</p>
+
+<div class="FIGURE"><a id="SYSINSTALL-FDISK-DRIVE1" name="SYSINSTALL-FDISK-DRIVE1"></a>
+<p><b>Figure 2-16. 選擇 FDisk 要分割的硬碟</b></p>
+
+<p><img src="install/fdisk-drive1.png" /></p>
+</div>
+
+<p>You might be wondering why <tt class="DEVICENAME">ad1</tt> is not listed here. Why has
+it been missed?</p>
+
+<p>Consider what would happen if you had two IDE hard disks, one as the master on the
+first IDE controller, and one as the master on the second IDE controller. If FreeBSD
+numbered these as it found them, as <tt class="DEVICENAME">ad0</tt> and <tt
+class="DEVICENAME">ad1</tt> then everything would work.</p>
+
+<p>But if you then added a third disk, as the slave device on the first IDE controller,
+it would now be <tt class="DEVICENAME">ad1</tt>, and the previous <tt
+class="DEVICENAME">ad1</tt> would become <tt class="DEVICENAME">ad2</tt>. Because device
+names (such as <tt class="DEVICENAME">ad1s1a</tt>) are used to find filesystems, you may
+suddenly discover that some of your filesystems no longer appear correctly, and you would
+need to change your FreeBSD configuration.</p>
+
+<p>To work around this, the kernel can be configured to name IDE disks based on where
+they are, and not the order in which they were found. With this scheme the master disk on
+the second IDE controller will <span class="emphasis"><i
+class="EMPHASIS">always</i></span> be <tt class="DEVICENAME">ad2</tt>, even if there are
+no <tt class="DEVICENAME">ad0</tt> or <tt class="DEVICENAME">ad1</tt> devices.</p>
+
+<p>This configuration is the default for the FreeBSD kernel, which is why this display
+shows <tt class="DEVICENAME">ad0</tt> and <tt class="DEVICENAME">ad2</tt>. The machine on
+which this screenshot was taken had IDE disks on both master channels of the IDE
+controllers, and no disks on the slave channels.</p>
+
+<p>You should select the disk on which you want to install FreeBSD, and then press <span
+class="GUIBUTTON">[&nbsp;OK&nbsp;]</span>. <b class="APPLICATION">FDisk</b> will start,
+with a display similar to that shown in <a
+href="install-steps.html#SYSINSTALL-FDISK1">Figure 2-17</a>.</p>
+
+<p>The <b class="APPLICATION">FDisk</b> display is broken into three sections.</p>
+
+<p>The first section, covering the first two lines of the display, shows details about
+the currently selected disk, including its FreeBSD name, the disk geometry, and the total
+size of the disk.</p>
+
+<p>The second section shows the slices that are currently on the disk, where they start
+and end, how large they are, the name FreeBSD gives them, and their description and
+sub-type. This example shows two small unused slices, which are artifacts of disk layout
+schemes on the PC. It also shows one large <acronym class="ACRONYM">FAT</acronym> slice,
+which almost certainly appears as <tt class="DEVICENAME">C:</tt> in <span
+class="TRADEMARK">MS-DOS</span> / <span class="TRADEMARK">Windows</span>, and an extended
+slice, which may contain other drive letters for <span class="TRADEMARK">MS-DOS</span> /
+<span class="TRADEMARK">Windows</span>.</p>
+
+<p>The third section shows the commands that are available in <b
+class="APPLICATION">FDisk</b>.</p>
+
+<div class="FIGURE"><a id="SYSINSTALL-FDISK1" name="SYSINSTALL-FDISK1"></a>
+<p><b>Figure 2-17. (舉例)未編輯前的 Fdisk 分割區(Partition)</b></p>
+
+<p><img src="install/fdisk-edit1.png" /></p>
+</div>
+
+<p>What you do now will depend on how you want to slice up your disk.</p>
+
+<p>If you want to use FreeBSD for the entire disk (which will delete all the other data
+on this disk when you confirm that you want <b class="APPLICATION">sysinstall</b> to
+continue later in the installation process) then you can press <b class="KEYCAP">A</b>,
+which corresponds to the <span class="GUIMENUITEM">Use Entire Disk</span> option. The
+existing slices will be removed, and replaced with a small area flagged as <tt
+class="LITERAL">unused</tt> (again, an artifact of PC disk layout), and then one large
+slice for FreeBSD. If you do this, then you should select the newly created FreeBSD slice
+using the arrow keys, and press <b class="KEYCAP">S</b> to mark the slice as being
+bootable. The screen will then look very similar to <a
+href="install-steps.html#SYSINSTALL-FDISK2">Figure 2-18</a>. Note the <tt
+class="LITERAL">A</tt> in the <tt class="LITERAL">Flags</tt> column, which indicates that
+this slice is <span class="emphasis"><i class="EMPHASIS">active</i></span>, and will be
+booted from.</p>
+
+<p>If you will be deleting an existing slice to make space for FreeBSD then you should
+select the slice using the arrow keys, and then press <b class="KEYCAP">D</b>. You can
+then press <b class="KEYCAP">C</b>, and be prompted for size of slice you want to create.
+Enter the appropriate figure and press <b class="KEYCAP">Enter</b>. The default value in
+this box represents the largest possible slice you can make, which could be the largest
+contiguous block of unallocated space or the size of the entire hard disk.</p>
+
+<p>If you have already made space for FreeBSD (perhaps by using a tool such as <b
+class="APPLICATION"><span class="TRADEMARK">PartitionMagic</span>&reg;</b>) then you can
+press <b class="KEYCAP">C</b> to create a new slice. Again, you will be prompted for the
+size of slice you would like to create.</p>
+
+<div class="FIGURE"><a id="SYSINSTALL-FDISK2" name="SYSINSTALL-FDISK2"></a>
+<p><b>Figure 2-18. Fdisk 採用整顆硬碟作分割區(Partition)</b></p>
+
+<p><img src="install/fdisk-edit2.png" /></p>
+</div>
+
+<p>When finished, press <b class="KEYCAP">Q</b>. Your changes will be saved in <b
+class="APPLICATION">sysinstall</b>, but will not yet be written to disk.</p>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="BOOTMGR" name="BOOTMGR">2.5.3 安裝 Boot Manager</a></h2>
+
+<p>You now have the option to install a boot manager. In general, you should choose to
+install the FreeBSD boot manager if:</p>
+
+<ul>
+<li>
+<p>You have more than one drive, and have installed FreeBSD onto a drive other than the
+first one.</p>
+</li>
+
+<li>
+<p>You have installed FreeBSD alongside another operating system on the same disk, and
+you want to choose whether to start FreeBSD or the other operating system when you start
+the computer.</p>
+</li>
+</ul>
+
+<p>If FreeBSD is going to be the only operating system on this machine, installed on the
+first hard disk, then the <span class="GUIMENUITEM">Standard</span> boot manager will
+suffice. Choose <span class="GUIMENUITEM">None</span> if you are using a third-party boot
+manager capable of booting FreeBSD.</p>
+
+<p>Make your choice and press <b class="KEYCAP">Enter</b>.</p>
+
+<div class="FIGURE"><a id="SYSINSTALL-BOOTMGR" name="SYSINSTALL-BOOTMGR"></a>
+<p><b>Figure 2-19. Sysinstall 的 Boot Manager 選單</b></p>
+
+<p><img src="install/boot-mgr.png" /></p>
+</div>
+
+<p>The help screen, reached by pressing <b class="KEYCAP">F1</b>, discusses the problems
+that can be encountered when trying to share the hard disk between operating systems.</p>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN1802" name="AEN1802">2.5.4
+在其他硬碟上建立分割磁區(Slices)</a></h2>
+
+<p>If there is more than one drive, it will return to the Select Drives screen after the
+boot manager selection. If you wish to install FreeBSD on to more than one disk, then you
+can select another disk here and repeat the slice process using <b
+class="APPLICATION">FDisk</b>.</p>
+
+<div class="IMPORTANT">
+<blockquote class="IMPORTANT">
+<p><b>Important:</b> If you are installing FreeBSD on a drive other than your first, then
+the FreeBSD boot manager needs to be installed on both drives.</p>
+</blockquote>
+</div>
+
+<div class="FIGURE"><a id="SYSINSTALL-FDISK-DRIVE2" name="SYSINSTALL-FDISK-DRIVE2"></a>
+<p><b>Figure 2-20. 離開『選擇硬碟』畫面</b></p>
+
+<p><img src="install/fdisk-drive2.png" /></p>
+</div>
+
+<p>The <b class="KEYCAP">Tab</b> key toggles between the last drive selected, <span
+class="GUIBUTTON">[&nbsp;OK&nbsp;]</span>, and <span
+class="GUIBUTTON">[&nbsp;Cancel&nbsp;]</span>.</p>
+
+<p>Press the <b class="KEYCAP">Tab</b> once to toggle to the <span
+class="GUIBUTTON">[&nbsp;OK&nbsp;]</span>, then press <b class="KEYCAP">Enter</b> to
+continue with the installation.</p>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="DISKLABELEDITOR" name="DISKLABELEDITOR">2.5.5 以 <b
+class="APPLICATION">Disklabel</b> 來建立分割區(Partitions)</a></h2>
+
+<p>You must now create some partitions inside each slice that you have just created.
+Remember that each partition is lettered, from <tt class="LITERAL">a</tt> through to <tt
+class="LITERAL">h</tt>, and that partitions <tt class="LITERAL">b</tt>, <tt
+class="LITERAL">c</tt>, and <tt class="LITERAL">d</tt> have conventional meanings that
+you should adhere to.</p>
+
+<p>Certain applications can benefit from particular partition schemes, especially if you
+are laying out partitions across more than one disk. However, for this, your first
+FreeBSD installation, you do not need to give too much thought to how you partition the
+disk. It is more important that you install FreeBSD and start learning how to use it. You
+can always re-install FreeBSD to change your partition scheme when you are more familiar
+with the operating system.</p>
+
+<p>This scheme features four partitions--one for swap space, and three for
+filesystems.</p>
+
+<div class="TABLE"><a id="AEN1832" name="AEN1832"></a>
+<p><b>Table 2-2. 第一顆硬碟的分割區(Partition)配置</b></p>
+
+<table border="0" frame="void" width="100%" class="CALSTABLE">
+<col width="14%" />
+<col width="14%" />
+<col width="14%" />
+<col width="57%" />
+<thead>
+<tr>
+<th>Partition</th>
+<th>Filesystem</th>
+<th>Size</th>
+<th>Description</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><tt class="LITERAL">a</tt></td>
+<td><tt class="FILENAME">/</tt></td>
+<td>100&nbsp;MB</td>
+<td>This is the root filesystem. Every other filesystem will be mounted somewhere under
+this one. 100&nbsp;MB is a reasonable size for this filesystem. You will not be storing
+too much data on it, as a regular FreeBSD install will put about 40&nbsp;MB of data here.
+The remaining space is for temporary data, and also leaves expansion space if future
+versions of FreeBSD need more space in <tt class="FILENAME">/</tt>.</td>
+</tr>
+
+<tr>
+<td><tt class="LITERAL">b</tt></td>
+<td>N/A</td>
+<td>2-3 x RAM</td>
+<td>
+<p>The system's swap space is kept on this partition. Choosing the right amount of swap
+space can be a bit of an art. A good rule of thumb is that your swap space should be two
+or three times as much as the available physical memory (RAM). You should also have at
+least 64&nbsp;MB of swap, so if you have less than 32&nbsp;MB of RAM in your computer
+then set the swap amount to 64&nbsp;MB.</p>
+
+<p>&#13; If you have more than one disk then you can put swap space on each disk. FreeBSD
+will then use each disk for swap, which effectively speeds up the act of swapping. In
+this case, calculate the total amount of swap you need (e.g., 128&nbsp;MB), and then
+divide this by the number of disks you have (e.g., two disks) to give the amount of swap
+you should put on each disk, in this example, 64&nbsp;MB of swap per disk.</p>
+</td>
+</tr>
+
+<tr>
+<td><tt class="LITERAL">e</tt></td>
+<td><tt class="FILENAME">/var</tt></td>
+<td>50&nbsp;MB</td>
+<td>The <tt class="FILENAME">/var</tt> directory contains files that are constantly
+varying; log files, and other administrative files. Many of these files are read-from or
+written-to extensively during FreeBSD's day-to-day running. Putting these files on
+another filesystem allows FreeBSD to optimize the access of these files without affecting
+other files in other directories that do not have the same access pattern.</td>
+</tr>
+
+<tr>
+<td><tt class="LITERAL">f</tt></td>
+<td><tt class="FILENAME">/usr</tt></td>
+<td>Rest of disk</td>
+<td>All your other files will typically be stored in <tt class="FILENAME">/usr</tt> and
+its subdirectories.</td>
+</tr>
+</tbody>
+</table>
+</div>
+
+<p>If you will be installing FreeBSD on to more than one disk then you must also create
+partitions in the other slices that you configured. The easiest way to do this is to
+create two partitions on each disk, one for the swap space, and one for a filesystem.</p>
+
+<div class="TABLE"><a id="AEN1879" name="AEN1879"></a>
+<p><b>Table 2-3. 其他硬碟的分割區(Partition)配置</b></p>
+
+<table border="0" frame="void" width="100%" class="CALSTABLE">
+<col width="14%" />
+<col width="14%" />
+<col width="29%" />
+<col width="43%" />
+<thead>
+<tr>
+<th>Partition</th>
+<th>Filesystem</th>
+<th>Size</th>
+<th>Description</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><tt class="LITERAL">b</tt></td>
+<td>N/A</td>
+<td>See description</td>
+<td>As already discussed, you can split swap space across each disk. Even though the <tt
+class="LITERAL">a</tt> partition is free, convention dictates that swap space stays on
+the <tt class="LITERAL">b</tt> partition.</td>
+</tr>
+
+<tr>
+<td><tt class="LITERAL">e</tt></td>
+<td>/disk<tt class="REPLACEABLE"><i>n</i></tt></td>
+<td>Rest of disk</td>
+<td>The rest of the disk is taken up with one big partition. This could easily be put on
+the <tt class="LITERAL">a</tt> partition, instead of the <tt class="LITERAL">e</tt>
+partition. However, convention says that the <tt class="LITERAL">a</tt> partition on a
+slice is reserved for the filesystem that will be the root (<tt class="FILENAME">/</tt>)
+filesystem. You do not have to follow this convention, but <b
+class="APPLICATION">sysinstall</b> does, so following it yourself makes the installation
+slightly cleaner. You can choose to mount this filesystem anywhere; this example suggests
+that you mount them as directories <tt class="FILENAME">/disk<tt
+class="REPLACEABLE"><i>n</i></tt></tt>, where <tt class="REPLACEABLE"><i>n</i></tt> is a
+number that changes for each disk. But you can use another scheme if you prefer.</td>
+</tr>
+</tbody>
+</table>
+</div>
+
+<p>Having chosen your partition layout you can now create it using <b
+class="APPLICATION">sysinstall</b>. You will see this message:</p>
+
+<pre class="SCREEN">
+                                 Message
+ Now, you need to create BSD partitions inside of the fdisk
+ partition(s) just created. If you have a reasonable amount of disk
+ space (200MB or more) and don't have any special requirements, simply
+ use the (A)uto command to allocate space automatically. If you have
+ more specific needs or just don't care for the layout chosen by
+ (A)uto, press F1 for more information on manual layout.  
+
+                                [  OK  ]
+                          [ Press enter or space ]
+</pre>
+
+<p>Press <b class="KEYCAP">Enter</b> to start the FreeBSD partition editor, called <b
+class="APPLICATION">Disklabel</b>.</p>
+
+<p><a href="install-steps.html#SYSINSTALL-LABEL">Figure 2-21</a> shows the display when
+you first start <b class="APPLICATION">Disklabel</b>. The display is divided in to three
+sections.</p>
+
+<p>The first few lines show the name of the disk you are currently working on, and the
+slice that contains the partitions you are creating (at this point <b
+class="APPLICATION">Disklabel</b> calls this the <tt class="LITERAL">Partition name</tt>
+rather than slice name). This display also shows the amount of free space within the
+slice; that is, space that was set aside in the slice, but that has not yet been assigned
+to a partition.</p>
+
+<p>The middle of the display shows the partitions that have been created, the name of the
+filesystem that each partition contains, their size, and some options pertaining to the
+creation of the filesystem.</p>
+
+<p>The bottom third of the screen shows the keystrokes that are valid in <b
+class="APPLICATION">Disklabel</b>.</p>
+
+<div class="FIGURE"><a id="SYSINSTALL-LABEL" name="SYSINSTALL-LABEL"></a>
+<p><b>Figure 2-21. Sysinstall 的 Disklabel 編輯器</b></p>
+
+<p><img src="install/disklabel-ed1.png" /></p>
+</div>
+
+<p><b class="APPLICATION">Disklabel</b> can automatically create partitions for you and
+assign them default sizes. Try this now, by Pressing <b class="KEYCAP">A</b>. You will
+see a display similar to that shown in <a
+href="install-steps.html#SYSINSTALL-LABEL2">Figure 2-22</a>. Depending on the size of the
+disk you are using, the defaults may or may not be appropriate. This does not matter, as
+you do not have to accept the defaults.</p>
+
+<div class="NOTE">
+<blockquote class="NOTE">
+<p><b>Note:</b> Beginning with FreeBSD&nbsp;4.5, the default partitioning assigns the <tt
+class="FILENAME">/tmp</tt> directory its own partition instead of being part of the <tt
+class="FILENAME">/</tt> partition. This helps avoid filling the <tt
+class="FILENAME">/</tt> partition with temporary files.</p>
+</blockquote>
+</div>
+
+<div class="FIGURE"><a id="SYSINSTALL-LABEL2" name="SYSINSTALL-LABEL2"></a>
+<p><b>Figure 2-22. Sysinstall 的 Disklabel 編輯器 — 使用自動分配</b></p>
+
+<p><img src="install/disklabel-auto.png" /></p>
+</div>
+
+<p>If you choose to not use the default partitions and wish to replace them with your
+own, use the arrow keys to select the first partition, and press <b class="KEYCAP">D</b>
+to delete it. Repeat this to delete all the suggested partitions.</p>
+
+<p>To create the first partition (<tt class="LITERAL">a</tt>, mounted as <tt
+class="FILENAME">/</tt> -- root), make sure the proper disk slice at the top of the
+screen is selected and press <b class="KEYCAP">C</b>. A dialog box will appear prompting
+you for the size of the new partition (as shown in <a
+href="install-steps.html#SYSINSTALL-LABEL-ADD">Figure 2-23</a>). You can enter the size
+as the number of disk blocks you want to use, or as a number followed by either <tt
+class="LITERAL">M</tt> for megabytes, <tt class="LITERAL">G</tt> for gigabytes, or <tt
+class="LITERAL">C</tt> for cylinders.</p>
+
+<div class="NOTE">
+<blockquote class="NOTE">
+<p><b>Note:</b> Beginning with FreeBSD&nbsp;5.X, users can: select <acronym
+class="ACRONYM">UFS2</acronym> (which is default on FreeBSD&nbsp;5.1 and above) using the
+<tt class="LITERAL">Custom Newfs</tt> (<b class="KEYCAP">Z</b>) option, create labels
+with <tt class="LITERAL">Auto Defaults</tt> and modify them with the <tt
+class="LITERAL">Custom Newfs</tt> option or add <code class="OPTION">-O 2</code> during
+the regular creation period. Do not forget to add <code class="OPTION">-U</code> for
+SoftUpdates if you use the <tt class="LITERAL">Custom Newfs</tt> option!</p>
+</blockquote>
+</div>
+
+<div class="FIGURE"><a id="SYSINSTALL-LABEL-ADD" name="SYSINSTALL-LABEL-ADD"></a>
+<p><b>Figure 2-23. Free Space for Root Partition</b></p>
+
+<p><img src="install/disklabel-root1.png" /></p>
+</div>
+
+<p>The default size shown will create a partition that takes up the rest of the slice. If
+you are using the partition sizes described in the earlier example, then delete the
+existing figure using <b class="KEYCAP">Backspace</b>, and then type in <kbd
+class="USERINPUT">64M</kbd>, as shown in <a
+href="install-steps.html#SYSINSTALL-LABEL-ADD2">Figure 2-24</a>. Then press <span
+class="GUIBUTTON">[&nbsp;OK&nbsp;]</span>.</p>
+
+<div class="FIGURE"><a id="SYSINSTALL-LABEL-ADD2" name="SYSINSTALL-LABEL-ADD2"></a>
+<p><b>Figure 2-24. Edit Root Partition Size</b></p>
+
+<p><img src="install/disklabel-root2.png" /></p>
+</div>
+
+<p>Having chosen the partition's size you will then be asked whether this partition will
+contain a filesystem or swap space. The dialog box is shown in <a
+href="install-steps.html#SYSINSTALL-LABEL-TYPE">Figure 2-25</a>. This first partition
+will contain a filesystem, so check that <span class="GUIMENUITEM">FS</span> is selected
+and press <b class="KEYCAP">Enter</b>.</p>
+
+<div class="FIGURE"><a id="SYSINSTALL-LABEL-TYPE" name="SYSINSTALL-LABEL-TYPE"></a>
+<p><b>Figure 2-25. Choose the Root Partition Type</b></p>
+
+<p><img src="install/disklabel-fs.png" /></p>
+</div>
+
+<p>Finally, because you are creating a filesystem, you must tell <b
+class="APPLICATION">Disklabel</b> where the filesystem is to be mounted. The dialog box
+is shown in <a href="install-steps.html#SYSINSTALL-LABEL-MOUNT">Figure 2-26</a>. The root
+filesystem's mount point is <tt class="FILENAME">/</tt>, so type <kbd
+class="USERINPUT">/</kbd>, and then press <b class="KEYCAP">Enter</b>.</p>
+
+<div class="FIGURE"><a id="SYSINSTALL-LABEL-MOUNT" name="SYSINSTALL-LABEL-MOUNT"></a>
+<p><b>Figure 2-26. Choose the Root Mount Point</b></p>
+
+<p><img src="install/disklabel-root3.png" /></p>
+</div>
+
+<p>The display will then update to show you the newly created partition. You should
+repeat this procedure for the other partitions. When you create the swap partition, you
+will not be prompted for the filesystem mount point, as swap partitions are never
+mounted. When you create the final partition, <tt class="FILENAME">/usr</tt>, you can
+leave the suggested size as is, to use the rest of the slice.</p>
+
+<p>Your final FreeBSD DiskLabel Editor screen will appear similar to <a
+href="install-steps.html#SYSINSTALL-LABEL4">Figure 2-27</a>, although your values chosen
+may be different. Press <b class="KEYCAP">Q</b> to finish.</p>
+
+<div class="FIGURE"><a id="SYSINSTALL-LABEL4" name="SYSINSTALL-LABEL4"></a>
+<p><b>Figure 2-27. Sysinstall Disklabel Editor</b></p>
+
+<p><img src="install/disklabel-ed2.png" /></p>
+</div>
+</div>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="using-sysinstall.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="install-choosing.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">介紹 Sysinstall</td>
+<td width="34%" align="center" valign="top"><a href="install.html"
+accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">選擇想要安裝的</td>
+</tr>
+</table>
+</div>
+
+<p align="center"><small>This, and other documents, can be downloaded from <a
+href="ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/">ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/</a>.</small></p>
+
+<p align="center"><small>For questions about FreeBSD, read the <a
+href="http://www.FreeBSD.org/docs.html">documentation</a> before contacting &#60;<a
+href="mailto:questions@FreeBSD.org">questions@FreeBSD.org</a>&#62;.<br />
+For questions about this documentation, e-mail &#60;<a
+href="mailto:doc@FreeBSD.org">doc@FreeBSD.org</a>&#62;.</small></p>
+</body>
+</html>
+

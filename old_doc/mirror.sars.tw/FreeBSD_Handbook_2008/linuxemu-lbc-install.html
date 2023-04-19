@@ -1,0 +1,310 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>安裝</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.79" />
+<link rel="HOME" title="FreeBSD 使用手冊" href="index.html" />
+<link rel="UP" title="與 Linux Binary 的相容方面" href="linuxemu.html" />
+<link rel="PREVIOUS" title="與 Linux Binary 的相容方面" href="linuxemu.html" />
+<link rel="NEXT" title="Installing Mathematica" href="linuxemu-mathematica.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD 使用手冊</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="linuxemu.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 10 與 Linux Binary 的相容方面</td>
+<td width="10%" align="right" valign="bottom"><a href="linuxemu-mathematica.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="LINUXEMU-LBC-INSTALL" name="LINUXEMU-LBC-INSTALL">10.2
+安裝</a></h1>
+
+<p>預設並不會打開 Linux 相容模式，最簡單的啟用方式，就是載入 <tt
+class="LITERAL">linux</tt> KLD object (“Kernel LoaDable object”)。 載入方式，請切為 <tt
+class="USERNAME">root</tt> 權限，然後打下列指令：</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">kldload linux</kbd>
+</pre>
+
+<p>若要每次開機都啟用的話，請把下列內容加到 <tt class="FILENAME">/etc/rc.conf</tt>
+檔：</p>
+
+<pre class="PROGRAMLISTING">
+linux_enable="YES"
+</pre>
+
+<p>另外可以用 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=kldstat&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">kldstat</span>(8)</span></a>
+指令，來確認有哪些 KLD 有載入：</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">%</samp> <kbd class="USERINPUT">kldstat</kbd>
+Id Refs Address    Size     Name
+ 1    2 0xc0100000 16bdb8   kernel
+ 7    1 0xc24db000 d000     linux.ko
+</pre>
+
+<p>If for some reason you do not want to or cannot load the KLD, then you may statically
+link Linux binary compatibility into the kernel by adding <tt class="LITERAL">options
+COMPAT_LINUX</tt> to your kernel configuration file. Then install your new kernel as
+described in <a href="kernelconfig.html">Chapter 8</a>.</p>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN12553" name="AEN12553">10.2.1 Installing Linux Runtime
+Libraries</a></h2>
+
+<p>This can be done one of two ways, either by using the <a
+href="linuxemu-lbc-install.html#LINUXEMU-LIBS-PORT">linux_base</a> port, or by installing
+them <a href="linuxemu-lbc-install.html#LINUXEMU-LIBS-MANUALLY">manually</a>.</p>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="LINUXEMU-LIBS-PORT" name="LINUXEMU-LIBS-PORT">10.2.1.1
+Installing Using the linux_base Port</a></h3>
+
+<p>This is by far the easiest method to use when installing the runtime libraries. It is
+just like installing any other port from the <a href="file://localhost/usr/ports/"
+target="_top">Ports Collection</a>. Simply do the following:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">cd /usr/ports/emulators/linux_base-fc4</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">make install distclean</kbd>
+</pre>
+
+<p>You should now have working Linux binary compatibility. Some programs may complain
+about incorrect minor versions of the system libraries. In general, however, this does
+not seem to be a problem.</p>
+
+<div class="NOTE">
+<blockquote class="NOTE">
+<p><b>Note:</b> There may be multiple versions of the <a
+href="http://www.FreeBSD.org/cgi/url.cgi?ports/emulators/linux_base/pkg-descr"><tt
+class="FILENAME">emulators/linux_base</tt></a> port available, corresponding to different
+versions of various Linux distributions. You should install the port most closely
+resembling the requirements of the Linux applications you would like to install.</p>
+</blockquote>
+</div>
+</div>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="LINUXEMU-LIBS-MANUALLY" name="LINUXEMU-LIBS-MANUALLY">10.2.1.2
+Installing Libraries Manually</a></h3>
+
+<p>If you do not have the “ports” collection installed, you can install the libraries
+by hand instead. You will need the Linux shared libraries that the program depends on and
+the runtime linker. Also, you will need to create a “shadow root” directory, <tt
+class="FILENAME">/compat/linux</tt>, for Linux libraries on your FreeBSD system. Any
+shared libraries opened by Linux programs run under FreeBSD will look in this tree first.
+So, if a Linux program loads, for example, <tt class="FILENAME">/lib/libc.so</tt>,
+FreeBSD will first try to open <tt class="FILENAME">/compat/linux/lib/libc.so</tt>, and
+if that does not exist, it will then try <tt class="FILENAME">/lib/libc.so</tt>. Shared
+libraries should be installed in the shadow tree <tt
+class="FILENAME">/compat/linux/lib</tt> rather than the paths that the Linux <tt
+class="COMMAND">ld.so</tt> reports.</p>
+
+<p>Generally, you will need to look for the shared libraries that Linux binaries depend
+on only the first few times that you install a Linux program on your FreeBSD system.
+After a while, you will have a sufficient set of Linux shared libraries on your system to
+be able to run newly imported Linux binaries without any extra work.</p>
+</div>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="AEN12588" name="AEN12588">10.2.1.3 How to Install Additional
+Shared Libraries</a></h3>
+
+<p>What if you install the <tt class="FILENAME">linux_base</tt> port and your application
+still complains about missing shared libraries? How do you know which shared libraries
+Linux binaries need, and where to get them? Basically, there are 2 possibilities (when
+following these instructions you will need to be <tt class="USERNAME">root</tt> on your
+FreeBSD system).</p>
+
+<p>If you have access to a Linux system, see what shared libraries the application needs,
+and copy them to your FreeBSD system. Look at the following example:</p>
+
+<div class="INFORMALEXAMPLE"><a id="AEN12596" name="AEN12596"></a>
+<p>Let us assume you used FTP to get the Linux binary of <b class="APPLICATION">Doom</b>,
+and put it on a Linux system you have access to. You then can check which shared
+libraries it needs by running <tt class="COMMAND">ldd linuxdoom</tt>, like so:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">%</samp> <kbd class="USERINPUT">ldd linuxdoom</kbd>
+libXt.so.3 (DLL Jump 3.1) =&gt; /usr/X11/lib/libXt.so.3.1.0
+libX11.so.3 (DLL Jump 3.1) =&gt; /usr/X11/lib/libX11.so.3.1.0
+libc.so.4 (DLL Jump 4.5pl26) =&gt; /lib/libc.so.4.6.29
+</pre>
+
+<p>You would need to get all the files from the last column, and put them under <tt
+class="FILENAME">/compat/linux</tt>, with the names in the first column as symbolic links
+pointing to them. This means you eventually have these files on your FreeBSD system:</p>
+
+<pre class="SCREEN">
+/compat/linux/usr/X11/lib/libXt.so.3.1.0
+/compat/linux/usr/X11/lib/libXt.so.3 -&gt; libXt.so.3.1.0
+/compat/linux/usr/X11/lib/libX11.so.3.1.0
+/compat/linux/usr/X11/lib/libX11.so.3 -&gt; libX11.so.3.1.0
+/compat/linux/lib/libc.so.4.6.29
+/compat/linux/lib/libc.so.4 -&gt; libc.so.4.6.29
+</pre>
+
+<a id="AEN12608" name="AEN12608"></a>
+<blockquote class="BLOCKQUOTE">
+<div class="NOTE">
+<blockquote class="NOTE">
+<p><b>Note:</b> Note that if you already have a Linux shared library with a matching
+major revision number to the first column of the <tt class="COMMAND">ldd</tt> output, you
+will not need to copy the file named in the last column to your system, the one you
+already have should work. It is advisable to copy the shared library anyway if it is a
+newer version, though. You can remove the old one, as long as you make the symbolic link
+point to the new one. So, if you have these libraries on your system:</p>
+
+<pre class="SCREEN">
+/compat/linux/lib/libc.so.4.6.27
+/compat/linux/lib/libc.so.4 -&gt; libc.so.4.6.27
+</pre>
+
+<p>and you find a new binary that claims to require a later version according to the
+output of <tt class="COMMAND">ldd</tt>:</p>
+
+<pre class="SCREEN">
+libc.so.4 (DLL Jump 4.5pl26) -&gt; libc.so.4.6.29
+</pre>
+
+<p>If it is only one or two versions out of date in the in the trailing digit then do not
+worry about copying <tt class="FILENAME">/lib/libc.so.4.6.29</tt> too, because the
+program should work fine with the slightly older version. However, if you like, you can
+decide to replace the <tt class="FILENAME">libc.so</tt> anyway, and that should leave you
+with:</p>
+
+<pre class="SCREEN">
+/compat/linux/lib/libc.so.4.6.29
+/compat/linux/lib/libc.so.4 -&gt; libc.so.4.6.29
+</pre>
+</blockquote>
+</div>
+</blockquote>
+
+<a id="AEN12620" name="AEN12620"></a>
+<blockquote class="BLOCKQUOTE">
+<div class="NOTE">
+<blockquote class="NOTE">
+<p><b>Note:</b> The symbolic link mechanism is <span class="emphasis"><b
+class="EMPHASIS">only</b></span> needed for Linux binaries. The FreeBSD runtime linker
+takes care of looking for matching major revision numbers itself and you do not need to
+worry about it.</p>
+</blockquote>
+</div>
+</blockquote>
+</div>
+</div>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN12624" name="AEN12624">10.2.2 Installing Linux ELF
+Binaries</a></h2>
+
+<p>ELF binaries sometimes require an extra step of “branding”. If you attempt to run an
+unbranded ELF binary, you will get an error message like the following:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">%</samp> <kbd class="USERINPUT">./my-linux-elf-binary</kbd>
+ELF binary type not known
+Abort
+</pre>
+
+<p>To help the FreeBSD kernel distinguish between a FreeBSD ELF binary from a Linux
+binary, use the <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=brandelf&amp;sektion=1"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">brandelf</span>(1)</span></a>
+utility.</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">%</samp> <kbd
+class="USERINPUT">brandelf -t Linux my-linux-elf-binary</kbd>
+</pre>
+
+<p>The GNU toolchain now places the appropriate branding information into ELF binaries
+automatically, so this step should become increasingly unnecessary in the future.</p>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN12644" name="AEN12644">10.2.3 Configuring the Hostname
+Resolver</a></h2>
+
+<p>If DNS does not work or you get this message:</p>
+
+<pre class="SCREEN">
+resolv+: "bind" is an invalid keyword resolv+:
+"hosts" is an invalid keyword
+</pre>
+
+<p>You will need to configure a <tt class="FILENAME">/compat/linux/etc/host.conf</tt>
+file containing:</p>
+
+<pre class="PROGRAMLISTING">
+order hosts, bind
+multi on
+</pre>
+
+<p>The order here specifies that <tt class="FILENAME">/etc/hosts</tt> is searched first
+and DNS is searched second. When <tt class="FILENAME">/compat/linux/etc/host.conf</tt> is
+not installed, Linux applications find FreeBSD's <tt class="FILENAME">/etc/host.conf</tt>
+and complain about the incompatible FreeBSD syntax. You should remove <tt
+class="LITERAL">bind</tt> if you have not configured a name server using the <tt
+class="FILENAME">/etc/resolv.conf</tt> file.</p>
+</div>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="linuxemu.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="linuxemu-mathematica.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">與 Linux Binary 的相容方面</td>
+<td width="34%" align="center" valign="top"><a href="linuxemu.html"
+accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">Installing <span
+class="TRADEMARK">Mathematica</span>&reg;</td>
+</tr>
+</table>
+</div>
+
+<p align="center"><small>本文及其他文件，可由此下載：<a
+href="ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/">ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/</a>。</small></p>
+
+<p align="center"><small>若有 FreeBSD 方面疑問，請先閱讀 <a
+href="http://www.FreeBSD.org/docs.html">FreeBSD 相關文件</a>，如不能解決的話，再洽詢
+&#60;<a href="mailto:questions@FreeBSD.org">questions@FreeBSD.org</a>&#62;。<br />
+關於本文件的問題，請洽詢 &#60;<a
+href="mailto:doc@FreeBSD.org">doc@FreeBSD.org</a>&#62;。</small></p>
+</body>
+</html>
+

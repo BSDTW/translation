@@ -1,0 +1,2334 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN">
+
+<html>
+
+<head>
+
+<meta http-equiv="content-type" content="text/html; charset=iso-8859-1">
+
+<title>Debian Reference - Debian tips</title>
+
+</head>
+
+<body>
+
+<p><a name="ch-tips"></a></p>
+<hr>
+
+<p>
+[ <a href="ch-kernel.en.html">previous</a> ]
+[ <a href="index.en.html#contents">Contents</a> ]
+[ <a href="ch-preface.en.html">1</a> ]
+[ <a href="ch-system.en.html">2</a> ]
+[ <a href="ch-install.en.html">3</a> ]
+[ <a href="ch-tutorial.en.html">4</a> ]
+[ <a href="ch-woody.en.html">5</a> ]
+[ <a href="ch-package.en.html">6</a> ]
+[ <a href="ch-kernel.en.html">7</a> ]
+[ 8 ]
+[ <a href="ch-tune.en.html">9</a> ]
+[ <a href="ch-gateway.en.html">10</a> ]
+[ <a href="ch-edit.en.html">11</a> ]
+[ <a href="ch-vcs.en.html">12</a> ]
+[ <a href="ch-program.en.html">13</a> ]
+[ <a href="ch-gnupg.en.html">14</a> ]
+[ <a href="ch-support.en.html">15</a> ]
+[ <a href="ap-appendix.en.html">A</a> ]
+[ <a href="ch-tune.en.html">next</a> ]
+</p>
+
+<hr>
+
+<h1>
+Debian Reference
+<br>Chapter 8 - Debian tips
+</h1>
+
+<hr>
+
+<h2><a name="s-booting"></a>8.1 Booting the system</h2>
+
+<p>
+See the LDP <code><a
+href="http://www.tldp.org/HOWTO/BootPrompt-HOWTO.html">BootPrompt-HOWTO</a></code>
+for detailed information on the boot prompt.
+</p>
+
+<hr>
+
+<h3><a name="s-crackroot"></a>8.1.1 &quot;I forgot the root password!&quot; (1)</h3>
+
+<p>
+It is possible to boot a system and log on to the root account without knowing
+the root password as long as one has access to the console keyboard.  (This
+assumes there are no password requests from the BIOS or from a boot loader such
+as <code>lilo</code> that would prevent one from booting the system.)
+</p>
+
+<p>
+This is a procedure which requires no external boot disks and no change in BIOS
+boot settings.  Here, &quot;Linux&quot; is the label for booting the Linux
+kernel in the default Debian install.
+</p>
+
+<p>
+At the <code>lilo</code> boot screen, as soon as <samp>boot:</samp> appears
+(you must press a shift key at this point on some systems to prevent automatic
+booting and when <code>lilo</code> uses the framebuffer you have to press TAB
+to see the options you type), enter:
+</p>
+
+<pre>
+     boot: Linux init=/bin/sh
+</pre>
+
+<p>
+This causes the system to boot the kernel and run <code>/bin/sh</code> instead
+of its standard <code>init</code>.  Now you have gained root privileges and a
+root shell.  Since <code>/</code> is currently mounted read-only and many disk
+partitions have not been mounted yet, you must do the following to have a
+reasonably functioning system.
+</p>
+
+<pre>
+     init-2.03# mount -n -o remount,rw /
+     init-2.03# mount -avt nonfs,noproc,nosmbfs
+     init-2.03# cd /etc
+     init-2.03# vi passwd
+     init-2.03# vi shadow
+</pre>
+
+<p>
+(If the second data field in <code>/etc/passwd</code> is &quot;x&quot; for
+every username, your system uses shadow passwords, and you must edit
+<code>/etc/shadow</code>.) To disable the root password, edit the second data
+field in the password file so that it is empty.  Now the system can be rebooted
+and you can log on as root without a password.  When booting into runlevel 1,
+Debian (at least after Potato) requires a password, which some older
+distributions did not.
+</p>
+
+<p>
+It is a good idea to have a minimal editor in <code>/bin/</code> in case
+<code>/usr/</code> is not accessible (see <a
+href="ch-edit.en.html#s-bin-editor">Rescue editors, Section 11.2</a>).
+</p>
+
+<p>
+Also consider installing the <code>sash</code> package.  When the system
+becomes unbootable, execute:
+</p>
+
+<pre>
+     boot: Linux init=/bin/sash
+</pre>
+
+<p>
+<code>sash</code> serves as an interactive substitute for <code>sh</code> even
+when <code>/bin/sh</code> is unusable.  It's statically linked, and includes
+many standard utilities as built-ins (type &quot;help&quot; at the prompt for a
+reference list).
+</p>
+
+<hr>
+
+<h3><a name="s-crackroot2"></a>8.1.2 &quot;I forgot the root password!&quot; (2)</h3>
+
+<p>
+Boot from any emergency boot/root disk set.  If
+<code><var>/dev/hda3</var></code> is the original root partition, the following
+will let one edit the password file just as easily as the above.
+</p>
+
+<pre>
+     # mkdir <var>fixit</var>
+     # mount <var>/dev/hda3</var> <var>fixit</var>
+     # cd <var>fixit</var>/etc
+     # vi shadow
+     # vi passwd
+</pre>
+
+<p>
+The advantage of this approach over the previous method is one does not need to
+know the <code>lilo</code> password (if any).  But to use it one must be able
+to access the BIOS setup to allow the system to boot from floppy disk or CD, if
+that is not already set.
+</p>
+
+<hr>
+
+<h3><a name="s-dead-lilo"></a>8.1.3 Cannot boot the system</h3>
+
+<p>
+No problem, even if you didn't bother to make a boot disk during install.  If
+<code>lilo</code> is broken, grab the boot disk from the Debian installation
+set and boot your system from it.  At the boot prompt, assuming the root
+partition of your Linux installation is on <code><var>/dev/hda12</var></code>
+and you want runlevel 3, enter:
+</p>
+
+<pre>
+     boot: rescue root=<var>/dev/hda12</var> 3
+</pre>
+
+<p>
+Then you are booted into an almost fully functional system using the kernel on
+the floppy.  (There may be minor glitches due to lack of kernel features or
+modules.)
+</p>
+
+<p>
+See also <a href="ch-package.en.html#s-un-bootable">Install a package into an
+unbootable system, Section 6.3.6</a> if you have a broken system.
+</p>
+
+<p>
+If you need a custom boot floppy, follow <code>readme.txt</code> on the rescue
+disk.
+</p>
+
+<hr>
+
+<h3><a name="s-no-x-start"></a>8.1.4 &quot;Let me disable X on boot!&quot;</h3>
+
+<p>
+Chasing <samp>unstable/sid</samp> is fun, but buggy <code>xdm</code>,
+<code>gdm</code>, <code>kdm</code>, or <code>wdm</code> started during the boot
+process can bite you bad.
+</p>
+
+<p>
+First get the root shell by entering the following at the boot prompt:
+</p>
+
+<pre>
+     boot: <var>Linux</var> vga=normal s
+</pre>
+
+<p>
+Here, <var>Linux</var> is the label for the kernel image you are booting;
+&quot;vga=normal&quot; will make sure <code>lilo</code> runs in normal VGA
+screen, and &quot;s&quot; (or &quot;S&quot;) is the parameter passed to
+<code>init</code> to invoke single-user mode.  Enter the root password at the
+prompt.
+</p>
+
+<p>
+There are few ways to disable all the X starting daemons:
+</p>
+<ul>
+<li>
+<p>
+run <samp>update-rc.d -f <var>?</var>dm remove</samp> ; <samp>update-rc.d
+<var>?</var>dm stop 99 1 2 3 4 5 6 .</samp>
+</p>
+</li>
+</ul>
+<ul>
+<li>
+<p>
+insert &quot;exit 0&quot; at the start of all
+<code>/etc/init.d/<var>?</var>dm</code> files.
+</p>
+</li>
+</ul>
+<ul>
+<li>
+<p>
+rename all <code>/etc/rc<var>2</var>.d/S99<var>?</var>dm</code> files to
+<code>/etc/rc2.d/K99<var>?</var>dm</code>.
+</p>
+</li>
+</ul>
+<ul>
+<li>
+<p>
+remove all <code>/etc/rc<var>2</var>.d/S99<var>?</var>dm</code> files.
+</p>
+</li>
+</ul>
+<ul>
+<li>
+<p>
+run <samp>:&gt;/etc/X11/default-display-manager</samp>
+</p>
+</li>
+</ul>
+
+<p>
+Here, number in <code>rc<var>2</var>.d</code> must correspond to the runlevel
+specified in the <code>/etc/inittab</code>.  Also <code><var>?</var>dm</code>
+means that you need to run the command multiple times by substituting it with
+all of the <code>xdm</code>, <code>gdm</code>, <code>kdm</code>, and
+<code>wdm</code>.
+</p>
+
+<p>
+Only the first one in the list is &quot;the one true way&quot; in Debian.  The
+last one is easy but only works on Debian and requires you to set the display
+manager again later using <code>dpkg-reconfigure</code>.  Others are generic
+methods to disable daemons.
+</p>
+
+<p>
+You can still start X with the <code>startx</code> command from any console
+shell.
+</p>
+
+<hr>
+
+<h3><a name="s-bootprompt"></a>8.1.5 Other boot tricks with the boot prompt</h3>
+
+<p>
+The system can be booted into a particular runlevel and configuration using the
+<code>lilo</code> boot prompt.  Details are given in the <code><a
+href="http://www.tldp.org/HOWTO/BootPrompt-HOWTO.html">BootPrompt-HOWTO</a></code>
+(LDP).
+</p>
+
+<p>
+If you want to boot the system into runlevel 4, use the following input at the
+<code>lilo</code> boot prompt.
+</p>
+
+<pre>
+     boot: Linux 4
+</pre>
+
+<p>
+If you want to boot the system into normally functioning single-user mode and
+you know the root password, one of the following examples at the
+<code>lilo</code> boot prompt will work.
+</p>
+
+<pre>
+     boot: Linux S
+     boot: Linux 1
+     boot: Linux -s
+</pre>
+
+<p>
+If you want to boot the system with less memory than system actually has (say
+48MB for a system with 64MB), use this input at the <code>lilo</code> boot
+prompt:
+</p>
+
+<pre>
+     boot: Linux mem=48M
+</pre>
+
+<p>
+Make sure not to specify more than the actual memory size here, otherwise the
+kernel will crash.  If one has more than 64MB of memory, e.g.  128MB, unless
+one executes <samp>mem=128M</samp> at the boot prompt or includes a similar
+append line in <code>/etc/lilo.conf</code>, old kernels and/or a motherboard
+with an old BIOS will not use memory beyond 64MB.
+</p>
+
+<hr>
+
+<h3><a name="s-bootgrub"></a>8.1.6 Setting GRUB boot parameters</h3>
+
+<p>
+GRUB is a new boot manager from the GNU Hurd project and is much more flexible
+than Lilo but has slightly different handling of boot parameters.
+</p>
+
+<pre>
+     grub&gt; find /vmlinuz
+     grub&gt; root (hd0,0)
+     grub&gt; kernel /vmlinuz root=/dev/hda1
+     grub&gt; initrd /initrd
+     grub&gt; boot
+</pre>
+
+<p>
+Here, you must be aware of the Hurd device names:
+</p>
+
+<pre>
+     the Hurd/GRUB       Linux               MS-DOS/Windows
+      (fd0)               /dev/fd0            A:
+      (hd0,0)             /dev/hda1           C: (usually)
+      (hd0,3)             /dev/hda4           F: (usually)
+      (hd1,3)             /dev/hdb4           ?
+</pre>
+
+<p>
+See <code>file:///usr/share/doc/grub/README.Debian.gz</code> and
+<code>file:///usr/share/doc/grub-doc/html/</code> for details.
+</p>
+
+<hr>
+
+<h2><a name="s8.2"></a>8.2 Recording activities</h2>
+
+<hr>
+
+<h3><a name="s-script"></a>8.2.1 Recording shell activities</h3>
+
+<p>
+System administration involves much more elaborate tasks in a Unix environment
+than in an ordinary personal computer environment.  Make sure to know the most
+basic means of configuration in case you need to recover from system trouble.
+X11-based GUI configuration tools look nice and convenient but are often
+unsuitable in these emergency situations.
+</p>
+
+<p>
+In this context, recording shell activities is a good practice, especially as
+root.
+</p>
+
+<p>
+Emacs: Use M-x <samp>shell</samp> to start recording into a buffer, and use C-x
+C-w to write the buffer to a file.
+</p>
+
+<p>
+Shell: Use the <code>screen</code> command with &quot;^A H&quot; as described
+in <a href="#s-screen">Console switching with <code>screen</code>, Section
+8.6.28</a>; or use the <code>script</code> command.
+</p>
+
+<pre>
+     $ script
+     Script started, file is typescript
+      ... do whatever ...
+      Ctrl-D
+     $ col -bx &lt;typescript &gt;savefile
+     $ vi savefile
+</pre>
+
+<p>
+The following can be used instead of <code>script</code>:
+</p>
+
+<pre>
+     $ bash -i 2&gt;&amp;1 | tee typescript
+</pre>
+
+<hr>
+
+<h3><a name="s8.2.2"></a>8.2.2 Recording X activities</h3>
+
+<p>
+If you need to record the graphic image of an X application, including an
+<code>xterm</code> display, use <code>gimp</code> (GUI).  It can capture each
+window or the whole screen.  Alternatives are <code>xwd</code>
+(<code>xbase-clients</code>), <code>import</code> (<code>imagemagick</code>),
+and <code>scrot</code> (<code>scrot</code>).
+</p>
+
+<hr>
+
+<h2><a name="s-archiving"></a>8.3 Copy and archive a whole subdirectory</h2>
+
+<p>
+These copy and archive commands provide basics for the backup of the system and
+the data.  An example of simple backup script is provided as
+<code>backup</code> in <code><a href="examples/">the example
+scripts</a></code>.
+</p>
+
+<hr>
+
+<h3><a name="s8.3.1"></a>8.3.1 Basic commands for copying a whole subdirectory</h3>
+
+<p>
+If you need to rearrange file structure, move content including file links by:
+</p>
+
+<pre>
+     Standard method:
+     # cp -a /source/directory /dest/directory # requires GNU cp
+     # (cd /source/directory &amp;&amp; tar cf - . ) | \
+             (cd /dest/directory &amp;&amp; tar xvfp - )
+     If a hard link is involved, a pedantic method is needed:
+     # cd /path/to/old/directory
+     # find . -depth -print0 | afio -p -xv -0a /mount/point/of/new/directory
+     If remote:
+     # (cd /source/directory &amp;&amp; tar cf - . ) | \
+             ssh user@host.dom (cd /dest/directory &amp;&amp; tar xvfp - )
+     If there are no linked files:
+     # scp -pr user1@host1.dom:/source/directory \
+               user2@host2.dom:/dest/directory
+</pre>
+
+<p>
+The following comparative information on copying a whole subdirectory was
+presented by Manoj Srivastava <code><a
+href="mailto:srivasta@debian.org">srivasta@debian.org</a></code> to
+debian-user@lists.debian.org.
+</p>
+
+<hr>
+
+<h3><a name="s8.3.2"></a>8.3.2 <code>cp</code></h3>
+
+<p>
+Traditionally, <code>cp</code> was not really a candidate for this task since
+it did not dereference symbolic links, or preserve hard links either.  Another
+thing to consider was sparse files (files with holes).
+</p>
+
+<p>
+GNU <code>cp</code> has overcome these limitations; however, on a non-GNU
+system, <code>cp</code> could still have problems.  Also, you can't generate
+small, portable archives using <code>cp</code>.
+</p>
+
+<pre>
+     % cp -a . newdir
+</pre>
+
+<hr>
+
+<h3><a name="s8.3.3"></a>8.3.3 <code>tar</code></h3>
+
+<p>
+Tar overcame some of the problems that <code>cp</code> had with symbolic links.
+However, although <code>cpio</code> handles special files, traditional
+<code>tar</code> doesn't.
+</p>
+
+<p>
+<code>tar</code>'s way of handling multiple hard links to a file places only
+one copy of the link on the tape, but the name attached to that copy is the
+<em>only</em> one you can use to retrieve the file; <code>cpio</code>'s way
+puts one copy for every link, but you can retrieve it using any of the names.
+</p>
+
+<p>
+The <code>tar</code> command changed its option for <code>.bz2</code> files
+between Potato and Woody, so use <samp>--bzip2</samp> in scripts instead of its
+short form <samp>-I</samp> (Potato) or <samp>-j</samp> (Woody).
+</p>
+
+<hr>
+
+<h3><a name="s8.3.4"></a>8.3.4 <code>pax</code></h3>
+
+<p>
+The new, POSIX (IEEE Std 1003.2-1992, pages 380&ndash;388 (section 4.48) and
+pages 936&ndash;940 (section E.4.48)), all-singing, all-dancing, Portable
+Archive Interchange utility.  <code>pax</code> will read, write, and list the
+members of an archive file, and will copy directory hierarchies.
+<code>pax</code> operation is independent of the specific archive format, and
+supports a wide variety of different archive formats.
+</p>
+
+<p>
+<code>pax</code> implementations are still new and wet behind the ears.
+</p>
+
+<pre>
+     # apt-get install pax
+     $ pax -rw -p e . newdir
+      or
+     $ find . -depth  | pax -rw -p e  newdir
+</pre>
+
+<hr>
+
+<h3><a name="s8.3.5"></a>8.3.5 <code>cpio</code></h3>
+
+<p>
+<code>cpio</code> copies files into or out of a <code>cpio</code> or
+<code>tar</code> archive.  The archive can be another file on the disk, a
+magnetic tape, or a pipe.
+</p>
+
+<pre>
+     $ find . -depth -print0 | cpio --null --sparse -pvd new-dir
+</pre>
+
+<hr>
+
+<h3><a name="s8.3.6"></a>8.3.6 <code>afio</code></h3>
+
+<p>
+<code>afio</code> is a better way of dealing with <code>cpio</code>-format
+archives.  It is generally faster than <code>cpio</code>, provides more diverse
+magnetic tape options and deals somewhat gracefully with input data corruption.
+It supports multivolume archives during interactive operation.
+<code>afio</code> can make compressed archives that are much safer than
+compressed <code>tar</code> or <code>cpio</code> archives.  <code>afio</code>
+is best used as an &quot;archive engine&quot; in a backup script.
+</p>
+
+<pre>
+     $ find . -depth -print0 | afio -px -0a new-dir
+</pre>
+
+<p>
+All my backups onto tape use <code>afio</code>.
+</p>
+
+<hr>
+
+<h2><a name="s-diff-backup"></a>8.4 Differential backup and data synchronization</h2>
+
+<p>
+Differential backup and data synchronization can be implemented with several
+methods:
+</p>
+<ul>
+<li>
+<p>
+<code>rcs</code>: backup and history, text-only
+</p>
+</li>
+</ul>
+<ul>
+<li>
+<p>
+<code>rdiff-backup</code>: backup and history.  symlink OK.
+</p>
+</li>
+</ul>
+<ul>
+<li>
+<p>
+<code>pdumpfs</code>: backup and history within a filesystem.  symlink OK
+</p>
+</li>
+</ul>
+<ul>
+<li>
+<p>
+<code>rsync</code>: 1-way synchronization
+</p>
+</li>
+</ul>
+<ul>
+<li>
+<p>
+<code>unison</code>: 2-way synchronization
+</p>
+</li>
+</ul>
+<ul>
+<li>
+<p>
+<code>cvs</code>: multi-way synchronization with server backup and history,
+text-only, mature.  See <a href="ch-vcs.en.html#s-cvs">Concurrent Versions
+System (CVS), Section 12.1</a>.
+</p>
+</li>
+</ul>
+<ul>
+<li>
+<p>
+<code>arch</code>: multi-way synchronization with server backup and history, no
+such thing as a &quot;working directory&quot;.
+</p>
+</li>
+</ul>
+<ul>
+<li>
+<p>
+<code>subversion</code>: multi-way synchronization with server backup and
+history, Apache.
+</p>
+</li>
+</ul>
+
+<p>
+Combination of one of these with the archiving method described in <a
+href="#s-archiving">Copy and archive a whole subdirectory, Section 8.3</a> and
+the automated regular job described in <a href="#s-cronjob">Schedule activity
+(<code>cron</code>, <code>at</code>), Section 8.6.27</a> will make a nice
+backup system.
+</p>
+
+<p>
+I will explain three easy-to-use utilities.
+</p>
+
+<hr>
+
+<h3><a name="s-rdiff-backup"></a>8.4.1 Differential backup with rdiff</h3>
+
+<p>
+<code>rdiff-backup</code> offers nice and simple backup with differential
+history for any types of files, including symlinks.  To back up most of
+<code>~/</code> to <code>/mnt/backup</code>:
+</p>
+
+<pre>
+     $ rdiff-backup --include ~/tmp/keep --exclude ~/tmp  ~/ /mnt/backup
+</pre>
+
+<p>
+To restore three-day-old data from this archive to <code>~/old</code>:
+</p>
+
+<pre>
+     $ rdiff-backup -r 3D /mnt/backup ~/old
+</pre>
+
+<p>
+See <code>rdiff-backup(1)</code>.
+</p>
+
+<hr>
+
+<h3><a name="s-pdumpfs-backup"></a>8.4.2 Daily backup with <code>pdumpfs</code></h3>
+
+<p>
+<code>pdumpfs</code> is a simple daily backup system similar to Plan9's
+<code>dumpfs</code> which preserves every daily snapshot.  You can access the
+past snapshots at any time for retrieving a certain day's file.  Let's backup
+your home directory with <code>pdumpfs</code> and <code>cron</code>!
+</p>
+
+<p>
+<code>pdumpfs</code> constructs the snapshot <samp>YYYY/MM/DD</samp> in the
+destination directory.  All source files are copied to the snapshot directory
+when <code>pdumpfs</code> is run for the first time.  On and after the second
+time, <code>pdumpfs</code> copies only updated or newly created files and
+stores unchanged files as hard links to the files of the previous day's
+snapshot in order to save disk space.
+</p>
+
+<pre>
+     $ pdumpfs <var>src-dir</var> <var>dest-dir</var> [<var>dest-basename</var>]
+</pre>
+
+<p>
+See <code>pdumpfs(8)</code>.
+</p>
+
+<hr>
+
+<h3><a name="s-backup"></a>8.4.3 Regular differential backup with RCS</h3>
+
+<p>
+<code>Changetrack</code> will record changes to the text-based configuration
+files in RCS archives regularly.  See <code>changetrack(1)</code>.
+</p>
+
+<pre>
+     # apt-get install changetrack
+     # vi changetrack.conf
+</pre>
+
+<hr>
+
+<h2><a name="s8.5"></a>8.5 System freeze recovery</h2>
+
+<hr>
+
+<h3><a name="s-kill"></a>8.5.1 Kill a process</h3>
+
+<p>
+Run <code>top</code> to see what process is acting funny.  Press `P' to sort by
+CPU usage, `M' to sort by memory, and `k' to kill a process.  Alternatively,
+BSD-style <samp>ps aux | less</samp> or System-V-style <samp>ps -efH |
+less</samp> may be used.  The System-V-style syntax displays parent process IDs
+(<samp>PPID</samp>) which can be used for killing zombie (defunct) children.
+</p>
+
+<p>
+Use <code>kill</code> to kill (or send a signal to) a process by process ID,
+<code>killall</code> to do the same by process command name.  Frequently used
+signals:
+</p>
+
+<pre>
+      1: HUP,  restart daemon
+     15: TERM, normal kill
+      9: KILL, kill hard
+</pre>
+
+<hr>
+
+<h3><a name="s8.5.2"></a>8.5.2 Alt-SysRq</h3>
+
+<p>
+Insurance against system malfunction is provided by the kernel compile option
+&quot;Magic SysRq key&quot;.  Pressing Alt-SysRq on an i386, followed by one of
+the keys <samp>r 0 k e i s u b</samp>, does the magic.
+</p>
+
+<p>
+Un`r'aw restores the keyboard after things like X crashes.  Changing the
+console loglevel to `0' reduces error messages.  sa`k' (system attention key)
+kills all processes on the current virtual console.  t`e'rminate kills all
+processes on the current terminal except <code>init</code>.  k`i'll kills all
+processes except <code>init</code>.
+</p>
+
+<p>
+`S'ync, `u'mount, and re`b'oot are for getting out of really bad situations.
+</p>
+
+<p>
+Detailed information is in
+<code>/usr/share/doc/kernel-doc-<var>version</var>/Documentation/sysrq.txt.gz</code>
+or <code>/usr/src/<var>kernel-version</var>/Documentation/sysrq.txt.gz</code>.
+</p>
+
+<hr>
+
+<h2><a name="s-nifty"></a>8.6 Nifty little commands to remember</h2>
+
+<hr>
+
+<h3><a name="s8.6.1"></a>8.6.1 Pager</h3>
+
+<p>
+<code>less</code> is the default pager (file content browser).  Hit `h' for
+help.  It can do much more than <code>more</code>.  <code>less</code> can be
+supercharged by executing <samp>eval $(lesspipe)</samp> or <samp>eval
+$(lessfile)</samp> in the shell startup script.  See more in
+<code>file:///usr/share/doc/less/LESSOPEN</code>.  The <samp>-R</samp> option
+allows raw character output and enables ANSI color escape sequences.  See
+<code>less(1)</code>.
+</p>
+
+<p>
+<code>w3m</code> may be a useful alternative pager for some code systems (EUC).
+</p>
+
+<hr>
+
+<h3><a name="s8.6.2"></a>8.6.2 Free memory</h3>
+
+<p>
+<code>free</code> and <code>top</code> give good information on memory
+resources.  Do not worry about the size of &quot;used&quot; in the
+&quot;Mem:&quot; line, but read the one under it (38792 in the example below).
+</p>
+
+<pre>
+     $ free -k # for 256MB machine
+                  total       used       free     shared    buffers cached
+     Mem:        257136     230456      26680      45736     116136 75528
+     -/+ buffers/cache:      38792     218344
+     Swap:       264996          0     264996
+</pre>
+
+<p>
+The exact amount of physical memory can be confirmed by <samp>grep '^Memory'
+/var/log/dmesg</samp>, which in this case gives &quot;Memory: 256984k/262144k
+available (1652k kernel code, 412k reserved, 2944k data, 152k init)&quot;.
+</p>
+
+<pre>
+     Total         = 262144k = 256M (1k=1024, 1M=1024k)
+     Free to dmesg = 256984k = Total - kernel - reserved - data - init
+     Free to shell = 257136k = Total - kernel - reserved - data
+</pre>
+
+<p>
+About 5MB is not usable by the system because the kernel uses it.
+</p>
+
+<hr>
+
+<h3><a name="s8.6.3"></a>8.6.3 Set time (BIOS)</h3>
+
+<pre>
+     # date MMDDhhmmCCYY
+     # hwclock --utc --systohc
+     # hwclock --show
+</pre>
+
+<p>
+This will set system and hardware time to MM/DD hh:mm, CCYY.  Times are
+displayed in local time but hardware time uses UTC.
+</p>
+
+<p>
+If the hardware (BIOS) time is set to GMT, change the setting to
+<samp>UTC=yes</samp> in the <code>/etc/default/rcS</code>.
+</p>
+
+<hr>
+
+<h3><a name="s8.6.4"></a>8.6.4 Set time (NTP)</h3>
+
+<p>
+Reference: <code><a
+href="http://www.tldp.org/HOWTO/TimePrecision-HOWTO/index.html">Managing
+Accurate Date and Time HOWTO</a></code>.
+</p>
+
+<hr>
+
+<h4><a name="s8.6.4.1"></a>8.6.4.1 Set time with permanent Internet connection</h4>
+
+<p>
+Set system clock to the correct time automatically via a remote server:
+</p>
+
+<pre>
+     # ntpdate <var>server</var>
+</pre>
+
+<p>
+This is good to have in <code>/etc/cron.daily/</code> if your system has a
+permanent Internet connection.
+</p>
+
+<hr>
+
+<h4><a name="s8.6.4.2"></a>8.6.4.2 Set time with sporadic Internet connection</h4>
+
+<p>
+Use the <code>chrony</code> package.
+</p>
+
+<hr>
+
+<h3><a name="s-setterm"></a>8.6.5 How to control console features such as the screensaver</h3>
+
+<p>
+For disabling the screensaver, use following commands.
+</p>
+
+<p>
+In the Linux console:
+</p>
+
+<pre>
+     # setterm -powersave off
+</pre>
+
+<p>
+Start the kon2 (kanji) console with:
+</p>
+
+<pre>
+     # kon -SaveTime 0
+</pre>
+
+<p>
+While running X:
+</p>
+
+<pre>
+     # xset s off
+      or
+     # xset -dpms
+      or
+     # xscreensaver-command -prefs
+</pre>
+
+<p>
+Read the corresponding manpages for controlling other console features.  See
+also <code>stty(1)</code> for changing and printing terminal line settings.
+</p>
+
+<hr>
+
+<h3><a name="s-getent"></a>8.6.6 Search administrative database</h3>
+
+<p>
+Glibc offers <code>getent(1)</code> for searching entries from administrative
+databases, i.e., passwd, group, hosts, services, protocols, or networks.
+</p>
+<pre>
+     getent database [key ...]
+</pre>
+
+<hr>
+
+<h3><a name="s8.6.7"></a>8.6.7 Disable sound (beep)</h3>
+
+<p>
+One can always unplug the PC speaker.  ;-) For the Bash shell:
+</p>
+
+<pre>
+     echo &quot;set bell-style none&quot;&gt;&gt; ~/.inputrc
+</pre>
+
+<hr>
+
+<h3><a name="s8.6.8"></a>8.6.8 Error messages on the console screen</h3>
+
+<p>
+In order to quiet on-screen error messages, the first place to check is
+<code>/etc/init.d/klogd</code>.  Set <samp>KLOGD=&quot;-c
+<var>3</var>&quot;</samp> in this script and run <samp>/etc/init.d/klogd
+restart</samp>.  An alternative method is to run <samp>dmesg
+-n<var>3</var></samp>.
+</p>
+
+<p>
+Here error levels mean:
+</p>
+<ul>
+<li>
+<p>
+0: KERN_EMERG, system is unusable
+</p>
+</li>
+<li>
+<p>
+1: KERN_ALERT, action must be taken immediately
+</p>
+</li>
+<li>
+<p>
+2: KERN_CRIT, critical conditions
+</p>
+</li>
+<li>
+<p>
+3: KERN_ERR, error conditions
+</p>
+</li>
+<li>
+<p>
+4: KERN_WARNING, warning conditions
+</p>
+</li>
+<li>
+<p>
+5: KERN_NOTICE, normal but significant condition
+</p>
+</li>
+<li>
+<p>
+6: KERN_INFO, informational
+</p>
+</li>
+<li>
+<p>
+7: KERN_DEBUG, debug-level messages
+</p>
+</li>
+</ul>
+
+<p>
+If one particular useless error message bothers you a lot, consider making a
+trivial kernel patch like <code>shutup-abit-bp6</code> (available in the
+<code><a href="examples/">examples subdirectory</a></code>).
+</p>
+
+<p>
+Another place to look may be <code>/etc/syslog.conf</code>; check to see
+whether any messages are logged to a console device.
+</p>
+
+<hr>
+
+<h3><a name="s8.6.9"></a>8.6.9 Set console to the correct type</h3>
+
+<p>
+Console screens in Unix-like systems are usually accessed using (n)curses
+library routines.  These give the user a terminal-independent method of
+updating character screens with reasonable optimization.  See
+<code>ncurses(3X)</code> and <code>terminfo(5)</code>.
+</p>
+
+<p>
+On a Debian system, there are quite a lot of predefined entries:
+</p>
+
+<pre>
+     $ toe | less                  # all entries
+     $ toe /etc/terminfo/ | less   # user reconfigurable entries
+</pre>
+
+<p>
+Export your selection as environment variable <samp>TERM</samp>.
+</p>
+
+<p>
+If the terminfo entry for <code>xterm</code> doesn't work with a non-Debian
+<code>xterm</code>, change your terminal type from &quot;xterm&quot; to one of
+the feature-limited versions such as &quot;xterm-r6&quot; when you log in to a
+Debian system remotely.  See <code>file:///usr/share/doc/libncurses5/FAQ</code>
+for more.  &quot;dumb&quot; is the lowest common denominator for terminfo.
+</p>
+
+<hr>
+
+<h3><a name="s8.6.10"></a>8.6.10 Get the console back to a sane state</h3>
+
+<p>
+When the screen goes berserk after <samp>cat <var>some-binary-file</var></samp>
+(you may not be able to see the command echoed as you type):
+</p>
+
+<pre>
+     $ reset
+</pre>
+
+<hr>
+
+<h3><a name="s-dos2unix"></a>8.6.11 Convert a text file from DOS to Unix style</h3>
+
+<p>
+Convert a DOS text file (end-of-line = <samp>^M^J</samp>) to a Unix text file
+(end-of-line = <samp>^J</samp>).
+</p>
+
+<pre>
+     # apt-get install sysutils
+     $ dos2unix <var>dosfile</var>
+</pre>
+
+<hr>
+
+<h3><a name="s-recode"></a>8.6.12 Convert a text file with <code>recode</code></h3>
+
+<p>
+Following will convert text files between DOS, Mac, and Unix line ending
+styles:
+</p>
+
+<pre>
+     $ recode /cl../cr &lt;<var>dos.txt</var> &gt;<var>mac.txt</var>
+     $ recode /cr.. &lt;<var>mac.txt</var> &gt;<var>unix.txt</var>
+     $ recode ../cl &lt;<var>unix.txt</var> &gt;<var>dos.txt</var>
+</pre>
+
+<p>
+Free <code>recode</code> converts files between various character sets and
+surfaces with:
+</p>
+
+<pre>
+     $ recode <var>charset1</var>/<var>surface1</var>..<var>charset2</var>/<var>surface2</var> \
+       &lt;<var>input.txt</var> &gt;<var>output.txt</var>
+</pre>
+
+<p>
+Common character sets used are (see also <a
+href="ch-tune.en.html#s-base-locale">Introduction to locales, Section
+9.7.3</a>) [<a href="footnotes.en.html#f37" name="fr37">37</a>] :
+</p>
+<ul>
+<li>
+<p>
+<samp>us</samp> &mdash; ASCII (7 bits)
+</p>
+</li>
+<li>
+<p>
+<samp>l1</samp> &mdash; ISO Latin-1 (ISO-8859-1, Western Europe, 8 bits)
+</p>
+</li>
+<li>
+<p>
+<samp>EUCJP</samp> &mdash; EUC-JP for Japanese (Unix)
+</p>
+</li>
+<li>
+<p>
+<samp>SJIS</samp> &mdash; Shift-JIS for Japanese (Microsoft)
+</p>
+</li>
+<li>
+<p>
+<samp>ISO2022JP</samp> &mdash; Mail encoding for Japanese (7 bits)
+</p>
+</li>
+<li>
+<p>
+<samp>u2</samp> &mdash; UCS-2 (Universal Character Set, 2 bytes)
+</p>
+</li>
+<li>
+<p>
+<samp>u8</samp> &mdash; UTF-8 (Universal Transformation Format, 8 bits)
+</p>
+</li>
+</ul>
+
+<p>
+Common surfaces used are [<a href="footnotes.en.html#f38" name="fr38">38</a>] :
+</p>
+<ul>
+<li>
+<p>
+<samp>/cr</samp> &mdash; Carriage return as end of line (Mac text)
+</p>
+</li>
+<li>
+<p>
+<samp>/cl</samp> &mdash; Carriage return line feed as end of line (DOS text)
+</p>
+</li>
+<li>
+<p>
+<samp>/</samp> &mdash; Line feed as end of line (Unix text)
+</p>
+</li>
+<li>
+<p>
+<samp>/d1</samp> &mdash; Human readable bytewise decimal dump
+</p>
+</li>
+<li>
+<p>
+<samp>/x1</samp> &mdash; Human readable bytewise hexidecimal dump
+</p>
+</li>
+<li>
+<p>
+<samp>/64</samp> &mdash; Base64 encoded text
+</p>
+</li>
+<li>
+<p>
+<samp>/QP</samp> &mdash; Quoted-Printable encoded text
+</p>
+</li>
+</ul>
+
+<p>
+For more, see pertinent description in the <samp>info recode</samp>.
+</p>
+
+<p>
+There are also more specialized conversion tools:
+</p>
+<ul>
+<li>
+<p>
+character set conversion:
+</p>
+<ul>
+<li>
+<p>
+<code>iconv</code> &mdash; locale encoding conversions
+</p>
+</li>
+<li>
+<p>
+<code>konwert</code> &mdash; fancy encoding conversions
+</p>
+</li>
+</ul>
+</li>
+<li>
+<p>
+binary file conversion:
+</p>
+<ul>
+<li>
+<p>
+<code>uuencode</code> and <code>uudecode</code> &mdash; for Unix.
+</p>
+</li>
+<li>
+<p>
+<code>mimencode</code> &mdash; for the mail.
+</p>
+</li>
+</ul>
+</li>
+</ul>
+
+<hr>
+
+<h3><a name="s-perl-i"></a>8.6.13 Regular-expression substitution</h3>
+
+<p>
+Replace all instances of <var>FROM_REGEX</var> with <var>TO_TEXT</var> in all
+of the files <var>FILES</var> ...:
+</p>
+
+<pre>
+     $ perl -i -p -e 's/<var>FROM_REGEX</var>/<var>TO_TEXT</var>/g;' <var>FILES</var> ...
+</pre>
+
+<p>
+<samp>-i</samp> is for &quot;in-place editing&quot;, <samp>-p</samp> is for
+&quot;implicit loop over <var>FILES</var> ...&quot;.  If the substitution is
+complex, you can make recovery from errors easier by using the parameter
+<samp>-i.bak</samp> instead of <samp>-i</samp>; this will keep each original
+file, adding <samp>.bak</samp> as a file extension.
+</p>
+
+<hr>
+
+<h3><a name="s8.6.14"></a>8.6.14 Edit a file in place using a script</h3>
+
+<p>
+The following script will remove lines 5&ndash;10 and lines 16&ndash;20 in
+place.
+</p>
+
+<pre>
+     #!/bin/bash
+     ed $1 &lt;&lt;EOF
+     16,20d
+     5,10d
+     w
+     q
+     EOF
+</pre>
+
+<p>
+Here, <code>ed</code> commands are the same as <code>vi</code> command-mode
+commands.  Editing from the back of file makes it easy for scripting.
+</p>
+
+<hr>
+
+<h3><a name="s8.6.15"></a>8.6.15 Extract differences and merge updates for source files</h3>
+
+<p>
+Following one of these procedures will extract differences between two source
+files and create unified diff files <var>file.patch0</var> or
+<var>file.patch1</var> depending on the file location:
+</p>
+
+<pre>
+     $ diff -u <var>file.old</var> <var>file.new</var> &gt; <var>file.patch0</var>
+     $ diff -u <var>old/file</var> <var>new/file</var> &gt; <var>file.patch1</var>
+</pre>
+
+<p>
+The diff file (alternatively called patch file) is used to send a program
+update.  The receiving party will apply this update to another <var>file</var>
+by:
+</p>
+
+<pre>
+     $ patch -p0 <var>file</var> &lt; <var>file.patch0</var>
+     $ patch -p1 <var>file</var> &lt; <var>file.patch1</var>
+</pre>
+
+<p>
+If you have three versions of source code, you can merge them more effectively
+using <code>diff3</code>:
+</p>
+
+<pre>
+     $ diff3 -m <var>file.mine</var> <var>file.old</var> <var>file.yours</var> &gt; <var>file</var>
+</pre>
+
+<hr>
+
+<h3><a name="s8.6.16"></a>8.6.16 Convert a large file into small files</h3>
+
+<pre>
+     $ split -b 650m <var>file</var>   # split file into 650MB chunks
+     $ cat x* &gt;<var>largefile</var>    # merge files into 1 large file
+</pre>
+
+<hr>
+
+<h3><a name="s8.6.17"></a>8.6.17 Extract data from text file table</h3>
+
+<p>
+Let's consider a text file called <code>DPL</code> in which all previous Debian
+project leader's names and their initiation days are listed in a
+space-separated format.
+</p>
+
+<pre>
+     Ian     Murdock   August  1993
+     Bruce   Perens    April   1996
+     Ian     Jackson   January 1998
+     Wichert Akkerman  January 1999
+     Ben     Collins   April   2001
+     Bdale   Garbee    April   2002
+     Martin  Michlmayr March   2003
+</pre>
+
+<p>
+Awk is frequently used to extract data from these types of files.
+</p>
+
+<pre>
+     $ awk '{ print $3 }' &lt;DPL                   # month started
+     August
+     April
+     January
+     January
+     April
+     April
+     March
+     $ awk '($1==&quot;Ian&quot;) { print }' &lt;DPL          # DPL called Ian
+     Ian     Murdock   August  1993
+     Ian     Jackson   January 1998
+     $ awk '($2==&quot;Perens&quot;) { print $3,$4 }' &lt;DPL # When Perens started
+     April 1996
+</pre>
+
+<p>
+Shells such as Bash can be also used to parse this kind of file:
+</p>
+
+<pre>
+     $ while read first last month year; do 
+         echo $month
+       done &lt;DPL
+     ... same output as the first Awk example
+</pre>
+
+<p>
+Here, <code>read</code> built-in command uses the characters in $IFS (internal
+field separators) to split lines into words.
+</p>
+
+<p>
+If you change IFS to &quot;:&quot;, you can parse <code>/etc/passwd</code> with
+shell nicely:
+</p>
+
+<pre>
+     $ oldIFS=&quot;$IFS&quot;   # save old value
+     $ IFS=&quot;:&quot;
+     $ while read user password uid gid rest_of_line; do
+         if [ &quot;$user&quot; = &quot;osamu&quot; ]; then 
+           echo &quot;$user's ID is $uid&quot;
+         fi
+       done &lt; /etc/passwd
+     osamu's ID is 1001
+     $ IFS=&quot;$oldIFS&quot;   # restore old value
+</pre>
+
+<p>
+(If Awk is used to do the equivalent, use <samp>FS=&quot;:&quot;</samp> to set
+the field separator.)
+</p>
+
+<p>
+IFS is also used by the shell to split results of parameter expansion, command
+substitution, and arithmetic expansion.  These do not occur within double or
+single quoted words.  The default value of IFS is &lt;space&gt;, &lt;tab&gt;,
+and &lt;newline&gt; combined.
+</p>
+
+<p>
+Be careful about using this shell IFS tricks.  Strange things may happen, when
+shell interprets some parts of the script as its <strong>input</strong>.
+</p>
+
+<pre>
+     $ IFS=&quot;:,&quot;                        # use &quot;:&quot; and &quot;,&quot; as IFS
+     $ echo IFS=$IFS,   IFS=&quot;$IFS&quot;     # echo is a Bash built-in
+     IFS=  , IFS=:,
+     $ date -R                         # just a command output
+     Sat, 23 Aug 2003 08:30:15 +0200
+     $ echo $(date -R)                 # sub shell --&gt; input to main shell
+     Sat  23 Aug 2003 08 30 36 +0200
+     $ unset IFS                       # reset IFS to the default
+     $ echo $(date -R)
+     Sat, 23 Aug 2003 08:30:50 +0200
+</pre>
+
+<hr>
+
+<h3><a name="s-scrp-snip"></a>8.6.18 Script snippets for piping commands</h3>
+
+<p>
+The following scripts will do nice things as a part of a pipe.
+</p>
+
+<pre>
+     find /usr | egrep -v &quot;/usr/var|/usr/tmp|/usr/local&quot;
+                          # find all files in /usr excluding some files
+     xargs -n 1 <var>command</var>   # run command for all items from stdin
+     xargs -n 1 echo |    # split white-space-separated items into lines
+     xargs echo      |    # merge all lines into a line
+     grep -e <var>pattern</var>|     # extract lines containing <var>pattern</var>
+     cut -d: -f3 -|
+             # extract third field separated by : (passwd file etc.)
+     awk '{ print $3 }' | # extract third field separated by whitespaces
+     awk -F'\t' '{ print $3 }' |
+             # extract third field separated by tab
+     col -bx |            # remove backspace and expand tabs to spaces
+     expand -|            # expand tabs
+     sort -u|             # sort and remove duplicates
+     
+     tr '\n' ' '|         # concatenate lines into one line
+     tr '\r' ''|          # remove CR
+     tr 'A-Z' 'a-z'|      # convert uppercase to lowercase
+     sed 's/^/# /'|       # make each line a comment
+     sed 's/\<var>.ext</var>//g'|    # remove <var>.ext</var>
+     sed  -n -e 2p|       # print the second line 
+     head -n 2 -|         # print the first 2 lines
+     tail -n 2 -|         # print the last 2 lines
+</pre>
+
+<hr>
+
+<h3><a name="s8.6.19"></a>8.6.19 Script snippets for looping over each file</h3>
+
+<p>
+The following ways of looping over each file matching
+<samp>*.<var>ext</var></samp> ensures proper handling of funny file names such
+as ones with spaces and performs equivalent process:
+</p>
+<ul>
+<li>
+<p>
+Shell loop (This example is multi line style with <samp>PS2=&quot;
+&quot;</samp>.  To do the same in one line, you insert a semicolon for each
+line break.):
+</p>
+
+<pre>
+     for <var>x</var> in *.<var>ext</var>; do
+       if test -f &quot;$<var>x</var>&quot;; then
+         <var>command</var> &quot;$<var>x</var>&quot;
+       fi
+     done
+</pre>
+</li>
+</ul>
+<ul>
+<li>
+<p>
+<code>find</code> and <code>xargs</code> combination:
+</p>
+
+<pre>
+     find . -type f -maxdepth 1 -name '*.<var>ext</var>' -print0 | \
+      xargs -0 -n 1 <var>command</var>
+</pre>
+</li>
+</ul>
+<ul>
+<li>
+<p>
+<code>find</code> with <samp>-exec</samp> option with a command:
+</p>
+
+<pre>
+     find . -type f -maxdepth 1 -name '*.<var>ext</var>' \
+      -exec <var>command</var> '{}' \;
+</pre>
+</li>
+</ul>
+<ul>
+<li>
+<p>
+<code>find</code> with <samp>-exec</samp> option with a short shell script:
+</p>
+
+<pre>
+     find . -type f -maxdepth 1 -name '*.<var>ext</var>' \
+      -exec sh -c &quot;<var>command</var> '{}' &amp;&amp; echo 'successful'&quot; \;
+</pre>
+</li>
+</ul>
+
+<hr>
+
+<h3><a name="s-perl-mad"></a>8.6.20 Perl short script madness</h3>
+
+<p>
+Although any Awk scripts can be automatically rewritten in Perl using
+<code>a2p(1)</code>, one-liner Awk scripts are best converted to one-liner perl
+scripts manually.  For example
+</p>
+
+<pre>
+     awk '($2==&quot;1957&quot;) { print $3 }' |
+</pre>
+
+<p>
+is equivalent to any one of the following lines:
+</p>
+
+<pre>
+     perl -ne '@f=split; if ($f[1] eq &quot;1957&quot;) { print &quot;$f[2]\n&quot;}' |
+     perl -ne 'if ((@f=split)[1] eq &quot;1957&quot;) { print &quot;$f[2]\n&quot;}' |
+     perl -ne '@f=split; print $f[2] if ( $f[1]==1957 )' |
+     perl -lane 'print $F[2] if $F[1] eq &quot;1957&quot;' |
+</pre>
+
+<p>
+Since all the whitespace in the arguments to <code>perl</code> in the line
+above can be removed, and taking advantage of the automatic conversions between
+numbers and strings in Perl:
+</p>
+
+<pre>
+     perl -lane 'print$F[2]if$F[1]eq+1957' |
+</pre>
+
+<p>
+See <code>perlrun(1)</code> for the command-line options.  For more crazy Perl
+scripts, <code><a
+href="http://perlgolf.sourceforge.net">http://perlgolf.sourceforge.net</a></code>
+may be interesting.
+</p>
+
+<hr>
+
+<h3><a name="s8.6.21"></a>8.6.21 Get text or a mailing list archive from a web page</h3>
+
+<p>
+The following will read a web page into a text file.  Very useful when copying
+configurations off the Web.
+</p>
+
+<pre>
+     $ lynx -dump http://<var>www.remote-site.com/help-info.html</var> &gt;<var>textfile</var>
+</pre>
+
+<p>
+<code>links</code> and <code>w3m</code> can be used here, too, with slight
+differences in rendering.
+</p>
+
+<p>
+If this is a mailing list archive, use <code>munpack</code> to obtain mime
+contents from text.
+</p>
+
+<hr>
+
+<h3><a name="s8.6.22"></a>8.6.22 Pretty print a web page</h3>
+
+<p>
+The following will print a web page into a PostScript file/printer.
+</p>
+
+<pre>
+     $ apt-get install html2ps
+     $ html2ps <var>URL</var> | lpr
+</pre>
+
+<p>
+See <a href="ch-install.en.html#s-lprlpd"><code>lpr</code>/<code>lpd</code>,
+Section 3.6.1</a>.  Also check <code>a2ps</code> and <code>mpage</code>
+packages for creating PostScript files.
+</p>
+
+<hr>
+
+<h3><a name="s8.6.23"></a>8.6.23 Pretty print a manual page</h3>
+
+<p>
+The following will print a manual page into a PostScript file/printer.
+</p>
+
+<pre>
+     $ man -Tps <var>some-manpage</var> | lpr
+     $ man -Tps <var>some-manpage</var> | mpage -2 | lpr
+</pre>
+
+<hr>
+
+<h3><a name="s8.6.24"></a>8.6.24 Merge two PostScript or PDF files</h3>
+
+<p>
+You can merge two PostScript or PDF files.
+</p>
+
+<pre>
+     $ gs -q -dNOPAUSE -dBATCH -sDEVICE=pswrite \
+       -sOutputFile=<var>bla.ps</var> -f <var>foo1.ps</var> <var>foo2.ps</var>
+     $ gs -q -dNOPAUSE -dBATCH -sDEVICE=pdfwrite \
+       -sOutputFile=<var>bla.pdf</var> -f <var>foo1.pdf</var> <var>foo2.pdf</var>
+</pre>
+
+<hr>
+
+<h3><a name="s8.6.25"></a>8.6.25 Time a command</h3>
+
+<p>
+Display time used by a process.
+</p>
+
+<pre>
+     # time <var>some-command</var> &gt;/dev/null
+     real    0m0.035s       # time on wall clock (elapsed real time)
+     user    0m0.000s       # time in user mode
+     sys     0m0.020s       # time in kernel mode
+</pre>
+
+<hr>
+
+<h3><a name="s8.6.26"></a>8.6.26 <code>nice</code> command</h3>
+
+<p>
+Use <code>nice</code> (from the GNU <code>shellutils</code> package) to set a
+command's nice value when starting.  <code>renice</code>
+(<code>bsdutils</code>) and <code>top</code> can renice a process.  A nice
+value of 19 represents the slowest (lowest priority) process; negative values
+are &quot;not-nice&quot;, with -20 being a very fast (high priority) process.
+Only the superuser can set negative nice values.
+</p>
+
+<pre>
+     # nice  -19 <var>top</var>                                      # very nice
+     # nice --20 <var>wodim -v -eject speed=2 dev=0,0 disk.img</var> # very fast
+</pre>
+
+<p>
+Sometimes an extreme nice value does more harm than good to the system.  Use
+this command carefully.
+</p>
+
+<hr>
+
+<h3><a name="s-cronjob"></a>8.6.27 Schedule activity (<code>cron</code>, <code>at</code>)</h3>
+
+<p>
+Use <code>cron</code> and <code>at</code> to schedule tasks under Linux.  See
+<code>at(1)</code>, <code>crontab(5)</code>, <code>crontab(8)</code>.
+</p>
+
+<p>
+Run the command <samp>crontab -e</samp> to create or edit a crontab file to set
+up regularly scheduled events.  Example of a crontab file:
+</p>
+
+<pre>
+     # use /bin/sh to run commands, no matter what /etc/passwd says
+     SHELL=/bin/sh
+     # mail any output to `paul', no matter whose crontab this is
+     MAILTO=paul
+     # Min Hour DayOfMonth Month DayOfWeek command (Day... are OR'ed)
+     # run at 00:05, every day
+     5  0  *  * *   $HOME/bin/daily.job &gt;&gt; $HOME/tmp/out 2&gt;&amp;1
+     # run at 14:15 on the first of every month -- output mailed to paul
+     15 14 1  * *   $HOME/bin/monthly
+     # run at 22:00 on weekdays(1-5), annoy Joe. % for newline, last % for cc:
+     0 22 *   * 1-5 mail -s &quot;It's 10pm&quot; joe%Joe,%%Where are your kids?%.%%
+     23 */2 1 2 *   echo &quot;run 23 minutes after 0am, 2am, 4am ..., on Feb 1&quot;
+     5  4 *   * sun echo &quot;run at 04:05 every sunday&quot;
+     # run at 03:40 on the first Monday of each month
+     40 3 1-7 * *   [ &quot;$(date +%a)&quot; == &quot;Mon&quot; ] &amp;&amp; command -args
+</pre>
+
+<p>
+Run the <code>at</code> command to schedule a one-time job:
+</p>
+
+<pre>
+     $ echo '<var>command -args</var>'| at 3:40 monday
+</pre>
+
+<hr>
+
+<h3><a name="s-screen"></a>8.6.28 Console switching with <code>screen</code></h3>
+
+<p>
+The <code>screen</code> program allows you to run multiple virtual terminals,
+each with its own interactive shell, on a single physical terminal or terminal
+emulation window.  Even if you use Linux virtual consoles or multiple
+<code>xterm</code> windows, it is worth exploring <code>screen</code> for its
+rich feature set, which includes
+</p>
+<ul>
+<li>
+<p>
+scrollback history,
+</p>
+</li>
+<li>
+<p>
+copy-and-paste,
+</p>
+</li>
+<li>
+<p>
+output logging,
+</p>
+</li>
+<li>
+<p>
+digraph entry, and
+</p>
+</li>
+<li>
+<p>
+the ability to <strong>detach</strong> an entire <code>screen</code> session
+from your terminal and reattach it later.
+</p>
+</li>
+</ul>
+
+<hr>
+
+<h4><a name="s8.6.28.1"></a>8.6.28.1 Remote access scenario</h4>
+
+<p>
+If you frequently log on to a Linux machine from a remote terminal or using a
+VT100 terminal program, <code>screen</code> will make your life much easier
+with the <strong>detach</strong> feature.
+</p>
+
+<!-- ol type="1" start="1"  -->
+<li>
+<p>
+You are logged in via a dialup connection, and are running a complex
+<code>screen</code> session with editors and other programs open in several
+windows.
+</p>
+</li>
+<li>
+<p>
+Suddenly you need to leave your terminal, but you don't want to lose your work
+by hanging up.
+</p>
+</li>
+<li>
+<p>
+Simply type <samp>^A d</samp> to <strong>detach</strong> the session, then log
+out.  (Or, even quicker, type <samp>^A DD</samp> to have <code>screen</code>
+detach and log you out itself.)
+</p>
+</li>
+<li>
+<p>
+When you log on again later, enter the command <samp>screen -r</samp>, and
+<code>screen</code> will magically <strong>reattach</strong> all the windows
+you had open.
+</p>
+</li>
+</ol>
+
+<hr>
+
+<h4><a name="s8.6.28.2"></a>8.6.28.2 Typical <code>screen</code> commands</h4>
+
+<p>
+Once you start <code>screen</code>, all keyboard input is sent to your current
+window except for the command keystroke, by default <samp>^A</samp>.  All
+<code>screen</code> commands are entered by typing <samp>^A</samp> plus a
+single key [plus any parameters].  Useful commands:
+</p>
+
+<pre>
+     ^A ?     show a help screen (display key bindings)
+     ^A c     create a new window and switch to it
+     ^A n     go to next window
+     ^A p     go to previous window
+     ^A <var>0</var>     go to window number <var>0</var>
+     ^A w     show a list of windows
+     ^A a     send a Ctrl-A to current window as keyboard input
+     ^A h     write a hardcopy of current window to file 
+     ^A H     begin/end logging current window to file
+     ^A ^X    lock the terminal (password protected)
+     ^A d     detach screen session from the terminal
+     ^A DD    detach screen session and log out
+</pre>
+
+<p>
+This is only a small subset of <code>screen</code>'s commands and features.  If
+there's something you want <code>screen</code> to be able to do, chances are it
+can!  See <code>screen(1)</code> for details.
+</p>
+
+<hr>
+
+<h4><a name="s8.6.28.3"></a>8.6.28.3 Backspace and/or Ctrl-H in <code>screen</code> session</h4>
+
+<p>
+If you find that backspace and/or Ctrl-H do not work properly when you are
+running <code>screen</code>, edit <code>/etc/screenrc</code>, find the line
+reading
+</p>
+<pre>
+     bindkey -k kb stuff &quot;\177&quot;
+</pre>
+
+<p>
+and comment it out (i.e., add &quot;#&quot; as the first character).
+</p>
+
+<hr>
+
+<h4><a name="s8.6.28.4"></a>8.6.28.4 Equivalent program to <code>screen</code> for X</h4>
+
+<p>
+Check out <code>xmove</code>.  See <code>xmove(1)</code>.
+</p>
+
+<hr>
+
+<h3><a name="s-net-test"></a>8.6.29 Network testing basics</h3>
+
+<p>
+Install <code>netkit-ping</code>, <code>traceroute</code>,
+<code>dnsutils</code>, <code>ipchains</code> (for 2.2 kernel),
+<code>iptables</code> (for 2.4 kernel), and <code>net-tools</code> packages
+and:
+</p>
+
+<pre>
+     $ ping <var>yahoo.com</var>            # check Internet connection
+     $ traceroute <var>yahoo.com</var>      # trace IP packets
+     $ ifconfig                  # check host config
+     $ route -n                  # check routing config
+     $ dig <var>[@dns-server.com] host.dom [{a|mx|any}]</var> |less
+           # check <var>host.dom</var> DNS records by <var>dns-server.com</var> 
+           # for a <var>{a|mx|any}</var> record
+     $ ipchains -L -n |less      # check packet filter (2.2 kernel)
+     $ iptables -L -n |less      # check packet filter (2.4 kernel)
+     $ netstat -a                # find all open ports
+     $ netstat -l --inet         # find listening ports
+     $ netstat -ln --tcp         # find listening TCP ports (numeric)
+</pre>
+
+<hr>
+
+<h3><a name="s-flush-mail"></a>8.6.30 Flush mail from local spool</h3>
+
+<p>
+To flush mail from the local spool:
+</p>
+
+<pre>
+     # exim4 -q    # flush waiting mail
+     # exim4 -qf   # flush all mail
+     # exim4 -qff  # flush even frozen mail
+</pre>
+
+<p>
+<samp>-qff</samp> may be better as an option in the
+<code>/etc/ppp/ip-up.d/exim</code> script.  For Woody and older distributions,
+replace <code>exim4</code> with <code>exim</code>.
+</p>
+
+<hr>
+
+<h3><a name="s-remove-mail"></a>8.6.31 Remove frozen mail from local spool</h3>
+
+<p>
+To remove frozen mail from the local spool with a delivery error message:
+</p>
+
+<pre>
+     # exim4 -Mg `mailq | grep frozen | awk '{ print $3 }'`
+</pre>
+
+<p>
+For Woody and older distributions, replace <code>exim4</code> with
+<code>exim</code>.
+</p>
+
+<hr>
+
+<h3><a name="s8.6.32"></a>8.6.32 Redeliver <code>mbox</code> contents</h3>
+
+<p>
+You need to manually deliver mails to the sorted mailboxes in your home
+directory from <code>/var/mail/<var>username</var></code> if your home
+directory became full and <code>procmail</code> failed.  After making disk
+space in the home directory, run:
+</p>
+
+<pre>
+     # /etc/init.d/exim4 stop
+     # formail -s procmail &lt;/var/mail/<var>username</var>
+     # /etc/init.d/exim4 start
+</pre>
+
+<p>
+For Woody and older distributions, replace <code>exim4</code> with
+<code>exim</code>.
+</p>
+
+<hr>
+
+<h3><a name="s8.6.33"></a>8.6.33 Clear file contents</h3>
+
+<p>
+In order to clear the contents of a file such as a logfile, do not use
+<samp>rm</samp> to delete the file and then create a new empty file, because
+the file may still be accessed in the interval between commands.  The following
+is the safe way to clear the contents of the file.
+</p>
+
+<pre>
+     $ :&gt;<var>file-to-be-cleared</var>
+</pre>
+
+<hr>
+
+<h3><a name="s-dummyfile"></a>8.6.34 Dummy files</h3>
+
+<p>
+The following commands will create dummy or empty files:
+</p>
+
+<pre>
+     $ dd if=/dev/zero    of=<var>filename</var> bs=1k count=5 # 5KB of zero content
+     $ dd if=/dev/urandom of=<var>filename</var> bs=1M count=7 # 7MB of random content
+     $ touch <var>filename</var> #  create 0B file (if file exists, updates mtime)
+</pre>
+
+<p>
+For example, the following commands executed from the shell of the Debian boot
+floppy will erase all the content of the hard disk <code>/dev/hda</code>
+completely for most practical uses.
+</p>
+
+<pre>
+     # dd if=/dev/urandom of=/dev/hda; dd if=/dev/zero of=/dev/hda
+</pre>
+
+<hr>
+
+<h3><a name="s-chroot"></a>8.6.35 <code>chroot</code></h3>
+
+<p>
+The <code>chroot</code> program, <code>chroot(8)</code>, enables us to run
+different instances of the GNU/Linux environment on a single system
+simultaneously without rebooting.
+</p>
+
+<p>
+One may also run a resource hungry program such as <code>apt-get</code> or
+<code>dselect</code> under the chroot of a fast host machine while NFS-mounting
+a slow satellite machine to the host as r/w and the chroot point being the
+mount point of the satellite machine.
+</p>
+
+<hr>
+
+<h4><a name="s-chroot-debian"></a>8.6.35.1 Run a different Debian distribution with <code>chroot</code></h4>
+
+<p>
+A chroot Debian environment can easily be created by the
+<code>debootstrap</code> command in Sarge.  For post-Sarge distributions, you
+may use <code>cdebootstrap</code> command instead with appropriate option.  For
+example, to create a Sid chroot on <var>/sid-root</var> while having fast
+Internet access:
+</p>
+
+<pre>
+     main # cd /; mkdir <var>/sid-root</var>
+     main # debootstrap sid <var>/sid-root</var> <var>http://ftp.debian.org/debian/</var>
+     ... watch it download the whole system
+     main # echo &quot;proc <var>/sid-root</var>/proc proc none 0 0&quot; &gt;&gt; /etc/fstab
+     main # mount <var>/sid-root</var>/proc
+     main # mount /dev/ <var>/sid-root</var>/dev -o bind
+     main # cp /etc/hosts <var>/sid-root</var>/etc/hosts
+     main # chroot <var>/sid-root</var> /bin/bash
+     chroot # cd /dev; /sbin/MAKEDEV generic; cd -
+     chroot # apt-setup # set-up /etc/apt/sources.list
+     chroot # vi /etc/apt/sources.list # point the source to unstable
+     chroot # dselect  # you may use aptitude, install mc and vim :-)
+</pre>
+
+<p>
+At this point you should have a fully working Debian system, where you can play
+around without fear of affecting your main Debian installation.
+</p>
+
+<p>
+This <code>debootstrap</code> trick can also be used to install Debian to a
+system without using a Debian install disk, but instead one for another
+GNU/Linux distribution.  See <code><a
+href="http://www.debian.org/releases/stable/i386/apcs04">http://www.debian.org/releases/stable/i386/apcs04</a></code>.
+</p>
+
+<hr>
+
+<h4><a name="s-chroot-console"></a>8.6.35.2 Setting up login for <code>chroot</code></h4>
+
+<p>
+Typing <samp>chroot <var>/sid-root</var> /bin/bash</samp> is easy, but it
+retains all sorts of environment variables that you may not want, and has other
+issues.  A much better approach is to run another login process on a separate
+virtual terminal where you can log in to the chroot directly.
+</p>
+
+<p>
+Since on default Debian systems <samp>tty1</samp> to <samp>tty6</samp> run
+Linux consoles and <samp>tty7</samp> runs the X Window System, let's set up
+<samp>tty8</samp> for a chrooted console as an example.  After creating a
+chroot system as described in <a href="#s-chroot-debian">Run a different Debian
+distribution with <code>chroot</code>, Section 8.6.35.1</a>, type from the root
+shell of the main system:
+</p>
+
+<pre>
+     main # echo &quot;8:23:respawn:/usr/sbin/chroot <var>/sid-root</var> &quot;\
+            &quot;/sbin/getty 38400 tty8&quot; &gt;&gt; /etc/inittab
+     main # init q    # reload init
+</pre>
+
+<hr>
+
+<h4><a name="s-chroot-x"></a>8.6.35.3 Setting up X for <code>chroot</code></h4>
+
+<p>
+You want to run the latest X and GNOME safely in your chroot?  That's entirely
+possible!  The following example will make GDM run on virtual terminal
+<samp>vt9</samp>.
+</p>
+
+<p>
+First install a chroot system using the method described in <a
+href="#s-chroot-debian">Run a different Debian distribution with
+<code>chroot</code>, Section 8.6.35.1</a>.  From the root of the main system,
+copy key configuration files to the chroot system.
+</p>
+
+<pre>
+     main # cp /etc/X11/XF86Config-4 <var>/sid-root</var>/etc/X11/XF86Config-4
+     main # chroot <var>/sid-root</var> # or use chroot console
+     chroot # cd /dev; /sbin/MAKEDEV generic; cd -
+     chroot # apt-get install gdm gnome x-window-system
+     chroot # vi /etc/gdm/gdm.conf # do s/vt7/vt9/ in [servers] section
+     chroot # /etc/init.d/gdm start
+</pre>
+
+<p>
+Here, <code>/etc/gdm/gdm.conf</code> was edited to change the first virtual
+console from <samp>vt7</samp> to <samp>vt9</samp>.
+</p>
+
+<p>
+Now you can easily switch back and forth between full X environments in your
+chroot and your main system just by switching between Linux virtual terminals;
+e.g.  by using Ctrl-Alt-F7 and Ctrl-Alt-F9.  Have fun!
+</p>
+
+<p>
+[FIXME] Add a comment and link to the init script of the chrooted
+<code>gdm</code>.
+</p>
+
+<hr>
+
+<h4><a name="s-chroot-dist"></a>8.6.35.4 Run other distributions with <code>chroot</code></h4>
+
+<p>
+A chroot environment for another Linux distribution can easily be created.  You
+install a system into separate partitions using the installer of the other
+distribution.  If its root partition is in <code><var>/dev/hda9</var></code>:
+</p>
+
+<pre>
+     main # cd /; mkdir <var>/other-dist</var>
+     main # mount -t ext3 <var>/dev/hda9</var> <var>/other-dist</var>
+     main # chroot <var>/other-dist</var> /bin/bash
+</pre>
+
+<p>
+Then proceed as in <a href="#s-chroot-debian">Run a different Debian
+distribution with <code>chroot</code>, Section 8.6.35.1</a>, <a
+href="#s-chroot-console">Setting up login for <code>chroot</code>, Section
+8.6.35.2</a>, and <a href="#s-chroot-x">Setting up X for <code>chroot</code>,
+Section 8.6.35.3</a>.
+</p>
+
+<hr>
+
+<h4><a name="s-chroot-build"></a>8.6.35.5 Build a package with <code>chroot</code></h4>
+
+<p>
+There is a more specialized chroot package, <code>pbuilder</code>, which
+constructs a chroot system and builds a package inside the chroot.  It is an
+ideal system to use to check that a package's build-dependencies are correct,
+and to be sure that unnecessary and wrong build dependencies will not exist in
+the resulting package.
+</p>
+
+<hr>
+
+<h3><a name="s8.6.36"></a>8.6.36 How to check hard links</h3>
+
+<p>
+You can check whether two files are the same file with two hard links by:
+</p>
+
+<pre>
+      
+     $ ls -li <var>file1</var> <var>file2</var>
+</pre>
+
+<hr>
+
+<h3><a name="s8.6.37"></a>8.6.37 <code>mount</code> hard disk image file</h3>
+
+<p>
+If <code><var>file.img</var></code> contains an image of hard disk contents and
+the original hard disk had a disk configuration which gives <var>xxxx</var> =
+(bytes/sector) * (sectors/cylinder), then the following will mount it to
+<code>/mnt</code>:
+</p>
+
+<pre>
+     # mount -o loop,offset=<var>xxxx</var> <var>file.img</var> /mnt
+</pre>
+
+<p>
+Note that most hard disks have 512 bytes/sector.
+</p>
+
+<hr>
+
+<h3><a name="s-smbmount"></a>8.6.38 Samba</h3>
+
+<p>
+Basics of getting files from Windows:
+</p>
+
+<pre>
+     # mount -t smbfs -o <var>username=myname,uid=my_uid,gid=my_gid</var> \
+             <var>//server/share /mnt/smb</var>  # mount Windows files to Linux
+     # smbmount <var>//server/share /mnt/smb</var> \
+             -o &quot;<var>username=myname,uid=my_uid,gid=my_gid</var>&quot;
+     # smbclient -L <var>192.168.1.2</var> # list the shares on a computer
+</pre>
+
+<p>
+Samba neighbors can be checked from Linux using:
+</p>
+
+<pre>
+     # smbclient -N -L <var>ip_address_of_your_PC</var> | less
+     # nmblookup -T &quot;*&quot;
+</pre>
+
+<hr>
+
+<h3><a name="s8.6.39"></a>8.6.39 Utilities for foreign filesystems</h3>
+
+<p>
+Many foreign filesystems have Linux kernel support, and can thus be accessed
+simply by mounting the devices containing the filesystems.  For certain
+filesystems, there are also a few specialized tools to access the filesystems
+without mounting the devices.  This is accomplished with user-space programs so
+that kernel filesystem support is not needed.
+</p>
+<ul>
+<li>
+<p>
+<code>mtools</code>: for MS-DOS filesystem (MS-DOS, Windows)
+</p>
+</li>
+<li>
+<p>
+<code>cpmtools</code>: for CP/M filesystem
+</p>
+</li>
+<li>
+<p>
+<code>hfsutils</code>: for HFS filesystem (native Macintosh)
+</p>
+</li>
+<li>
+<p>
+<code>hfsplus</code>: for HFS+ filesystem (modern Macintosh)
+</p>
+</li>
+</ul>
+
+<p>
+In order to create and check an MS-DOS FAT filesystem, <code>dosfstools</code>
+is useful.
+</p>
+
+<hr>
+
+<h2><a name="s-oops"></a>8.7 Typical mistakes to be noted</h2>
+
+<p>
+Here are few examples of dangerous actions.  The negative impacts will be
+enhanced if you are using privileged account: <samp>root</samp>.
+</p>
+
+<hr>
+
+<h3><a name="s-rm-rf-star"></a>8.7.1 <samp>rm -rf .*</samp></h3>
+
+<p>
+The use of wild card file name in command line arguments such as &quot;<samp>rm
+-rf .*</samp>&quot; may cause dangerous result, since
+&quot;<samp>.*</samp>&quot; expands to include &quot;<samp>.</samp>&quot; and
+&quot;<samp>..</samp>&quot;.  Fortunately for the current verion of
+&quot;<samp>rm</samp>&quot; command in the Debian distribution, it checks
+sanity of the argument file names and refuses to remove
+&quot;<samp>.</samp>&quot; and &quot;<samp>..</samp>&quot;.  But this is not
+always the case.  Try following to see how the wild card file names work.
+</p>
+
+<ul>
+<li>
+<p>
+&quot;<samp>echo *</samp>&quot;: lists every non-dot files and non-dot
+directories under current directory.
+</p>
+</li>
+<li>
+<p>
+&quot;<samp>echo .[^.]*</samp>&quot;: lists every dot file and dot-directories
+under current directory.
+</p>
+</li>
+<li>
+<p>
+&quot;<samp>echo .*</samp>&quot;: lists everything under parent directory and
+parent directory itself.
+</p>
+</li>
+</ul>
+
+<hr>
+
+<h3><a name="s-rm-passwd"></a>8.7.2 <samp>rm /etc/passwd</samp></h3>
+
+<p>
+Loss of some important files such as <code>/etc/passwd</code> through your
+stupidity is tough.  The Debian system makes regular backups of them in
+<code>/var/backups/</code>.  When you restore these files, you may manually
+have to set the proper permissions.
+</p>
+
+<pre>
+     # cp /var/backups/passwd /etc/passwd
+     # chmod 644 /etc/passwd
+</pre>
+
+<p>
+See also <a href="ch-package.en.html#s-recover-status">Recover package
+selection data, Section 6.3.4</a>.
+</p>
+
+<hr>
+
+<p>
+[ <a href="ch-kernel.en.html">previous</a> ]
+[ <a href="index.en.html#contents">Contents</a> ]
+[ <a href="ch-preface.en.html">1</a> ]
+[ <a href="ch-system.en.html">2</a> ]
+[ <a href="ch-install.en.html">3</a> ]
+[ <a href="ch-tutorial.en.html">4</a> ]
+[ <a href="ch-woody.en.html">5</a> ]
+[ <a href="ch-package.en.html">6</a> ]
+[ <a href="ch-kernel.en.html">7</a> ]
+[ 8 ]
+[ <a href="ch-tune.en.html">9</a> ]
+[ <a href="ch-gateway.en.html">10</a> ]
+[ <a href="ch-edit.en.html">11</a> ]
+[ <a href="ch-vcs.en.html">12</a> ]
+[ <a href="ch-program.en.html">13</a> ]
+[ <a href="ch-gnupg.en.html">14</a> ]
+[ <a href="ch-support.en.html">15</a> ]
+[ <a href="ap-appendix.en.html">A</a> ]
+[ <a href="ch-tune.en.html">next</a> ]
+</p>
+
+<hr>
+
+<p>
+Debian Reference
+</p>
+
+<address>
+CVS, Mon Jun 16 21:20:26 UTC 2008<br>
+<br>
+Osamu Aoki <code><a href="mailto:osamu#at#debian.org">osamu#at#debian.org</a></code><br>
+<a href="ap-appendix.en.html#s-authors">Authors, Section A.1</a><br>
+<br>
+</address>
+<hr>
+
+</body>
+
+</html>
+

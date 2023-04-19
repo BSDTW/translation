@@ -1,0 +1,678 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><title>Chapter 27. Extending MySQL</title><meta name="generator" content="DocBook XSL Stylesheets V1.69.1"><link rel="start" href="index.html" title="MySQL 5.1 Reference Manual"><link rel="up" href="index.html" title="MySQL 5.1 Reference Manual"><link rel="prev" href="connectors.html" title="Chapter 26.   Connectors"><link rel="next" href="problems.html" title="Appendix A. Problems and Common Errors"></head><body><div class="chapter"><div class="titlepage"><div><div><h2 class="title"><a name="extending-mysql"></a>
+第27章：延伸MySQL</h2></div></div></div><div class="toc"><p><b>目錄</b></p><dl><dt><span class="section">
+	<a href="#mysql-internals">27.1. MySQL內部控件</a></span></dt><dd><dl><dt><span class="section">
+		<a href="#mysql-threads">27.1.1. MySQL線程</a></span></dt><dt><span class="section">
+		<a href="#mysql-test-suite">27.1.2. MySQL測試套件</a></span></dt></dl></dd><dt><span class="section">
+	<a href="#adding-functions">27.2. 為MySQL新增新函數</a></span></dt><dd><dl><dt><span class="section">
+		<a href="#udf-features">27.2.1. 自行定義函數接口的特性</a></span></dt><dt><span class="section">
+		<a href="#create-function">27.2.2. CREATE FUNCTION/DROP FUNCTION 
+		語法</a></span></dt><dt><span class="section"><a href="#adding-udf">27.2.3. 
+		新增新的自行定義函數</a></span></dt><dt><span class="section">
+		<a href="#adding-native-function">27.2.4. 新增新的固有函數</a></span></dt></dl></dd><dt><span class="section">
+	<a href="#adding-procedures">27.3. 為MySQL新增新步驟</a></span></dt><dd><dl><dt><span class="section">
+		<a href="#procedure-analyse">27.3.1. 步驟分析</a></span></dt><dt><span class="section">
+		<a href="#writing-a-procedure">27.3.2. 編寫步驟</a></span></dt></dl></dd></dl></div><div class="section"><div class="titlepage"><div><div><h2 class="title"><a name="mysql-internals"></a>27.1. MySQL內部控件</h2></div></div></div><div class="toc"><dl><dt><span class="section">
+	<a href="#mysql-threads">27.1.1. MySQL線程</a></span></dt><dt><span class="section">
+	<a href="#mysql-test-suite">27.1.2. MySQL測試套件</a></span></dt></dl></div><a class="indexterm" name="id3068802"></a><a class="indexterm" name="id3068809"></a><p>
+      &nbsp;&nbsp;&nbsp; 本章包含許多在您處理MySQL代碼時需要瞭解的您事情。如果您想投入到MySQL的開發中，或想要接觸到最新的中間版本的代碼，或者就是想了解開發的進度，請參閱<a href="installing.html#installing-source-tree" title="2.8.3. Installing from the Development Source Tree">2.8.3節，「從開發源代碼樹安裝」</a>的說明。如果您對MySQL的內部插件感興趣，您也可以訂閱我們的內部插件郵件列資料表。這個列資料表的流量相對低一些。欲知如何訂閱的詳情，請參閱<a href="introduction.html#mailing-list" title="1.7.1.1. The MySQL Mailing Lists">1.7.1.1節，「MySQL郵件列資料表」</a>。在MySQL AB 的所有開發人員都在內部插件列資料表裡，
+		此外，我們幫助那些正在處理MySQL代碼的人。請隨意使用這個郵件列資料表來問代碼有關的問題，也可用它來發送您想奉獻給MySQL項目的 
+		補丁！
+    </p><div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="mysql-threads"></a>27.1.1. MySQL線程</h3></div></div></div><p>
+        &nbsp;&nbsp;&nbsp; MySQL伺服器建立如下線程：
+      </p><div class="itemizedlist"><ul type="disc"><li><p>
+            TCP/IP 連接線程處理所有連接請求，並為每一個連接建立一個新的專用線程來處理認證和SQL查詢處理。
+          </p></li><li><p>
+			Windows NT 平台上有一個名為管道處理程式（pipe handler）的線程，它和名為管道連接請求（pipe connect 
+			requests）的TCP/IP連接線程做同樣的工作。
+          </p></li><li><p>
+            信號線程處理所有的信號，這個線程通常也處理報警和使用process_alarm() 
+			函數來強制使得空閒時間太長的連接超時。
+          </p></li><li><p>
+            <span>若<strong class="command">mysqld</strong></span>是與DUSE_ALARM_THREAD線程一起編譯的，這個專用線程是處理 
+			建立的警報的。這個線程用在一些sigwait()函數有問題的系統上，或者用在您想在應用程式中使用thr_alarm()代碼而不帶專用信號處理線程之時。
+          </p></li><li><p>
+            若想使用flush_time=<em class="replaceable">val</em>選項，會建立一個專用線程以給定的時間間隔刷新所有資料表格。
+          </p></li><li><p>
+            每個連接都有它自己的線程。</p></li><li><p>
+            每個被使用INSERT
+            DELAYED 的不同資料表格都會有自己的線程。
+          </p></li><li><p>
+            若使用了master-host, 
+			則會建立一個從屬的複製線程從主線程讀取並實施更新。
+          </p></li></ul></div><p>
+        <span><strong class="command">mysqladmin processlist</strong></span> 
+		僅顯示連接，INSERT DELAYED, 及複製線程</p></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="mysql-test-suite"></a>27.1.2. MySQL測試套件</h3></div></div></div><div class="toc"><dl><dt><span class="section">
+		<a href="#running-mysqltest">27.1.2.1. 運行MySQL測試套件</a></span></dt><dt><span class="section">
+		<a href="#extending-mysqltest">27.1.2.2. 延伸MySQL測試套件</a></span></dt><dt><span class="section">
+		<a href="#reporting-mysqltest-bugs">27.1.2.3. MySQL測試套件報告問題</a></span></dt></dl></div><a class="indexterm" name="id3068998"></a><a class="indexterm" name="id3069009"></a><p>
+        &nbsp;&nbsp;&nbsp;&nbsp; 包含在Unix原始碼和二進制分發版中的測試系統可以讓用戶和開發人員對MySQL代碼施行回歸測試。這些測試可以在Unix上進行，目前它們還不能在原生的Windows環境下進行。
+      </p><p>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 當前的測試案例套件不能在MySQL中測試所有東西，但是它能發現SQL處理代碼，OS/library檔案中大多數明顯的問題，並且在測試復件方面也是非常徹底的。我們的終極目標是對100%的代碼進行測試。我們歡迎大家給我們的測試套件新增內容。您可能會特別想貢獻出那些檢查您系統裡功能性危機的測試，因為這將確保未來所有發行版的MySQL會與您的應用程式一起更好地運行。
+      </p><div class="section"><div class="titlepage"><div><div><h4 class="title"><a name="running-mysqltest"></a>27.1.2.1. 運行MySQL測試套件</h4></div></div></div><p>
+          &nbsp;&nbsp;&nbsp; 測試系統包括一個測試語言解釋器(<span><strong class="command">mysqltest</strong></span>)，一個運行所有測試的外殼指令(<span><strong class="command">mysql-test-run</strong></span>)，用專用語言編寫的測試案例，以及它們的預期結果。在系統上編譯好之後，在源代碼的root下鍵入<span><strong class="command">make test</strong></span> 
+			或mysql-test/mysql-test-run。如果安裝了一個二進制分發版， cd 到安裝root (如
+          /usr/local/mysql), 然後鍵入
+          scripts/mysql-test-run。所有測試應該都通過，假使有沒通過的，若是一個MySQL裡的問題，您可以試著找找是因為什麼，並且報告這個問題。請參閱<a href="#reporting-mysqltest-bugs" title="27.1.2.3. Reporting Bugs in the MySQL Test Suite">27.1.2.3節，「在MySQL測試套件裡報告問題」</a>。
+        </p><p>
+          如果您想要運行測試套件的機器上已經運行了一個 <span><strong class="command">mysqld</strong></span> 
+			，只要它不佔用9306 和 9307端口，就不用停掉它。如果佔用了其中的一個，以可以編輯<span><strong class="command">mysql-test-run</strong>把主端口和（或）從端口號改為其它可用的。</span>.
+        </p><p>
+          可使用下面指令運行單個測試案例
+          mysql-test/mysql-test-run test_name.
+        </p><p>
+          若一個測試未通過，您可以用--force選項來檢查運行著的<span><strong class="command">mysql-test-run</strong>看是否是別的測試未通過</span>。
+        </p></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a name="extending-mysqltest"></a>27.1.2.2. 延伸MySQL測試套件</h4></div></div></div><p>
+          您可以用<span><strong class="command">mysqltest</strong></span> 
+			語言編寫您自己的測試案例。不幸地是，我們還沒有寫完相關方面完整地文檔。但是，您可以查看我們現有的測試案例，並將它們作為範例。下面幾點將有助於您入手：
+        </p><div class="itemizedlist"><ul type="disc"><li><p>
+              測試位於
+              mysql-test/t/*.test
+            </p></li><li><p>
+              測試案例包括終止聲明，測試案例類似於<span><strong class="command">mysql</strong>命令行客戶端的輸入。
+				預設的聲明是一個被發送到MySQL伺服器的查詢，除非這個聲明被識別為內部命令（如</span>
+              <span><strong class="command">sleep</strong>）。</span>
+            </p></li><li><p>
+              所有產生結果的查詢，例如SELECT, SHOW,
+              EXPLAIN等，必須在 
+              <em class="replaceable">@/path/to/result/file</em>之前。那個檔案必須包含期望的結果。生成結果檔案的一個簡單辦法是在mysql-test目錄<span>運行<strong class="command">mysqltest -r &lt;
+              t/test-case-name.test</strong></span> 
+				，然後編輯生成的結果檔案，如果需要，可將它們調整到想要的輸出端。在那種情況下，要小心避免新增或刪除任何不可見的字元，確保只改變文本和（或）刪除行。如果插入一行，要確保插入的區域被一個硬標識隔開，且在行尾有一個硬標識。您可能會想要使用<span><strong class="command">od -c</strong>來確保您的文本編輯器在編輯
+				步驟中沒有搞亂任何東西。當您發現一個問題而不得不編輯<strong class="command">mysqltest -r</strong>的輸出時，我們真希望您不要編輯它。</span>
+            </p></li><li><p>
+              為和我們的設置一致，您應該把您的結果檔案放在mysql-test/r
+              目錄，並取名為test_name.result。如果測試產生不止一個結果，您應該使用諸如
+              test_name.a.result，test_name.b.result等這樣的名字。
+            </p></li><li><p>
+              如果聲明返回一個錯誤，您可以在聲明的前一行使用--error error-number來詳細說明它。錯誤號可能是由「,」分開的可能錯誤號的列資料表。</p></li><li><p>
+              如果您正編寫一個重複的測試案例，您應該在測試檔案的第一行寫：source
+              include/master-slave.inc;。用connection
+              master; 和 connection
+              slave;來切換主案例和從案例。如果您需要對一個替換的連接做點什麼，對於主連接，用connection
+              master1;，對於從連接，用connection
+              slave1;。</p></li><li><p>
+              如果需要在一個循環裡做點什麼，可以用些這樣的內容：
+            </p><pre class="programlisting">let $1=1000;
+while ($1)
+{
+ # do your queries here
+ dec $1;
+}
+</pre></li><li><p>
+              在查詢之間休眠，使用<span><strong class="command">sleep</strong></span>命令。此命令支援幾分之幾秒，所以，例如您想要休眠1.3秒，您可以使用<span><strong class="command">sleep 1.3;</strong> 
+				命令</span>。
+            </p></li><li><p>
+              對您的測試案例要運行帶附加選項的從案例，以命令行方式把它們放在mysql-test/t/test_name-slave.opt。對於主案例，把它們放在mysql-test/t/test_name-master.opt。</p></li><li><p>
+              如果對測試套件有問題，和想要獻出一個測試案例，發送郵件訊息到MySQL 內部插件 
+				郵件列資料表。請參閱<a href="introduction.html#mailing-list" title="1.7.1.1. The MySQL Mailing Lists">1.7.1.1節，「MySQL郵件列資料表」</a>。 
+				雖然這個列資料表不接受附件，您可以把相關檔案通過ftp上傳到：<a href="ftp://ftp.mysql.com/pub/mysql/upload/" target="_top">ftp://ftp.mysql.com/pub/mysql/upload/</a>
+            </p></li></ul></div></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a name="reporting-mysqltest-bugs"></a>
+			27.1.2.3.&nbsp;在MySQL測試套件中報告問題</h4></div></div></div><p>
+          如果您的MySQL的版本沒有通過測試套件，您可以採取如下措施：
+        </p><div class="itemizedlist"><ul type="disc"><li><p>
+              在盡可能多地找到出錯之時的錯誤之前，不要發送問題報告。搜尋之時，請使用<span><strong class="command">mysqlbug</strong>指令比便我們能獲取您的系統和MySQL版本訊息</span>，參閱<a href="introduction.html#bug-reports" title="1.7.1.3. How to Report Bugs or Problems">1.7.1.3節
+				，「如何報告問題或問題</a><a href="introduction.html#bug-reports">」</a>。</p></li><li><p>
+              確保包含了<span><strong class="command">mysql-test-run</strong>的輸出，以及</span>&nbsp;
+              mysql-test/r目錄<span>下所有</span>.reject<span>檔案的內容。</span>
+            </p></li><li><p>
+              如果測試套件裡的測試未通過，用如下命令檢查一下看它自己運行時是否通過測試：
+            </p><pre class="programlisting">cd mysql-test
+mysql-test-run --local test-name
+</pre><p>
+              如果未能通過，您應該用
+              --with-debug 配置MySQL並使用--debug選項來運行<span><strong class="command">mysql-test-run</strong>。如果這樣也未能通過，請把追蹤檔案</span>var/tmp/master.trace
+              上傳到 <a href="ftp://ftp.mysql.com/pub/mysql/upload/" target="_top">ftp://ftp.mysql.com/pub/mysql/upload/</a> 
+				以便我們能檢查它。請記得也要包含您系統的完整描述，<span><strong class="command">mysqld</strong></span> 
+				二進制檔案的版本，以及您是如何編譯它的。
+            </p></li><li><p>
+              也試著帶--force選項運行一下<span><strong class="command">mysql-test-run</strong></span> 
+				，看是否還有別的測試未通過。
+            </p></li><li><p>
+              如果您是自己編譯的MySQL，查看我們的手冊看看如何在您的平台上編譯MySQL，最好用一個在<a href="http://dev.mysql.com/downloads/" target="_top">http://dev.mysql.com/downloads/</a>上我們已經為您編譯好的二進製版本。我們所有標準的二進製版本都能通過測試套件的測試！</p></li><li><p>
+              如果錯誤是Result length
+              mismatch 或 Result content
+              mismatch ，這意味測試的輸出於期望的輸出不匹配，這可能是在MySQL或您的<span><strong class="command">mysqld</strong> 
+				版本裡的問題在某些環境下產生稍有不同的結果。</span>
+            </p><p>
+              未通過的測試結果放在和結果檔案同主名但延伸名為.reject的檔案裡。如果測試案例未通過，您應該對兩個檔案做diff操作。如果您不能發現它們是如何不同，用od -c 
+				命令檢查它們，也檢查一下檔案長度。</p></li><li><p>
+              如果測試完全未通過，您應該檢查mysql-test/var/log目錄下的日誌檔案以獲得有關錯誤的一些提示。
+            </p></li><li><p>
+              如果您是為調試而編譯MySQL，試一下帶--gdb和（或）--debug參數運行<span><strong class="command">mysql-test-run</strong></span>
+              。請參閱<a href="porting.html#making-trace-files" title="E.1.2. Creating Trace Files">E.1.2節，「建立跟蹤檔案」</a>。
+            </p><p>
+              如果您沒有為調試而編譯MySQL，這應該是您可能去做的。只要帶－-with-debug參數運行<span><strong class="command">configure</strong></span>。 
+				請參閱<a href="installing.html#installing-source" title="2.8. MySQL Installation Using a Source Distribution">2.8節，「使用原始碼分發版安裝MySQL 
+				」</a>。
+            </p></li></ul></div></div></div></div><div class="section"><div class="titlepage"><div><div>
+	<h2 class="title" align="left"><a name="adding-functions"></a>27.2. 為MySQL新增新函數</h2></div></div></div><div class="toc"><dl><dt><span class="section">
+		<a href="#udf-features">27.2.1. 自行定義函數接口的特性</a></span></dt><dt><span class="section">
+		<a href="#create-function">27.2.2. CREATE FUNCTION/DROP FUNCTION 
+		語法</a></span></dt><dt><span class="section"><a href="#adding-udf">27.2.3. 
+		新增新的自行定義函數</a></span></dt><dt><span class="section">
+		<a href="#adding-native-function">27.2.4. 新增新的固有函數</a></span></dt></dl></div><a class="indexterm" name="id3069669"></a><a class="indexterm" name="id3069679"></a><a class="indexterm" name="id3069689"></a><a class="indexterm" name="id3069699"></a><a class="indexterm" name="id3069709"></a><p>
+      有兩個途徑來為MySQL新增新函數：</p><div class="itemizedlist"><ul type="disc"><li><p>
+          您可以通過自行醫函數接口 (UDF)來新增函數。自行定義函數被編譯為目標檔案，然後用CREATE FUNCTION 
+			和DROP
+          FUNCTION 聲明動態地添入到伺服器中及從伺服器中移出。參閱<a href="#create-function" title="27.2.2. CREATE FUNCTION/DROP FUNCTION Syntax">27.2.2節，「CREATE FUNCTION/DROP FUNCTION 
+			語法」</a>。
+        </p></li><li><p>
+          您可以將函數新增為MySQL固有（內建）函數。固有函數被編譯進<span><strong class="command">mysqld</strong>伺服器中，成為永久可用的。</span>
+        </p></li></ul></div><p>
+      每種途徑都有其優點和缺點：</p><div class="itemizedlist"><ul type="disc"><li><p>
+          如果您編寫自行定義函數，您除了安裝伺服器本身之外還要安裝目標檔案。如果將您的函數編譯進伺服器中，您就不需要這麼做了。
+        </p></li><li><p>
+          您可以給二進製版本的MySQL分發版新增UDF。固有函數需要您去修正原始碼分發版。.
+        </p></li><li><p>
+          如果您升級您的MySQL分發版，您可以繼續使用先前安裝了的UDF， 除非您升級到一個UDF接口改變了的新版本。對固有函數而言，每次升級您都必須重複一次修正。
+        </p></li></ul></div><p>
+      無論您使用哪種方法去新增新函數，它們都可以被SQL聲明使用，就像
+      ABS() 或 SOUNDEX()這樣的固有函數一樣。
+    </p><p>
+      另一個新增函數的方法時建立儲存函數。這些函數時用SQL聲明編寫的，而不是編譯目標代碼。編寫儲存函數的語法在<a href="stored-procedures.html">第20章：</a><a href="stored-procedures.html" title="Chapter 20. Stored Procedures and Functions">儲存程式和函數 </a>中描述。</p><p>
+      下面的小節描述UDF接口的特性，給出編寫UDF的指令，並討論MySQL為防止UDF被誤用而採取的安全預防措施。
+    </p><p>
+      給出源代碼的例子來說明如何編寫UDF，看一看MySQL原始碼分發版中提供的sql/udf_example.cc 
+		檔案。
+    </p><div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="udf-features"></a>27.2.1. 自行定義函數接口的特性</h3></div></div></div><p>
+        MySQL自行定義函數接口有如下特性和功能：
+      </p><div class="itemizedlist"><ul type="disc"><li><p>
+            函數能分÷返回字串，整數或實數。</p></li><li><p>
+            您可以定義一次作用於一行的簡單函數，或作用於多行的組的集合函數。
+          </p></li><li><p>
+            提供給函數的訊息使得函數可以檢查傳遞給它們的參量的數目和類型。
+          </p></li><li><p>
+            您可以讓MySQL在將某參量傳遞給函數之前強制其為某一類型。
+          </p></li><li><p>
+            您可以資料表示函數返回NULL 或發生錯誤。
+          </p></li></ul></div></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="create-function"></a>27.2.2. CREATE FUNCTION/DROP FUNCTION 
+		語法</h3></div></div></div><a class="indexterm" name="id3069934"></a><a class="indexterm" name="id3069943"></a><a class="indexterm" name="id3069952"></a><a class="indexterm" name="id3069963"></a><a class="indexterm" name="id3069973"></a><a class="indexterm" name="id3069982"></a><a class="indexterm" name="id3069991"></a><pre class="programlisting">CREATE [AGGREGATE] FUNCTION <em class="replaceable">function_name</em> RETURNS {STRING|INTEGER|REAL}
+       SONAME <em class="replaceable">shared_library_name</em>
+
+DROP FUNCTION <em class="replaceable">function_name</em>
+</pre><p>
+        一個自行定義函數 (UDF)就是用一個象ABS() 或 CONCAT()這樣的固有（內建）函數一樣作用的新函數去延伸MySQL。
+      </p><p>
+        <em class="replaceable">function_name</em> 是
+		用在SQL聲明中以備使用的函數名字。RETURNS 子句說明函數返回值的類型。
+        <em class="replaceable">shared_library_name</em> 
+		是共享目標檔案的基本名，共享目標檔案含有實現函數的代碼。該檔案必須位於一個能被您系統的動態連接者搜索的目錄裡。</p><p>
+        您必須有mysql 資料庫的INSERT 
+		權限才能建立一個函數，您必須有mysql 資料庫的DELETE權限才能撤銷一個函數。這是因為CREATE FUNCTION 
+		往記錄函數名字，類型和共享名的mysql.func系統資料表裡新增了一行，而DROP FUNCTION則是從資料表中刪掉這一行。如果您沒有這個系統資料表，您應該運行<span><strong class="command">mysql_fix_privilege_tables</strong></span>指令來建立一個。請參閱<a href="installing.html#upgrading-grant-tables" title="2.10.2. Upgrading the Grant Tables">2.10.2節，「升級授權資料表」</a>。
+      </p><p>
+        一個有效的函數是一個用CREATE FUNCTION加載且沒有用DROP FUNCTION移除的函數。每次伺服器啟動的時候會重新加載所有有效函數，除非您使用--skip-grant-tables參數啟動<span><strong class="command">mysqld</strong>。在這種情況下，
+		將跳過UDF的初始化，UDF不可用。</span></p><p>
+        要瞭解編寫自行定義函數的說明，請參閱<a href="#adding-udf" title="27.2.3. Adding a New User-Defined Function">27.2.3節，「新增新的自行定義函數」</a>。要使得UDF機制能夠起作用，必須使用C或者C++編寫函數，您的系統必須支援動態加載，而且您必須是動態編譯的<span><strong class="command">mysqld</strong></span>（非靜態）。
+      </p><p>
+        一個AGGREGATE函數就像一個MySQL固有的集合（總和）函數一樣起作用，比如，SUM或COUNT()函數。要使得AGGREGATE 
+		起作用，您的mysql.func資料表必須包括一個type列。如果您的mysql.func資料表沒有這一
+		列，您應該運行<span><strong class="command">mysql_fix_privilege_tables</strong></span>指令來建立此
+		列。
+      </p></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="adding-udf"></a>
+			27.2.3.&nbsp;新增新的自行定義函數</h3></div></div></div><div class="toc"><dl><dt><span class="section">
+		<a href="#udf-calling">27.2.3.1. UDF對簡單函數的使用順序</a></span></dt><dt><span class="section">
+		<a href="#udf-aggr-calling">27.2.3.2. UDF對集合函數的使用順序</a></span></dt><dt><span class="section">
+		<a href="#udf-arguments">27.2.3.3. UDF參量處理</a></span></dt><dt><span class="section">
+		<a href="#udf-return-values">27.2.3.4. UDF返回值和錯誤處理</a></span></dt><dt><span class="section">
+		<a href="#udf-compiling">27.2.3.5. 編譯和安裝自行定義函數</a></span></dt><dt><span class="section">
+		<a href="#udf-security">27.2.3.6. 自行定義函數安全預報措施</a></span></dt></dl></div><a class="indexterm" name="id3070227"></a><a class="indexterm" name="id3070237"></a><a class="indexterm" name="id3070248"></a><p>
+        要使得UDF機制能夠起作用，必須使用C或者C++編寫函數，您的系統必須支援動態加載。MySQL 原始碼分發版包括一個sql/udf_example.cc 
+		檔案，此檔案定義了5個新函數。可以參考這個檔案，看UDF是如何使用常規工作。</p><p>
+        為了能使用UDF，您需要動態連結<span><strong class="command">mysqld</strong>。不要配置MySQL使用</span>--with-mysqld-ldflags=-all-static參數。如果您想使用一個需要從<span><strong class="command">mysqld</strong></span> 
+		訪問符號的UDF（例如在使用default_charset_info的sql/udf_example.cc檔案中的metaphone函數），您必須使用-rdynamic參數來連結程式（參閱man
+        dlopen）。如果您計劃使用UDF, 一個經驗法則就是，用with-mysqld-ldflags=-rdynamic設定MySQL，除非您有很好的理由不去這麼做。
+      </p><p>
+        如果您使用的是預編譯分發版的MySQL， 請使用MySQL-Max，其中含有一個動態連結了的伺服器，它可以支援動態加載。</p><p>
+        對於每個您想要使用在SQL聲明中的函數，您應該定義相應的C （或 C++）函數。在下面的討論中，xxx用來資料表示範例函數的名字，為了區分使用SQL還是C/C++，xxx()(上標）資料表示SQL函數使用，xxx()（下標）資料表示C/C++函數使用。
+      </p><p>
+        您為xxx()編寫來實現接口的C/C++ 函數如下：</p><div class="itemizedlist"><ul type="disc"><li><p>
+            xxx() (必有)
+          </p><p>
+            主函數。 這是函數結果被計算的地方。SQL函數數據類型與C/C++函數返回類型的對應關係如下：
+          </p><div class="informaltable"><table border="1"><colgroup><col><col></colgroup><tbody><tr><td><span class="bold"><strong>SQL 
+					類型</strong></span></td><td><span class="bold"><strong>C/C++ 
+					類型</strong></span></td></tr><tr><td>STRING</td><td>char *</td></tr><tr><td>INTEGER</td><td>long long</td></tr><tr><td>REAL</td><td>double</td></tr></tbody></table></div></li><li><p>
+            xxx_init() (可選)
+          </p><p>
+            對xxx()的初始化函數。它可以被用來：
+          </p><div class="itemizedlist"><ul type="circle"><li><p>
+                檢查傳遞給xxx()的參量數目。</p></li><li><p>
+                檢查參量是否為必需的類型，或者，除此之外，在主函數被使用的時候告訴MySQL將參量強制為想要的類型。
+              </p></li><li><p>
+                分配主函數需要的內存。</p></li><li><p>
+                指定結果的最大長度。</p></li><li><p>
+                指定（對於REAL 函數）小數的最多位數。</p></li><li><p>
+                指定結果是否可以為
+                NULL。</p></li></ul></div></li><li><p>
+            xxx_deinit() （可選）
+          </p><p>
+            對xxx()的去初始化函數。它釋放初始化函數分配的內存。
+          </p></li></ul></div><p>
+        當SQL聲明使用XXX()時，MySQL使用初始化函數xxx_init()，讓它執行必要的設置，比如，檢查
+		參量或分配內存。如果xxx_init() 
+		返回一個錯誤，SQL聲明會退出並給出錯誤訊息，而主函數和去初始化函數並沒有被使用。 否則，主函數xxx() 
+		對每一行都被使用一次。所有行都處理完之後，使用去初始化函數xxx_deinit() 
+		執行必要的清除。</p><p>
+        對於象SUM()一樣工作的集合函數，您也必須提供如下的函數：
+      </p><div class="itemizedlist"><ul type="disc"><li><p>
+            xxx_clear() （在5.1節中必須）
+          </p><p>
+            對一個新組重置當前集合值為初試集合值，但不插入任何參量。
+          </p></li><li><p>
+            xxx_add() （必須）</p><p>
+            新增參量到當前集合值。</p></li></ul></div><p>
+        MySQL 按下列操作來處理集合UDF：
+      </p><div class="orderedlist"><ol type="1"><li><p>
+            使用 xxx_init() 讓集合函數分配它需要用來儲存結果的內存。
+          </p></li><li><p>
+            按照GROUP BY資料表達式來排序資料表。</p></li><li><p>
+            為每個新組中的第一行使用xxx_clear()函數。</p></li><li><p>
+            為屬於同組的每一個新行使用xxx_add()函數。</p></li><li><p>
+            當組改變時或每組的最後一行被處理完之後，使用xxx()來獲取集合結果。
+          </p></li><li><p>
+            重複，以上3-步直到所有行被處理完。</p></li><li><p>
+            使用xxx_deinit() 函數去釋放UDF分配的內存。.
+          </p></li></ol></div><p>
+        所有函數必須時線程安全的，這不僅對主函數，對初始化和去初始化函數也一樣，也包括集合函數要求的附加函數。這個要求的一個結果就是，您不能分配任何變化的全局或靜態變數。如果您需要內存，您可以在xxx_init()函數分配內存，然後在xxx_deinit()函數釋放掉。
+      </p><div class="section"><div class="titlepage"><div><div><h4 class="title"><a name="udf-calling"></a>27.2.3.1. UDF 
+			對簡單函數的使用順序</h4></div></div></div><a class="indexterm" name="id3070740"></a><p>
+          下面介紹建立簡單UDF時需要定義的不同函數。<a href="#adding-udf" title="27.2.3. Adding a New User-Defined Function">27.2.3節，「新增新的自行定義函數」</a>中介紹了MySQL使用這些函數的順序。</p><p>
+          如本節所示，應該說明主函數xxx()。注意返回值和參數會有所不同，這取決於您說明的SQL函數xxx()在CREATE
+          FUNCTION聲明中返回的是STRING，INTEGER類型還是REAL類型示：
+        </p><p>
+          對於STRING 型函數：
+        </p><pre class="programlisting">char *xxx(UDF_INIT *initid, UDF_ARGS *args,
+          char *result, unsigned long *length,
+          char *is_null, char *error);
+</pre><p>
+          對於INTEGER型函數：</p><pre class="programlisting">long long xxx(UDF_INIT *initid, UDF_ARGS *args,
+              char *is_null, char *error);
+</pre><p>
+          對於REAL型函數：
+        </p><pre class="programlisting">double xxx(UDF_INIT *initid, UDF_ARGS *args,
+              char *is_null, char *error);
+</pre><p>
+          初始化和去初始化函數如下說明：</p><pre class="programlisting">my_bool xxx_init(UDF_INIT *initid, UDF_ARGS *args, char *message);
+
+void xxx_deinit(UDF_INIT *initid);
+</pre><p>
+          initid 參數被傳遞給所有的三個函數。它指向一個UDF_INIT
+          結構，這個結構被用來在函數之間交換訊息。UDF_INIT 
+			結構項跟隨著。初始化函數應該給任何它想要改變的項賦值。（要使用項的預設值，就讓它不被改變）</p><div class="itemizedlist"><ul type="disc"><li><p>
+              my_bool maybe_null
+            </p><p>
+              如果xxx() 能返回NULL，xxx_init()應maybe_null 
+				為 1 。如果任一參量被說明了
+              maybe_null值，其
+				預設值是1 
+				。</p></li><li><p>
+              unsigned int decimals
+            </p><p>
+              小數位數。預設值是傳到主函數的參量裡小數的最大位數。（例如，如果函數傳遞
+              1.34, 1.345, 
+				和1.3, 那麼預設值為，因為1.345 
+				有3位小數。
+            </p></li><li><p>
+              unsigned int max_length
+            </p><p>
+              結果的最大長度。max_length 
+				的預設值因函數的結果類型而異。對字串函數，預設值是最長參量的長度。對整型函數，預設是21位。對實型函數，預設是13再加上initid-&gt;decimals指示的小數位數。（對數字函數，長度包含正負號或者小數點符）。
+            </p><p>
+              如果想返回團值，您可以把max_length 設為從65KB到16MB。這個內存不會被分配，但是如果有臨時數據需要儲存，這個設置了的值被用來決定使用哪種
+				列的類型。
+            </p></li><li><p>
+              char *ptr
+            </p><p>
+              函數可以用作本身目的的指針。比如，函數可以用initid-&gt;ptr 
+				來在分配了的內存內部通訊。 xxx_init()
+              應該分配內存，並指派給這個指針：
+            </p><pre class="programlisting">initid-&gt;ptr = allocated_memory;
+</pre><p>
+              在 xxx() 和
+              xxx_deinit()中，借用
+              initid-&gt;ptr 來使用或分配內存。</p></li></ul></div></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a name="udf-aggr-calling"></a>27.2.3.2. UDF對集合函數的使用順序</h4></div></div></div><a class="indexterm" name="id3071037"></a><p>
+          本節介紹建立集合UDF之時需要定義的不同函數。<a href="#adding-udf" title="27.2.3. Adding a New User-Defined Function">27.2.3節，「新增新的自行定義函數」</a> 
+			介紹了MySQL使用這些函數的順序。</p><div class="itemizedlist"><ul type="disc"><li><p>
+              xxx_reset()
+            </p><p>
+              當MySQL在一個新組中發現第一行時使用這個函數。它對這個組重置任何內部總和變數，然後使用給定的UDF_ARGS參量作為內部總和值的第一個值。如下說明
+              xxx_reset() 函數：
+            </p><pre class="programlisting">char *xxx_reset(UDF_INIT *initid, UDF_ARGS *args,
+                char *is_null, char *error);
+</pre><p>
+              &nbsp;在MySQL5.1版中UDF接口不需要或不使用xxx_reset()函數，而是使用xxx_clear()函數作為替代。但是如果您想讓UDF也能在老版本的伺服器上運行，您也可以定義 xxx_reset() 
+				和
+              xxx_clear() 函數。（如果您使用了這兩個函數，xxx_reset()函數在很多情況下可以通過使用函數來內部實現，即使用xxx_clear()函數重置所有變數，然後新增UDF_ARGS參量作為組的第一個值。）
+            </p></li><li><p>
+              xxx_clear()
+            </p><p>
+              當MySQL需要重置總和結果時使用此函數。對每一個新組，在開始之時使用它，但是它也可以被使用來為一個沒有匹配行在其中的查詢重置值。如下說明xxx_clear()：
+            </p><pre class="programlisting">char *xxx_clear(UDF_INIT *initid, char *is_null, char *error);
+</pre><p>
+              在使用xxx_clear()之前is_null 被設置指向
+              CHAR(0) 。
+            </p><p>
+              如果發生錯誤，您可以儲存一個值在 error參量指向的變數中。error指向一單字節變數，而不是一個字串緩衝區。</p><p>
+              xxx_clear() 是MySQL
+              5.1必須的。
+            </p></li><li><p>
+              xxx_add()
+            </p><p>
+              為同組除了第一行之外，所有的行使用這個函數。您應該用它在UDF_ARGS參量中向內部總和變數加值。.</p><pre class="programlisting">char *xxx_add(UDF_INIT *initid, UDF_ARGS *args,
+              char *is_null, char *error);
+</pre></li></ul></div><p>
+          對集合UDF而言xxx() 函數應該用與非集合UDF一樣的方法來說明。請參閱<a href="#udf-calling" title="27.2.3.1. UDF Calling Sequences for Simple Functions">27.2.3.1節，「UDF使用簡單函數的順序」</a>。
+        </p><p>
+          對一個集合UDF，MySQL 在組內所有行被處理之後使用xxx()函數。這裡您應該一般不會接觸到它的UDF_ARGS參量，但是取而代之地根據內部總和變數返回給您值。
+        </p><p>
+          在xxx()中處理的返回值應該用與對非集合UDF一樣的方法來操作。請參閱<a href="#udf-return-values" title="27.2.3.4. UDF Return Values and Error Handling">27.2.3.4節，「UDF返回值和錯誤處理」</a>。
+        </p><p>
+          xxx_reset() 和
+          xxx_add() 函數用與非集合UDF一樣的方法來處理它們的UDF_ARGS 
+			參量。請參閱<a href="#udf-arguments" title="27.2.3.3. UDF Argument Processing">27.2.3.3節，「UDF參量處理」</a>。
+        </p><p>
+          到is_null和error的指針
+			參量和所有到xxx_reset(),
+          xxx_clear(), xxx_add()
+          和 xxx()使用一樣。您可以用這個來提醒您獲取一個錯誤或無論xxx()是否返回NULL的一個結果。您不能把一個字串存到*error！error指向單字節變數而不是字串緩衝區。
+        </p><p>
+          *is_null 對每一個組都重置（使用xxx_clear()前），
+          *error 從不重置。</p><p>
+          如果 xxx()返回時，*is_null 
+			或 *error
+          被設置，MySQL返回
+          NULL作為組函數的結果。</p></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a name="udf-arguments"></a>27.2.3.3. UDF參量處理</h4></div></div></div><a class="indexterm" name="id3071381"></a><a class="indexterm" name="id3071387"></a><p>
+          args 參數指向列著結構元的
+          UDF_ARGS 結構：</p><div class="itemizedlist"><ul type="disc"><li><p>
+              unsigned int arg_count
+            </p><p>
+              參量個數。如果您需要您的函數帶著某個數目的參量被使用，在初始化函數檢查這個值，例如：
+            </p><pre class="programlisting">if (args-&gt;arg_count != 2)
+{
+    strcpy(message,"XXX() requires two arguments");
+    return 1;
+}
+</pre></li><li><p>
+              enum Item_result *arg_type
+            </p><p>
+              一個指針，對每個參量指向包含類型的一個數列。可能的類型值是STRING_RESULT,
+              INT_RESULT 和
+              REAL_RESULT。</p><p>
+              要確信一個參量是給定類型的，並且如果不是的話就返回一個錯誤，請檢查初始化函數中的arg_type數列。比如：
+            </p><pre class="programlisting">if (args-&gt;arg_type[0] != STRING_RESULT ||
+    args-&gt;arg_type[1] != INT_RESULT)
+{
+    strcpy(message,"XXX() requires a string and an integer");
+    return 1;
+}
+</pre><p>
+              要求您函數的參量是某一類型的另一方法是，使用初始化函數設置arg_type元素為您想要的類型。對所有對xxx()的使用而言，這會導致MySQL強制參量為這些類型。比如，要指定投兩個參量強製成字串和整數，在xxx_init()中分別：</p><pre class="programlisting">args-&gt;arg_type[0] = STRING_RESULT;
+args-&gt;arg_type[1] = INT_RESULT;
+</pre></li><li><p>
+              char **args
+            </p><p>
+              args-&gt;args 
+				與初始化函數做有關傳到您函數的參量的一般情況做通訊。對於常參量i，args-&gt;args[i] 
+				指向參量值。（看下面的說明瞭解如何妥善地訪問這個值）。對非－常參量，args-&gt;args[i] 
+				為
+              0。一個常參量為僅使用參量的資料表達式，如 3 
+				或
+              4*7-2 或 SIN(3.14)。一個非常
+				參量是一個行與行不同的資料表達式，如，列名或帶非－常參量使用的函數。
+            </p><p>
+              對主函數的每次使用，args-&gt;args 
+				包含為每個當前處理的行傳遞的實際參量。
+            </p><p>
+              如下使用參量i的函數：
+            </p><div class="itemizedlist"><ul type="circle"><li><p>
+                  給一個STRING_RESULT 
+					型的參量作為一個字串加一個長度，可以允許所有二進制數或任意長度的數處理。字串內容作為args-&gt;args[i] 
+					而字串長度為args-&gt;lengths[i]。您不能採用null結尾的字串。
+                </p></li><li><p>
+                  對一個INT_RESULT型的參量，您必須轉換args-&gt;args[i] 
+					為一個long long 值：
+                </p><pre class="programlisting">long long int_val;
+int_val = *((long long*) args-&gt;args[i]);
+</pre></li><li><p>
+                  對一個REAL_RESULT型參量，您必須轉換args-&gt;args[i]為一個雙精度值：</p><pre class="programlisting">double    real_val;
+real_val = *((double*) args-&gt;args[i]);
+</pre></li></ul></div></li><li><p>
+              unsigned long *lengths
+            </p><p>
+              對初始化函數，lengths數列資料表示對每個參量的最大字串長度。您不要改變它。對主函數的每次使用，lengths包含了對當前處理行傳遞的任何字串
+				參量的實際長度。對於INT_RESULT 
+				或
+              REAL_RESULT類型的參量，lengths
+              仍包含參量的最大長度（對初始化函數）。
+            </p></li></ul></div></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a name="udf-return-values"></a>27.2.3.4. UDF返回值和錯誤處理</h4></div></div></div><a class="indexterm" name="id3071717"></a><a class="indexterm" name="id3071727"></a><a class="indexterm" name="id3071737"></a><a class="indexterm" name="id3071747"></a><p>
+          如果沒有錯誤發生，初始化函數應該返回0，否則就返回1。如果有錯誤發生，xxx_init() 
+			應該在message 
+			參數儲存一個以null結尾的錯誤消息。該消息被返回給客戶端。消息緩衝區是
+          MYSQL_ERRMSG_SIZE 
+			字元長度，但您應該試著把消息保持在少於80個字元，以便它能適合標準終端屏幕的寬度。</p><p>
+          對於long long 和
+          double 類型的函數，主函數 xxx()的返回返回值是函數值。字元函數返回一個指向結果的指針，並且設置 *result 和 *length&nbsp; 
+			為返回值的內容和長度。例如：</p><pre class="programlisting">memcpy(result, "result string", 13);
+*length = 13;
+</pre><p>
+          被傳給
+          xxx() 函數的結果緩衝區是 255 
+			字節長。如果您的結果適合這個長度，您就不需要擔心對結果的內存分配。</p><p>
+          如果字串函數需要返回一個超過255字節的字串，您必須用 malloc() 在您的 xxx_init() 
+			函數或者 xxx() 函數里為字串分配空間，並且在 xxx_deinit() 
+			函數里釋放此空間。您可以將已分配內存儲存在 UDF_INIT&nbsp; 結構裡的 ptr&nbsp; 位置以備將來
+          xxx() 使用。請參閱<a href="#udf-calling" title="27.2.3.1. UDF Calling Sequences for Simple Functions">27.2.3.1節，「UDF 
+			對簡單函數的使用順序」</a>。
+        </p><p>
+          要在主函數中指明一個 NULL 的返回值，設置 *is_null 為
+          1 ：
+        </p><pre class="programlisting">*is_null = 1;
+</pre><p>
+          要在主函數中指明錯誤返回，設置 *error 為 1 
+			：
+        </p><pre class="programlisting">*error = 1;
+</pre><p>
+          如果 xxx() 對任意行設置 *error 
+			為
+          1&nbsp; ，對於任何
+          XXX()被使用的語句處理的當前行和隨後的任意行，該函數值為 NULL （甚至都不為隨後的行使用 xxx()）。</p></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a name="udf-compiling"></a>27.2.3.5. 編譯和安裝自行定義函數</h4></div></div></div><a class="indexterm" name="id3071946"></a><a class="indexterm" name="id3071957"></a><a class="indexterm" name="id3071967"></a><p>
+          實現UDF的檔案必須在運行伺服器的主機上編譯和安裝。這個步驟在下面介紹，以包含在MySQL原始碼分發版裡的UDF檔案sql/udf_example.cc 
+			為例。</p><p>
+          緊接著下面的指令是對Unix的，對Windows的指令在本節稍後給出。
+        </p><p>
+          &nbsp;udf_example.cc 檔案包含下列函數：</p><div class="itemizedlist"><ul type="disc"><li><p>
+              metaphon() 返回字串參量的一個變音位(metaphon)字串，這有點像一個探測法（soundex）字串，但是它英語更協調。
+            </p></li><li><p>
+              myfunc_double()返回在其參量中所有字元的ASCII值的和，除以其
+				參量長度之和。</p></li><li><p>
+              myfunc_int()返回其參量長度之和。</p></li><li><p>
+              sequence([const int]) 
+				返回一個序列，從給定數開始，若沒有給定數則從1開始。
+            </p></li><li><p>
+              lookup() 返回對應主機名的IP數。</p></li><li><p>
+              reverse_lookup() 返回對應一個IP數的主機名。函數可以帶'xxx.xxx.xxx.xxx'形式的一個單字串
+				參量使用，要麼帶4個數字使用。
+            </p></li></ul></div><p>
+          一個可動態加載的檔案應使用如下這樣的命令編譯為一個可共享的對象檔案：
+        </p><pre class="programlisting">shell&gt; <strong class="userinput">gcc -shared -o udf_example.so udf_example.cc</strong>
+</pre><p>
+          如果您使用<span><strong class="command">gcc</strong>，您應該能用一個更簡單的命令建立</span>udf_example.so 
+			：</p><pre class="programlisting">shell&gt; <strong class="userinput">make udf_example.so</strong>
+</pre><p>
+          通過運行MySQL原始碼樹下sql裡的如下命令，您可以容易地為您的系統決定正確的編譯器選項：
+        </p><pre class="programlisting">shell&gt; <strong class="userinput">make udf_example.o</strong>
+</pre><p>
+          您應該運行一個類似於<strong class="command"><span>make</span></strong>所顯示那樣的編譯命令，除了要在行尾附近刪除-c選項，並在行尾加上加上 -o udf_example.so。（在某些系統上，您可能需要在命令行留著-c 
+			選項）。
+        </p><p>
+          編譯好一個包含有UDF的共享目標後，您必須安裝它並通知MySQL。從udf_example.cc編譯一個共享目標檔案產生一個名字類似於udf_example.so 
+			的檔案（確切名字可能因平台而異）。把這個檔案複製到 /usr/lib 
+			這樣被您系統的動態（運行時）連結器搜索到的目錄下，或者 把您放共享目標檔案的目錄新增到連結器配置檔案（如，/etc/ld.so.conf 
+			）。</p><p>
+          動態連結器的名字時系統特定的（如，在FreeBSD上是<span><strong class="command">ld-elf.so.1 </strong>
+			，在</span>Linux上是
+          <span><strong class="command">ld.so</strong></span>，在Mac OS X上是<span><strong class="command">dyld</strong></span>
+          ）。查看一下您系統的文檔，看看連結器的名字是什麼及如何配置連結器。</p><p>
+          在許多系統上，您也可以設置環境變數LD_LIBRARY 或
+          LD_LIBRARY_PATH 指向您放UDF的目錄。dlopen 
+			手冊會告訴您，在您系統上用哪個變數名。您可以在<span><strong class="command">mysql.server</strong></span> 
+			或
+          <span><strong class="command">mysqld_safe</strong></span> 
+			啟動指令裡設置這個然後重啟
+          <span><strong class="command">mysqld</strong></span>。</p><p>
+          在一些系統上，配置動態連結器的<span><strong class="command">ldconfig</strong>不能識別不是以</span>lib<span>做名字開頭的共享目標。在這種情況下，您應該把</span>udf_example.so 
+			改名為
+          libudf_example.so。
+        </p><p>
+          在Windows系統上，您可以通過下列步驟編譯自行定義函數：
+        </p><div class="orderedlist"><ol type="1"><li><p>
+              您需要獲得BitKeeper source repository for
+              MySQL 5.1。 請參閱<a href="installing.html#installing-source-tree" title="2.8.3. Installing from the Development Source Tree"> 2.8.3節，「從開發源樹安裝」</a>。
+            </p></li><li><p>
+              在源數據倉裡的VC++Files/examples/udf_example目錄下，有名為udf_example.def,
+              udf_example.dsp, 和
+              udf_example.dsw&nbsp; 的檔案。
+            </p></li><li><p>
+              在數據倉的sql目錄下，複製
+              udf_example.cc 檔案到 VC++Files/examples/udf_example
+              目錄，並改其名為udf_example.cpp。</p></li><li><p>
+              Visual Studio VC++用打開 udf_example.dsw 
+				檔案，用它把UDF編譯為一個一般項目。
+            </p></li></ol></div><p>
+          共享目標檔案安裝完以後，為新函數訊息修改
+          <span><strong class="command">mysqld</strong></span> ，做如下聲明：
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput">CREATE FUNCTION metaphon RETURNS STRING SONAME 'udf_example.so';</strong>
+mysql&gt; <strong class="userinput">CREATE FUNCTION myfunc_double RETURNS REAL SONAME 'udf_example.so';</strong>
+mysql&gt; <strong class="userinput">CREATE FUNCTION myfunc_int RETURNS INTEGER SONAME 'udf_example.so';</strong>
+mysql&gt; <strong class="userinput">CREATE FUNCTION lookup RETURNS STRING SONAME 'udf_example.so';</strong>
+mysql&gt; <strong class="userinput">CREATE FUNCTION reverse_lookup</strong>
+    -&gt;        <strong class="userinput">RETURNS STRING SONAME 'udf_example.so';</strong>
+mysql&gt; <strong class="userinput">CREATE AGGREGATE FUNCTION avgcost</strong>
+    -&gt;        <strong class="userinput">RETURNS REAL SONAME 'udf_example.so';</strong>
+</pre><p>
+          可以使用DROP
+          FUNCTION刪除函數：
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput">DROP FUNCTION metaphon;</strong>
+mysql&gt; <strong class="userinput">DROP FUNCTION myfunc_double;</strong>
+mysql&gt; <strong class="userinput">DROP FUNCTION myfunc_int;</strong>
+mysql&gt; <strong class="userinput">DROP FUNCTION lookup;</strong>
+mysql&gt; <strong class="userinput">DROP FUNCTION reverse_lookup;</strong>
+mysql&gt; <strong class="userinput">DROP FUNCTION avgcost;</strong>
+</pre><p>
+          CREATE FUNCTION 和 DROP
+          FUNCTION 聲明更新mysql 資料庫中的func 
+			系統資料表。函數名，類型和共享庫名存進資料表中。您必須有mysql 資料庫的INSERT 
+			和DELETE
+          權限來建立和移除函數。
+        </p><p>
+          您不能使用 CREATE FUNCTION 
+			去田間一個先前已經被建立的函數。如果您需要重新安裝一個函數，您可以用DROP
+          FUNCTION移除它，然後再用CREATE
+          FUNCTION重新安裝它。您可能會需要這麼做，比如您重新編譯新版本的函數以便<span><strong class="command">mysqld</strong></span>得到這個新版本。不然，伺服器還繼續使用舊的版本。
+        </p><p>
+          一個有效程式是已被
+          CREATE FUNCTION加載且沒有被DROP FUNCTION移除的函數。所有有效函數在每次伺服器啟動時重新加載，除非您使用--skip-grant-tables選項來啟動<span><strong class="command">mysqld</strong>。這種情況下，UDF的初始化將被跳過，UDF不可用。</span>
+        </p></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a name="udf-security"></a>27.2.3.6. 自行定義函數安全預防措施</h4></div></div></div><p>
+          MySQL 採取下列措施來防止誤用自行定義函數。
+        </p><p>
+          您必須有 INSERT 權限才能使用 CREATE FUNCTION 
+			及有
+          DELETE 權限才能使用
+          DROP FUNCTION。這是很必要的，因為這些聲明在mysql.func資料表裡新增合刪除行。
+        </p><p>
+          除了對應主
+          xxx()函數的xxx 
+			符號，UDF應該至少定義一個符號。這些輔助符號對應 xxx_init(),
+          xxx_deinit(),
+          xxx_reset(),
+          xxx_clear() 和
+          xxx_add() 函數。<span><strong class="command">mysqld</strong></span> 
+			也支援一個控制僅有一個xxx符號的UDF是否被加載的--allow-suspicious-udfs。這個選項
+			預設是關，以防止從共享目標檔案而不是從這些已包含的合法UDF加載的企圖。如果您有僅含xxx符號的老版本UDF，以及不能重編譯來包含輔助符號的老版本UDF，那就有必要選--allow-suspicious-udfs 
+			選項。否則，您應該避免打開這個選項。
+        </p><p>
+          UDF 
+			目標檔案不能放在任意目錄。它們必須位於動態連結器被配置來搜索到的一些系統目錄。為強制執行這個限制並防止指定被動態連結器搜索到的目錄之外的路徑，MySQL在加載函數的時候檢查在CREATE
+          FUNCTION 中指定的共享目標檔案名，以及存在mysql.func資料表中的檔案的路徑分隔符。這防止通過直接操作mysql.func資料表指定非法路徑名。有關UDF和運行時連結器，請參閱<a href="#udf-compiling" title="27.2.3.5. Compiling and Installing User-Defined Functions">27.2.3.5節，「編譯和安裝自行定義函數」</a>。</p></div></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="adding-native-function"></a>27.2.4. 新增新的固有函數</h3></div></div></div><a class="indexterm" name="id3072655"></a><a class="indexterm" name="id3072665"></a><a class="indexterm" name="id3072675"></a><p>
+        下面介紹新增新固有函數的步驟。要注意您不能新增固有函數到二進制分發版裡，因為這個步驟包含修改MySQL源代碼。您必須從原始碼分發版自己編譯MySQL。另外要注意，如果您把MySQL移植到另一個版本（比如新版本放出來的時候），您需要用新版本重複這個新增
+		步驟。
+      </p><p>
+        採取下列步驟來新增MySQL新的固有函數：</p><div class="orderedlist"><ol type="1"><li><p>
+            在定義函數名的lex.h檔案中的sql_functions[]數列裡新增一行。</p></li><li><p>
+            如果函數原型是簡單的（只有零個，一個，二個或三個參量），您應該在lex.h中指定
+            SYM(FUNC_ARG<em class="replaceable">N</em>)
+            （其中<em class="replaceable">N</em> 是參量的個數）作為sql_functions[]數列中的第二個
+			參量，並新增一個在item_create.cc中建立函數目標的函數。可以看看
+            "ABS" 和
+            create_funcs_abs() 作為舉例說明。</p><p>
+            如果函數原型是複雜的（舉例，如果函數有多種參量），您應該給sql_yacc.yy新增兩行。一行資料表示<span><strong class="command">yacc</strong>應該定義的預處理程式記號，（這應該在檔案的開始新增）。然後定義函數
+			參數，並新增一個帶這些參數的項到</span>simple_expr<span>分析規則中。舉一個例子，您可以檢查</span>
+            sql_yacc.yy 中所有出現的ATAN 
+			看看這個定義是什麼樣子的。
+          </p></li><li><p>
+            在 item_func.h中說明一個繼承自Item_num_func 
+			還是
+            Item_str_func的類，取決於您的函數是返回一個數還是一個字串。</p></li><li><p>
+            在 item_func.cc中是否新增下列說明之一，取決於您是定義一個數字函數還是字元函數：
+          </p><pre class="programlisting">double   Item_func_newname::val()
+longlong Item_func_newname::val_int()
+String  *Item_func_newname::Str(String *str)
+</pre><p>
+            如果您從任何標準項繼承了您的目標（類似於Item_num_func），您或許只要定義這些函數中的一個，然後讓父目標照管別的函數。比如，Item_str_func 
+			類定義了一個
+            val() 函數，它這個函數對::str()返回的值進行
+            atof()操作。</p></li><li><p>
+            您或許也定義了下列目標函數：</p><pre class="programlisting">void Item_func_newname::fix_length_and_dec()
+</pre><p>
+            這個函數至少應該計算基於給定參量的max_length。
+            max_length 是函數可能返回字元的最大個數。如果主函數不能返回 NULL值，這個函數也應該設置 maybe_null = 0。函數可以通過檢查函數的maybe_null值來檢查是否有函數
+			參量能返回NULL值。您可以看一下Item_func_mod::fix_length_and_dec 
+			作為典型的例子來說明這個問題。</p></li></ol></div><p>
+        所有函數都必須是線程安全的，換句話說就是，如果沒有互斥體保護，不要在函數中使用任何全局或靜態變數。
+      </p><p>
+        如果您想要從函數::val(), ::val_int()或::str()返回NULL，您應該設null_value為1,並返回0。
+      </p><p>
+        對於目標函數 ::str() 有一些需要而外考慮之處：:
+      </p><div class="itemizedlist"><ul type="disc"><li><p>
+            字串參量*str 
+			提供一個字串緩衝可以用來保持結果（更多關於字串類型的訊息請參閱 sql_string.h檔案）。&nbsp;
+          </p></li><li><p>
+            如果結果為NULL，::str() 函數應該返回保持這個結果的字串或(char*) 0。</p></li><li><p>
+            除非有絕對地需要，所有當前的字串函數要避免分配內存！
+          </p></li></ul></div></div></div><div class="section"><div class="titlepage"><div><div><h2 class="title"><a name="adding-procedures"></a>
+		27.3.&nbsp;為MySQL新增新步驟</h2></div></div></div><div class="toc"><dl><dt><span class="section">
+	<a href="#procedure-analyse">27.3.1. 步驟分析</a></span></dt><dt><span class="section">
+	<a href="#writing-a-procedure">27.3.2. 編寫步驟</a></span></dt></dl></div><a class="indexterm" name="id3073021"></a><a class="indexterm" name="id3073031"></a><a class="indexterm" name="id3073041"></a><p>
+      在MySQL中，您可以用C++定義一個步驟，在一個查詢被發送到客戶端之前訪問和修改其中的數據。修改可以一行接一行地做，或者按照級別成組（GROUP）地做。</p><p>
+      我們建立一個範例步驟來演示您可以做的。
+    </p><p>
+      此外，我們推薦您看一下mylua。通過它您可以用&nbsp; LUA語言把運行時裡的一個
+		步驟加載到<span><strong class="command">mysqld</strong>中。</span>
+    </p><div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="procedure-analyse"></a>27.3.1. 步驟分析</h3></div></div></div><p>
+        analyse([<em class="replaceable">max_elements</em>,[<em class="replaceable">max_memory</em>]])
+      </p><p>
+        這個步驟在sql/sql_analyse.cc定義，這個步驟檢查您查詢的結果，並且返回對此結果的一個分析：
+      </p><div class="itemizedlist"><ul type="disc"><li><p>
+            <em class="replaceable">max_elements</em> (預設值 256) 是analyse注意到每
+			列不同值的最高數目。analyse使用此 
+			參數來檢查是否最最佳化的列的類型是ENUM類型。</p></li><li><p>
+            <em class="replaceable">max_memory</em> (預設值 8192) 是analyse在搜尋所有不同值時分配給每
+			列的最大內存數。i</p></li></ul></div><pre class="programlisting">SELECT ... FROM ... WHERE ... PROCEDURE ANALYSE([<em class="replaceable">max_elements</em>,[<em class="replaceable">max_memory</em>]])
+</pre></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="writing-a-procedure"></a>
+			27.3.2.&nbsp;編寫步驟</h3></div></div></div><p>
+        當前來說，相關的文檔只有原始碼。
+      </p><p>
+        檢查下列檔案可以獲得關於步驟的所有訊息：
+      </p><div class="itemizedlist"><ul type="disc"><li><p>
+            sql/sql_analyse.cc
+          </p></li><li><p>
+            sql/procedure.h
+          </p></li><li><p>
+            sql/procedure.cc
+          </p></li><li><p>
+            sql/sql_select.cc
+          </p></li></ul></div></div></div></div><div><hr><p>
+      這是MySQL參考手冊的翻譯版本，關於MySQL參考手冊，請訪問<a href="http://dev.mysql.com/doc/mysql/en" target="_top">dev.mysql.com</a>。 
+		原始參考手冊為英文版，與英文版參考手冊相比，本翻譯版可能不是最新的。&nbsp;
+    </p></div>
+</body></html>

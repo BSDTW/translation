@@ -1,0 +1,130 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>Cyrus-IMAP 將 8-bit 文字轉換為 X 的問題</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.7" />
+<link rel="HOME" title="FreeBSD Chinese HOWTO" href="index.html" />
+<link rel="UP" title="常見問題解答" href="faq.html" />
+<link rel="PREVIOUS" title="konsole 字距過大" href="konsole.html" />
+<link rel="NEXT" title="英文字和中文字等寬？" href="font-width.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD Chinese HOWTO</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="konsole.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 21. 常見問題解答</td>
+<td width="10%" align="right" valign="bottom"><a href="font-width.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="CYRUS-IMAPD2" name="CYRUS-IMAPD2">21.38. Cyrus-IMAP 將 8-bit
+文字轉換為 X 的問題</a></h1>
+
+<p>Contributed by 小郭 (jimkou.bbs@bbs.sayya.org)</p>
+
+<p>Last Update: Sat May 17 12:09:58 2003</p>
+
+<p>以 <a href="http://www.FreeBSD.org/cgi/url.cgi?ports/mail/cyrus-imapd2/pkg-descr"><tt
+class="FILENAME">mail/cyrus-imapd2</tt></a>-2.1.13
+架設郵件伺服器，有些信件的主旨全部變成了 XXXXXX ？ 這是 RFC 2047 的標準不相容 8Bit
+主旨的郵件。 目前能用的辦法是將標題編碼，這是比較標準的做法， 或是修改 source code
+兩個檔案 <tt class="FILENAME">imap/lmtpengine.c</tt> 以及 <tt
+class="FILENAME">imap/message.c</tt> 讓收信的 IMAPD 支援 8Bit 主旨。</p>
+
+<pre class="PROGRAMLISTING">
+--- imap/lmtpengine.c.orig Sat May 17 14:45:39 2003
++++ imap/lmtpengine.c   Sat May 17 14:48:07 2003
+@@ -739,6 +739,7 @@
+     state s = NAME_START;
+     int r = 0;
+     int reject8bit = config_getswitch("reject8bit", 0);
++    int ignore8bit = config_getswitch("ignore8bit", 0);
+ 
+     if (namelen == 0) {
+    namelen += NAMEINC;
+@@ -854,7 +855,7 @@
+               form. */
+            r = IMAP_MESSAGE_CONTAINS8BIT;
+            goto ph_error;
+-           } else {
++           } else if (!ignore8bit) {
+            /* We have been configured to munge all mail of this
+               form. */
+            c = 'X';
+</pre>
+
+<pre class="PROGRAMLISTING">
+--- imap/message.c.orig    Fri Apr 18 06:49:49 2003
++++ imap/message.c  Sat May 17 14:46:27 2003
+@@ -229,6 +229,7 @@
+     int n;
+     int sawcr = 0, sawnl;
+     int reject8bit = config_getswitch("reject8bit", 0);
++    int ignore8bit = config_getswitch("ignore8bit", 0);
+     int inheader = 1, blankline = 1;
+ 
+     while (size) {
+@@ -264,7 +265,7 @@
+            /* We have been configured to reject all mail of this
+               form. */
+            if (!r) r = IMAP_MESSAGE_CONTAINS8BIT;
+-           } else {
++           } else if (!ignore8bit) {
+            /* We have been configured to munge all mail of this
+               form. */
+            *p = 'X';
+</pre>
+
+<p>最後再編輯 <tt class="FILENAME">${PREFIX}/etc/imapd.conf</tt> 並增加一行：</p>
+
+<pre class="PROGRAMLISTING">
+ignore8bit = yes
+</pre>
+
+<p>RFC 2047 MIME (Multipurpose Internet Mail Extensions) Part Three: Message Header
+Extensions for Non-ASCII Text</p>
+
+<p>WWW: <a href="http://asg.web.cmu.edu/cyrus/"
+target="_top">http://asg.web.cmu.edu/cyrus/</a></p>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="konsole.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="font-width.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">konsole 字距過大</td>
+<td width="34%" align="center" valign="top"><a href="faq.html" accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">英文字和中文字等寬？</td>
+</tr>
+</table>
+</div>
+</body>
+</html>
+

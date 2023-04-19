@@ -1,0 +1,141 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>國際化與中文化</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.7" />
+<link rel="HOME" title="FreeBSD Chinese HOWTO" href="index.html" />
+<link rel="UP" title="中文環境" href="difficult.html" />
+<link rel="PREVIOUS" title="基本中文環境的要件" href="basic.html" />
+<link rel="NEXT" title="可能的問題" href="chinese-trans.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD Chinese HOWTO</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="basic.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 3. 中文環境</td>
+<td width="10%" align="right" valign="bottom"><a href="chinese-trans.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="I18N-L10N" name="I18N-L10N">3.13. 國際化與中文化</a></h1>
+
+<p>要讓系統支援中文，可能的解決方案不出三種，
+一是使用外掛式的中文系統，二是撰寫獨立的中文程式，
+三是利用系統上提供的國際化架構來支援。所謂的外掛式中文環境， 指的是如同 DOS
+底下的倚天中文或者 Windows 底下的雙橋中文這樣的系統， 在 FreeBSD
+系統底下，外掛式的中文環境可以藉著 LD_PRELOAD 的機制來達成，只要設定 LD_PRELOAD
+這個環境變數， 適時的指到提供中文支援的動態函式庫去，就可以在程式執行時，
+動態的用支援中文的函式來替換掉原本不支援中文的函式，
+結果就可以讓不支援中文的程式變得可以顯示中文跟接受中文輸入了， 例如 <b
+class="APPLICATION">xa+cv</b> 或者是在 <a href="http://www.turbolinux.com.cn/"
+target="_top">TurboLinux</a> 裡面使用的 <b class="APPLICATION">zhWinPro</b>
+都是屬於這類的程式。 利用這種方式來提供中文的支援很簡單，很靈活，
+也不需要去修改程式的原始碼並重新編譯，
+可是這個方法卻沒辦法讓應用程式對中文作正確的"處理"，
+常見的例子是雖然加上了外掛的中文系統，
+可是編輯文字時在中文字上面按一次刪除鍵卻還是只能刪除半個中文，
+這是因為在應用程式內部仍然是把一個中文字當成兩個英文字來看待，
+而這顯然是不正確的，此外這個方式也不支援跟函式庫作靜態連結的程式，
+還控會造成系統的不穩定，因此大家已經理解到這個方式無法解決根本問題，
+漸漸的捨棄這種外掛的方式，而用其他的方法提供中文支援了。</p>
+
+<p>第二種方式是修改程式，直接讓每個程式都支援中文的使用，
+這種是最簡單也是最困難的方法，說它簡單，因為這件工作很直接， FreeBSD
+底下的程式又大多數都可以拿到程式的原始碼，
+只要對這些原始碼作修正，加入支援中文的部份，就可以支援中文的使用囉， 例如很多人使用的中文
+<b class="APPLICATION">cpine</b> 郵件程式就是用英文版 <b class="APPLICATION">pine</b>
+的原始碼改出來的， 其他如 <b class="APPLICATION">cxterm</b> 程式或者支援多種語言的 <b
+class="APPLICATION">emacs</b> 等等程式都是由應用程式自行提供中文支援的，
+這些程式對中文的支援很好，也都受到了大家的歡迎愛用，可是，
+使用者一旦離開這些有提供中文支援的程式以後就無法用中文了， 一個 FreeBSD
+套件少說有五六百個程式套件，
+想要全面的中文化，必須要一個一個完整的對這些程式做出修改才行，
+這件工作在人力跟物力上都會是一個天文數字的投資，是不可能的事情，
+所以我們前面說這也是最困難的方法 :) 況且，因為編碼系統不一樣，
+這些程式拿到日本就要改一次日文版，拿到韓國也要再改一次韓文版，
+這種作法會使得資源重複浪費的部份十分嚴重，由此可見，
+靠獨立的程式來提供中文環境並不是個聰明的作法， 必須要有更好的方式才行。</p>
+
+<p>那麼甚麼才是這個更好的方式呢？ "國際化"可能是目前我們找得到的最好解答，
+國際化的英文名稱是 InternationalizatioN，這個英文單字的第一個字母 I 與最後一個字母 N
+之間有 18 個字母，所以也被簡稱為 I18N。 I18N 是一種觀念跟目標，這個想法是要提供一個架構，
+讓同樣的程式碼可以適用在各種語文習慣跟編碼系統上面，
+程式設計人員只要利用這個架構的機制跟準則撰寫應用程式，
+就可以在不需重新編譯程式的情況下，自然的支援各式各樣的語言，
+不過為了要達成這樣的目標，作業系統必須提供一定程度的支援，
+特別是在各種的程式庫裡面都得有支援 I18N 的 設計才可以， 這邊特別重要的就屬 C 程式庫以及 X
+視窗系統的國際化設計了。 過去，FreeBSD 上的 C 程式庫跟 X 對國際化的支援都不完整，
+整個基礎環境還不成熟，所以多數的程式並沒有照著 I18N 的標準來撰寫，
+導致中文化的問題困難重重，這個現象在這一年來已經有了大幅的改善，
+目前國際上大家寫程式的時候已經有支援 I18N 的普遍共識了， 主流的程式也都漸漸提供了 I18N
+的支援，利用標準的 FreeBSD 國際化架構來支援中文還是要改程式，不過這個改法是國際的主流，
+也可以保證投資可以有最大的獲益，所以我們認為這才是建構中文環境的正途，
+在後續的文章裡面我們將會一一跟大家介紹目前 FreeBSD 底下 I18N 環境的實作方法，以及設計
+I18N 程式所該注意的事項。</p>
+
+<p>一般國際化架構設計的基本原則， 是把程式處理會跟語文編碼相關的部份獨立出來，
+這些資料不只是編碼系統的定義，還包括該語文下的一些使用習慣，
+例如數字、日期、排序、貨幣的格式，以及翻譯的訊息等等...
+這些跟語文環境有相關的資料，我們稱之為 "區域環境資料庫" (locale database,LOCALization
+Environment database)， 把這些資料分離出來以後，就可以定義一個跟語文編碼無關的介面，
+給程式設計師使用，讓程式設計人員在設計程式時不必考慮，
+對特定語文環境提供支援的細腹A寫出來的程式就可以不限於支援特定語言，
+而是在程式執行的時候才依使用者的選擇的區域環境 (locale)
+聯繫到不同的資料庫，進而提供該語文的支援。</p>
+
+<p>I18N 只是提供可能用來支援中文的大架構，要能夠使用中文，
+還必須要在這個架構裡面加入對中文語文編碼的支援才可以，
+這個在國際化架構之下加入對某種特定語文支援的動作稱為"區域化"， 英文稱為
+LocalizatioN，因為 L 跟 N 之間有 10 個英文字母， 也常被簡稱為 L10N，一般的 "中文化"
+是泛指為應用程式加上中文支援的過程，不過我們這邊提到的中文化，
+事實上就是在國際化架構下面加入中文區域化支援的工作； 就目前的FreeBSD 環境而言， 當前在
+FreeBSD 上用來提供中文支援的國際化架構可說是已經大致完備，
+底層程式庫的中文區域化工作也都大致完成了，
+在這個架構之上已經可以提供一個不錯的中文環境可以用了，說起來，
+我們能有今日的中文環境可用，實在要感謝這些國際性程式開發組織(XFree86)
+有心重視亞洲語系使用者的需求，此外，
+長久以來許許多多網路上自由軟體作者的貢獻也是功不可沒，
+正就是因為有這許多前人不計個人報酬的努力， 我們才能享受當前的中文環境。</p>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="basic.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="chinese-trans.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">基本中文環境的要件</td>
+<td width="34%" align="center" valign="top"><a href="difficult.html"
+accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">可能的問題</td>
+</tr>
+</table>
+</div>
+</body>
+</html>
+

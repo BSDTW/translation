@@ -1,0 +1,2568 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><title>Chapter 16. Using MySQL with memcached</title><link rel="stylesheet" href="mysql-html.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.69.1"><link rel="start" href="index.html" title="MySQL 5.1 Reference Manual"><link rel="up" href="index.html" title="MySQL 5.1 Reference Manual"><link rel="prev" href="ha-vm.html" title="Chapter 15. MySQL and Virtualization"><link rel="next" href="mysql-proxy.html" title="Chapter 17. MySQL Proxy"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">Chapter 16. Using MySQL with <span><strong class="command">memcached</strong></span></th></tr><tr><td width="20%" align="left"><a accesskey="p" href="ha-vm.html">Prev</a> </td><th width="60%" align="center"> </th><td width="20%" align="right"> <a accesskey="n" href="mysql-proxy.html">Next</a></td></tr></table><hr></div><div class="chapter" lang="en"><div class="titlepage"><div><div><h2 class="title"><a name="ha-memcached"></a>Chapter 16. Using MySQL with <span><strong class="command">memcached</strong></span></h2></div></div></div><div class="toc"><p><b>Table of Contents</b></p><dl><dt><span class="section"><a href="ha-memcached.html#ha-memcached-install">16.1. Installing <span><strong class="command">memcached</strong></span></a></span></dt><dt><span class="section"><a href="ha-memcached.html#ha-memcached-using">16.2. Using <span><strong class="command">memcached</strong></span></a></span></dt><dd><dl><dt><span class="section"><a href="ha-memcached.html#ha-memcached-using-deployment">16.2.1. <span><strong class="command">memcached</strong></span> Deployment</a></span></dt><dt><span class="section"><a href="ha-memcached.html#ha-memcached-using-memory">16.2.2. Memory allocation within <span><strong class="command">memcached</strong></span></a></span></dt><dt><span class="section"><a href="ha-memcached.html#ha-memcached-using-namespaces">16.2.3. Using namespaces</a></span></dt><dt><span class="section"><a href="ha-memcached.html#ha-memcached-using-expiry">16.2.4. Data Expiry</a></span></dt><dt><span class="section"><a href="ha-memcached.html#ha-memcached-using-hashtypes">16.2.5. <span><strong class="command">memcached</strong></span> Hash Types</a></span></dt></dl></dd><dt><span class="section"><a href="ha-memcached.html#ha-memcached-interfaces">16.3. <span><strong class="command">memcached</strong></span> Interfaces</a></span></dt><dd><dl><dt><span class="section"><a href="ha-memcached.html#ha-memcached-interfaces-libmemcached">16.3.1. Using <code class="literal">libmemcached</code></a></span></dt><dt><span class="section"><a href="ha-memcached.html#ha-memcached-interfaces-perl">16.3.2. Using MySQL and <span><strong class="command">memcached</strong></span> with Perl</a></span></dt><dt><span class="section"><a href="ha-memcached.html#ha-memcached-interfaces-python">16.3.3. Using MySQL and <span><strong class="command">memcached</strong></span> with Python</a></span></dt><dt><span class="section"><a href="ha-memcached.html#ha-memcached-interfaces-php">16.3.4. Using MySQL and <span><strong class="command">memcached</strong></span> with PHP</a></span></dt><dt><span class="section"><a href="ha-memcached.html#ha-memcached-interfaces-ruby">16.3.5. Using MySQL and <span><strong class="command">memcached</strong></span> with Ruby</a></span></dt><dt><span class="section"><a href="ha-memcached.html#ha-memcached-interfaces-java">16.3.6. Using MySQL and <span><strong class="command">memcached</strong></span> with Java</a></span></dt><dt><span class="section"><a href="ha-memcached.html#ha-memcached-interfaces-mysqludf">16.3.7. Using the MySQL <span><strong class="command">memcached</strong></span> UDFs</a></span></dt></dl></dd><dt><span class="section"><a href="ha-memcached.html#ha-memcached-stats">16.4. Getting <span><strong class="command">memcached</strong></span> Statistics</a></span></dt><dd><dl><dt><span class="section"><a href="ha-memcached.html#ha-memcached-stats-general">16.4.1. <span><strong class="command">memcached</strong></span> General Statistics</a></span></dt><dt><span class="section"><a href="ha-memcached.html#ha-memcached-stats-slabs">16.4.2. <span><strong class="command">memcached</strong></span> Slabs Statistics</a></span></dt><dt><span class="section"><a href="ha-memcached.html#ha-memcached-stats-items">16.4.3. <span><strong class="command">memcached</strong></span> Item Statistics</a></span></dt><dt><span class="section"><a href="ha-memcached.html#ha-memcached-stats-sizes">16.4.4. <span><strong class="command">memcached</strong></span> Size Statistics</a></span></dt></dl></dd><dt><span class="section"><a href="ha-memcached.html#ha-memcached-faq">16.5. <span><strong class="command">memcached</strong></span> FAQ</a></span></dt></dl></div><p>
+    The largest problem with scalability within a typical environment is
+    the speed with which you can access information. For frequently
+    accessed information, using MySQL can be slow because each access of
+    information requires execution of the SQL query and recovery of the
+    information from the database. This also means that queries on
+    tables that are locked or blocking may delay your query and reduce
+    the speed of recovery of information.
+  </p><p>
+    <span><strong class="command">memcached</strong></span> is a simple, yet highly-scalable
+    key-based cache that stores data and objects wherever dedicated or
+    spare RAM is available for very quick access by applications. To
+    use, you run <span><strong class="command">memcached</strong></span> on one or more hosts and
+    then use the shared cache to store objects.Because each host's RAM
+    is storing information, the access speed will be much faster than
+    having to load the information from disk. This can provide a
+    significant performance boost in retrieving data versus loading the
+    data natively from a database. Also, because the cache is just a
+    repository for information, you can use the cache to store any data,
+    including complex structures that would normally require a
+    significant amount of effort to create, but in a ready-to-use
+    format, helping to reduce the load on your MySQL servers.
+  </p><p>
+    The typical usage environment is to modify your application so that
+    information is read from the cache provided by
+    <span><strong class="command">memcached</strong></span>. If the information isn't in
+    <span><strong class="command">memcached</strong></span>, then the data is loaded from the MySQL
+    database and written into the cache so that future requests for the
+    same object benefit from the cached data.
+  </p><p>
+    For a typical deployment layout, see
+    <a href="ha-memcached.html#ha-memcached-fig-overview" title="Figure 16.1. memcached overview">Figure 16.1, “<span>memcached</span> overview”</a>.
+  </p><div class="figure"><a name="ha-memcached-fig-overview"></a><p class="title"><b>Figure 16.1. <span>memcached</span> overview</b></p><div class="mediaobject"><img src="images/memcached-overview.png" alt="memcached overview"></div></div><p>
+    In the example structure, any of the clients can contact one of the
+    <span><strong class="command">memcached</strong></span> servers to request a given key. Each
+    client is configured to talk to all of the servers shown in the
+    illustration. Within the client, when the request is made to store
+    the information, the key used to reference the data is hashed and
+    this hash is then used to select one of the
+    <span><strong class="command">memcached</strong></span> servers. The selection of the
+    <span><strong class="command">memcached</strong></span> server takes place on the client before
+    the server is contacted, keeping the process lightweight.
+  </p><p>
+    The same algorithm is used again when a client requests the same
+    key. The same key will generate the same hash, and the same
+    <span><strong class="command">memcached</strong></span> server will be selected as the source
+    for the data. Using this method, the cached data is spread among all
+    of the <span><strong class="command">memcached</strong></span> servers, and the cached
+    information is accessible from any client. The result is a
+    distributed, memory-based, cache that can return information,
+    particularly complex data and structures, much faster than natively
+    reading the information from the database.
+  </p><p>
+    The data held within a <span><strong class="command">memcached</strong></span> server is never
+    stored on disk (only in RAM, which means there is no persistence of
+    data), and the RAM cache is always populated from the backing store
+    (a MySQL database). If a <span><strong class="command">memcached</strong></span> server fails,
+    the data can always be recovered from the MySQL database, albeit at
+    a slower speed than loading the information from the cache.
+  </p><div class="section" lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="ha-memcached-install"></a>16.1. Installing <span><strong class="command">memcached</strong></span></h2></div></div></div><p>
+      You can build and install <span><strong class="command">memcached</strong></span> from the
+      source code directly, or you can use an existing operating system
+      package or installation.
+    </p><p>
+      To install <span><strong class="command">memcached</strong></span> on a RedHat, Fedora or
+      CentOS host, use <span><strong class="command">yum</strong></span>:
+    </p><pre class="programlisting">root-shell&gt; yum install memcached</pre><p>
+      To install <span><strong class="command">memcached</strong></span> on a Debian or Ubuntu
+      host, use <span><strong class="command">apt-get</strong></span>:
+    </p><pre class="programlisting">root-shell&gt; apt-get install memcached</pre><p>
+      To install <span><strong class="command">memcached</strong></span> on a Gentoo host, use
+      <span><strong class="command">emerge</strong></span>:
+    </p><pre class="programlisting">root-shell&gt; emerge install memcached</pre><p>
+      To install on OpenSolaris, use the <span><strong class="command">pkg</strong></span> command
+      to install the <code class="literal">SUNWmemcached</code> package:
+    </p><pre class="programlisting">root-shell&gt; pkg install SUNWmemcached</pre><p>
+      You may also find <span><strong class="command">memcached</strong></span> in the Coolstack
+      project. For more details, see
+      <a href="http://cooltools.sunsource.net/coolstack/" target="_top">http://cooltools.sunsource.net/coolstack/</a>.
+    </p><p>
+      On other Unix-based platforms, including Solaris, AIX, HP-UX and
+      Mac OS X, and Linux distributions not mentioned already, you will
+      need to install from source. For Linux, make sure you have a
+      2.6-based kernel, which includes the improved
+      <code class="literal">epoll</code> interface. For all platforms, ensure that
+      you have <code class="literal">libevent</code> 1.1 or higher installed. You
+      can obtain <code class="literal">libevent</code> from
+      <a href="http://www.monkey.org/~provos/libevent/" target="_top"><code class="literal">libevent</code>
+      web page</a>.
+    </p><p>
+      You can obtain the source for <span><strong class="command">memcached</strong></span> from
+      <a href="http://www.danga.com/memcached" target="_top"><span><strong class="command">memcached</strong></span>
+      website</a>.
+    </p><p>
+      To build <span><strong class="command">memcached</strong></span>, follow these steps:
+    </p><div class="orderedlist"><ol type="1"><li><p>
+          Extract the <span><strong class="command">memcached</strong></span> source package:
+        </p><pre class="programlisting">shell&gt; gunzip -c memcached-<em class="replaceable"><code>1.2.5</code></em>.tar.gz | tar xf - </pre></li><li><p>
+          Change to the
+          <span><strong class="command">memcached-<em class="replaceable"><code>1.2.5</code></em>
+          directory:</strong></span>
+        </p><pre class="programlisting">shell&gt; cd memcached-<em class="replaceable"><code>1.2.5</code></em></pre></li><li><p>
+          Run <span><strong class="command">configure</strong></span>
+        </p><pre class="programlisting">shell&gt; ./configure</pre><p>
+          Some additional options you may want to specify to
+          <span><strong class="command">configure</strong></span>:
+        </p><div class="itemizedlist"><ul type="disc"><li><p>
+              If you want to specify a different installation directory,
+              use the <code class="option">--prefix</code> option:
+            </p><pre class="programlisting">shell&gt; ./configure --prefix=/opt</pre><p>
+              The default is to use the <code class="filename">/usr/local</code>
+              directory.
+            </p></li><li><p>
+              If you have installed <code class="filename">libevent</code> and
+              <span><strong class="command">configure</strong></span> cannot find the library, use
+              the <code class="option">--with-libevent</code> option to specify the
+              location of the installed library.
+            </p></li><li><p>
+              To build a 64-bit version of <span><strong class="command">memcached</strong></span>
+              (which will allow you to use a single instance with a
+              large RAM allocation), use
+              <span><strong class="command">--enable-64bit</strong></span>.
+            </p></li><li><p>
+              To enable multi-threading support in
+              <span><strong class="command">memcached</strong></span>, which will improve the
+              response times on servers with a heavy load, use
+              <code class="literal">--enable-threads</code>.
+            </p></li></ul></div></li><li><p>
+          Run <span><strong class="command">make</strong></span> to build
+          <span><strong class="command">memcached</strong></span>:
+        </p><pre class="programlisting">shell&gt; make</pre></li><li><p>
+          Run <span><strong class="command">make install</strong></span> to install
+          <span><strong class="command">memcached</strong></span>:
+        </p><pre class="programlisting">shell&gt; make install</pre></li></ol></div></div><div class="section" lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="ha-memcached-using"></a>16.2. Using <span><strong class="command">memcached</strong></span></h2></div></div></div><div class="toc"><dl><dt><span class="section"><a href="ha-memcached.html#ha-memcached-using-deployment">16.2.1. <span><strong class="command">memcached</strong></span> Deployment</a></span></dt><dt><span class="section"><a href="ha-memcached.html#ha-memcached-using-memory">16.2.2. Memory allocation within <span><strong class="command">memcached</strong></span></a></span></dt><dt><span class="section"><a href="ha-memcached.html#ha-memcached-using-namespaces">16.2.3. Using namespaces</a></span></dt><dt><span class="section"><a href="ha-memcached.html#ha-memcached-using-expiry">16.2.4. Data Expiry</a></span></dt><dt><span class="section"><a href="ha-memcached.html#ha-memcached-using-hashtypes">16.2.5. <span><strong class="command">memcached</strong></span> Hash Types</a></span></dt></dl></div><p>
+      To start using <span><strong class="command">memcached</strong></span>, you must start the
+      <span><strong class="command">memcached</strong></span> service on one or more servers.
+      Running <span><strong class="command">memcached</strong></span> sets up the server, allocates
+      the memory and starts listening for connections from clients.
+    </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Note</h3><p>
+        You do not need to be privileged user (<code class="literal">root</code>)
+        to run <span><strong class="command">memcached</strong></span> unless you want to listen on
+        one of the privileged TCP/IP ports (below 1024). You must,
+        however, use a user that has not had their memory limits
+        restricted using <span><strong class="command">setrlimit</strong></span> or similar.
+      </p></div><p>
+      To start the server, run <span><strong class="command">memcached</strong></span> as a
+      non-privileged (i.e. non-root) user:
+    </p><pre class="programlisting">shell&gt; memcached</pre><p>
+      If you start <span><strong class="command">memcached</strong></span> as
+      <code class="literal">root</code>, use the <code class="option">-u</code> option to
+      specify the user for executing <span><strong class="command">memcached</strong></span>:
+    </p><pre class="programlisting">shell&gt; memcached -u memcache</pre><p>
+      By default, <span><strong class="command">memcached</strong></span> uses the following
+      settings:
+    </p><div class="itemizedlist"><ul type="disc"><li><p>
+          Memory allocation of 64MB
+        </p></li><li><p>
+          Listens for connections on all network interfaces, using port
+          11211.
+        </p></li><li><p>
+          Supports a maximum of 1024 simultaneous connections.
+        </p></li></ul></div><p>
+      To increase the amount of memory allocated for the cache, use the
+      <code class="option">-m</code> option to specify the amount of RAM to be
+      allocated (in megabytes). The more RAM you allocate, the more data
+      you can store and therefore the more effective your cache will be.
+    </p><div class="warning" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Warning</h3><p>
+        Do not specify a memory allocation larger than your available
+        RAM. If you specify too large a value, then some RAM allocated
+        for <span><strong class="command">memcached</strong></span> will be using swap space, and
+        not physical RAM. This may lead to delays when storing and
+        retrieving values, because data will be swapped to disk, instead
+        of storing the data directly in RAM.
+      </p><p>
+        You can use the output of the <span><strong class="command">vmstat</strong></span> command
+        to get the free memory, as shown in <code class="literal">free</code>
+        column:
+      </p><pre class="programlisting">shell&gt; vmstat
+kthr      memory            page            disk          faults      cpu
+r b w   swap  free  re  mf pi po fr de sr s1 s2 -- --   in   sy   cs us sy id
+0 0 0 5170504 3450392 2  7  2  0  0  0  4  0  0  0  0  296   54  199  0  0 100
+</pre></div><p>
+      For example, to allocate 3GB of RAM:
+    </p><pre class="programlisting">shell&gt; memcached -m 3072</pre><p>
+      On 32-bit x86 systems where you are using PAE to access memory
+      above the 4GB limit, you will be unable to allocate RAM beyond the
+      maximum process size. You can get around this by running multiple
+      instances of <span><strong class="command">memcached</strong></span>, each listening on a
+      different port:
+    </p><pre class="programlisting">shell&gt; memcached -m 1024 -p11211
+shell&gt; memcached -m 1024 -p11212
+shell&gt; memcached -m 1024 -p11213</pre><p>
+      To specify a specific network interface, use the
+      <code class="option">-l</code> option to specify the IP address of the
+      desired interface:
+    </p><pre class="programlisting">shell&gt; memcached -l 192.168.0.110</pre><p>
+      To specify an alternate port to listen on, use the
+      <code class="option">-p</code> option:
+    </p><pre class="programlisting">shell&gt; memcached -p 18080</pre><p>
+      If you are running <span><strong class="command">memcached</strong></span> on the same server
+      as the clients, you can disable the network interface and use a
+      local UNIX socket using the <code class="option">-s</code> option:
+    </p><pre class="programlisting">shell&gt; memcached -s /tmp/memcached</pre><p>
+      Using a UNIX socket automatically disables network support, and
+      saves network ports (allowing more ports to be used by your web
+      server or other process).
+    </p><p>
+      To specify the maximum number of simultaneous connections to the
+      <span><strong class="command">memcached</strong></span> service, use the <code class="option">-c</code>
+      option:
+    </p><pre class="programlisting">shell&gt; memcached -c 2048</pre><p>
+      You should use this option, either to reduce the number of
+      connections (to prevent overloading <span><strong class="command">memcached</strong></span>
+      service) or to increase the number to make more effective use of
+      the server running <span><strong class="command">memcached</strong></span> server.
+    </p><p>
+      By default, <span><strong class="command">memcached</strong></span> is configured to use 4
+      concurrent threads. The threading improves the performance of
+      storing and retrieving data in the cache, using a locking system
+      to prevent different threads overwriting or updating the same
+      values. You may want to increase or decrease the number of
+      threads, use the <code class="literal">-t</code> option:
+    </p><pre class="programlisting">shell&gt; memcached -t 8</pre><p>
+      To run <span><strong class="command">memcached</strong></span> as a daemon (background)
+      process, use the <code class="option">-d</code> option:
+    </p><pre class="programlisting">shell&gt; memcached -d</pre><p>
+      Typically, you would specify the full combination of options that
+      you want when starting <span><strong class="command">memcached</strong></span>, and normally
+      provide a startup script to handle the initialization of
+      <span><strong class="command">memcached</strong></span>. For example, the following line
+      starts <span><strong class="command">memcached</strong></span> with a maximum of 1024MB RAM
+      for the cache, listening on port 11121 on the IP address
+      192.168.0.110, running has a background daemon:
+    </p><pre class="programlisting">shell&gt; memcached -d -m 1024 -p 11121 -l 192.168.0.110</pre><p>
+      To ensure that <span><strong class="command">memcached</strong></span> is started up on boot
+      you should check the init script and configuration parameters. On
+      OpenSolaris, <span><strong class="command">memcached</strong></span> is controlled by SMF.
+      You can enable it by using:
+    </p><pre class="programlisting">root-shell&gt; svcadm enable memcached</pre><div class="section" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="ha-memcached-using-deployment"></a>16.2.1. <span><strong class="command">memcached</strong></span> Deployment</h3></div></div></div><p>
+        When using <span><strong class="command">memcached</strong></span> you can use a number of
+        different potential deployment strategies and topologies. The
+        exact strategy you use will depend on your application and
+        environment. When developing a system for deploying
+        <span><strong class="command">memcached</strong></span> within your system, you should keep
+        in mind the following points:
+      </p><div class="itemizedlist"><ul type="disc"><li><p>
+            <span><strong class="command">memcached</strong></span> is only a caching mechanism. It
+            shouldn't be used to store information that you cannot
+            otherwise afford to lose and then load from a different
+            location.
+          </p></li><li><p>
+            There is no security built into the
+            <span><strong class="command">memcached</strong></span> protocol. At a minimum you
+            should make sure that the servers running
+            <span><strong class="command">memcached</strong></span> are only accessible from inside
+            your network, and that the network ports being used are
+            blocked (using a firewall or similar). If the information on
+            the <span><strong class="command">memcached</strong></span> servers that is being
+            stored is any sensitive, then encrypt the information before
+            storing it in <span><strong class="command">memcached</strong></span>.
+          </p></li><li><p>
+            <span><strong class="command">memcached</strong></span> does not provide any sort of
+            failover. Because there is no communication between
+            different <span><strong class="command">memcached</strong></span> instances. If an
+            instance fails, your application must capable of removing it
+            from the list, reloading the data and then writing data to
+            another <span><strong class="command">memcached</strong></span> instance.
+          </p></li><li><p>
+            Latency between the clients and the
+            <span><strong class="command">memcached</strong></span> can be a problem if you are
+            using different physical machines for these tasks. If you
+            find that the latency is a problem, move the
+            <span><strong class="command">memcached</strong></span> instances to be on the clients.
+          </p></li><li><p>
+            Key length is determined by the <span><strong class="command">memcached</strong></span>
+            server. The default maximum key size is 250 bytes.
+          </p></li><li><p>
+            Using a single <span><strong class="command">memcached</strong></span> instance,
+            especially for multiple clients, is generally a bad idea as
+            it introduces a single point of failure. Instead provide at
+            least two <span><strong class="command">memcached</strong></span> instances so that a
+            failure can be handled appropriately. If possible, you
+            should create as many <span><strong class="command">memcached</strong></span> nodes as
+            possible. When adding and removing
+            <span><strong class="command">memcached</strong></span> instances from a pool, the
+            hashing and distribution of key/value pairs may be affected.
+            For information on how to avoid problems, see
+            <a href="ha-memcached.html#ha-memcached-using-hashtypes" title="16.2.5. memcached Hash Types">Section 16.2.5, “<span><strong class="command">memcached</strong></span> Hash Types”</a>.
+          </p></li></ul></div></div><div class="section" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="ha-memcached-using-memory"></a>16.2.2. Memory allocation within <span><strong class="command">memcached</strong></span></h3></div></div></div><p>
+        When you first start <span><strong class="command">memcached</strong></span>, the memory
+        that you have configured is not automatically allocated.
+        Instead, <span><strong class="command">memcached</strong></span> only starts allocating and
+        reserving physical memory once you start saving information into
+        the cache.
+      </p><p>
+        When you start to store data into the cache,
+        <span><strong class="command">memcached</strong></span> does not allocate the memory for
+        the data on an item by item basis. Instead, a slab allocation is
+        used to optimize memory usage and prevent memory fragmentation
+        when information expires from the cache.
+      </p><p>
+        With slab allocation, memory is reserved in blocks of 1MB. The
+        slab is divided up into a number of blocks of equal size. When
+        you try to store a value into the cache,
+        <span><strong class="command">memcached</strong></span> checks the size of the value that
+        you are adding to the cache and determines which slab contains
+        the right size allocation for the item. If a slab with the item
+        size already exists, the item is written to the block within the
+        slab.
+      </p><p>
+        If the new item is bigger than the size of any existing blocks,
+        then a new slab is created, divided up into blocks of a suitable
+        size. If an existing slab with the right block size already
+        exists, but there are no free blocks, a new slab is created. If
+        you update an existing item with data that is larger than the
+        existing block allocation for that key, then the key is
+        reallocated into a suitable slab.
+      </p><p>
+        For example, the default size for the smallest block is 88 bytes
+        (40 bytes of value, and the default 48 bytes for the key and
+        flag data). If the size of the first item you store into the
+        cache is less than 40 bytes, then a slab with a block size of 88
+        bytes is created and the value stored.
+      </p><p>
+        If the size of the data that you want to store is larger than
+        this value, then the block size is increased by the chunk size
+        factor until a block size large enough to hold the value is
+        determined. The block size is always a function of the scale
+        factor, rounded up to a block size which is exactly divisible
+        into the chunk size.
+      </p><p>
+        For a sample of the structure, see
+        <a href="ha-memcached.html#ha-memcached-fig-slabs" title="Figure 16.2. memcached memory allocation">Figure 16.2, “<span>memcached</span> memory allocation”</a>.
+      </p><div class="figure"><a name="ha-memcached-fig-slabs"></a><p class="title"><b>Figure 16.2. <span>memcached</span> memory allocation</b></p><div class="mediaobject"><img src="images/memcached-memalloc.png" alt="memcached memory
+            allocation"></div></div><p>
+        The result is that you have multiple pages allocated within the
+        range of memory allocated to <span><strong class="command">memcached</strong></span>. Each
+        page is 1MB in size (by default), and will be split into
+        different number of chunks, according to the chunk size required
+        to store the key/value pairs. Each instance will have multiple
+        pages allocated, and a page will always be created when a new
+        item needs to be created requiring a chunk of a particular size.
+        A slab may consist of multiple pages, and each page within a
+        slab will contain an equal number of chunks.
+      </p><p>
+        The chunk size of a new slab is determined by the base chunk
+        size combined with the chunk size growth factor. For example, if
+        the initial chunks are 104 bytes in size, and the default chunk
+        size growth factor is used (1.25), then the next chunk size
+        allocated would be the best power of 2 fit for 104*1.25, or 136
+        bytes.
+      </p><p>
+        Allocating the pages in this way ensures that memory does not
+        get fragmented. However, depending on the distribution of the
+        objects that you want to store, it may lead to an inefficient
+        distribution of the slabs and chunks if you have significantly
+        different sized items. For example, having a relatively small
+        number of items within each chunk size may waste a lot of memory
+        with just few chunks in each allocated page.
+      </p><p>
+        You can tune the growth factor to reduce this effect by using
+        the <code class="literal">-f</code> command line option. This will adapt
+        the growth factor applied to make more effective use of the
+        chunks and slabs allocated. For information on how to determine
+        the current slab allocation statistics, see
+        <a href="ha-memcached.html#ha-memcached-stats-slabs" title="16.4.2. memcached Slabs Statistics">Section 16.4.2, “<span><strong class="command">memcached</strong></span> Slabs Statistics”</a>.
+      </p><p>
+        If your operating system supports it, you can also start
+        <span><strong class="command">memcached</strong></span> with the <code class="literal">-L</code>
+        command line option. With this option enabled, it will
+        preallocate all the memory during startup using large memory
+        pages. This can improve performance by reducing the number of
+        misses in the CPU memory cache.
+      </p></div><div class="section" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="ha-memcached-using-namespaces"></a>16.2.3. Using namespaces</h3></div></div></div><p>
+        The <span><strong class="command">memcached</strong></span> cache is a very simple massive
+        key/value storage system, and as such there is no way of
+        compartmentalizing data automatically into different sections.
+        For example, if you are storing information by the unique ID
+        returned from a MySQL database, then storing the data from two
+        different tables will run into issues because the same ID will
+        probably be valid in both tables.
+      </p><p>
+        Some interfaces provide an automated mechanism for creating
+        <span class="emphasis"><em>namespaces</em></span> when storing information into
+        the cache. In practice, these namespaces are merely a prefix
+        before a given ID that is applied every time a value is stored
+        or retrieve from the cache.
+      </p><p>
+        You can implement the same basic principle by using keys that
+        describe the object and the unique identifier within the key
+        that you supply when the object is stored. For example, when
+        storing user data, prefix the ID of the user with
+        <code class="literal">user:</code> or <code class="literal">user-</code>.
+      </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Note</h3><p>
+          Using namespaces or prefixes only controls the keys
+          stored/retrieved. There is no security within
+          <span><strong class="command">memcached</strong></span>, and therefore no way to enforce
+          that a particular client only accesses keys with a particular
+          namespace. Namespaces are only useful as a method of
+          identifying data and preventing corruption of key/value pairs.
+        </p></div></div><div class="section" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="ha-memcached-using-expiry"></a>16.2.4. Data Expiry</h3></div></div></div><p>
+        There are two types of data expiry within a
+        <span><strong class="command">memcached</strong></span> instance. The first type is applied
+        at the point when you store a new key/value pair into the
+        <span><strong class="command">memcached</strong></span> instance. If there is not enough
+        space within a suitable slab to store the value, then an
+        existing least recently used (LRU) object is removed (evicted)
+        from the cache to make room for the new item.
+      </p><p>
+        The LRU algorithm ensures that the object that is removed is one
+        that is either no longer in active use or that was used so long
+        ago that its data is potentially out of date or of little value.
+        However, in a system where the memory allocated to
+        <span><strong class="command">memcached</strong></span> is smaller than the number of
+        regularly used objects required in the cache you will see a lot
+        of expired items being removed from the cache even though they
+        are in active use. You use the statistics mechanism to get a
+        better idea of the level of evictions (expired objects). For
+        more information, see <a href="ha-memcached.html#ha-memcached-stats" title="16.4. Getting memcached Statistics">Section 16.4, “Getting <span><strong class="command">memcached</strong></span> Statistics”</a>.
+      </p><p>
+        You can change this eviction behavior by setting the
+        <code class="literal">-M</code> command-line option when starting
+        <span><strong class="command">memcached</strong></span>. This option forces an error to be
+        returned when the memory has been exhausted, instead of
+        automatically evicting older data.
+      </p><p>
+        The second type of expiry system is an explicit mechanism that
+        you can set when a key/value pair is inserted into the cache, or
+        when deleting an item from the cache. Using an expiration time
+        can be a useful way of ensuring that the data in the cache is up
+        to date and in line with your application needs and
+        requirements.
+      </p><p>
+        A typical scenario for explicitly setting the expiry time might
+        include caching session data for a user when accessing a
+        website. <span><strong class="command">memcached</strong></span> uses a lazy expiry
+        mechanism where the explicit expiry time that has been set is
+        compared with the current time when the object is requested.
+        Only objects that have not expired are returned.
+      </p><p>
+        You can also set the expiry time when explicitly deleting an
+        object from the cache. In this case, the expiry time is really a
+        timeout and indicates the period when any attempts to set the
+        value for a given key are rejected.
+      </p></div><div class="section" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="ha-memcached-using-hashtypes"></a>16.2.5. <span><strong class="command">memcached</strong></span> Hash Types</h3></div></div></div><p>
+        The <span><strong class="command">memcached</strong></span> client interface supports a
+        number of different hashing types that are used in multi-server
+        configurations to determine which host should be used when
+        setting or getting data from a given
+        <span><strong class="command">memcached</strong></span> instance. When you get or set a
+        value, a hash is constructed from the supplied key and then used
+        to select a host from the list of configured servers. Because
+        the hashing mechanism uses the supplied key as the basis for the
+        hash, the selected server will be the same during both set and
+        get operations.
+      </p><p>
+        For example, if you have three servers, A, B, and C, and you set
+        the value <code class="literal">myid</code>, then the
+        <span><strong class="command">memcached</strong></span> client will create a hash based on
+        the ID and select server B. When the same key is requested, the
+        same hash is generated, and the same server, B, will be selected
+        to request the value.
+      </p><p>
+        Because the hashing mechanism is part of the client interface,
+        not the server interface, the hashing process and selection is
+        very fast. By performing the hashing on the client, it also
+        means that if you want to access the same data by the same ID
+        from the same list of servers but from different client
+        interfaces, you must use the same or compatible hashing
+        mechanisms. If you do not use the same hashing mechanism then
+        the same data may be recorded on different servers by different
+        interfaces, both wasting space on your
+        <span><strong class="command">memcached</strong></span> and leading to potential
+        differences in the information.
+      </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Note</h3><p>
+          One way to use a multi-interface compatible hashing mechanism
+          is to use the <code class="literal">libmemcached</code> library and the
+          associated interfaces. Because the interfaces for the
+          different languages (including C, Ruby, Perl and Python) are
+          using the same client library interface, they will always
+          generate the same hash code from the ID.
+        </p></div><p>
+        One issue with the client-side hashing mechanism is that when
+        using multiple servers and extending or shrinking the list of
+        servers that you have configured for use with
+        <span><strong class="command">memcached</strong></span>, the resulting hash may change. For
+        example, if you have servers A, B, and C; the computed hash for
+        key <code class="literal">myid</code> may equate to server B. If you add
+        another server, D, into this list, then computing the hash for
+        the same ID again may result in the selection of server D for
+        that key.
+      </p><p>
+        This means that servers B and D both contain the information for
+        key <code class="literal">myid</code>, but there may be differences
+        between the data held by the two instances. A more significant
+        problem is that you will get a much higher number of
+        cache-misses when retrieving data as the addition of a new
+        server will change the distribution of keys, and this will in
+        turn require rebuilding the cached data on the
+        <span><strong class="command">memcached</strong></span> instances and require an increase
+        in database reads.
+      </p><p>
+        For this reason, there are two common types of hashing
+        algorithm, <span class="emphasis"><em>consistent</em></span> and
+        <span class="emphasis"><em>modula</em></span>.
+      </p><p>
+        With <span class="emphasis"><em>consistent</em></span> hashing algorithms, the
+        same key when applied to a list of servers will always use the
+        same server to store or retrieve the keys, even if the list of
+        configured servers changes. This means that you can add and
+        remove servers from the configure list and always use the same
+        server for a given key. There are two types of consistent
+        hashing algorithms available, Ketama and Wheel. Both types are
+        supported by <code class="literal">libmemcached</code>, and
+        implementations are available for PHP and Java.
+      </p><p>
+        There are some limitations with any consistent hashing
+        algorithm. When adding servers to an existing list of configured
+        servers, then keys will be distributed to the new servers as
+        part of the normal distribution. When removing servers from the
+        list, the keys will be re-allocated to another server within the
+        list, which will mean that the cache will need to be
+        re-populated with the information. Also, a consistent hashing
+        algorithm does not resolve the issue where you want consistent
+        selection of a server across multiple clients, but where each
+        client contains a different list of servers. The consistency is
+        enforced only within a single client.
+      </p><p>
+        With a <span class="emphasis"><em>modula</em></span> hashing algorithm, the client
+        will select a server by first computing the hash and then
+        choosing a server from the list of configured servers. As the
+        list of servers changes, so the server selected when using a
+        modula hashing algorithm will also change. The result is the
+        behavior described above; changes to the list of servers will
+        mean different servers are selected when retrieving data leading
+        to cache misses and increase in database load as the cache is
+        re-seeded with information.
+      </p><p>
+        If you use only a single <span><strong class="command">memcached</strong></span> instance
+        for each client, or your list of <span><strong class="command">memcached</strong></span>
+        servers configured for a client never changes, then the
+        selection of a hashing algorithm is irrelevant, as you will not
+        notice the effect.
+      </p><p>
+        If you change your servers regularly, or you use a common set of
+        servers that are shared among a large number of clients, then
+        using a consistent hashing algorithm should help to ensure that
+        your cache data is not duplicated and the data is evenly
+        distributed.
+      </p></div></div><div class="section" lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="ha-memcached-interfaces"></a>16.3. <span><strong class="command">memcached</strong></span> Interfaces</h2></div></div></div><div class="toc"><dl><dt><span class="section"><a href="ha-memcached.html#ha-memcached-interfaces-libmemcached">16.3.1. Using <code class="literal">libmemcached</code></a></span></dt><dt><span class="section"><a href="ha-memcached.html#ha-memcached-interfaces-perl">16.3.2. Using MySQL and <span><strong class="command">memcached</strong></span> with Perl</a></span></dt><dt><span class="section"><a href="ha-memcached.html#ha-memcached-interfaces-python">16.3.3. Using MySQL and <span><strong class="command">memcached</strong></span> with Python</a></span></dt><dt><span class="section"><a href="ha-memcached.html#ha-memcached-interfaces-php">16.3.4. Using MySQL and <span><strong class="command">memcached</strong></span> with PHP</a></span></dt><dt><span class="section"><a href="ha-memcached.html#ha-memcached-interfaces-ruby">16.3.5. Using MySQL and <span><strong class="command">memcached</strong></span> with Ruby</a></span></dt><dt><span class="section"><a href="ha-memcached.html#ha-memcached-interfaces-java">16.3.6. Using MySQL and <span><strong class="command">memcached</strong></span> with Java</a></span></dt><dt><span class="section"><a href="ha-memcached.html#ha-memcached-interfaces-mysqludf">16.3.7. Using the MySQL <span><strong class="command">memcached</strong></span> UDFs</a></span></dt></dl></div><p>
+      A number of interfaces from different languages exist for
+      interacting with <span><strong class="command">memcached</strong></span> servers and storing
+      and retrieving information. Interfaces for the most common
+      language platforms including Perl, PHP, Python, Ruby, C and Java.
+    </p><p>
+      Data stored into a <span><strong class="command">memcached</strong></span> server is referred
+      to by a single string (the key), with storage into the cache and
+      retrieval from the cache using the key as the reference. The cache
+      therefore operates like a large associative array or hash. It is
+      not possible to structure or otherwise organize the information
+      stored in the cache. If you want to store information in a
+      structured way, you must use 'formatted' keys.
+    </p><p>
+      The following tips may be useful to you when using
+      <span><strong class="command">memcached</strong></span>:
+    </p><p>
+      The general sequence for using <span><strong class="command">memcached</strong></span> in any
+      language as a caching solution is as follows:
+    </p><div class="orderedlist"><ol type="1"><li><p>
+          Request the item from the cache.
+        </p></li><li><p>
+          If the item exists, use the item data.
+        </p></li><li><p>
+          If the item does not exist, load the data from MySQL, and
+          store the value into the cache. This means the value will be
+          available to the next client that requests it from the cache.
+        </p></li></ol></div><p>
+      For a flow diagram of this sequence, see
+      <a href="ha-memcached.html#ha-memcached-fig-basicflow" title="Figure 16.3. Typical memcached usage sequence">Figure 16.3, “Typical <span>memcached</span> usage sequence”</a>.
+    </p><div class="figure"><a name="ha-memcached-fig-basicflow"></a><p class="title"><b>Figure 16.3. Typical <span>memcached</span> usage sequence</b></p><div class="mediaobject"><img src="images/memcached-flow.png" alt="Typical memcached usage
+          overview"></div></div><p>
+      The interface to <span><strong class="command">memcached</strong></span> supports the
+      following methods for storing and retrieving information in the
+      cache, and these are consistent across all the different APIs,
+      even though the language specific mechanics may be different:
+    </p><div class="itemizedlist"><ul type="disc"><li><p>
+          <code class="literal">get(key)</code> — retrieves information
+          from the cache. Returns the value if it exists, or
+          <code class="literal">NULL</code>, <code class="literal">nil</code>, or
+          <code class="literal">undefined</code> or the closest equivalent in the
+          corresponding language, if the specified key does not exist.
+        </p></li><li><p>
+          <code class="literal">set(key, value [, expiry])</code> — sets
+          the key in the cache to the specified value. Note that this
+          will either update an existing key if it already exists, or
+          add a new key/value pair if the key doesn't exist. If the
+          expiry time is specified, then the key will expire (be
+          deleted) when the expiry time is reached. The time should be
+          specified in seconds, and is taken as a relative time if the
+          value is less than 30 days (30*24*60*60), or an absolute time
+          (epoch) if larger than this value.
+        </p></li><li><p>
+          <code class="literal">add(key, value [, expiry])</code> — adds
+          the key to the cache, if the specified key doesn't already
+          exist.
+        </p></li><li><p>
+          <code class="literal">replace(key, value [, expiry])</code> —
+          replace the <code class="literal">value</code> of the specified
+          <code class="literal">key</code>, only if the key already exists.
+        </p></li><li><p>
+          <code class="literal">delete(key [, time])</code> — Deletes the
+          <code class="literal">key</code> from the cache. If you supply a
+          <code class="literal">time</code>, then adding a value with the
+          specified <code class="literal">key</code> is blocked for the specified
+          period.
+        </p></li><li><p>
+          <code class="literal">incr(key [, value])</code> — Increment the
+          specified <code class="literal">key</code> by one or the specified
+          <code class="literal">value</code>.
+        </p></li><li><p>
+          <code class="literal">decr(key [, value])</code> — Decrement the
+          specified <code class="literal">key</code> by one or the specified
+          <code class="literal">value</code>.
+        </p></li><li><p>
+          <code class="literal">flush_all</code> — invalidates (or
+          expires) all the current items in the cache. Technically they
+          will still exist (they are not deleted), but they will be
+          silently destroyed the next time you try to access them.
+        </p></li></ul></div><p>
+      In all implementations, most or all of these functions are
+      duplicated through the corresponding native language interface.
+    </p><p>
+      For all languages and interfaces, you should use
+      <span><strong class="command">memcached</strong></span> to store full items, rather than
+      simply caching single rows of information from the database. For
+      example, when displaying a record about an object (invoice, user
+      history, or blog post), all the data for the associated entry
+      should be loaded from the database, and compiled into the internal
+      structure that would normally be required by the application. You
+      then save the complete object into the cache.
+    </p><p>
+      Data cannot be stored directly, it needs to be serialized, and
+      most interfaces will serialize the data for you. Perl uses
+      <code class="literal">Storable</code>, PHP uses
+      <code class="literal">serialize</code>, Python uses
+      <code class="literal">cPickle</code> (or <code class="literal">Pickle</code>) and Java
+      uses the <code class="literal">Serializable</code> interface. In most cases,
+      the serialization interface used is customizable. If you want to
+      share data stored in <span><strong class="command">memcached</strong></span> instances
+      between different language interfaces, consider using a common
+      serialization solution such as JSON (Javascript Object Notation).
+    </p><p>
+      A summary table showing the list of available interfaces for
+      different languages, supported hash types and any additional notes
+      is provided below.
+    </p><div class="section" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="ha-memcached-interfaces-libmemcached"></a>16.3.1. Using <code class="literal">libmemcached</code></h3></div></div></div><div class="toc"><dl><dt><span class="section"><a href="ha-memcached.html#ha-memcached-interfaces-libmemcached-base">16.3.1.1. <code class="literal">libmemcached</code> Base Functions</a></span></dt><dt><span class="section"><a href="ha-memcached.html#ha-memcached-interfaces-libmemcached-servers">16.3.1.2. <code class="literal">libmemcached</code> Server Functions</a></span></dt><dt><span class="section"><a href="ha-memcached.html#ha-memcached-interfaces-libmemcached-set">16.3.1.3. <code class="literal">libmemcached</code> Set Functions</a></span></dt><dt><span class="section"><a href="ha-memcached.html#ha-memcached-interfaces-libmemcached-get">16.3.1.4. <code class="literal">libmemcached</code> Get Functions</a></span></dt><dt><span class="section"><a href="ha-memcached.html#ha-memcached-interfaces-libmemcached-behaviors">16.3.1.5. <code class="literal">libmemcached</code> Behaviors</a></span></dt><dt><span class="section"><a href="ha-memcached.html#ha-memcached-interfaces-libmemcached-utilities">16.3.1.6. <span><strong class="command">libmemcached</strong></span> Command-line Utilities</a></span></dt></dl></div><p>
+        The <code class="literal">libmemcached</code> library provides both C and
+        C++ interfaces to <span><strong class="command">memcached</strong></span> and is also the
+        basis for a number of different additional API implementations,
+        including Perl, Python and Ruby. Understanding the core
+        <code class="literal">libmemcached</code> functions can help when using
+        these other interfaces.
+      </p><p>
+        The C library is the most comprehensive interface library for
+        <span><strong class="command">memcached</strong></span> and provides a wealth of functions
+        and operational systems not always exposed in the other
+        interfaces not based on the <code class="literal">libmemcached</code>
+        library.
+      </p><p>
+        The different functions can be divided up according to their
+        basic operation. In addition to functions that interface to the
+        core API, there are a number of utility functions that provide
+        extended functionality, such as appending and prepending data.
+      </p><p>
+        To build and install <code class="literal">libmemcached</code>, download
+        the <code class="literal">libmemcached</code> package, run configure, and
+        then build and install:
+      </p><pre class="programlisting">shell&gt; tar xjf libmemcached-0.21.tar.gz
+shell&gt; cd libmemcached-0.21
+shell&gt; ./configure
+shell&gt; make
+shell&gt; make install</pre><p>
+        On many Linux operating systems, you can install the
+        corresponding <code class="literal">libmemcached</code> package through
+        the usual <span><strong class="command">yum</strong></span>, <span><strong class="command">apt-get</strong></span> or
+        similar commands. On OpenSolaris, use <span><strong class="command">pkg</strong></span> to
+        install the <code class="literal">SUNWlibmemcached</code> package.
+      </p><p>
+        To build an application that uses the library, you need to first
+        set the list of servers. You can do this either by directly
+        manipulating the servers configured within the main
+        <code class="literal">memcached_st</code> structure, or by separately
+        populating a list of servers, and then adding this list to the
+        <code class="literal">memcached_st</code> structure. The latter method is
+        used in the example below. Once the server list has been set,
+        you can call the functions to store or retrieve data. A simple
+        application for setting a preset value to localhost is provided
+        below:
+      </p><pre class="programlisting">root-shell&gt;include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+#include &lt;unistd.h&gt;
+#include &lt;libmemcached/memcached.h&gt;
+
+int main(int argc, char *argv[])
+{
+  memcached_server_st *servers = NULL;
+  memcached_st *memc;
+  memcached_return rc;
+  char *key= "keystring";
+  char *value= "keyvalue";
+
+  memcached_server_st *memcached_servers_parse (char *server_strings);
+  memc= memcached_create(NULL);
+
+  servers= memcached_server_list_append(servers, "localhost", 11211, &amp;rc);
+  rc= memcached_server_push(memc, servers);
+
+  if (rc == MEMCACHED_SUCCESS)
+    fprintf(stderr,"Added server successfully\n");
+  else
+    fprintf(stderr,"Couldn't add server: %s\n",memcached_strerror(memc, rc));
+
+  rc= memcached_set(memc, key, strlen(key), value, strlen(value), (time_t)0, (uint32_t)0);
+
+  if (rc == MEMCACHED_SUCCESS)
+    fprintf(stderr,"Key stored successfully\n");
+  else
+    fprintf(stderr,"Couldn't store key: %s\n",memcached_strerror(memc, rc));
+
+  return 0;
+}</pre><p>
+        You can test the success of an operation by using the return
+        value, or populated result code, for a given function. The value
+        will always be set to <code class="literal">MEMCACHED_SUCCESS</code> if
+        the operation succeeded. In the event of a failure, use the
+        <code class="literal">memcached_strerror()</code> function to translate
+        the result code into a printable string.
+      </p><p>
+        To build the application, you must specify the
+        <code class="literal">memcached</code> library:
+      </p><pre class="programlisting">shell&gt; gcc -o memc_basic memc_basic.c -lmemcached</pre><p>
+        Running the above sample application, after starting a
+        <span><strong class="command">memcached</strong></span> server, should return a success
+        message:
+      </p><pre class="programlisting">shell&gt; memc_basic 
+Added server successfully
+Key stored successfully
+</pre><div class="section" lang="en"><div class="titlepage"><div><div><h4 class="title"><a name="ha-memcached-interfaces-libmemcached-base"></a>16.3.1.1. <code class="literal">libmemcached</code> Base Functions</h4></div></div></div><p>
+          The base <code class="literal">libmemcached</code> functions allow you
+          to create, destroy and clone the main
+          <code class="literal">memcached_st</code> structure that is used to
+          interface to the <code class="literal">memcached</code> servers. The
+          main functions are defined below:
+        </p><pre class="programlisting">memcached_st *memcached_create (memcached_st *ptr);</pre><p>
+          Creates a new <code class="literal">memcached_st</code> structure for
+          use with the other <code class="literal">libmemcached</code> API
+          functions. You can supply an existing, static,
+          <code class="literal">memcached_st</code> structure, or
+          <code class="literal">NULL</code> to have a new structured allocated.
+          Returns a pointer to the created structure, or
+          <code class="literal">NULL</code> on failure.
+        </p><pre class="programlisting">void memcached_free (memcached_st *ptr);
+</pre><p>
+          Free the structure and memory allocated to a previously
+          created <code class="literal">memcached_st</code> structure.
+        </p><pre class="programlisting">memcached_st *memcached_clone(memcached_st *clone, memcached_st *source);
+</pre><p>
+          Clone an existing <code class="literal">memcached</code> structure from
+          the specified <code class="literal">source</code>, copying the defaults
+          and list of servers defined in the structure.
+        </p></div><div class="section" lang="en"><div class="titlepage"><div><div><h4 class="title"><a name="ha-memcached-interfaces-libmemcached-servers"></a>16.3.1.2. <code class="literal">libmemcached</code> Server Functions</h4></div></div></div><p>
+          The <code class="literal">libmemcached</code> API uses a list of
+          servers, stored within the
+          <code class="literal">memcached_server_st</code> structure, to act as
+          the list of servers used by the rest of the functions. To use
+          <code class="literal">memcached</code>, you first create the server
+          list, and then apply the list of servers to a valid
+          <code class="literal">libmemcached</code> object.
+        </p><p>
+          Because the list of servers, and the list of servers within an
+          active <code class="literal">libmemcached</code> object can be
+          manipulated separately, you can update and manage server lists
+          while an active <code class="literal">libmemcached</code> interface is
+          running.
+        </p><p>
+          The functions for manipulating the list of servers within a
+          <code class="literal">memcached_st</code> structure are given below:
+        </p><pre class="programlisting">memcached_return
+           memcached_server_add (memcached_st *ptr,
+                                 char *hostname,
+                                 unsigned int port);
+</pre><p>
+          Add a server, using the given <code class="literal">hostname</code> and
+          <code class="literal">port</code> into the
+          <code class="literal">memcached_st</code> structure given in
+          <code class="literal">ptr</code>.
+        </p><pre class="programlisting">memcached_return
+           memcached_server_add_unix_socket (memcached_st *ptr,
+                                             char *socket);
+</pre><p>
+          Add a Unix socket to the list of servers configured in the
+          <code class="literal">memcached_st</code> structure.
+        </p><pre class="programlisting">unsigned int memcached_server_count (memcached_st *ptr);
+</pre><p>
+          Return a count of the number of configured servers within the
+          <code class="literal">memcached_st</code> structure.
+        </p><pre class="programlisting">memcached_server_st *
+           memcached_server_list (memcached_st *ptr);</pre><p>
+          Returns an array of all the defined hosts within a
+          <code class="literal">memcached_st</code> structure.
+        </p><pre class="programlisting">memcached_return
+           memcached_server_push (memcached_st *ptr,
+                                  memcached_server_st *list);
+</pre><p>
+          Pushes an existing list of servers onto list of servers
+          configured for a current <code class="literal">memcached_st</code>
+          structure. This adds servers to the end of the existing list,
+          and duplicates are not checked.
+        </p><p>
+          The <code class="literal">memcached_server_st</code> structure can be
+          used to create a list of <code class="literal">memcached</code> servers
+          which can then be applied individually to
+          <code class="literal">memcached_st</code> structures.
+        </p><pre class="programlisting">memcached_server_st *
+           memcached_server_list_append (memcached_server_st *ptr,
+                                         char *hostname,
+                                         unsigned int port,
+                                         memcached_return *error);
+</pre><p>
+          Add a server, with <code class="literal">hostname</code> and
+          <code class="literal">port</code>, to the server list in
+          <code class="literal">ptr</code>. The result code is handled by the
+          <code class="literal">error</code> argument, which should point to an
+          existing <code class="literal">memcached_return</code> variable. The
+          function returns a pointer to the returned list.
+        </p><pre class="programlisting"> unsigned int memcached_server_list_count (memcached_server_st *ptr);
+</pre><p>
+          Return the number of the servers in the server list.
+        </p><pre class="programlisting">void memcached_server_list_free (memcached_server_st *ptr);
+</pre><p>
+          Free up the memory associated with a server list.
+        </p><pre class="programlisting">memcached_server_st *memcached_servers_parse (char *server_strings);
+</pre><p>
+          Parses a string containing a list of servers, where individual
+          servers are separated by a comma and/or space, and where
+          individual servers are of the form
+          <code class="literal">server[:port]</code>. The return value is a server
+          list structure.
+        </p></div><div class="section" lang="en"><div class="titlepage"><div><div><h4 class="title"><a name="ha-memcached-interfaces-libmemcached-set"></a>16.3.1.3. <code class="literal">libmemcached</code> Set Functions</h4></div></div></div><p>
+          The set related functions within
+          <code class="literal">libmemcached</code> provide the same functionality
+          as the core functions supported by the
+          <code class="literal">memcached</code> protocol. The full definition for
+          the different functions is the same for all the base functions
+          (add, replace, prepend, append). For example, the function
+          definition for <code class="literal">memcached_set()</code> is:
+        </p><pre class="programlisting">memcached_return
+           memcached_set (memcached_st *ptr,
+                          const char *key, 
+                          size_t key_length,
+                          const char *value, 
+                          size_t value_length,
+                          time_t expiration,
+                          uint32_t flags);
+</pre><p>
+          The <code class="literal">ptr</code> is the
+          <code class="literal">memcached_st</code> structure. The
+          <code class="literal">key</code> and <code class="literal">key_length</code>
+          define the key name and length, and <code class="literal">value</code>
+          and <code class="literal">value_length</code> the corresponding value
+          and length. You can also set the expiration and optional
+          flags. For more information, see
+          <a href="ha-memcached.html#ha-memcached-interfaces-libmemcached-behaviors" title="16.3.1.5. libmemcached Behaviors">Section 16.3.1.5, “<code class="literal">libmemcached</code> Behaviors”</a>.
+        </p><p>
+          The table below outlines the remainder of the set-related
+          functions.
+        </p><div class="informaltable"><table border="1"><colgroup><col><col></colgroup><thead><tr><th><code class="literal">libmemcached</code> Function</th><th>Equivalent to</th></tr></thead><tbody><tr><td><code class="literal">memcached_set(memc, key, key_length, value, value_length,
+                  expiration, flags)</code></td><td>Generic <code class="literal">set()</code> operation.</td></tr><tr><td><code class="literal">memcached_add(memc, key, key_length, value, value_length,
+                  expiration, flags)</code></td><td>Generic <code class="literal">add()</code> function.</td></tr><tr><td><code class="literal">memcached_replace(memc, key, key_length, value, value_length,
+                  expiration, flags)</code></td><td>Generic <code class="literal">replace()</code>.</td></tr><tr><td><code class="literal">memcached_prepend(memc, key, key_length, value, value_length,
+                  expiration, flags)</code></td><td>Prepends the specified <code class="literal">value</code> before the current value
+                  of the specified <code class="literal">key</code>.</td></tr><tr><td><code class="literal">memcached_append(memc, key, key_length, value, value_length,
+                  expiration, flags)</code></td><td>Appends the specified <code class="literal">value</code> after the current value
+                  of the specified <code class="literal">key</code>.</td></tr><tr><td><code class="literal">memcached_cas(memc, key, key_length, value, value_length,
+                  expiration, flags, cas)</code></td><td>Overwrites the data for a given key as long as the corresponding
+                  <code class="literal">cas</code> value is still the same within
+                  the server.</td></tr><tr><td><code class="literal">memcached_set_by_key(memc, master_key, master_key_length, key,
+                  key_length, value, value_length, expiration,
+                  flags)</code></td><td>Similar to the generic <code class="literal">set()</code>, but has the option of
+                  an additional master key that can be used to identify
+                  an individual server.</td></tr><tr><td><code class="literal">memcached_add_by_key(memc, master_key, master_key_length, key,
+                  key_length, value, value_length, expiration,
+                  flags)</code></td><td>Similar to the generic <code class="literal">add()</code>, but has the option of
+                  an additional master key that can be used to identify
+                  an individual server.</td></tr><tr><td><code class="literal">memcached_replace_by_key(memc, master_key, master_key_length,
+                  key, key_length, value, value_length, expiration,
+                  flags)</code></td><td>Similar to the generic <code class="literal">replace()</code>, but has the option
+                  of an additional master key that can be used to
+                  identify an individual server.</td></tr><tr><td><code class="literal">memcached_prepend_by_key(memc, master_key, master_key_length,
+                  key, key_length, value, value_length, expiration,
+                  flags)</code></td><td>Similar to the <code class="literal">memcached_prepend()</code>, but has the
+                  option of an additional master key that can be used to
+                  identify an individual server.</td></tr><tr><td><code class="literal">memcached_append_by_key(memc, master_key, master_key_length,
+                  key, key_length, value, value_length, expiration,
+                  flags)</code></td><td>Similar to the <code class="literal">memcached_append()</code>, but has the option
+                  of an additional master key that can be used to
+                  identify an individual server.</td></tr><tr><td><code class="literal">memcached_cas_by_key(memc, master_key, master_key_length, key,
+                  key_length, value, value_length, expiration,
+                  flags)</code></td><td>Similar to the <code class="literal">memcached_cas()</code>, but has the option of
+                  an additional master key that can be used to identify
+                  an individual server.</td></tr></tbody></table></div><p>
+          The <code class="literal">by_key</code> methods add two further
+          arguments, the master key, to be used and applied during the
+          hashing stage for selecting the servers. You can see this in
+          the definition below:
+        </p><pre class="programlisting">memcached_return
+           memcached_set_by_key(memcached_st *ptr,
+                                const char *master_key, 
+                                size_t master_key_length,
+                                const char *key,
+                                size_t key_length,
+                                const char *value, 
+                                size_t value_length,
+                                time_t expiration,
+                                uint32_t flags);
+</pre><p>
+          All the functions return a value of type
+          <code class="literal">memcached_return</code>, which you can compare
+          against the <code class="literal">MEMCACHED_SUCCESS</code> constant.
+        </p></div><div class="section" lang="en"><div class="titlepage"><div><div><h4 class="title"><a name="ha-memcached-interfaces-libmemcached-get"></a>16.3.1.4. <code class="literal">libmemcached</code> Get Functions</h4></div></div></div><p>
+          The <code class="literal">libmemcached</code> functions provide both
+          direct access to a single item, and a multiple-key request
+          mechanism that provides much faster responses when fetching a
+          large number of keys simultaneously.
+        </p><p>
+          The main get-style function, which is equivalent to the
+          generic <code class="literal">get()</code> is
+          <code class="literal">memcached_get()</code>. The functions a string
+          pointer to the returned value for a corresponding key.
+        </p><pre class="programlisting">char *memcached_get (memcached_st *ptr,
+                     const char *key, size_t key_length,
+                     size_t *value_length,
+                     uint32_t *flags,
+                     memcached_return *error);
+</pre><p>
+          A multi-key get, <code class="literal">memcached_mget()</code>, is also
+          available. Using a multiple key get operation is much quicker
+          to do in one block than retrieving the key values with
+          individual calls to <code class="literal">memcached_get()</code>. To
+          start the multi-key get, you need to call
+          <code class="literal">memcached_mget()</code>:
+        </p><pre class="programlisting">memcached_return
+         memcached_mget (memcached_st *ptr,
+                         char **keys, size_t *key_length,
+                         unsigned int number_of_keys);
+</pre><p>
+          The return value is the success of the operation. The
+          <code class="literal">keys</code> parameter should be an array of
+          strings containing the keys, and <code class="literal">key_length</code>
+          an array containing the length of each corresponding key.
+          <code class="literal">number_of_keys</code> is the number of keys
+          supplied in the array.
+        </p><p>
+          To fetch the individual values, you need to use
+          <code class="literal">memcached_fetch()</code> to get each corresponding
+          value.
+        </p><pre class="programlisting">char *memcached_fetch (memcached_st *ptr,
+                         const char *key, size_t *key_length,
+                         size_t *value_length,
+                         uint32_t *flags,
+                         memcached_return *error);
+</pre><p>
+          The function returns the key value, with the
+          <code class="literal">key</code>, <code class="literal">key_length</code> and
+          <code class="literal">value_length</code> parameters being populated
+          with the corresponding key and length information. The
+          function returns <code class="literal">NULL</code> when there are no
+          more values to be returned. A full example, including the
+          populating of the key data and the return of the information
+          is provided below.
+        </p><pre class="programlisting">root-shell&gt;include &lt;stdio.h&gt;
+#include &lt;sstring.h&gt;
+#include &lt;unistd.h&gt;
+#include &lt;libmemcached/memcached.h&gt;
+
+int main(int argc, char *argv[])
+{
+  memcached_server_st *servers = NULL;
+  memcached_st *memc;
+  memcached_return rc;
+  char *keys[]= {"huey", "dewey", "louie"};
+  size_t key_length[3];
+  char *values[]= {"red", "blue", "green"};
+  size_t value_length[3];
+  unsigned int x;
+  uint32_t flags;
+
+  char return_key[MEMCACHED_MAX_KEY];
+  size_t return_key_length;
+  char *return_value;
+  size_t return_value_length;
+
+  memc= memcached_create(NULL);
+
+  servers= memcached_server_list_append(servers, "localhost", 11211, &amp;rc);
+  rc= memcached_server_push(memc, servers);
+
+  if (rc == MEMCACHED_SUCCESS)
+    fprintf(stderr,"Added server successfully\n");
+  else
+    fprintf(stderr,"Couldn't add server: %s\n",memcached_strerror(memc, rc));
+
+  for(x= 0; x &lt; 3; x++)
+    {
+      key_length[x] = strlen(keys[x]);
+      value_length[x] = strlen(values[x]);
+
+      rc= memcached_set(memc, keys[x], key_length[x], values[x],
+                        value_length[x], (time_t)0, (uint32_t)0);
+      if (rc == MEMCACHED_SUCCESS)
+        fprintf(stderr,"Key %s stored successfully\n",keys[x]);
+      else
+        fprintf(stderr,"Couldn't store key: %s\n",memcached_strerror(memc, rc));
+    }
+
+  rc= memcached_mget(memc, keys, key_length, 3);
+
+  if (rc == MEMCACHED_SUCCESS)
+    {
+      while ((return_value= memcached_fetch(memc, return_key, &amp;return_key_length,
+                                            &amp;return_value_length, &amp;flags, &amp;rc)) != NULL)
+        {
+          if (rc == MEMCACHED_SUCCESS)
+            {
+              fprintf(stderr,"Key %s returned %s\n",return_key, return_value);
+            }
+        }
+    }
+
+  return 0;
+}</pre><p>
+          Running the above application:
+        </p><pre class="programlisting">shell&gt; memc_multi_fetch 
+Added server successfully
+Key huey stored successfully
+Key dewey stored successfully
+Key louie stored successfully
+Key huey returned red
+Key dewey returned blue
+Key louie returned green
+</pre></div><div class="section" lang="en"><div class="titlepage"><div><div><h4 class="title"><a name="ha-memcached-interfaces-libmemcached-behaviors"></a>16.3.1.5. <code class="literal">libmemcached</code> Behaviors</h4></div></div></div><p>
+          The behavior of <code class="literal">libmemcached</code> can be
+          modified by setting one or more behavior flags. These can
+          either be set globally, or they can be applied during the call
+          to individual functions. Some behaviors also accept an
+          additional setting, such as the hashing mechanism used when
+          selecting servers.
+        </p><p>
+          To set global behaviors:
+        </p><pre class="programlisting">memcached_return
+           memcached_behavior_set (memcached_st *ptr,
+                                   memcached_behavior flag,
+                                   uint64_t data);
+</pre><p>
+          To get the current behavior setting:
+        </p><pre class="programlisting">uint64_t
+           memcached_behavior_get (memcached_st *ptr,
+                                   memcached_behavior flag);
+</pre><div class="informaltable"><table border="1"><colgroup><col><col></colgroup><thead><tr><th>Behavior</th><th>Description</th></tr></thead><tbody><tr><td><code class="literal">MEMCACHED_BEHAVIOR_NO_BLOCK</code></td><td>Caused <code class="literal">libmemcached</code> to use asynchronous I/O.</td></tr><tr><td><code class="literal">MEMCACHED_BEHAVIOR_TCP_NODELAY</code></td><td>Turns on no-delay for network sockets.</td></tr><tr><td><code class="literal">MEMCACHED_BEHAVIOR_HASH</code></td><td>Without a value, sets the default hashing algorithm for keys to use MD5.
+                  Other valid values include
+                  <code class="literal">MEMCACHED_HASH_DEFAULT</code>,
+                  <code class="literal">MEMCACHED_HASH_MD5</code>,
+                  <code class="literal">MEMCACHED_HASH_CRC</code>,
+                  <code class="literal">MEMCACHED_HASH_FNV1_64</code>,
+                  <code class="literal">MEMCACHED_HASH_FNV1A_64</code>,
+                  <code class="literal">MEMCACHED_HASH_FNV1_32</code>, and
+                  <code class="literal">MEMCACHED_HASH_FNV1A_32</code>.</td></tr><tr><td><code class="literal">MEMCACHED_BEHAVIOR_DISTRIBUTION</code></td><td>Changes the method of selecting the server used to store a given value.
+                  The default method is
+                  <code class="literal">MEMCACHED_DISTRIBUTION_MODULA</code>. You
+                  can enable consistent hashing by setting
+                  <code class="literal">MEMCACHED_DISTRIBUTION_CONSISTENT</code>.
+                  <code class="literal">MEMCACHED_DISTRIBUTION_CONSISTENT</code>
+                  is an alias for the value
+                  <code class="literal">MEMCACHED_DISTRIBUTION_CONSISTENT_KETAMA</code>.</td></tr><tr><td><code class="literal">MEMCACHED_BEHAVIOR_CACHE_LOOKUPS</code></td><td>Cache the lookups made to the DNS service. This can improve the
+                  performance if you are using names instead of IP
+                  addresses for individual hosts.</td></tr><tr><td><code class="literal">MEMCACHED_BEHAVIOR_SUPPORT_CAS</code></td><td>Support CAS operations. By default, this is disabled because it imposes
+                  a performance penalty.</td></tr><tr><td><code class="literal">MEMCACHED_BEHAVIOR_KETAMA</code></td><td>Sets the default distribution to
+                  <code class="literal">MEMCACHED_DISTRIBUTION_CONSISTENT_KETAMA</code>
+                  and the hash to <code class="literal">MEMCACHED_HASH_MD5</code>.</td></tr><tr><td><code class="literal">MEMCACHED_BEHAVIOR_POLL_TIMEOUT</code></td><td>Modify the timeout value used by <code class="literal">poll()</code>. You should
+                  supply a <code class="literal">signed int</code> pointer for the
+                  timeout value.</td></tr><tr><td><code class="literal">MEMCACHED_BEHAVIOR_BUFFER_REQUESTS</code></td><td>Buffers IO requests instead of them being sent. A get operation, or
+                  closing the connection will cause the data to be
+                  flushed.</td></tr><tr><td><code class="literal">MEMCACHED_BEHAVIOR_VERIFY_KEY</code></td><td>Forces <code class="literal">libmemcached</code> to verify that a specified key is
+                  valid.</td></tr><tr><td><code class="literal">MEMCACHED_BEHAVIOR_SORT_HOSTS</code></td><td>If set, hosts added to the list of configured hosts for a
+                  <code class="literal">memcached_st</code> structure will placed
+                  into the host list in sorted order. This will break
+                  consistent hashing if that behavior has been enabled.</td></tr><tr><td><code class="literal">MEMCACHED_BEHAVIOR_CONNECT_TIMEOUT</code></td><td>In non-blocking mode this changes the value of the timeout during socket
+                  connection.</td></tr></tbody></table></div></div><div class="section" lang="en"><div class="titlepage"><div><div><h4 class="title"><a name="ha-memcached-interfaces-libmemcached-utilities"></a>16.3.1.6. <span><strong class="command">libmemcached</strong></span> Command-line Utilities</h4></div></div></div><p>
+          In addition to the main C library interface,
+          <code class="literal">libmemcached</code> also includes a number of
+          command line utilities that can be useful when working with
+          and debugging <span><strong class="command">memcached</strong></span> applications.
+        </p><p>
+          All of the command line tools accept a number of arguments,
+          the most critical of which is <code class="literal">servers</code>,
+          which specifies the list of servers to connect to when
+          returning information.
+        </p><p>
+          The main tools are:
+        </p><div class="itemizedlist"><ul type="disc"><li><p>
+              <span><strong class="command">memcat</strong></span> — display the value for
+              each ID given on the command line:
+            </p><pre class="programlisting">shell&gt; memcat --servers=localhost hwkey
+Hello world</pre></li><li><p>
+              <span><strong class="command">memcp</strong></span> — copy the contents of a
+              file into the cache, using the file names as the key:
+            </p><pre class="programlisting">shell&gt; echo "Hello World" &gt; hwkey
+shell&gt; memcp --servers=localhost hwkey
+shell&gt; memcat --servers=localhost hwkey
+Hello world
+</pre></li><li><p>
+              <span><strong class="command">memrm</strong></span> — remove an item from the
+              cache:
+            </p><pre class="programlisting">shell&gt; memcat --servers=localhost hwkey
+Hello world
+shell&gt; memrm --servers=localhost hwkey
+shell&gt; memcat --servers=localhost hwkey</pre></li><li><p>
+              <span><strong class="command">memslap</strong></span> — test the load on one or
+              more <span><strong class="command">memcached</strong></span> servers, simulating
+              get/set and multiple client operations. For example, you
+              can simulate the load of 100 clients performing get
+              operations:
+            </p><pre class="programlisting">shell&gt; memslap --servers=localhost --concurrency=100 --flush --test=get
+memslap --servers=localhost --concurrency=100 --flush --test=get	Threads connecting to servers 100
+	Took 13.571 seconds to read data
+</pre></li><li><p>
+              <span><strong class="command">memflush</strong></span> — flush (empty) the
+              contents of the <span><strong class="command">memcached</strong></span> cache.
+            </p><pre class="programlisting">shell&gt; memflush --servers=localhost</pre></li></ul></div></div></div><div class="section" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="ha-memcached-interfaces-perl"></a>16.3.2. Using MySQL and <span><strong class="command">memcached</strong></span> with Perl</h3></div></div></div><p>
+        The <code class="literal">Cache::Memcached</code> module provides a native
+        interface to the Memcache protocol, and provides support for the
+        core functions offered by <span><strong class="command">memcached</strong></span>. You
+        should install the module using your hosts native package
+        management system. Alternatively, you can install the module
+        using <code class="literal">CPAN</code>:
+      </p><pre class="programlisting">root-shell&gt; perl -MCPAN -e 'install Cache::Memcached'</pre><p>
+        To use <span><strong class="command">memcached</strong></span> from Perl through
+        <code class="literal">Cache::Memcached</code> module, you first need to
+        create a new <code class="literal">Cache::Memcached</code> object that
+        defines the list of servers and other parameters for the
+        connection. The only argument is a hash containing the options
+        for the cache interface. For example, to create a new instance
+        that uses three <span><strong class="command">memcached</strong></span> servers:
+      </p><pre class="programlisting">use Cache::Memcached;
+
+my $cache = new Cache::Memcached {
+    'servers' =&gt; [
+        '192.168.0.100:11211',
+        '192.168.0.101:11211',
+        '192.168.0.102:11211',
+	],
+};
+</pre><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Note</h3><p>
+          When using the <code class="literal">Cache::Memcached</code> interface
+          with multiple servers, the API automatically performs certain
+          operations across all the servers in the group. For example,
+          getting statistical information through
+          <code class="literal">Cache::Memcached</code> returns a hash that
+          contains data on a host by host basis, as well as generalized
+          statistics for all the servers in the group.
+        </p></div><p>
+        You can set additional properties on the cache object instance
+        when it is created by specifying the option as part of the
+        option hash. Alternatively, you can use a corresponding method
+        on the instance:
+      </p><div class="itemizedlist"><ul type="disc"><li><p>
+            <code class="literal">servers</code> or method
+            <code class="literal">set_servers()</code> — specifies the list
+            of the servers to be used. The servers list should be a
+            reference to an array of servers, with each element as the
+            address and port number combination (separated by a colon).
+            You can also specify a local connection through a UNIX
+            socket (for example
+            <code class="filename">/tmp/sock/memcached</code>). You can also
+            specify the server with a weight (indicating how much more
+            frequently the server should be used during hashing) by
+            specifying an array reference with the
+            <span><strong class="command">memcached</strong></span> server instance and a weight
+            number. Higher numbers give higher priority.
+          </p></li><li><p>
+            <code class="literal">compress_threshold</code> or method
+            <code class="literal">set_compress_threshold()</code>— specifies
+            the threshold when values are compressed. Values larger than
+            the specified number are automatically compressed (using
+            <code class="literal">zlib</code>) during storage and retrieval.
+          </p></li><li><p>
+            <code class="literal">no_rehash</code> or method
+            <code class="literal">set_norehash()</code> — disables finding a
+            new server if the original choice is unavailable.
+          </p></li><li><p>
+            <code class="literal">readonly</code> or method
+            <code class="literal">set_readonly()</code>— disables writes to
+            the <span><strong class="command">memcached</strong></span> servers.
+          </p></li></ul></div><p>
+        Once the <code class="literal">Cache::Memcached</code> object instance has
+        been configured you can use the <code class="literal">set()</code> and
+        <code class="literal">get()</code> methods to store and retrieve
+        information from the <span><strong class="command">memcached</strong></span> servers.
+        Objects stored in the cache are automatically serialized and
+        deserialized using the <code class="literal">Storable</code> module.
+      </p><p>
+        The <code class="literal">Cache::Memcached</code> interface supports the
+        following methods for storing/retrieving data, and relate to the
+        generic methods as shown in the table.
+      </p><div class="informaltable"><table border="1"><colgroup><col><col></colgroup><thead><tr><th><code class="literal">Cache::Memcached</code> Function</th><th>Equivalent to</th></tr></thead><tbody><tr><td><code class="literal">get()</code></td><td>Generic <code class="literal">get()</code></td></tr><tr><td><code class="literal">get_multi(keys)</code></td><td>Gets multiple <code class="literal">keys</code> from memcache using just one
+                query. Returns a hash reference of key/value pairs.</td></tr><tr><td><code class="literal">set()</code></td><td>Generic <code class="literal">set()</code></td></tr><tr><td><code class="literal">add()</code></td><td>Generic <code class="literal">add()</code></td></tr><tr><td><code class="literal">replace()</code></td><td>Generic <code class="literal">replace()</code></td></tr><tr><td><code class="literal">delete()</code></td><td>Generic <code class="literal">delete()</code></td></tr><tr><td><code class="literal">incr()</code></td><td>Generic <code class="literal">incr()</code></td></tr><tr><td><code class="literal">decr()</code></td><td>Generic <code class="literal">decr()</code></td></tr></tbody></table></div><p>
+        Below is a complete example for using
+        <span><strong class="command">memcached</strong></span> with Perl and the
+        <code class="literal">Cache::Memcached</code> module:
+      </p><pre class="programlisting">root-shell&gt;!/usr/bin/perl
+
+use Cache::Memcached;
+use DBI;
+use Data::Dumper;
+
+# Configure the memcached server
+
+my $cache = new Cache::Memcached {
+    'servers' =&gt; [
+                   'localhost:11211',
+                   ],
+    };
+
+# Get the film name from the command line
+# memcached keys must not contain spaces, so create
+# a key name by replacing spaces with underscores
+
+my $filmname = shift or die "Must specify the film name\n";
+my $filmkey = $filmname;
+$filmkey =~ s/ /_/;
+
+# Load the data from the cache
+
+my $filmdata = $cache-&gt;get($filmkey);
+
+# If the data wasn't in the cache, then we load it from the database
+
+if (!defined($filmdata))
+{
+    $filmdata = load_filmdata($filmname);
+
+    if (defined($filmdata))
+    {
+
+# Set the data into the cache, using the key
+
+	if ($cache-&gt;set($filmkey,$filmdata))
+        {
+            print STDERR "Film data loaded from database and cached\n";
+        }
+        else
+        {
+            print STDERR "Couldn't store to cache\n";
+	}
+    }
+    else
+    {
+     	die "Couldn't find $filmname\n";
+    }
+}
+else
+{
+    print STDERR "Film data loaded from Memcached\n";
+}
+
+sub load_filmdata
+{
+    my ($filmname) = @_;
+
+    my $dsn = "DBI:mysql:database=sakila;host=localhost;port=3306";
+
+    $dbh = DBI-&gt;connect($dsn, 'sakila','password');
+
+    my ($filmbase) = $dbh-&gt;selectrow_hashref(sprintf('select * from film where title = %s',
+                                                     $dbh-&gt;quote($filmname)));
+
+    if (!defined($filmname))
+    {
+     	return (undef);
+    }
+
+    $filmbase-&gt;{stars} =
+	$dbh-&gt;selectall_arrayref(sprintf('select concat(first_name," ",last_name) ' .
+                                         'from film_actor left join (actor) ' .
+                                         'on (film_actor.actor_id = actor.actor_id) ' .
+                                         ' where film_id=%s',
+                                         $dbh-&gt;quote($filmbase-&gt;{film_id})));
+
+    return($filmbase);
+}
+</pre><p>
+        The example uses the Sakila database, obtaining film data from
+        the database and writing a composite record of the film and
+        actors to memcache. When calling it for a film does not exist,
+        you should get this result:
+      </p><pre class="programlisting">shell&gt; memcached-sakila.pl "ROCK INSTINCT"
+Film data loaded from database and cached</pre><p>
+        When accessing a film that has already been added to the cache:
+      </p><pre class="programlisting">shell&gt; memcached-sakila.pl "ROCK INSTINCT"
+Film data loaded from Memcached
+</pre></div><div class="section" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="ha-memcached-interfaces-python"></a>16.3.3. Using MySQL and <span><strong class="command">memcached</strong></span> with Python</h3></div></div></div><p>
+        The Python <span><strong class="command">memcache</strong></span> module interfaces to
+        <span><strong class="command">memcached</strong></span> servers, and is written in pure
+        python (i.e. without using one of the C APIs). You can download
+        and install a copy from
+        <a href="http://www.tummy.com/Community/software/python-memcached/" target="_top">Python
+        Memcached</a>.
+      </p><p>
+        To install, download the package and then run the Python
+        installer:
+      </p><pre class="programlisting">python setup.py install
+running install
+running bdist_egg
+running egg_info
+creating python_memcached.egg-info
+...
+removing 'build/bdist.linux-x86_64/egg' (and everything under it)
+Processing python_memcached-1.43-py2.4.egg
+creating /usr/lib64/python2.4/site-packages/python_memcached-1.43-py2.4.egg
+Extracting python_memcached-1.43-py2.4.egg to /usr/lib64/python2.4/site-packages
+Adding python-memcached 1.43 to easy-install.pth file
+
+Installed /usr/lib64/python2.4/site-packages/python_memcached-1.43-py2.4.egg
+Processing dependencies for python-memcached==1.43
+Finished processing dependencies for python-memcached==1.43
+</pre><p>
+        Once installed, the <code class="literal">memcache</code> module provides
+        a class-based interface to your <span><strong class="command">memcached</strong></span>
+        servers. Serialization of Python structures is handled by using
+        the Python <code class="literal">cPickle</code> or
+        <code class="literal">pickle</code> modules.
+      </p><p>
+        To create a new <code class="literal">memcache</code> interface, import
+        the <code class="literal">memcache</code> module and create a new instance
+        of the <code class="literal">memcache.Client</code> class:
+      </p><pre class="programlisting">import memcache
+memc = memcache.Client(['127.0.0.1:11211'])</pre><p>
+        The first argument should be an array of strings containing the
+        server and port number for each <span><strong class="command">memcached</strong></span>
+        instance you want to use. You can enable debugging by setting
+        the optional <code class="literal">debug</code> parameter to 1.
+      </p><p>
+        By default, the hashing mechanism used is
+        <code class="literal">crc32</code>. This provides a basic module hashing
+        algorithm for selecting among multiple servers. You can change
+        the function used by setting the value of
+        <code class="literal">memcache.serverHashFunction</code> to the alternate
+        function you want to use. For example:
+      </p><pre class="programlisting">from zlib import adler32
+memcache.serverHashFunction = adler32</pre><p>
+        Once you have defined the servers to use within the
+        <code class="literal">memcache</code> instance, the core functions provide
+        the same functionality as in the generic interface
+        specification. A summary of the supported functions is provided
+        in the table below.
+      </p><div class="informaltable"><table border="1"><colgroup><col><col></colgroup><thead><tr><th>Python <code class="literal">memcache</code> Function</th><th>Equivalent to</th></tr></thead><tbody><tr><td><code class="literal">get()</code></td><td>Generic <code class="literal">get()</code></td></tr><tr><td><code class="literal">get_multi(keys)</code></td><td>Gets multiple values from the supplied array of <code class="literal">keys</code>.
+                Returns a hash reference of key/value pairs.</td></tr><tr><td><code class="literal">set()</code></td><td>Generic <code class="literal">set()</code></td></tr><tr><td><code class="literal">set_multi(dict [, expiry [, key_prefix]])</code></td><td>Sets multiple key/value pairs from the supplied <code class="literal">dict</code>.</td></tr><tr><td><code class="literal">add()</code></td><td>Generic <code class="literal">add()</code></td></tr><tr><td><code class="literal">replace()</code></td><td>Generic <code class="literal">replace()</code></td></tr><tr><td><code class="literal">prepend(key, value [, expiry])</code></td><td>Prepends the supplied <code class="literal">value</code> to the value of the
+                existing <code class="literal">key</code>.</td></tr><tr><td><code class="literal">append(key, value [, expiry[)</code></td><td>Appends the supplied <code class="literal">value</code> to the value of the
+                existing <code class="literal">key</code>.</td></tr><tr><td><code class="literal">delete()</code></td><td>Generic <code class="literal">delete()</code></td></tr><tr><td><code class="literal">delete_multi(keys [, expiry [, key_prefix]] )</code></td><td>Deletes all the keys from the hash matching each string in the array
+                <code class="literal">keys</code>.</td></tr><tr><td><code class="literal">incr()</code></td><td>Generic <code class="literal">incr()</code></td></tr><tr><td><code class="literal">decr()</code></td><td>Generic <code class="literal">decr()</code></td></tr></tbody></table></div><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Note</h3><p>
+          Within the Python <code class="literal">memcache</code> module, all the
+          <code class="literal">*_multi()</code>functions support an optional
+          <code class="literal">key_prefix</code> parameter. If supplied, then the
+          string is used as a prefix to all key lookups. For example, if
+          you call:
+        </p><pre class="programlisting">memc.get_multi(['a','b'], key_prefix='users:')</pre><p>
+          The function will retrieve the keys <code class="literal">users:a</code>
+          and <code class="literal">users:b</code> from the servers.
+        </p></div><p>
+        An example showing the storage and retrieval of information to a
+        <code class="literal">memcache</code> instance, loading the raw data from
+        MySQL, is shown below:
+      </p><pre class="programlisting">import sys
+import MySQLdb
+import memcache
+
+memc = memcache.Client(['127.0.0.1:11211'], debug=1);
+
+try:
+    conn = MySQLdb.connect (host = "localhost",
+                            user = "sakila",
+                            passwd = "password",
+                            db = "sakila")
+except MySQLdb.Error, e:
+     print "Error %d: %s" % (e.args[0], e.args[1])
+     sys.exit (1)
+
+popularfilms = memc.get('top5films')
+
+if not popularfilms:
+    cursor = conn.cursor()
+    cursor.execute('select film_id,title from film order by rental_rate desc limit 5')
+    rows = cursor.fetchall()
+    memc.set('top5films',rows,60)
+    print "Updated memcached with MySQL data"
+else:
+    print "Loaded data from memcached"
+    for row in popularfilms:
+        print "%s, %s" % (row[0], row[1])</pre><p>
+        When executed for the first time, the data is loaded from the
+        MySQL database and stored to the <span><strong class="command">memcached</strong></span>
+        server.
+      </p><pre class="programlisting">shell&gt; python memc_python.py
+Updated memcached with MySQL data
+</pre><p>
+        The data is automatically serialized using
+        <code class="literal">cPickle</code>/<code class="literal">pickle</code>. This means
+        when you load the data back from <span><strong class="command">memcached</strong></span>,
+        you can use the object directly. In the example above, the
+        information stored to <code class="literal">memcached</code> is in the
+        form of rows from a Python DB cursor. When accessing the
+        information (within the 60 second expiry time), the data is
+        loaded from <code class="literal">memcached</code> and dumped:
+      </p><pre class="programlisting">shell&gt; python memc_python.py
+Loaded data from memcached
+2, ACE GOLDFINGER
+7, AIRPLANE SIERRA
+8, AIRPORT POLLOCK
+10, ALADDIN CALENDAR
+13, ALI FOREVER
+</pre><p>
+        The serialization and deserialization happens automatically, but
+        be aware that serialization of Python data may be incompatible
+        with other interfaces and languages. You can change the
+        serialization module used during initialization, for example to
+        use JSON, which will be more easily exchanged.
+      </p></div><div class="section" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="ha-memcached-interfaces-php"></a>16.3.4. Using MySQL and <span><strong class="command">memcached</strong></span> with PHP</h3></div></div></div><p>
+        PHP provides support for the Memcache functions through a PECL
+        extension. To enable the PHP <code class="literal">memcache</code>
+        extensions, you must build PHP using the
+        <code class="option">--enable-memcache</code> option to
+        <span><strong class="command">configure</strong></span> when building from source.
+      </p><p>
+        If you are installing on a RedHat based server, you can install
+        the <code class="literal">php-pecl-memcache</code> RPM:
+      </p><pre class="programlisting">root-shell&gt; yum --install php-pecl-memcache</pre><p>
+        On Debian based distributions, use the
+        <code class="literal">php-memcache</code> package.
+      </p><p>
+        You can set global runtime configuration options by specifying
+        the values in the following table within your
+        <code class="filename">php.ini</code> file.
+      </p><div class="informaltable"><table border="1"><colgroup><col><col><col></colgroup><thead><tr><th>Configuration option</th><th>Default</th><th>Description</th></tr></thead><tbody><tr><td><code class="literal">memcache.allow_failover</code></td><td>1</td><td>Specifies whether another server in the list should be queried if the
+                first server selected fails.</td></tr><tr><td><code class="literal">memcache.max_failover_attempts</code></td><td>20</td><td>Specifies the number of servers to try before returning a failure.</td></tr><tr><td><code class="literal">memcache.chunk_size</code></td><td>8192</td><td>Defines the size of network chunks used to exchange data with the
+                <span><strong class="command">memcached</strong></span> server.</td></tr><tr><td><code class="literal">memcache.default_port</code></td><td>11211</td><td>Defines the default port to use when communicating with the
+                <span><strong class="command">memcached</strong></span> servers.</td></tr><tr><td><code class="literal">memcache.hash_strategy</code></td><td>standard</td><td>Specifies which hash strategy to use. Set to
+                <code class="literal">consistent</code> to allow servers to be
+                added or removed from the pool without causing the keys
+                to be remapped to other servers. When set to
+                <code class="literal">standard</code>, an older (modula) strategy
+                is used that potentially uses different servers for
+                storage.</td></tr><tr><td><code class="literal">memcache.hash_function</code></td><td>crc32</td><td>Specifies which function to use when mapping keys to servers.
+                <code class="literal">crc32</code> uses the standard CRC32 hash.
+                <code class="literal">fnv</code> uses the FNV-1a hashing
+                algorithm.</td></tr></tbody></table></div><p>
+        To create a connection to a <span><strong class="command">memcached</strong></span> server,
+        you need to create a new <code class="literal">Memcache</code> object and
+        then specifying the connection options. For example:
+      </p><pre class="programlisting">&lt;?php
+
+$cache = new Memcache;
+$cache-&gt;connect('localhost',11121);
+?&gt;</pre><p>
+        This opens an immediate connection to the specified server.
+      </p><p>
+        To use multiple <span><strong class="command">memcached</strong></span> servers, you need
+        to add servers to the memcache object using
+        <code class="literal">addServer()</code>:
+      </p><pre class="programlisting">bool Memcache::addServer ( string $host [, int $port [, bool $persistent 
+                 [, int $weight [, int $timeout [, int $retry_interval 
+                 [, bool $status [, callback $failure_callback 
+                 ]]]]]]] )</pre><p>
+        The server management mechanism within the
+        <code class="literal">php-memcache</code> module is a critical part of
+        the interface as it controls the main interface to the
+        <span><strong class="command">memcached</strong></span> instances and how the different
+        instances are selected through the hashing mechanism.
+      </p><p>
+        To create a simple connection to two
+        <span><strong class="command">memcached</strong></span> instances:
+      </p><pre class="programlisting">&lt;?php
+
+$cache = new Memcache;
+$cache-&gt;addServer('192.168.0.100',11211);
+$cache-&gt;addServer('192.168.0.101',11211);
+?&gt;</pre><p>
+        In this scenario the instance connection is not explicitly
+        opened, but only opened when you try to store or retrieve a
+        value. You can enable persistent connections to
+        <span><strong class="command">memcached</strong></span> instances by setting the
+        <code class="literal">$persistent</code> argument to true. This is the
+        default setting, and will cause the connections to remain open.
+      </p><p>
+        To help control the distribution of keys to different instances,
+        you should use the global
+        <code class="literal">memcache.hash_strategy</code> setting. This sets the
+        hashing mechanism used to select. You can also add an additional
+        weight to each server, which effectively increases the number of
+        times the instance entry appears in the instance list, therefore
+        increasing the likelihood of the instance being chosen over
+        other instances. To set the weight, set the value of the
+        <code class="literal">$weight</code> argument to more than one.
+      </p><p>
+        The functions for setting and retrieving information are
+        identical to the generic functional interface offered by
+        <code class="literal">memcached</code>, as shown in this table.
+      </p><div class="informaltable"><table border="1"><colgroup><col><col></colgroup><thead><tr><th>PECL <code class="literal">memcache</code> Function</th><th>Equivalent to</th></tr></thead><tbody><tr><td><code class="literal">get()</code></td><td>Generic <code class="literal">get()</code></td></tr><tr><td><code class="literal">set()</code></td><td>Generic <code class="literal">set()</code></td></tr><tr><td><code class="literal">add()</code></td><td>Generic <code class="literal">add()</code></td></tr><tr><td><code class="literal">replace()</code></td><td>Generic <code class="literal">replace()</code></td></tr><tr><td><code class="literal">delete()</code></td><td>Generic <code class="literal">delete()</code></td></tr><tr><td><code class="literal">increment()</code></td><td>Generic <code class="literal">incr()</code></td></tr><tr><td><code class="literal">decrement()</code></td><td>Generic <code class="literal">decr()</code></td></tr></tbody></table></div><p>
+        A full example of the PECL <code class="literal">memcache</code> interface
+        is provided below. The code loads film data from the Sakila
+        database when the user provides a film name. The data stored
+        into the <code class="literal">memcached</code> instance is recorded as a
+        <code class="literal">mysqli</code> result row, and the API automatically
+        serializes the information for you.
+      </p><pre class="programlisting">&lt;?php
+
+$memc = new Memcache;
+$memc-&gt;addServer('localhost','11211');
+?&gt;
+
+&lt;html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"&gt;
+&lt;head&gt;
+ &lt;meta http-equiv="Content-Type" content="text/html; charset=utf-8" /&gt;
+ &lt;title&gt;Simple Memcache Lookup&lt;/title&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;form method="post"&gt;
+  &lt;p&gt;&lt;b&gt;Film&lt;/b&gt;: &lt;input type="text" size="20" name="film"&gt;&lt;/p&gt;
+&lt;input type="submit"&gt;
+&lt;/form&gt;
+&lt;hr/&gt;
+
+&lt;?php
+
+  echo "Loading data...\n";
+
+$value = $memc-&gt;get($_REQUEST['film']);
+
+if ($value)
+  {
+    printf("&lt;p&gt;Film data for %s loaded from memcache&lt;/p&gt;",$value['title']);
+
+    foreach (array_keys($value) as $key)
+      { 
+	printf("&lt;p&gt;&lt;b&gt;%s&lt;/b&gt;: %s&lt;/p&gt;",$key, $value[$key]);
+      } 
+  }
+ else
+   {
+     $con = new mysqli('localhost','sakila','password','sakila') or
+       die ("&lt;h1&gt;Database problem&lt;/h1&gt;" . mysqli_connect_error());
+
+     $result = $con-&gt;query(sprintf('select * from film where title ="%s"',$_REQUEST['film']));
+
+     $row = $result-&gt;fetch_array(MYSQLI_ASSOC);
+
+     $memc-&gt;set($row['title'],$row);
+
+     printf("&lt;p&gt;Loaded %s from MySQL&lt;/p&gt;",$row['title']);
+   }
+
+?&gt;
+</pre><p>
+        With PHP, the connections to the <span><strong class="command">memcached</strong></span>
+        instances are kept open as long as the PHP and associated Apache
+        instance remain running. When adding a removing servers from the
+        list in a running instance (for example, when starting another
+        script that mentions additional servers), the connections will
+        be shared, but the script will only select among the instances
+        explicitly configured within the script.
+      </p><p>
+        To ensure that changes to the server list within a script do not
+        cause problems, make sure to use the consistent hashing
+        mechanism.
+      </p></div><div class="section" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="ha-memcached-interfaces-ruby"></a>16.3.5. Using MySQL and <span><strong class="command">memcached</strong></span> with Ruby</h3></div></div></div><p>
+        There are a number of different modules for interfacing to
+        <span><strong class="command">memcached</strong></span> within Ruby. The
+        <code class="literal">Ruby-MemCache</code> client library provides a
+        native interface to <span><strong class="command">memcached</strong></span> that does not
+        require any external libraries, such as
+        <code class="literal">libmemcached</code>. You can obtain the installer
+        package from
+        <a href="http://www.deveiate.org/projects/RMemCache" target="_top">http://www.deveiate.org/projects/RMemCache</a>.
+      </p><p>
+        To install, extract the package and then run
+        <span><strong class="command">install.rb</strong></span>:
+      </p><pre class="programlisting">shell&gt; install.rb</pre><p>
+        If you have RubyGems, you can install the
+        <code class="literal">Ruby-MemCache</code> gem:
+      </p><pre class="programlisting">shell&gt; gem install Ruby-MemCache
+Bulk updating Gem source index for: http://gems.rubyforge.org
+Install required dependency io-reactor? [Yn]  y
+Successfully installed Ruby-MemCache-0.0.1
+Successfully installed io-reactor-0.05
+Installing ri documentation for io-reactor-0.05...
+Installing RDoc documentation for io-reactor-0.05...
+</pre><p>
+        To use a <span><strong class="command">memcached</strong></span> instance from within Ruby,
+        create a new instance of the <code class="literal">MemCache</code> object.
+      </p><pre class="programlisting">require 'memcache'
+memc = MemCache::new '192.168.0.100:11211'</pre><p>
+        You can add a weight to each server to increase the likelihood
+        of the server being selected during hashing by appending the
+        weight count to the server hostname/port string:
+      </p><pre class="programlisting">require 'memcache'
+memc = MemCache::new '192.168.0.100:11211:3'</pre><p>
+        To add servers to an existing list, you can append them directly
+        to the <code class="literal">MemCache</code> object:
+      </p><pre class="programlisting">memc += ["192.168.0.101:11211"]</pre><p>
+        To set data into the cache, you can just assign a value to a key
+        within the new cache object, which works just like a standard
+        Ruby hash object:
+      </p><pre class="programlisting">memc["key"] = "value"</pre><p>
+        Or to retrieve the value:
+      </p><pre class="programlisting">print memc["key"]</pre><p>
+        For more explicit actions, you can use the method interface,
+        which mimics the main <span><strong class="command">memcached</strong></span> API
+        functions, as summarized in the table below.
+      </p><div class="informaltable"><table border="1"><colgroup><col><col></colgroup><thead><tr><th>Ruby <code class="literal">MemCache</code> Method</th><th>Equivalent to</th></tr></thead><tbody><tr><td><code class="literal">get()</code></td><td>Generic <code class="literal">get()</code></td></tr><tr><td><code class="literal">get_hash(keys)</code></td><td>Get the values of multiple <code class="literal">keys</code>, returning the
+                information as a hash of the keys and their values.</td></tr><tr><td><code class="literal">set()</code></td><td>Generic <code class="literal">set()</code></td></tr><tr><td><code class="literal">set_many(pairs)</code></td><td>Set the values of the keys and values in the hash
+                <code class="literal">pairs</code>.</td></tr><tr><td><code class="literal">add()</code></td><td>Generic <code class="literal">add()</code></td></tr><tr><td><code class="literal">replace()</code></td><td>Generic <code class="literal">replace()</code></td></tr><tr><td><code class="literal">delete()</code></td><td>Generic <code class="literal">delete()</code></td></tr><tr><td><code class="literal">incr()</code></td><td>Generic <code class="literal">incr()</code></td></tr><tr><td><code class="literal">decr()</code></td><td>Generic <code class="literal">decr()</code></td></tr></tbody></table></div></div><div class="section" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="ha-memcached-interfaces-java"></a>16.3.6. Using MySQL and <span><strong class="command">memcached</strong></span> with Java</h3></div></div></div><p>
+        The <code class="literal">com.danga.MemCached</code> class within Java
+        provides a native interface to <span><strong class="command">memcached</strong></span>
+        instances. You can obtain the client from
+        <a href="http://whalin.com/memcached/" target="_top">http://whalin.com/memcached/</a>. The Java class uses
+        hashes that are compatible with <code class="literal">libmemcached</code>,
+        so you can mix and match Java and
+        <code class="literal">libmemcached</code> applications accessing the same
+        <span><strong class="command">memcached</strong></span> instances. The serialization
+        between Java and other interfaces will not be compatible. If
+        this is a problem, use JSON or a similar non-binary
+        serialization format.
+      </p><p>
+        On most systems you can download the package and use the
+        <code class="filename">jar</code> directly. On OpenSolaris, use
+        <span><strong class="command">pkg</strong></span> to install the
+        <code class="literal">SUNWmemcached-java</code> package.
+      </p><p>
+        To use the <code class="literal">com.danga.MemCached</code> interface, you
+        create a <code class="literal">MemCachedClient</code> instance and then
+        configure the list of servers by configuring the
+        <code class="literal">SockIOPool</code>. Through the pool specification
+        you set up the server list, weighting, and the connection
+        parameters to optimized the connections between your client and
+        the <span><strong class="command">memcached</strong></span> instances that you configure.
+      </p><p>
+        Generally you can configure the <span><strong class="command">memcached</strong></span>
+        interface once within a single class and then use this interface
+        throughout the rest of your application.
+      </p><p>
+        For example, to create a basic interface, first configure the
+        <code class="literal">MemCachedClient</code> and base
+        <code class="literal">SockIOPool</code> settings:
+      </p><pre class="programlisting">public class MyClass {
+                                        
+    protected static MemCachedClient mcc = new MemCachedClient();
+                                      
+    static {
+	                                      
+        String[] servers =
+            {
+                "localhost:11211",
+            };
+	
+        Integer[] weights = { 1 };
+	                                      
+        SockIOPool pool = SockIOPool.getInstance();
+	                                      
+        pool.setServers( servers );
+        pool.setWeights( weights );
+
+</pre><p>
+        In the above sample, the list of servers is configured by
+        creating an array of the <span><strong class="command">memcached</strong></span> instances
+        that you want to use. You can then configure individual weights
+        for each server.
+      </p><p>
+        The remainder of the properties for the connection are optional,
+        but you can set the connection numbers (initial connections,
+        minimum connections, maximum connections, and the idle timeout)
+        by setting the pool parameters:
+      </p><pre class="programlisting">pool.setInitConn( 5 );
+pool.setMinConn( 5 );
+pool.setMaxConn( 250 );
+pool.setMaxIdle( 1000 * 60 * 60 * 6 </pre><p>
+        Once the parameters have been configured, initialize the
+        connection pool:
+      </p><pre class="programlisting">pool.initialize();</pre><p>
+        The pool, and the connection to your
+        <span><strong class="command">memcached</strong></span> instances should now be ready to
+        use.
+      </p><p>
+        To set the hashing algorithm used to select the server used when
+        storing a given key you can use
+        <code class="literal">pool.setHashingAlg()</code>:
+      </p><pre class="programlisting">pool.setHashingAlg( SockIOPool.NEW_COMPAT_HASH );</pre><p>
+        Valid values ares <code class="literal">NEW_COMPAT_HASH</code>,
+        <code class="literal">OLD_COMPAT_HASH</code> and
+        <code class="literal">NATIVE_HASH</code> are also basic modula hashing
+        algorithms. For a consistent hashing algorithm, use
+        <code class="literal">CONSISTENT_HASH</code>. These constants are
+        equivalent to the corresponding hash settings within
+        <code class="literal">libmemcached</code>.
+      </p><div class="informaltable"><table border="1"><colgroup><col><col></colgroup><thead><tr><th>Java <code class="literal">com.danga.MemCached</code> Method</th><th>Equivalent to</th></tr></thead><tbody><tr><td><code class="literal">get()</code></td><td>Generic <code class="literal">get()</code></td></tr><tr><td><code class="literal">getMulti(keys)</code></td><td>Get the values of multiple <code class="literal">keys</code>, returning the
+                information as Hash map using
+                <code class="literal">java.lang.String</code> for the keys and
+                <code class="literal">java.lang.Object</code> for the
+                corresponding values.</td></tr><tr><td><code class="literal">set()</code></td><td>Generic <code class="literal">set()</code></td></tr><tr><td><code class="literal">add()</code></td><td>Generic <code class="literal">add()</code></td></tr><tr><td><code class="literal">replace()</code></td><td>Generic <code class="literal">replace()</code></td></tr><tr><td><code class="literal">delete()</code></td><td>Generic <code class="literal">delete()</code></td></tr><tr><td><code class="literal">incr()</code></td><td>Generic <code class="literal">incr()</code></td></tr><tr><td><code class="literal">decr()</code></td><td>Generic <code class="literal">decr()</code></td></tr></tbody></table></div></div><div class="section" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="ha-memcached-interfaces-mysqludf"></a>16.3.7. Using the MySQL <span><strong class="command">memcached</strong></span> UDFs</h3></div></div></div><p>
+        The <span><strong class="command">memcached</strong></span> MySQL User Defined Functions
+        (UDFs) enable you to set and retrieve objects from within MySQL
+        5.0 or greater.
+      </p><p>
+        To install the MySQL <span><strong class="command">memcached</strong></span> UDFs, download
+        the UDF package from
+        <a href="http://tangent.org/586/Memcached_Functions_for_MySQL.html" target="_top">http://tangent.org/586/Memcached_Functions_for_MySQL.html</a>.
+        You will need to unpack the package and run
+        <span><strong class="command">configure</strong></span> to configure the build process.
+        When running <span><strong class="command">configure</strong></span>, use the
+        <code class="literal">--with-mysql</code> option and specify the location
+        of the <span><strong class="command">mysql_config</strong></span> command. Note that you
+        must be running :
+      </p><pre class="programlisting">shell&gt; <strong class="userinput"><code>tar zxf memcached_functions_mysql-0.5.tar.gz</code></strong>
+shell&gt; <strong class="userinput"><code>cd memcached_functions_mysql-0.5</code></strong>
+shell&gt; <strong class="userinput"><code>./configure --with-mysql-config=/usr/local/mysql/bin/mysql_config</code></strong>
+</pre><p>
+        Now build and install the functions:
+      </p><pre class="programlisting">shell&gt; <strong class="userinput"><code>make</code></strong>
+shell&gt; <strong class="userinput"><code>make install</code></strong></pre><p>
+        You may want to copy the MySQL <span><strong class="command">memcached</strong></span> UDFs
+        into your MySQL plugins directory:
+      </p><pre class="programlisting">shell&gt; <strong class="userinput"><code>cp /usr/local/lib/libmemcached_functions_mysql* /usr/local/mysql/lib/mysql/plugins/</code></strong></pre><p>
+        Once installed, you must initialize the function within MySQL
+        using <code class="literal">CREATE</code> and specifying the return value
+        and library. For example, to add the
+        <code class="literal">memc_get()</code> function:
+      </p><pre class="programlisting">mysql&gt; CREATE FUNCTION memc_get RETURNS STRING SONAME "libmemcached_functions_mysql.so";</pre><p>
+        You must repeat this process for each function that you want to
+        provide access to within MySQL. Once you have created the
+        association, the information will be retained, even over
+        restarts of the MySQL server. You can simplify the process by
+        using the SQL script provided in the
+        <code class="literal">memcached</code> UDFs package:
+      </p><pre class="programlisting">shell&gt; mysql &lt;sql/install_functions.sql</pre><p>
+        Alternatively, if you have Perl installed, then you can use the
+        supplied Perl script, which will check for the existence of each
+        function and create the function/library association if it has
+        not already been defined:
+      </p><pre class="programlisting">shell&gt; utils/install.pl --silent</pre><p>
+        The <code class="literal">--silent</code> option installs everything
+        automatically. Without this option, the script will ask whether
+        you want to install each of the available functions.
+      </p><p>
+        The interface remains consistent with the other APIs and
+        interfaces. To set up a list of servers, use the
+        <code class="literal">memc_servers_set()</code> function, which accepts a
+        single string containing and comma-separated list of servers:
+      </p><pre class="programlisting">mysql&gt; SELECT memc_servers_set('192.168.0.1:11211,192.168.0.2:11211');</pre><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Note</h3><p>
+          The list of servers used by the <span><strong class="command">memcached</strong></span>
+          UDFs is not persistent over restarts of the MySQL server. If
+          the MySQL server fails, then you must re-set the list of
+          <span><strong class="command">memcached</strong></span> servers.
+        </p></div><p>
+        To set a value, use <code class="literal">memc_set</code>:
+      </p><pre class="programlisting">mysql&gt; SELECT memc_set('myid', 'myvalue');</pre><p>
+        To retrieve a stored value:
+      </p><pre class="programlisting">mysql&gt; SELECT memc_get('myid');</pre><p>
+        The list of functions supported by the UDFs, in relation to the
+        standard protocol functions, is shown in the table below.
+      </p><div class="informaltable"><table border="1"><colgroup><col><col></colgroup><thead><tr><th>MySQL <code class="literal">memcached</code> UDF Function</th><th>Equivalent to</th></tr></thead><tbody><tr><td><code class="literal">memc_get()</code></td><td>Generic <code class="literal">get()</code></td></tr><tr><td><code class="literal">memc_get_by_key(master_key, key, value)</code></td><td>Like the generic <code class="literal">get()</code>, but uses the supplied master
+                key to select the server to use.</td></tr><tr><td><code class="literal">memc_set()</code></td><td>Generic <code class="literal">set()</code></td></tr><tr><td><code class="literal">memc_set_by_key(master_key, key, value)</code></td><td>Like the generic <code class="literal">set()</code>, but uses the supplied master
+                key to select the server to use.</td></tr><tr><td><code class="literal">memc_add()</code></td><td>Generic <code class="literal">add()</code></td></tr><tr><td><code class="literal">memc_add_by_key(master_key, key, value)</code></td><td>Like the generic <code class="literal">add()</code>, but uses the supplied master
+                key to select the server to use.</td></tr><tr><td><code class="literal">memc_replace()</code></td><td>Generic <code class="literal">replace()</code></td></tr><tr><td><code class="literal">memc_replace_by_key(master_key, key, value)</code></td><td>Like the generic <code class="literal">replace()</code>, but uses the supplied
+                master key to select the server to use.</td></tr><tr><td><code class="literal">memc_prepend(key, value)</code></td><td>Prepend the specified <code class="literal">value</code> to the current value of
+                the specified <code class="literal">key</code>.</td></tr><tr><td><code class="literal">memc_append(key, value)</code></td><td>Append the specified <code class="literal">value</code> to the current value of
+                the specified <code class="literal">key</code>.</td></tr><tr><td><code class="literal">memc_delete()</code></td><td>Generic <code class="literal">delete()</code></td></tr><tr><td><code class="literal">memc_delete_by_key(master_key, key, value)</code></td><td>Like the generic <code class="literal">delete()</code>, but uses the supplied
+                master key to select the server to use.</td></tr><tr><td><code class="literal">memc_incr()</code></td><td>Generic <code class="literal">incr()</code></td></tr><tr><td><code class="literal">memc_decr()</code></td><td>Generic <code class="literal">decr()</code></td></tr></tbody></table></div><p>
+        The <span><strong class="command">memcached</strong></span> UDFs also support the different
+        behaviors as provided by the <code class="literal">libmemcached</code>
+        library. You can set these by using the
+        <code class="literal">memc_servers_behavior_set()</code> function. For
+        more information on <code class="literal">libmemcached</code> behaviors,
+        see <a href="ha-memcached.html#ha-memcached-interfaces-libmemcached" title="16.3.1. Using libmemcached">Section 16.3.1, “Using <code class="literal">libmemcached</code>”</a>.
+      </p></div></div><div class="section" lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="ha-memcached-stats"></a>16.4. Getting <span><strong class="command">memcached</strong></span> Statistics</h2></div></div></div><div class="toc"><dl><dt><span class="section"><a href="ha-memcached.html#ha-memcached-stats-general">16.4.1. <span><strong class="command">memcached</strong></span> General Statistics</a></span></dt><dt><span class="section"><a href="ha-memcached.html#ha-memcached-stats-slabs">16.4.2. <span><strong class="command">memcached</strong></span> Slabs Statistics</a></span></dt><dt><span class="section"><a href="ha-memcached.html#ha-memcached-stats-items">16.4.3. <span><strong class="command">memcached</strong></span> Item Statistics</a></span></dt><dt><span class="section"><a href="ha-memcached.html#ha-memcached-stats-sizes">16.4.4. <span><strong class="command">memcached</strong></span> Size Statistics</a></span></dt></dl></div><p>
+      The <span><strong class="command">memcached</strong></span> system has a built in statistics
+      system that collects information about the data being stored into
+      the cache, cache hit ratios, and detailed information on the
+      memory usage and distribution of information through the slab
+      allocation used to store individual items. Statistics are provided
+      at both a basic level that provide the core statistics, and more
+      specific statistics for specific areas of the
+      <span><strong class="command">memcached</strong></span> server.
+    </p><p>
+      This information can prove be very useful to ensure that you are
+      getting the correct level of cache and memory usage, and that your
+      slab allocation and configuration properties are set at an optimal
+      level.
+    </p><p>
+      The stats interface is available through the standard
+      <span><strong class="command">memcached</strong></span> protocol, so the reports can be
+      accessed by using <span><strong class="command">telnet</strong></span> to connect to the
+      <span><strong class="command">memcached</strong></span>. Alternatively, most of the language
+      API interfaces provide a function for obtaining the statistics
+      from the server.
+    </p><p>
+      For example, to get the basic stats using
+      <span><strong class="command">telnet</strong></span>:
+    </p><pre class="programlisting">shell&gt; telnet localhost 11211
+Trying ::1...
+Connected to localhost.
+Escape character is '^]'.
+stats
+STAT pid 23599
+STAT uptime 675
+STAT time 1211439587
+STAT version 1.2.5
+STAT pointer_size 32
+STAT rusage_user 1.404992
+STAT rusage_system 4.694685
+STAT curr_items 32
+STAT total_items 56361
+STAT bytes 2642
+STAT curr_connections 53
+STAT total_connections 438
+STAT connection_structures 55
+STAT cmd_get 113482
+STAT cmd_set 80519
+STAT get_hits 78926
+STAT get_misses 34556
+STAT evictions 0
+STAT bytes_read 6379783
+STAT bytes_written 4860179
+STAT limit_maxbytes 67108864
+STAT threads 1
+END
+</pre><p>
+      When using Perl and the <code class="literal">Cache::Memcached</code>
+      module, the <code class="literal">stats()</code> function returns
+      information about all the servers currently configured in the
+      connection object, and total statistics for all the
+      <span><strong class="command">memcached</strong></span> servers as a whole.
+    </p><p>
+      For example, the Perl script below will obtain the stats and dump
+      the hash reference that is returned:
+    </p><pre class="programlisting">use Cache::Memcached;
+use Data::Dumper;
+
+my $memc = new Cache::Memcached;
+$memc-&gt;set_servers(\@ARGV);
+
+print Dumper($memc-&gt;stats());
+</pre><p>
+      When executed on the same <span><strong class="command">memcached</strong></span> as used in
+      the <span><strong class="command">Telnet</strong></span> example above we get a hash
+      reference with the host by host and total statistics:
+    </p><pre class="programlisting">$VAR1 = {
+          'hosts' =&gt; {
+                       'localhost:11211' =&gt; {
+                                              'misc' =&gt; {
+                                                          'bytes' =&gt; '2421',
+                                                          'curr_connections' =&gt; '3',
+                                                          'connection_structures' =&gt; '56',
+                                                          'pointer_size' =&gt; '32',
+                                                          'time' =&gt; '1211440166',
+                                                          'total_items' =&gt; '410956',
+                                                          'cmd_set' =&gt; '588167',
+                                                          'bytes_written' =&gt; '35715151',
+                                                          'evictions' =&gt; '0',
+                                                          'curr_items' =&gt; '31',
+                                                          'pid' =&gt; '23599',
+                                                          'limit_maxbytes' =&gt; '67108864',
+                                                          'uptime' =&gt; '1254',
+                                                          'rusage_user' =&gt; '9.857805',
+                                                          'cmd_get' =&gt; '838451',
+                                                          'rusage_system' =&gt; '34.096988',
+                                                          'version' =&gt; '1.2.5',
+                                                          'get_hits' =&gt; '581511',
+                                                          'bytes_read' =&gt; '46665716',
+                                                          'threads' =&gt; '1',
+                                                          'total_connections' =&gt; '3104',
+                                                          'get_misses' =&gt; '256940'
+                                                        },
+                                              'sizes' =&gt; {
+                                                           '128' =&gt; '16',
+                                                           '64' =&gt; '15'
+                                                         }
+                                            }
+                     },
+          'self' =&gt; {},
+          'total' =&gt; {
+                       'cmd_get' =&gt; 838451,
+                       'bytes' =&gt; 2421,
+                       'get_hits' =&gt; 581511,
+                       'connection_structures' =&gt; 56,
+                       'bytes_read' =&gt; 46665716,
+                       'total_items' =&gt; 410956,
+                       'total_connections' =&gt; 3104,
+                       'cmd_set' =&gt; 588167,
+                       'bytes_written' =&gt; 35715151,
+                       'curr_items' =&gt; 31,
+                       'get_misses' =&gt; 256940
+                     }
+        };
+</pre><p>
+      The statistics are divided up into a number of distinct sections,
+      and then can be requested by adding the type to the
+      <code class="literal">stats</code> command. Each statistics output is
+      covered in more detail in the following sections.
+    </p><div class="itemizedlist"><ul type="disc"><li><p>
+          General statistics, see
+          <a href="ha-memcached.html#ha-memcached-stats-general" title="16.4.1. memcached General Statistics">Section 16.4.1, “<span><strong class="command">memcached</strong></span> General Statistics”</a>.
+        </p></li><li><p>
+          Slab statistics (<code class="literal">slabs</code>), see
+          <a href="ha-memcached.html#ha-memcached-stats-slabs" title="16.4.2. memcached Slabs Statistics">Section 16.4.2, “<span><strong class="command">memcached</strong></span> Slabs Statistics”</a>.
+        </p></li><li><p>
+          Item statistics (<code class="literal">items</code>), see
+          <a href="ha-memcached.html#ha-memcached-stats-items" title="16.4.3. memcached Item Statistics">Section 16.4.3, “<span><strong class="command">memcached</strong></span> Item Statistics”</a>.
+        </p></li><li><p>
+          Size statistics (<code class="literal">sizes</code>), see
+          <a href="ha-memcached.html#ha-memcached-stats-sizes" title="16.4.4. memcached Size Statistics">Section 16.4.4, “<span><strong class="command">memcached</strong></span> Size Statistics”</a>.
+        </p></li></ul></div><div class="section" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="ha-memcached-stats-general"></a>16.4.1. <span><strong class="command">memcached</strong></span> General Statistics</h3></div></div></div><p>
+        The output of the general statistics provides an overview of the
+        performance and use of the <span><strong class="command">memcached</strong></span>
+        instance. The statistics returned by the command and their
+        meaning is shown in the table below.
+      </p><div class="informaltable"><table border="1"><colgroup><col><col></colgroup><thead><tr><th>Statistic</th><th>Description</th></tr></thead><tbody><tr><td>pid</td><td>Process id of the <span><strong class="command">memcached</strong></span> instance.</td></tr><tr><td>uptime</td><td>Uptime (in seconds) for this <span><strong class="command">memcached</strong></span> instance.</td></tr><tr><td>time</td><td>Current time (as epoch).</td></tr><tr><td>version</td><td>Version string of this instance.</td></tr><tr><td>pointer_size</td><td>Size of pointers for this host.</td></tr><tr><td>rusage_user</td><td>Total user time for this instance (seconds:microseconds).</td></tr><tr><td>rusage_system</td><td>Total system time for this instance (seconds:microseconds).</td></tr><tr><td>curr_items</td><td>Current number of items stored by this instance.</td></tr><tr><td>total_items</td><td>Total number of items stored during the life of this instance.</td></tr><tr><td>bytes</td><td>Current number of bytes used by this server to store items.</td></tr><tr><td>curr_connections</td><td>Current number of open connections.</td></tr><tr><td>total_connections</td><td>Total number of connections opened since the server started running.</td></tr><tr><td>connection_structures</td><td>Number of connection structures allocated by the server.</td></tr><tr><td>cmd_get</td><td>Total number of retrieval requests (<code class="literal">get</code> operations).</td></tr><tr><td>cmd_set</td><td>Total number of storage requests (<code class="literal">set</code> operations).</td></tr><tr><td>get_hits</td><td>Number of keys that have been requested and found present.</td></tr><tr><td>get_misses</td><td>Number of items that have been requested and not found.</td></tr><tr><td>evictions</td><td>Number of valid items removed from cache to free memory for new items.</td></tr><tr><td>bytes_read</td><td>Total number of bytes read by this server from network.</td></tr><tr><td>bytes_written</td><td>Total number of bytes sent by this server to network.</td></tr><tr><td>limit_maxbytes</td><td>Number of bytes this server is allowed to use for storage.</td></tr><tr><td>threads</td><td>Number of worker threads requested.</td></tr></tbody></table></div><p>
+        The most useful statistics from those given here are the number
+        of cache hits, misses, and evictions.
+      </p><p>
+        A large number of <code class="literal">get_misses</code> may just be an
+        indication that the cache is still being populated with
+        information. The number should, over time, decrease in
+        comparison to the number of cache <code class="literal">get_hits</code>.
+        If, however, you have a large number of cache misses compared to
+        cache hits after an extended period of execution, it may be an
+        indication that the size of the cache is too small and you
+        either need to increase the total memory size, or increase the
+        number of the <span><strong class="command">memcached</strong></span> instances to improve
+        the hit ratio.
+      </p><p>
+        A large number of <code class="literal">evictions</code> from the cache,
+        particularly in comparison to the number of items stored is a
+        sign that your cache is too small to hold the amount of
+        information that you regularly want to keep cached. Instead of
+        items being retained in the cache, items are being evicted to
+        make way for new items keeping the turnover of items in the
+        cache high, reducing the efficiency of the cache.
+      </p></div><div class="section" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="ha-memcached-stats-slabs"></a>16.4.2. <span><strong class="command">memcached</strong></span> Slabs Statistics</h3></div></div></div><p>
+        To get the <code class="literal">slabs</code> statistics, use the
+        <code class="literal">stats slabs</code> command, or the API equivalent.
+      </p><p>
+        The slab statistics provide you with information about the slabs
+        that have created and allocated for storing information within
+        the cache. You get information both on each individual
+        slab-class and total statistics for the whole slab.
+      </p><pre class="programlisting">STAT 1:chunk_size 104
+STAT 1:chunks_per_page 10082
+STAT 1:total_pages 1
+STAT 1:total_chunks 10082
+STAT 1:used_chunks 10081
+STAT 1:free_chunks 1
+STAT 1:free_chunks_end 10079
+STAT 9:chunk_size 696
+STAT 9:chunks_per_page 1506
+STAT 9:total_pages 63
+STAT 9:total_chunks 94878
+STAT 9:used_chunks 94878
+STAT 9:free_chunks 0
+STAT 9:free_chunks_end 0
+STAT active_slabs 2
+STAT total_malloced 67083616
+END
+</pre><p>
+        Individual stats for each slab class are prefixed with the slab
+        ID. A unique ID is given to each allocated slab from the
+        smallest size up to the largest. The prefix number indicates the
+        slab class number in relation to the calculated chunk from the
+        specified growth factor. Hence in the example, 1 is the first
+        chunk size and 9 is the 9th chunk allocated size.
+      </p><p>
+        The different parameters returned for each chunk size and the
+        totals are shown in the table below:
+      </p><div class="informaltable"><table border="1"><colgroup><col><col></colgroup><thead><tr><th>Statistic</th><th>Description</th></tr></thead><tbody><tr><td>chunk_size</td><td>Space allocated to each chunk within this slab class.</td></tr><tr><td>chunks_per_page</td><td>Number of chunks within a single page for this slab class.</td></tr><tr><td>total_pages</td><td>Number of pages allocated to this slab class.</td></tr><tr><td>total_chunks</td><td>Number of chunks allocated to the slab class.</td></tr><tr><td>used_chunks</td><td>Number of chunks allocated to an item..</td></tr><tr><td>free_chunks</td><td>Number of chunks not yet allocated to items.</td></tr><tr><td>free_chunks_end</td><td>Number of free chunks at the end of the last allocated page.</td></tr><tr><td>active_slabs</td><td>Total number of slab classes allocated.</td></tr><tr><td>total_malloced</td><td>Total amount of memory allocated to slab pages.</td></tr></tbody></table></div><p>
+        The key values in the slab statistics are the
+        <code class="literal">chunk_size</code>, and the corresponding
+        <code class="literal">total_chunks</code> and
+        <code class="literal">used_chunks</code> parameters. These given an
+        indication of the size usage of the chunks within the system.
+        Remember that one key/value pair will be placed into a chunk of
+        a suitable size.
+      </p><p>
+        From these stats you can get an idea of your size and chunk
+        allocation and distribution. If you are storing many items with
+        a number of largely different sizes, then you may want to adjust
+        the chunk size growth factor to increase in larger steps to
+        prevent chunk and memory wastage. A good indication of a bad
+        growth factor is a high number of different slab classes, but
+        with relatively few chunks actually in use within each slab.
+        Increasing the growth factor will create fewer slab classes and
+        therefore make better use of the allocated pages.
+      </p></div><div class="section" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="ha-memcached-stats-items"></a>16.4.3. <span><strong class="command">memcached</strong></span> Item Statistics</h3></div></div></div><p>
+        To get the <code class="literal">items</code> statistics, use the
+        <code class="literal">stats items</code> command, or the API equivalent.
+      </p><p>
+        The <code class="literal">items</code> statistics give information about
+        the individual items allocated within a given slab class.
+      </p><pre class="programlisting">STAT items:2:number 1
+STAT items:2:age 452
+STAT items:2:evicted 0
+STAT items:2:outofmemory 0
+STAT items:27:number 1
+STAT items:27:age 452
+STAT items:27:evicted 0
+STAT items:27:outofmemory 0
+</pre><p>
+        The prefix number against each statistics relates to the
+        corresponding chunk size, as returned by the <code class="literal">stats
+        slabs</code> statistics. The result is a display of the
+        number of items stored within each chunk within each slab size,
+        and specific statistics about their age, eviction counts, and
+        out of memory counts. A summary of the statistics is given in
+        the table below.
+      </p><div class="informaltable"><table border="1"><colgroup><col><col></colgroup><thead><tr><th>Statistic</th><th>Description</th></tr></thead><tbody><tr><td>number</td><td>The number of items currently stored in this slab class.</td></tr><tr><td>age</td><td>The age of the oldest item within the slab class, in seconds.</td></tr><tr><td>evicted</td><td>The number of items evicted to make way for new entries.</td></tr><tr><td>outofmemory</td><td>The number of items for this slab class that have triggered an out of
+                memory error (only value when the <code class="literal">-M</code>
+                command line option is in effect).</td></tr></tbody></table></div><p>
+        Item level statistics can be used to determine how many items
+        are stored within a given slab and their freshness and recycle
+        rate. You can use this to help identify whether there are
+        certain slab classes that are triggering a much larger number of
+        evictions that others.
+      </p></div><div class="section" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="ha-memcached-stats-sizes"></a>16.4.4. <span><strong class="command">memcached</strong></span> Size Statistics</h3></div></div></div><p>
+        To get size statistics, use the <code class="literal">stats sizes</code>
+        command, or the API equivalent.
+      </p><p>
+        The size statistics provide information about the sizes and
+        number of items of each size within the cache. The information
+        is returned as two columns, the first column is the size of the
+        item (rounded up to the nearest 32 byte boundary), and the
+        second column is the count of the number of items of that size
+        within the cache:
+      </p><pre class="programlisting">96 35
+128 38
+160 807
+192 804
+224 410
+256 222
+288 83
+320 39
+352 53
+384 33
+416 64
+448 51
+480 30
+512 54
+544 39
+576 10065</pre><div class="caution" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Caution</h3><p>
+          Running this statistic will lock up your cache as each item is
+          read from the cache and it's size calculated. On a large
+          cache, this may take some time and prevent any set or get
+          operations until the process completes.
+        </p></div><p>
+        The item size statistics are useful only to determine the sizes
+        of the objects you are storing. Since the actual memory
+        allocation is relevant only in terms of the chunk size and page
+        size, the information will only be useful during a careful
+        debugging or diagnostic session.
+      </p></div></div><div class="section" lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="ha-memcached-faq"></a>16.5. <span><strong class="command">memcached</strong></span> FAQ</h2></div></div></div><p><span class="bold"><strong>Questions</strong></span></p><div class="itemizedlist"><ul type="disc"><li><p><a href="ha-memcached.html#qandaitem-17-5-1">17.5.1: </a>
+        How does an event such as a crash of one of the
+        <span><strong class="command">memcached</strong></span> servers handled by the
+        <span><strong class="command">memcached</strong></span> client?
+      </p></li><li><p><a href="ha-memcached.html#qandaitem-17-5-2">17.5.2: </a>
+        Are there any, or are there any plans to introduce, a framework
+        to hide the interaction of memcached from the application, i.e.,
+        within hibernate?
+      </p></li><li><p><a href="ha-memcached.html#qandaitem-17-5-3">17.5.3: </a>
+        What's a recommended hardware config for a memcached server?
+        Linux or Windows?
+      </p></li><li><p><a href="ha-memcached.html#qandaitem-17-5-4">17.5.4: </a>
+        How expensive is it to establish a memcache connection? Should
+        those connections be pooled?
+      </p></li><li><p><a href="ha-memcached.html#qandaitem-17-5-5">17.5.5: </a>
+        How will the data will be handled when the
+        <span><strong class="command">memcached</strong></span> server is down?
+      </p></li><li><p><a href="ha-memcached.html#qandaitem-17-5-6">17.5.6: </a>
+        Can memcached be run on a Windows environment?
+      </p></li><li><p><a href="ha-memcached.html#qandaitem-17-5-7">17.5.7: </a>
+        What is the max size of an object you can store in memcache and
+        is that configurable?
+      </p></li><li><p><a href="ha-memcached.html#qandaitem-17-5-8">17.5.8: </a>
+        What are best practices for testing an implementation, to ensure
+        that it is an improvement over the MySQL query cache, and to
+        measure the impact of <span><strong class="command">memcached</strong></span> configuration
+        changes? And would you recommend keeping the configuration very
+        simple to start?
+      </p></li><li><p><a href="ha-memcached.html#qandaitem-17-5-9">17.5.9: </a>
+        Can MySQL actually trigger/store the changed data to memcached?
+      </p></li><li><p><a href="ha-memcached.html#qandaitem-17-5-10">17.5.10: </a>
+        So the responsibility lies with the application to populate and
+        get records from the database as opposed to being a transparent
+        cache layer for the db?
+      </p></li><li><p><a href="ha-memcached.html#qandaitem-17-5-11">17.5.11: </a>
+        <span><strong class="command">memcached</strong></span> is fast - is there any overhead in
+        not using persistent connections? If persistent is always
+        recommended, what are the downsides (e.g. locking up?)
+      </p></li><li><p><a href="ha-memcached.html#qandaitem-17-5-12">17.5.12: </a>
+        Is compression available?
+      </p></li><li><p><a href="ha-memcached.html#qandaitem-17-5-13">17.5.13: </a>
+        File socket support for <span><strong class="command">memcached</strong></span> from the
+        localhost use to the local memcached server?
+      </p></li><li><p><a href="ha-memcached.html#qandaitem-17-5-14">17.5.14: </a>
+        What are the advantages of using UDFs when the get/sets are
+        manageable from within the client code rather than the db?
+      </p></li><li><p><a href="ha-memcached.html#qandaitem-17-5-15">17.5.15: </a>
+        Is <span><strong class="command">memcached</strong></span> typically a better solution for
+        improving speed than MySQL Cluster and\or MySQL Proxy?
+      </p></li><li><p><a href="ha-memcached.html#qandaitem-17-5-16">17.5.16: </a>
+        What speed trade offs is there between
+        <span><strong class="command">memcached</strong></span> vs MySQL Query Cache? Where you
+        check <span><strong class="command">memcached</strong></span>, and get data from MySQL and
+        put it in <span><strong class="command">memcached</strong></span> or just make a query and
+        results are put into MySQL Query Cache.
+      </p></li><li><p><a href="ha-memcached.html#qandaitem-17-5-17">17.5.17: </a>
+        Does the <code class="literal">-L</code> flag automatically sense how much
+        memory is being used by other memcached?
+      </p></li><li><p><a href="ha-memcached.html#qandaitem-17-5-18">17.5.18: </a>
+        Is the data inside of <code class="literal">memcached</code> secure?
+      </p></li><li><p><a href="ha-memcached.html#qandaitem-17-5-19">17.5.19: </a>
+        Can we implement different types of <span><strong class="command">memcached</strong></span>
+        as different nodes in the same server - so can there be
+        deterministic and non deterministic in the same server?
+      </p></li><li><p><a href="ha-memcached.html#qandaitem-17-5-20">17.5.20: </a>
+        How easy is it to introduce <code class="literal">memcached</code> to an
+        existing enterprise application instead of inclusion at project
+        design?
+      </p></li><li><p><a href="ha-memcached.html#qandaitem-17-5-21">17.5.21: </a>
+        Can <span><strong class="command">memcached</strong></span> work with
+        <code class="literal">ASPX</code>?
+      </p></li><li><p><a href="ha-memcached.html#qandaitem-17-5-22">17.5.22: </a>
+        If I have an object larger then a MB, do I have to manually
+        split it or can I configure <span><strong class="command">memcached</strong></span> to
+        handle larger objects?
+      </p></li><li><p><a href="ha-memcached.html#qandaitem-17-5-23">17.5.23: </a>
+        Is it true <code class="literal">memcached</code> will be much more
+        effective with db-read-intensive applications than with
+        db-write-intensive applications?
+      </p></li><li><p><a href="ha-memcached.html#qandaitem-17-5-24">17.5.24: </a>
+        How does <span><strong class="command">memcached</strong></span> compare to nCache?
+      </p></li><li><p><a href="ha-memcached.html#qandaitem-17-5-25">17.5.25: </a>
+        Doing a direct telnet to the memcached port, is that just for
+        that one machine, or does it magically apply across all nodes?
+      </p></li><li><p><a href="ha-memcached.html#qandaitem-17-5-26">17.5.26: </a>
+        Is memcached more effective for video and audio as opposed to
+        textual read/writes
+      </p></li><li><p><a href="ha-memcached.html#qandaitem-17-5-27">17.5.27: </a>
+        We are caching XML by serialising using saveXML(), because PHP
+        cannot serialise DOM objects; Some of the XML is variable and is
+        modified per-request. Do you recommend caching then using XPath,
+        or is it better to rebuild the DOM from separate node-groups?
+      </p></li><li><p><a href="ha-memcached.html#qandaitem-17-5-28">17.5.28: </a>
+        Do the memcache UDFs work under 5.1?
+      </p></li><li><p><a href="ha-memcached.html#qandaitem-17-5-29">17.5.29: </a>
+        How are auto-increment columns in the MySQL database coordinated
+        across multiple instances of memcached?
+      </p></li><li><p><a href="ha-memcached.html#qandaitem-17-5-30">17.5.30: </a>
+        If you log a complex class (with methods that do calculation
+        etc) will the get from Memcache re-create the class on the way
+        out?
+      </p></li></ul></div><p><span class="bold"><strong>Questions and Answers</strong></span></p><p><a name="qandaitem-17-5-1"></a><span class="bold"><strong>17.5.1: </strong></span><span class="bold"><strong>
+        How does an event such as a crash of one of the
+        <span><strong class="command">memcached</strong></span> servers handled by the
+        <span><strong class="command">memcached</strong></span> client?
+      </strong></span></p><p>
+        There is no automatic handling of this. If your client fails to
+        get a response from a server then it should fall back to loading
+        the data from the MySQL database.
+      </p><p>
+        The client APIs all provide the ability to add and remove
+        <span><strong class="command">memcached</strong></span> instances on the fly. If within
+        your application you notice that <span><strong class="command">memcached</strong></span>
+        server is no longer responding, your can remove the server from
+        the list of servers, and keys will automatically be
+        redistributed to another <span><strong class="command">memcached</strong></span> server in
+        the list. If retaining the cache content on all your servers is
+        important, make sure you use an API that supports a consistent
+        hashing algorithm. For more information, see
+        <a href="ha-memcached.html#ha-memcached-using-hashtypes" title="16.2.5. memcached Hash Types">Section 16.2.5, “<span><strong class="command">memcached</strong></span> Hash Types”</a>.
+      </p><p><a name="qandaitem-17-5-2"></a><span class="bold"><strong>17.5.2: </strong></span><span class="bold"><strong>
+        Are there any, or are there any plans to introduce, a framework
+        to hide the interaction of memcached from the application, i.e.,
+        within hibernate?
+      </strong></span></p><p>
+        There are lots of projects working with
+        <span><strong class="command">memcached</strong></span>. There is a Google Code
+        implementation of Hibernate and <span><strong class="command">memcached</strong></span>
+        working together. See
+        <a href="http://code.google.com/p/hibernate-memcached/" target="_top">http://code.google.com/p/hibernate-memcached/</a>.
+      </p><p><a name="qandaitem-17-5-3"></a><span class="bold"><strong>17.5.3: </strong></span><span class="bold"><strong>
+        What's a recommended hardware config for a memcached server?
+        Linux or Windows?
+      </strong></span></p><p>
+        <span><strong class="command">memcached</strong></span> is only available on Unix/Linux, so
+        using a Windows machine is not an option. Outside of this,
+        <span><strong class="command">memcached</strong></span> has a very low processing overhead.
+        All that is required is spare physical RAM capacity. The point
+        is not that you should necessarily deploy a dedicated
+        <span><strong class="command">memcached</strong></span> server. If you have web,
+        application, or database servers that have spare RAM capacity,
+        then use them with <span><strong class="command">memcached</strong></span>.
+      </p><p>
+        If you want to build and deploy a dedicated
+        <span><strong class="command">memcached</strong></span> servers, then you use a relatively
+        low-power CPU, lots of RAM and one or more Gigabit Ethernet
+        interfaces.
+      </p><p><a name="qandaitem-17-5-4"></a><span class="bold"><strong>17.5.4: </strong></span><span class="bold"><strong>
+        How expensive is it to establish a memcache connection? Should
+        those connections be pooled?
+      </strong></span></p><p>
+        Opening the connection is relatively inexpensive, because there
+        is no security, authentication or other handshake taking place
+        before you can start sending requests and getting results. Most
+        APIs support a persistent connection to a
+        <span><strong class="command">memcached</strong></span> instance to reduce the latency.
+        Connection pooling would depend on the API you are using, but if
+        you are communicating directly over TCP/IP, then connection
+        pooling would provide some small performance benefit.
+      </p><p><a name="qandaitem-17-5-5"></a><span class="bold"><strong>17.5.5: </strong></span><span class="bold"><strong>
+        How will the data will be handled when the
+        <span><strong class="command">memcached</strong></span> server is down?
+      </strong></span></p><p>
+        The behavior is entirely application dependent. Most
+        applications will fall back to loading the data from the
+        database (just as if they were updating the
+        <span><strong class="command">memcached</strong></span>) information. If you are using
+        multiple <span><strong class="command">memcached</strong></span> servers, you may also want
+        to remove a server from the list to prevent the missing server
+        affecting performance. This is because the client will still
+        attempt to communicate the <span><strong class="command">memcached</strong></span> that
+        corresponds to the key you are trying to load.
+      </p><p><a name="qandaitem-17-5-6"></a><span class="bold"><strong>17.5.6: </strong></span><span class="bold"><strong>
+        Can memcached be run on a Windows environment?
+      </strong></span></p><p>
+        No. Currently <span><strong class="command">memcached</strong></span> is available only on
+        the Unix/Linux platform. There is an unofficial port available,
+        see <a href="http://www.codeplex.com/memcachedproviders" target="_top">http://www.codeplex.com/memcachedproviders</a>.
+      </p><p><a name="qandaitem-17-5-7"></a><span class="bold"><strong>17.5.7: </strong></span><span class="bold"><strong>
+        What is the max size of an object you can store in memcache and
+        is that configurable?
+      </strong></span></p><p>
+        The default maximum object size is 1MB. If you want to increase
+        this size, you have to re-compile <span><strong class="command">memcached</strong></span>.
+        You can modify the value of the <code class="literal">POWER_BLOCK</code>
+        within the <code class="filename">slabs.c</code> file within the source.
+      </p><p><a name="qandaitem-17-5-8"></a><span class="bold"><strong>17.5.8: </strong></span><span class="bold"><strong>
+        What are best practices for testing an implementation, to ensure
+        that it is an improvement over the MySQL query cache, and to
+        measure the impact of <span><strong class="command">memcached</strong></span> configuration
+        changes? And would you recommend keeping the configuration very
+        simple to start?
+      </strong></span></p><p>
+        The best way to test the performance is to start up a
+        <span><strong class="command">memcached</strong></span> instance. First, modify your
+        application so that it stores the data just before the data is
+        about to be used or displayed into
+        <span><strong class="command">memcached</strong></span>.Since the APIs handle the
+        serialization of the data, it should just be a one line
+        modification to your code. Then, modify the start of the process
+        that would normally load that information from MySQL with the
+        code that requests the data from <span><strong class="command">memcached</strong></span>.
+        If the data cannot be loaded from <span><strong class="command">memcached</strong></span>,
+        default to the MySQL process.
+      </p><p>
+        All of the changes required will probably amount to just a few
+        lines of code. To get the best benefit, make sure you cache
+        entire objects (for example, all the components of a web page,
+        blog post, discussion thread, etc.), rather than using
+        <span><strong class="command">memcached</strong></span> as a simple cache of individuals
+        rows of MySQL tables. You should see performance benefits almost
+        immediately.
+      </p><p>
+        Keeping the configuration very simple at the start, or even over
+        the long term, is very easy with <span><strong class="command">memcached</strong></span>.
+        Once you have the basic structure up and running, the only
+        addition you may want to make is to add more servers into the
+        list of servers used by your clients. You don't need to manage
+        the <span><strong class="command">memcached</strong></span> servers, and there is no
+        complex configuration, just add more servers to the list and let
+        the client API and the <span><strong class="command">memcached</strong></span> servers make
+        the decisions.
+      </p><p><a name="qandaitem-17-5-9"></a><span class="bold"><strong>17.5.9: </strong></span><span class="bold"><strong>
+        Can MySQL actually trigger/store the changed data to memcached?
+      </strong></span></p><p>
+        Yes. You can use the MySQL UDFs for <span><strong class="command">memcached</strong></span>
+        and either write statements that directly set the values in the
+        <span><strong class="command">memcached</strong></span> server, or use triggers or stored
+        procedures to do it for you. For more information, see
+        <a href="ha-memcached.html#ha-memcached-interfaces-mysqludf" title="16.3.7. Using the MySQL memcached UDFs">Section 16.3.7, “Using the MySQL <span><strong class="command">memcached</strong></span> UDFs”</a>
+      </p><p><a name="qandaitem-17-5-10"></a><span class="bold"><strong>17.5.10: </strong></span><span class="bold"><strong>
+        So the responsibility lies with the application to populate and
+        get records from the database as opposed to being a transparent
+        cache layer for the db?
+      </strong></span></p><p>
+        Yes. You load the data from the database and write it into the
+        cache provided by <span><strong class="command">memcached</strong></span>. Using
+        <span><strong class="command">memcached</strong></span> as a simple database row cache,
+        however, is probably inefficient. The best way to use
+        <span><strong class="command">memcached</strong></span> is to load all of the information
+        from the database relating to a particular object, and then
+        cache the entire object. For example, in a blogging environment,
+        you might load the blog, associated comments, categories and so
+        on, and then cache all of the information relating to that blog
+        post. The reading of the data from the database will require
+        multiple SQL statements and probably multiple rows of data to
+        complete, which is time consuming. Loading the entire blog post
+        and the associated information from <span><strong class="command">memcached</strong></span>
+        is just one operation and doesn't involve using the disk or
+        parsing the SQL statement.
+      </p><p><a name="qandaitem-17-5-11"></a><span class="bold"><strong>17.5.11: </strong></span><span class="bold"><strong>
+        <span><strong class="command">memcached</strong></span> is fast - is there any overhead in
+        not using persistent connections? If persistent is always
+        recommended, what are the downsides (e.g. locking up?)
+      </strong></span></p><p>
+        If you don't use persistent connections when communicating with
+        <span><strong class="command">memcached</strong></span> then there will be a small increase
+        in the latency of opening the connection each time. The effect
+        is comparable to use non-persistent connections with MySQL.
+      </p><p>
+        In general, the chance of locking or other issues with
+        persistent connections is minimal, because there is very little
+        locking within <span><strong class="command">memcached</strong></span>. If there is a
+        problem then eventually your request will timeout and return no
+        result so your application will need to load from MySQL again.
+      </p><p><a name="qandaitem-17-5-12"></a><span class="bold"><strong>17.5.12: </strong></span><span class="bold"><strong>
+        Is compression available?
+      </strong></span></p><p>
+        Yes. Most of the client APIs support some sort of compression,
+        and some even allow you to specify the threshold at which a
+        value is deemed appropriate for compression during storage.
+      </p><p><a name="qandaitem-17-5-13"></a><span class="bold"><strong>17.5.13: </strong></span><span class="bold"><strong>
+        File socket support for <span><strong class="command">memcached</strong></span> from the
+        localhost use to the local memcached server?
+      </strong></span></p><p>
+        You can use the <code class="literal">-s</code> option to
+        <span><strong class="command">memcached</strong></span> to specify the location of a file
+        socket. This automatically disables network support.
+      </p><p><a name="qandaitem-17-5-14"></a><span class="bold"><strong>17.5.14: </strong></span><span class="bold"><strong>
+        What are the advantages of using UDFs when the get/sets are
+        manageable from within the client code rather than the db?
+      </strong></span></p><p>
+        Sometimes you want to be able to be able to update the
+        information within <span><strong class="command">memcached</strong></span> based on a
+        generic database activity, rather than relying on your client
+        code. For example, you may want to update status or counter
+        information in <span><strong class="command">memcached</strong></span> through the use of a
+        trigger or stored procedure. For some situations and
+        applications the existing use of a stored procedure for some
+        operations means that updating the value in
+        <span><strong class="command">memcached</strong></span> from the database is easier than
+        separately loading and communicating that data to the client
+        just so the client can talk to <span><strong class="command">memcached.</strong></span>
+      </p><p>
+        In other situations, when you are using a number of different
+        clients and different APIs, you don't want to have to write (and
+        maintain) the code required to update
+        <span><strong class="command">memcached</strong></span> in all the environments. Instead,
+        you do this from within the database and the client never gets
+        involved.
+      </p><p><a name="qandaitem-17-5-15"></a><span class="bold"><strong>17.5.15: </strong></span><span class="bold"><strong>
+        Is <span><strong class="command">memcached</strong></span> typically a better solution for
+        improving speed than MySQL Cluster and\or MySQL Proxy?
+      </strong></span></p><p>
+        Both MySQL Cluster and MySQL Proxy still require access to the
+        underlying database to retrieve the information. This implies
+        both a parsing overhead for the statement and, often, disk based
+        access to retrieve the data you have selected.
+      </p><p>
+        The advantage of <span><strong class="command">memcached</strong></span> is that you can
+        store entire objects or groups of information that may require
+        multiple SQL statements to obtain. Restoring the result of 20
+        SQL statements formatted into a structure that your application
+        can use directly without requiring any additional processing is
+        always going to be faster than building that structure by
+        loading the rows from a database.
+      </p><p><a name="qandaitem-17-5-16"></a><span class="bold"><strong>17.5.16: </strong></span><span class="bold"><strong>
+        What speed trade offs is there between
+        <span><strong class="command">memcached</strong></span> vs MySQL Query Cache? Where you
+        check <span><strong class="command">memcached</strong></span>, and get data from MySQL and
+        put it in <span><strong class="command">memcached</strong></span> or just make a query and
+        results are put into MySQL Query Cache.
+      </strong></span></p><p>
+        In general, the time difference between getting data from the
+        MySQL Query Cache and getting the exact same data from
+        <span><strong class="command">memcached</strong></span> is very small.
+      </p><p>
+        However, the benefit of <span><strong class="command">memcached</strong></span> is that you
+        can store any information, including the formatted and processed
+        results of many queries into a single
+        <span><strong class="command">memcached</strong></span> key. Even if all the queries that
+        you executed could be retrieved from the Query Cache without
+        having to go to disk, you would still be running multiple
+        queries (with network and other overhead) compared to just one
+        for the <span><strong class="command">memcached</strong></span> equivalent. If your
+        application uses objects, or does any kind of processing on the
+        information, with <span><strong class="command">memcached</strong></span> you can store the
+        post-processed version, so the data you load is immediately
+        available to be used. With data loaded from the Query Cache, you
+        would still have to do that processing.
+      </p><p>
+        In addition to these considerations, keep in mind that keeping
+        data in the MySQL Query Cache is difficult as you have no
+        control over the queries that are stored. This means that a
+        slightly unusual query can temporarily clear a frequently used
+        (and normally cached) query, reducing the effectiveness of your
+        Query Cache. With <span><strong class="command">memcached</strong></span> you can specify
+        which objects are stored, when they are stored, and when they
+        should be deleted giving you much more control over the
+        information stored in the cache.
+      </p><p><a name="qandaitem-17-5-17"></a><span class="bold"><strong>17.5.17: </strong></span><span class="bold"><strong>
+        Does the <code class="literal">-L</code> flag automatically sense how much
+        memory is being used by other memcached?
+      </strong></span></p><p>
+        No. There is no communication or sharing of information between
+        <span><strong class="command">memcached</strong></span> instances.
+      </p><p><a name="qandaitem-17-5-18"></a><span class="bold"><strong>17.5.18: </strong></span><span class="bold"><strong>
+        Is the data inside of <code class="literal">memcached</code> secure?
+      </strong></span></p><p>
+        No, there is no security required to access or update the
+        information within a <span><strong class="command">memcached</strong></span> instance,
+        which means that anybody with access to the machine has the
+        ability to read, view and potentially update the information. If
+        you want to keep the data secure, you can encrypt and decrypt
+        the information before storing it. If you want to restrict the
+        users capable of connecting to the server, your only choice is
+        to either disable network access, or use IPTables or similar to
+        restrict access to the <span><strong class="command">memcached</strong></span> ports to a
+        select set of hosts.
+      </p><p><a name="qandaitem-17-5-19"></a><span class="bold"><strong>17.5.19: </strong></span><span class="bold"><strong>
+        Can we implement different types of <span><strong class="command">memcached</strong></span>
+        as different nodes in the same server - so can there be
+        deterministic and non deterministic in the same server?
+      </strong></span></p><p>
+        Yes. You can run multiple instances of
+        <span><strong class="command">memcached</strong></span> on a single server, and in your
+        client configuration you choose the list of servers you want to
+        use.
+      </p><p><a name="qandaitem-17-5-20"></a><span class="bold"><strong>17.5.20: </strong></span><span class="bold"><strong>
+        How easy is it to introduce <code class="literal">memcached</code> to an
+        existing enterprise application instead of inclusion at project
+        design?
+      </strong></span></p><p>
+        In general, it is very easy. In many languages and environments
+        the changes to the application will be just a few lines, first
+        to attempt to read from the cache when loading data and then
+        fall back to the old method, and to update the cache with
+        information once the data has been read.
+      </p><p>
+        <span><strong class="command">memcached</strong></span> is designed to be deployed very
+        easily, and you shouldn't require significant architectural
+        changes to your application to use <span><strong class="command">memcached</strong></span>.
+      </p><p><a name="qandaitem-17-5-21"></a><span class="bold"><strong>17.5.21: </strong></span><span class="bold"><strong>
+        Can <span><strong class="command">memcached</strong></span> work with
+        <code class="literal">ASPX</code>?
+      </strong></span></p><p>
+        There are ports and interfaces for many languages and
+        environments. ASPX relies on an underlying language such as C#
+        or VisualBasic, and if you are using ASP.NET then there is a C#
+        <span><strong class="command">memcached</strong></span> library. For more information, see
+        <a href="https://sourceforge.net/projects/memcacheddotnet/" target="_top">.</a>
+      </p><p><a name="qandaitem-17-5-22"></a><span class="bold"><strong>17.5.22: </strong></span><span class="bold"><strong>
+        If I have an object larger then a MB, do I have to manually
+        split it or can I configure <span><strong class="command">memcached</strong></span> to
+        handle larger objects?
+      </strong></span></p><p>
+        You would have to manually split it.
+        <span><strong class="command">memcached</strong></span> is very simple, you give it a key
+        and some data, it tries to cache it in RAM. If you try to store
+        more than the default maximum size, the value is just truncated
+        for speed reasons.
+      </p><p><a name="qandaitem-17-5-23"></a><span class="bold"><strong>17.5.23: </strong></span><span class="bold"><strong>
+        Is it true <code class="literal">memcached</code> will be much more
+        effective with db-read-intensive applications than with
+        db-write-intensive applications?
+      </strong></span></p><p>
+        Yes. <span><strong class="command">memcached</strong></span> plays no role whatsoever in
+        database writes, it is a method of caching data already read
+        from the database in RAM.
+      </p><p><a name="qandaitem-17-5-24"></a><span class="bold"><strong>17.5.24: </strong></span><span class="bold"><strong>
+        How does <span><strong class="command">memcached</strong></span> compare to nCache?
+      </strong></span></p><p>
+        The main benefit of <span><strong class="command">memcached</strong></span> is that is very
+        easy to deploy and works with a wide range of languages and
+        environments, including .NET, Java, Perl, Python, PHP, even
+        MySQL. <span><strong class="command">memcached</strong></span> is also very lightweight in
+        terms of systems and requirements, and you can easily add as
+        many or as few <span><strong class="command">memcached</strong></span> servers as you need
+        without changing the individual configuration.
+        <span><strong class="command">memcached</strong></span> does require additional
+        modifications to the application to take advantage of
+        functionality such as multiple <span><strong class="command">memcached</strong></span>
+        servers.
+      </p><p><a name="qandaitem-17-5-25"></a><span class="bold"><strong>17.5.25: </strong></span><span class="bold"><strong>
+        Doing a direct telnet to the memcached port, is that just for
+        that one machine, or does it magically apply across all nodes?
+      </strong></span></p><p>
+        Just one. There is no communication between different instances
+        of <span><strong class="command">memcached</strong></span>, even if each instance is
+        running on the same machine.
+      </p><p><a name="qandaitem-17-5-26"></a><span class="bold"><strong>17.5.26: </strong></span><span class="bold"><strong>
+        Is memcached more effective for video and audio as opposed to
+        textual read/writes
+      </strong></span></p><p>
+        <span><strong class="command">memcached</strong></span> doesn't care what information you
+        are storing. To <span><strong class="command">memcached</strong></span>, any value you
+        store is just a stream of data. Remember, though, that the
+        maximum size of an object you can store in
+        <span><strong class="command">memcached</strong></span> without modifying the source code
+        is 1MB, so it's usability with audio and video content is
+        probably significantly reduced. Also remember that
+        <span><strong class="command">memcached</strong></span> is a solution for caching
+        information for reading. It shouldn't be used for writes, except
+        when updating the information in the cache.
+      </p><p><a name="qandaitem-17-5-27"></a><span class="bold"><strong>17.5.27: </strong></span><span class="bold"><strong>
+        We are caching XML by serialising using saveXML(), because PHP
+        cannot serialise DOM objects; Some of the XML is variable and is
+        modified per-request. Do you recommend caching then using XPath,
+        or is it better to rebuild the DOM from separate node-groups?
+      </strong></span></p><p>
+        You would need to test your application using the different
+        methods to determine this information. You may find that the
+        default serialization within PHP may allow you to store DOM
+        objects directly into the cache.
+      </p><p><a name="qandaitem-17-5-28"></a><span class="bold"><strong>17.5.28: </strong></span><span class="bold"><strong>
+        Do the memcache UDFs work under 5.1?
+      </strong></span></p><p>
+        Yes.
+      </p><p><a name="qandaitem-17-5-29"></a><span class="bold"><strong>17.5.29: </strong></span><span class="bold"><strong>
+        How are auto-increment columns in the MySQL database coordinated
+        across multiple instances of memcached?
+      </strong></span></p><p>
+        They aren't. There is no relationship between MySQL and
+        <span><strong class="command">memcached</strong></span> unless your application (or, if you
+        are using the MySQL UDFs for <span><strong class="command">memcached</strong></span>, your
+        database definition) creates one.
+      </p><p>
+        If you are storing information based on an auto-increment key
+        into multiple instances of <span><strong class="command">memcached</strong></span> then the
+        information will only be stored on one of the
+        <span><strong class="command">memcached</strong></span> instances anyway. The client uses
+        the key value to determine which <span><strong class="command">memcached</strong></span>
+        instance to store the information, it doesn't store the same
+        information across all the instances, as that would be a waste
+        of cache memory.
+      </p><p><a name="qandaitem-17-5-30"></a><span class="bold"><strong>17.5.30: </strong></span><span class="bold"><strong>
+        If you log a complex class (with methods that do calculation
+        etc) will the get from Memcache re-create the class on the way
+        out?
+      </strong></span></p><p>
+        In general, yes. If the serialization method within the
+        API/language that you are using supports it, then methods and
+        other information will be stored and retrieved.
+      </p></div></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="ha-vm.html">Prev</a> </td><td width="20%" align="center"> </td><td width="40%" align="right"> <a accesskey="n" href="mysql-proxy.html">Next</a></td></tr><tr><td width="40%" align="left" valign="top">Chapter 15. MySQL and Virtualization </td><td width="20%" align="center"><a accesskey="h" href="index.html">Home</a></td><td width="40%" align="right" valign="top"> Chapter 17. MySQL Proxy</td></tr></table></div></body></html>

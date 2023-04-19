@@ -1,0 +1,172 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>php 的 ImageTTFText() 經常抓錯字？</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.7" />
+<link rel="HOME" title="FreeBSD Chinese HOWTO" href="index.html" />
+<link rel="UP" title="中文程式設計" href="devel.html" />
+<link rel="PREVIOUS" title="linux-gtk - gtk-1.2.6 的函式庫 rpm，有 Big5/GB 的支援"
+href="linux-gtk.html" />
+<link rel="NEXT" title="php 上傳中文檔名的檔案" href="php-upload.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD Chinese HOWTO</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="linux-gtk.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 14. 中文程式設計</td>
+<td width="10%" align="right" valign="bottom"><a href="php-upload.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="PHP-IMAGETTFTEXT" name="PHP-IMAGETTFTEXT">14.5. php 的
+ImageTTFText() 經常抓錯字？</a></h1>
+
+<p>Contributed by jerry <code class="EMAIL">&#60;<a
+href="mailto:jerry@mail.hantop.com.tw">jerry@mail.hantop.com.tw</a>&#62;</code></p>
+
+<p>Last Update: 2003年 4月29日 周二 19時43分15秒 CST</p>
+
+<p>在安裝 <a href="http://www.FreeBSD.org/cgi/url.cgi?ports/www/mod_php4/pkg-descr"><tt
+class="FILENAME">www/mod_php4</tt></a> 時必須選擇 GD library support 及 freetype
+的套件才能進行下面的步驟。</p>
+
+<p>目前常見的有三種做法，一種是 patch gdttf.c， 一種是使用 iconv support 來將編碼轉成
+UCS-2 ， 還有一種就是直接使用 <a
+href="http://www.FreeBSD.org/cgi/url.cgi?ports/chinese/hc/pkg-descr"><tt
+class="FILENAME">chinese/hc</tt></a> 的資料庫。</p>
+
+<p>這邊是第一種做法，patch gdttf.c 讓 PHP 不會抓錯字。</p>
+
+<pre class="PROGRAMLISTING">
+--- gdttf.c.orig   Mon Oct 16 21:55:47 2000
++++ gdttf.c Sun Dec 31 18:00:34 2000
+@@ -654,7 +654,7 @@
+    TT_BBox **bbox, 
+    char **next)
+ {
+-    int pc, ch, len;
++    int pc, ch, len, ch2;
+    int row, col;
+    int x2, y2;     /* char start pos in pixels */ 
+    int x3, y3;     /* current pixel pos */
+@@ -687,6 +687,8 @@
+        (*next)++;
+        if (ch &gt;= 161                /* first code of JIS-8 pair */
+            &#38;&#38; **next) {                /* don't advance past '\0' */
++           ch2 = (**next) &#38; 255;
++           if(ch2 &gt;= 161) ch++; /* Big5 ttf patch */
+            ch = (ch * 256) + **next;
+            (*next)++;
+        }
+</pre>
+
+<p>由於已經處理過 gdttf.c，在這邊就可以直接使用中文編碼的字。</p>
+
+<pre class="PROGRAMLISTING">
+&lt;?php
+    Header ("Content-type: image/gif");
+    $im = imagecreate (400, 30);
+    $black = ImageColorAllocate ($im, 0, 0, 0);
+    $white = ImageColorAllocate ($im, 255, 255, 255);
+    ImageTTFText ($im, 20, 0, 10, 20, $white,
+      "/usr/X11R6/lib/X11/fonts/TrueType/moe_kai.ttf", "這是中文測試 許功蓋 "); 
+    ImagePng ($im); 
+    ImageDestroy ($im);
+?&gt;
+</pre>
+
+<p>第二種是使用 unicode 讓中文正常的顯示， 以下就是 big5 轉 unicode 的做法，
+在這邊提供一個小函式來自動判斷為英文還是中文， 英文的部分不需要轉碼，只有中文才需要。</p>
+
+<pre class="PROGRAMLISTING">
+&lt;?php
+  /*  need iconv module */
+  function big52uni($text) {
+    $rtext="";
+    $max=strlen($text);
+    for($i=0;$i&lt;$max;$i++){
+      $h=ord($text[$i]);
+      if($h&#62;=160 &#38;&#38; $i&lt;$max-1){
+        $rtext.="&#38;#".base_convert(bin2hex(iconv("big5","ucs-2",
+          substr($text,$i,2))),16,10).";";
+        $i++;
+      }else{
+        $rtext.=$text[$i];
+      }
+    }
+    return $rtext;
+  }
+?&gt;
+</pre>
+
+<p>用法的範例如下，在 ImageTTFText 必須指定系統上的字型， 以下是安裝 <a
+href="http://www.FreeBSD.org/cgi/url.cgi?ports/chinese/arphicttf/pkg-descr"><tt
+class="FILENAME">chinese/arphicttf</tt></a>
+來使用文鼎PL上海宋，所以必須根據自己的安裝的字型作修改， 然後搭配上面的 big52uni
+這個函式：</p>
+
+<pre class="PROGRAMLISTING">
+&lt;?php
+Header("Content-type: image/gif");
+$im = imagecreate(400,30);
+$black = ImageColorAllocate($im, 0,0,0);
+$white = ImageColorAllocate($im, 255,255,255);
+ImageTTFText($im, 20, 0, 10, 20, $white, 
+  "/usr/local/share/fonts/TrueType/bsmi00lp.ttf", 
+  big52uni("Test中文測試"));
+ImageGif($im);
+ImageDestroy($im);
+?&gt;
+</pre>
+
+<div class="FIGURE"><a id="AEN4959" name="AEN4959"></a>
+<p><b>Figure 14-1. php-imagettftext snapshot</b></p>
+
+<p><img src="images/php-imagettftext.png" /></p>
+</div>
+
+<p>WWW: <a href="http://www.php.net/" target="_top">http://www.php.net/</a></p>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="linux-gtk.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="php-upload.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">linux-gtk - gtk-1.2.6 的函式庫 rpm，有 Big5/GB
+的支援</td>
+<td width="34%" align="center" valign="top"><a href="devel.html"
+accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">php 上傳中文檔名的檔案</td>
+</tr>
+</table>
+</div>
+</body>
+</html>
+

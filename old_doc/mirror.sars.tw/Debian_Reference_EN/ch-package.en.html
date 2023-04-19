@@ -1,0 +1,1506 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN">
+
+<html>
+
+<head>
+
+<meta http-equiv="content-type" content="text/html; charset=iso-8859-1">
+
+<title>Debian Reference - Debian package management</title>
+
+</head>
+
+<body>
+
+<p><a name="ch-package"></a></p>
+<hr>
+
+<p>
+[ <a href="ch-woody.en.html">previous</a> ]
+[ <a href="index.en.html#contents">Contents</a> ]
+[ <a href="ch-preface.en.html">1</a> ]
+[ <a href="ch-system.en.html">2</a> ]
+[ <a href="ch-install.en.html">3</a> ]
+[ <a href="ch-tutorial.en.html">4</a> ]
+[ <a href="ch-woody.en.html">5</a> ]
+[ 6 ]
+[ <a href="ch-kernel.en.html">7</a> ]
+[ <a href="ch-tips.en.html">8</a> ]
+[ <a href="ch-tune.en.html">9</a> ]
+[ <a href="ch-gateway.en.html">10</a> ]
+[ <a href="ch-edit.en.html">11</a> ]
+[ <a href="ch-vcs.en.html">12</a> ]
+[ <a href="ch-program.en.html">13</a> ]
+[ <a href="ch-gnupg.en.html">14</a> ]
+[ <a href="ch-support.en.html">15</a> ]
+[ <a href="ap-appendix.en.html">A</a> ]
+[ <a href="ch-kernel.en.html">next</a> ]
+</p>
+
+<hr>
+
+<h1>
+Debian Reference
+<br>Chapter 6 - Debian package management
+</h1>
+
+<hr>
+
+<p>
+<code>aptitude</code> is now the preferred text front end for APT, the Advanced
+Package Tool.  It remembers which packages you deliberately installed and which
+packages were pulled in through dependencies; the latter packages are
+automatically de-installed by <code>aptitude</code> when they are no longer
+needed by any deliberately installed packages.  It has advanced
+package-filtering features but these can be difficult to configure.
+</p>
+
+<p>
+<code>synaptic</code> is now the preferred Gtk GUI front end for APT.  Its
+package filtering capability is easier to use than <code>aptitude</code>'s.  It
+also has experimental support for <code><a
+href="http://debtags.alioth.debian.org/">Debian Package Tags</a></code>.
+</p>
+
+<p>
+To reduce the network load on the Debian repositories and to speed up your
+downloads you should get packages from Debian mirror sites.
+</p>
+
+<p>
+If you need to install the same package on several machines on your local
+network then you can set up a local HTTP proxy using <code>squid</code> for
+packages downloaded through APT.  If necessary, set the <samp>http_proxy</samp>
+environment variable or set the <samp>http</samp> value in
+<code>/etc/apt/apt.conf</code>.
+</p>
+
+<p>
+Although APT's pinning feature, described in <code>apt_preferences(5)</code>,
+is powerful, its effects can be difficult to understand and manage.  You should
+consider it an Advanced Feature.
+</p>
+
+<p>
+The use of the method described in <a
+href="ch-tips.en.html#s-chroot"><code>chroot</code>, Section 8.6.35</a> is
+desirable for simultaneously securing both system stability and access to the
+latest versions of software.
+</p>
+
+<p>
+This chapter is based on a post-Woody system.  Some features may require a
+Sarge system or later.
+</p>
+
+<hr>
+
+<h2><a name="s-pkg-intro"></a>6.1 Introduction</h2>
+
+<p>
+If reading all the developer documentation is too much for you, read this
+chapter first and start enjoying the full power of Debian with
+<samp>testing</samp>/<samp>unstable</samp> :-)
+</p>
+
+<hr>
+
+<h3><a name="s6.1.1"></a>6.1.1 Main package management tools</h3>
+
+<pre>
+     dpkg      &ndash; Debian package file installer
+     apt-get   &ndash; Command line front end for APT
+     aptitude  &ndash; Advanced text and command line front end for APT
+     synaptic  &ndash; Gtk GUI front end for APT
+     dselect   &ndash; Menu-driven package manager
+     tasksel   &ndash; Task installer
+</pre>
+
+<p>
+These tools aren't all alternatives to one another.  For example,
+<code>dselect</code> uses both APT and <code>dpkg</code>.
+</p>
+
+<p>
+APT uses <code>/var/lib/apt/lists/*</code> for tracking available packages
+while <code>dpkg</code> uses <code>/var/lib/dpkg/available</code>.  If you have
+installed packages using <code>aptitude</code> or other APT front ends and you
+want to use <code>dselect</code> to install packages then the first thing you
+should do is update <code>/var/lib/dpkg/available</code> by selecting
+<samp>[U]pdate</samp> from <code>dselect</code>'s menu (or by running
+&quot;<samp>dselect update</samp>&quot;).
+</p>
+
+<p>
+<code>apt-get</code> automatically installs all packages upon which a requested
+package Depends.  It does not install the packages that a requested package
+merely Recommends or Suggests.
+</p>
+
+<p>
+<code>aptitude</code>, in contrast, can be configured to install packages that
+a requested package Recommends or Suggests.
+</p>
+
+<p>
+<code>dselect</code> presents the user with a list of packages that a selected
+package Recommends or Suggests and allows these to be selected or deselected
+individually.  See <a href="ch-system.en.html#s-depends">Package dependencies,
+Section 2.2.8</a>.
+</p>
+
+<hr>
+
+<h3><a name="s6.1.2"></a>6.1.2 Convenience tools</h3>
+
+<pre>
+     dpkg-reconfigure  - reconfigure an already installed package
+                         (if it uses debconf)
+     dpkg-source       - manage source package file
+     dpkg-buildpackage - automate the building of a package file
+     apt-cache         - check package archive in local cache
+</pre>
+
+<hr>
+
+<h2><a name="s-apt-install"></a>6.2 Beginning Debian package management</h2>
+
+<hr>
+
+<h3><a name="s-setup-apt"></a>6.2.1 Set up APT</h3>
+
+<p>
+Set up <code>sources.list</code> as described in <a
+href="ch-woody.en.html#s-testing-transition">Preparing for upgrade, Section
+5.2</a>.  [<a href="footnotes.en.html#f34" name="fr34">34</a>] Also refer to <a
+href="ch-install.en.html">Debian System installation hints, Chapter 3</a>, <a
+href="ch-woody.en.html">Upgrading a distribution to <samp>stable</samp>,
+<samp>testing</samp>, or <samp>unstable</samp>, Chapter 5</a>, and <a
+href="ch-edit.en.html#s-bin-editor">Rescue editors, Section 11.2</a>.
+</p>
+
+<hr>
+
+<h3><a name="s-tasksel"></a>6.2.2 Installing tasks</h3>
+
+<p>
+You can install sets of packages typically required in order to put a Debian
+system to a certain use.  These sets of packages are called &quot;tasks&quot;.
+</p>
+
+<p>
+The simplest way to install tasks at the time of initial installation is to use
+<code>tasksel</code>.  Note that you must run
+</p>
+
+<pre>
+     dselect update
+</pre>
+
+<p>
+before using it.
+</p>
+
+<p>
+<code>aptitude</code> can also install tasks and is the tool recommended for
+this purpose.  It enables you to deselect individual packages within tasks
+before proceeding to the installation step.
+</p>
+
+<hr>
+
+<h3><a name="s-aptitude"></a>6.2.3 <code>aptitude</code></h3>
+
+<p>
+<code>aptitude</code> is a new menu-driven package installer similar to
+<code>dselect</code> but built from scratch on top of APT.  It can be used as
+an alternative to <code>apt-get</code> for most commands.  See
+<code>aptitude(1)</code> and
+<code>file:///usr/share/doc/aptitude/README</code>.
+</p>
+
+<p>
+Once you start using <code>aptitude</code> it is best to continue using it
+rather than alternative methods of installing packages; otherwise you lose the
+advantage of <code>aptitude</code> keeping track of which packages you have
+deliberately installed.
+</p>
+
+<p>
+<code>aptitude</code> in full screen mode accepts single-key commands which are
+usually lowercase.  Notable key strokes are:
+</p>
+
+<pre>
+     Keystroke   Action
+     F10         Menu
+     ?           Help for keystroke (complete listing)
+     u           Update package archive information
+     +           Mark the package to be upgraded or newly installed
+     -           Mark the package to be removed (keep config)
+     _           Mark the package to be purged (remove config)
+     =           Place the package on hold
+     U           Mark all upgradable packages to be upgraded
+     g           Download and install selected packages
+     q           Quit current screen and save changes
+     x           Quit current screen and discard changes
+     Enter       View information about a package
+     C           View a package's changelog
+     l           Change the limit for the displayed packages
+     /           Search for the first match
+     \           Repeat the last search
+</pre>
+
+<p>
+Like <code>apt-get</code>, <code>aptitude</code> installs packages upon which a
+selected package Depends.  <code>aptitude</code> also offers the option to pull
+in packages that a to-be-installed package Recommends or Suggests.  You can
+change the default behavior by choosing <samp>F10 -&gt; Options -&gt;
+Dependency handling</samp> in its menu.
+</p>
+
+<p>
+Other advantages of <code>aptitude</code> are:
+</p>
+<ul>
+<li>
+<p>
+<code>aptitude</code> offers access to all versions of a package.
+</p>
+</li>
+<li>
+<p>
+<code>aptitude</code> logs its actions in <code>/var/log/aptitude</code>.
+</p>
+</li>
+<li>
+<p>
+<code>aptitude</code> makes it easy to keep track of obsolete software by
+listing under &quot;Obsolete and Locally Created Packages&quot;.
+</p>
+</li>
+<li>
+<p>
+<code>aptitude</code> includes a fairly powerful system for searching
+particular packages and limiting the package display.  Users familiar with
+<code>mutt</code> will pick up quickly, as mutt was the inspiration for the
+expression syntax.  See &quot;SEARCHING, LIMITING, AND EXPRESSIONS&quot; in
+<code>file:///usr/share/doc/aptitude/README</code>.
+</p>
+</li>
+<li>
+<p>
+<code>aptitude</code> in full screen mode has <code>su</code> functionality
+embedded and can be run from normal user until you really need administrative
+privileges.
+</p>
+</li>
+</ul>
+
+<hr>
+
+<h3><a name="s-dselect"></a>6.2.4 <code>dselect</code></h3>
+
+<p>
+In stable releases up to and including Potato, <code>dselect</code> was the
+principal package maintenance tool.  For Sarge, you should consider using
+<code>aptitude</code> instead.
+</p>
+
+<p>
+When started, <code>dselect</code> automatically selects all
+&quot;Required&quot;, &quot;Important&quot;, and &quot;Standard&quot; packages.
+</p>
+
+<p>
+<code>dselect</code> has a somewhat strange user interface.  Most people get
+used to it, however.  It has four commands (Capital means CAPITAL!):
+</p>
+
+<pre>
+     Key-stroke  Action
+     Q           Quit. Confirm current selection and quit anyway. 
+                 (override dependencies)
+     R           Revert! I did not mean it.
+     D           Damn it! I do not care what dselect thinks.  Just Do it!
+     U           Set all to sUggested state
+</pre>
+
+<p>
+With <samp>D</samp> and <samp>Q</samp>, you can select conflicting selections
+at your own risk.  Handle these commands with care.
+</p>
+
+<p>
+Add a line containing the option &quot;expert&quot; in
+<code>/etc/dpkg/dselect.cfg</code> to reduce noise.
+</p>
+
+<p>
+If your machine runs <code>dselect</code> slowly then you might consider
+running <code>dselect</code> on another (faster) machine in order to determine
+the packages you want to install, then use <samp>apt-get install</samp> on the
+slow machine to install them.
+</p>
+
+<hr>
+
+<h3><a name="s-apt-track"></a>6.2.5 Tracking a distribution using APT</h3>
+
+<p>
+To track the <samp>testing</samp> distribution as it changes, make your
+<code>/etc/apt/preferences</code> file look like this:
+</p>
+
+<pre>
+     Package: *
+     Pin: release a=testing
+     Pin-Priority: 800
+     
+     Package: *
+     Pin: release a=stable
+     Pin-Priority: 600
+</pre>
+
+<p>
+Note that tracking the <samp>testing</samp> distribution can have the side
+effect of delaying the installation of packages containing security fixes.
+Such packages are uploaded to <samp>unstable</samp> and migrate to
+<samp>testing</samp> only after a delay.
+</p>
+
+<p>
+See <code>apt_preferences(5)</code> for more complicated examples which will
+allow you, for example, to track <samp>testing</samp> while installing selected
+packages from <samp>unstable</samp>.
+</p>
+
+<p>
+Examples which lock particular packages at particular versions while tracking
+other packages as they are released are available in the <code><a
+href="examples/">examples subdirectory</a></code> as
+<code>preferences.testing</code> and <code>preferences.unstable</code>.
+</p>
+
+<p>
+If you mix distributions, e.g., <samp>testing</samp> with <samp>stable</samp>
+or <samp>unstable</samp> with <samp>stable</samp>, you will eventually pull in
+core packages such as <code>libc6</code> from <samp>testing</samp> or
+<samp>unstable</samp> and there is no guarantee that these will not contain
+bugs.  You have been warned.
+</p>
+
+<p>
+Another example, <code>preferences.stable</code>, forces all packages to be
+downgraded to <samp>stable</samp>.
+</p>
+
+<p>
+Downgrading from a later release of a <strong>package</strong> to an earlier
+one is not officially supported in Debian.  However, you may find that you have
+to downgrade a specific package in order to re-install a version of a package
+that works when a new version malfunctions.  You may find these previous
+package files locally in <code>/var/cache/apt/archives/</code> or remotely at
+<code><a
+href="http://snapshot.debian.net/">http://snapshot.debian.net/</a></code>.  See
+also <a href="#s-rescue-dpkg">Rescue using <code>dpkg</code>, Section
+6.3.3</a>.
+</p>
+
+<p>
+Downgrading from a later release of a <strong>distribution</strong> to an
+earlier one is not officially supported either and is very likely to cause
+problems.  However, this may be worth trying as a last resort if you are
+desperate.
+</p>
+
+<hr>
+
+<h3><a name="s-apt-commands"></a>6.2.6 <code>aptitude</code>, <code>apt-get</code> and <code>apt-cache</code> commands</h3>
+
+<p>
+While tracking <samp>testing</samp> as described in the above example you can
+manage the system by using the following commands:
+</p>
+<ul>
+<li>
+<p>
+<samp>aptitude update</samp> (or <samp>apt-get update</samp>)
+</p>
+
+<p>
+These update the list of available packages at the repositories.
+</p>
+</li>
+</ul>
+<ul>
+<li>
+<p>
+<samp>aptitude upgrade</samp> (or <samp>apt-get upgrade</samp> or
+<samp>aptitude dist-upgrade</samp> or <samp>apt-get dist-upgrade</samp>)
+</p>
+
+<p>
+These track the <samp>testing</samp> distribution &mdash; they upgrade each
+package on the system, after installing versions of packages upon which it
+Depends, from the <samp>testing</samp> distribution.  [<a
+href="footnotes.en.html#f35" name="fr35">35</a>]
+</p>
+</li>
+</ul>
+<ul>
+<li>
+<p>
+<samp>apt-get dselect-upgrade</samp>
+</p>
+
+<p>
+This tracks the <samp>testing</samp> distribution &mdash; it upgrades each
+package on the system according to the selections of <code>dselect</code>.
+</p>
+</li>
+</ul>
+<ul>
+<li>
+<p>
+<samp>aptitude install <var>package</var>/unstable</samp>
+</p>
+
+<p>
+This installs <var>package</var> from the <samp>unstable</samp> distribution
+while installing its dependencies from the <samp>testing</samp> distribution.
+</p>
+</li>
+</ul>
+<ul>
+<li>
+<p>
+<samp>aptitude install -t unstable <var>package</var></samp>
+</p>
+
+<p>
+This installs <var>package</var> from the <samp>unstable</samp> distribution
+while installing its dependencies also from the <samp>unstable</samp>
+distribution by setting the Pin-Priority of <samp>unstable</samp> to 990.
+</p>
+</li>
+</ul>
+<ul>
+<li>
+<p>
+<samp>apt-cache policy <var>foo bar ...</var></samp>
+</p>
+
+<p>
+This checks the status of packages <var>foo bar ...</var>.
+</p>
+</li>
+</ul>
+<ul>
+<li>
+<p>
+<samp>aptitude show <var>foo bar ...</var> | less</samp> (or <samp>apt-cache
+show <var>foo bar ...</var> | less</samp>)
+</p>
+
+<p>
+This checks the information for packages <var>foo bar ...</var>.
+</p>
+</li>
+</ul>
+<ul>
+<li>
+<p>
+<samp>aptitude install <var>foo=2.2.4-1</var></samp>
+</p>
+
+<p>
+This installs the particular version <var>2.2.4-1</var> of the <var>foo</var>
+package.
+</p>
+</li>
+</ul>
+<ul>
+<li>
+<p>
+<samp>aptitude install <var>foo bar-</var></samp>
+</p>
+
+<p>
+This installs the <var>foo</var> package and removes the <var>bar</var> package
+</p>
+</li>
+</ul>
+<ul>
+<li>
+<p>
+<samp>aptitude remove <var>bar</var></samp>
+</p>
+
+<p>
+This removes the <var>bar</var> package but not its configuration files.
+</p>
+</li>
+</ul>
+<ul>
+<li>
+<p>
+<samp>aptitude purge <var>bar</var></samp>
+</p>
+
+<p>
+This removes the <var>bar</var> package together with all its configuration
+files.
+</p>
+</li>
+</ul>
+
+<p>
+In the above examples, giving <code>apt-get</code> the <samp>-u</samp> option
+causes it to print a list of all packages that are to be upgraded and to prompt
+the user before taking action.  <code>aptitude</code> does this by default.
+The following makes <code>apt-get</code> always do this:
+</p>
+
+<pre>
+     $ cat &gt;&gt; /etc/apt/apt.conf &lt;&lt; .
+     // Always show packages to be upgraded (-u)
+     APT::Get::Show-Upgraded &quot;true&quot;;
+     .
+</pre>
+
+<p>
+Use the <samp>--no-act</samp> option to simulate actions without actually
+installing, removing, etc., any packages.
+</p>
+
+<hr>
+
+<h2><a name="s-survival"></a>6.3 Debian survival commands</h2>
+
+<p>
+With this knowledge you can live the life of eternal upgrade :-)
+</p>
+
+<hr>
+
+<h3><a name="s-bug-check"></a>6.3.1 Check bugs in Debian and seek help</h3>
+
+<p>
+If you are experiencing problems with a specific package, make sure to check
+out these sites first before you seek help or file a bug report.
+(<code>lynx</code>, <code>links</code>, and <code>w3m</code> work equally
+well):
+</p>
+
+<pre>
+     $ lynx http://bugs.debian.org/
+     $ lynx http://bugs.debian.org/<var>package-name</var>  # if you know package name
+     $ lynx http://bugs.debian.org/<var>bugnumber</var>     # if you know bug number
+</pre>
+
+<p>
+Search Google (www.google.com) with search words including
+&quot;site:debian.org&quot;.
+</p>
+
+<p>
+When in doubt, read the fine manual.  Set <samp>CDPATH</samp> as follows:
+</p>
+
+<pre>
+     export CDPATH=.:/usr/local:/usr/share/doc
+</pre>
+
+<p>
+and type
+</p>
+
+<pre>
+     $ cd <var>packagename</var>
+     $ pager README.Debian # if this exists
+     $ mc
+</pre>
+
+<p>
+More support resources are listed at <a href="ch-support.en.html">Support for
+Debian, Chapter 15</a>.
+</p>
+
+<hr>
+
+<h3><a name="s-apt-trouble"></a>6.3.2 APT upgrade troubleshooting</h3>
+
+<p>
+Package dependency problems may occur when upgrading in <samp>unstable</samp>
+or <samp>testing</samp> as described in <a
+href="ch-woody.en.html#s-upgrade-system">Upgrading, Section 5.3</a>.  Most of
+the time this is because a package that will be upgraded Depends on a package
+that is not yet available.  These problems are fixed by using
+</p>
+
+<pre>
+     # aptitude dist-upgrade
+</pre>
+
+<p>
+If this does not work, then repeat one of the following until the problem
+resolves itself:
+</p>
+
+<pre>
+     # aptitude -f upgrade        # continue upgrade even after error
+     ... or
+     # aptitude -f dist-upgrade   # continue dist-upgrade even after error
+</pre>
+
+<p>
+Some really broken upgrade scripts may cause persistent trouble.  It is usually
+better to resolve this type of situation by inspecting the
+<code>/var/lib/dpkg/info/<var>packagename</var>.{post,pre}{inst,rm}</code>
+scripts of the offending package and then running:
+</p>
+
+<pre>
+     # dpkg --configure -a    # configures all partially installed packages
+</pre>
+
+<p>
+If a script complains about a missing configuration file, look in
+<code>/etc/</code> for the corresponding configuration file.  If one exists
+with an extension of <samp>.dpkg-new</samp> (or something similar),
+<code>mv</code> it to remove the suffix.
+</p>
+
+<p>
+Package dependency problems may occur when installing in <samp>unstable</samp>
+or <samp>testing</samp>.  There are ways to circumvent dependencies.
+</p>
+
+<pre>
+     # aptitude -f install <var>package</var> # override broken dependencies
+</pre>
+
+<p>
+An alternative method to fix these situations is to use the <code>equivs</code>
+package.  See <code>file:///usr/share/doc/equivs/README.Debian</code> and <a
+href="#s-equivs">The <code>equivs</code> package, Section 6.5.2</a>.
+</p>
+
+<hr>
+
+<h3><a name="s-rescue-dpkg"></a>6.3.3 Rescue using <code>dpkg</code></h3>
+
+<p>
+If you reach a dead end using APT you can download package files from Debian
+mirrors and install them using <code>dpkg</code>.  If you do have not access to
+the network you can look for cached copies of package files in
+<code>/var/cache/apt/archives/</code>.
+</p>
+
+<pre>
+     # dpkg -i fetchmail_6.2.5-4_i386.deb
+</pre>
+
+<p>
+If attempting to install a package this way fails due to dependency violations
+and you really need to install the package then you can override dependency
+checks using <code>dpkg</code>'s <samp>--ignore-depends</samp>,
+<samp>--force-depends</samp> and other options.  See <code>dpkg(8)</code> for
+details.
+</p>
+
+<hr>
+
+<h3><a name="s-recover-status"></a>6.3.4 Recover package selection data</h3>
+
+<p>
+If <code>/var/lib/dpkg/status</code> becomes corrupt for any reason, the Debian
+system loses package selection data and suffers severely.  Look for the old
+<code>/var/lib/dpkg/status</code> file at <code>/var/lib/dpkg/status-old</code>
+or <code>/var/backups/dpkg.status.*</code>.
+</p>
+
+<p>
+Keeping <code>/var/backups/</code> in a separate partition may be a good idea
+since this directory contains lots of important system data.
+</p>
+
+<p>
+If no old <code>/var/lib/dpkg/status</code> file is available, you can still
+recover information from directories in <code>/usr/share/doc/</code>.
+</p>
+
+<pre>
+     # ls /usr/share/doc | \
+       grep -v [A-Z] | \
+       grep -v '^texmf$' | \
+       grep -v '^debian$' | \
+       awk '{print $1 &quot; install&quot;}' | \
+       dpkg --set-selections
+     # dselect --expert # reinstall system, de-select as needed
+</pre>
+
+<hr>
+
+<h3><a name="s-rescue-var"></a>6.3.5 Rescue system after crashing <code>/var</code></h3>
+
+<p>
+Since the <code>/var</code> directory contains regularly updated data such as
+mail, it is more susceptible of corruption than, e.g., <code>/usr/</code>.
+Putting <code>/var/</code> on a separate partition reduces risks.  If disaster
+happens, you may have to rebuild the <code>/var</code> directory to rescue your
+Debian system.
+</p>
+
+<p>
+Obtain the skeleton content of the <code>/var</code> directory from a minimum
+working Debian system based on the same or older Debian version, for example
+<code><code><a
+href="http://people.debian.org/~osamu/pub/">var.tar.gz</a></code></code>, and
+place it in the root directory of the broken system.  Then
+</p>
+
+<pre>
+     # cd /
+     # mv var var-old      # if any useful contents are left
+     # tar xvzf var.tar.gz # use Woody skeleton file
+     # aptitude            # or dselect
+</pre>
+
+<p>
+This should provide a working system.  You can expedite the recovery of package
+selections by using the technique described in <a
+href="#s-recover-status">Recover package selection data, Section 6.3.4</a>.
+([FIXME]: This procedure needs more experiments to verify.)
+</p>
+
+<hr>
+
+<h3><a name="s-un-bootable"></a>6.3.6 Install a package into an unbootable system</h3>
+
+<p>
+Boot into Linux using a Debian rescue floppy/CD or an alternative partition in
+a multiboot Linux system.  See <a href="ch-tips.en.html#s-booting">Booting the
+system, Section 8.1</a>.  Mount the unbootable system on <code>/target</code>
+and use the chroot install mode of <code>dpkg</code>.
+</p>
+
+<pre>
+     # dpkg --root /target -i <var>packagefile.deb</var>
+</pre>
+
+<p>
+Then configure and fix problems.
+</p>
+
+<p>
+By the way, if a broken <code>lilo</code> is all that prevents booting, you can
+boot using a standard Debian rescue disk.  At boot prompt, assuming the root
+partition of your Linux installation is in <code>/dev/hda12</code> and you want
+runlevel 3, enter:
+</p>
+
+<pre>
+     boot: rescue root=/dev/<var>hda12</var> 3
+</pre>
+
+<p>
+Then you are booted into an almost fully functional system with the kernel on
+floppy disk.  (There may be minor glitches due to lack of kernel features or
+modules.)
+</p>
+
+<hr>
+
+<h3><a name="s6.3.7"></a>6.3.7 What to do if the <code>dpkg</code> command is broken</h3>
+
+<p>
+A broken <code>dpkg</code> may make it impossible to install any
+<samp>.deb</samp> files.  A procedure like the following will help you recover
+from this situation.  (In the first line, you can replace &quot;links&quot;
+with your favorite browser command.)
+</p>
+
+<pre>
+     $ links http://<var>http.us.debian.org</var>/debian/pool/main/d/dpkg/
+       ... download the good dpkg_<var>version</var>_<var>arch</var>.deb
+     $ su
+     password: *****
+     # ar x dpkg_<var>version</var>_<var>arch</var>.deb
+     # mv data.tar.gz /data.tar.gz
+     # cd /
+     # tar xzfv data.tar.gz
+</pre>
+
+<p>
+For <samp>i386</samp>, <samp>http://packages.debian.org/dpkg</samp> may also be
+used as the URL.
+</p>
+
+<hr>
+
+<h2><a name="s-debian-package"></a>6.4 Debian nirvana commands</h2>
+
+<p>
+<strong>Enlightenment</strong> with these commands will save a person from the
+eternal karmic struggle of upgrade hell and let him reach Debian
+<strong>nirvana</strong>.  :-)
+</p>
+
+<hr>
+
+<h3><a name="s-info-file"></a>6.4.1 Information on a file</h3>
+
+<p>
+To find the package to which a particular filename pattern belongs in the
+installed packages:
+</p>
+
+<pre>
+     $ dpkg {-S|--search} pattern
+</pre>
+
+<p>
+Or to find the similar in the Debian archive:
+</p>
+
+<pre>
+     $ wget http://ftp.us.debian.org/debian/dists/<var>sarge</var>/<var>Contents-i386.gz</var>
+     $ zgrep -e pattern <var>Contents-i386.gz</var>
+</pre>
+
+<p>
+Or use specialized package commands:
+</p>
+
+<pre>
+     # aptitude install dlocate  
+     $ dlocate <var>filename</var>         # fast alternative to dpkg -L and dpkg -S
+     ...
+     # aptitude install auto-apt # on-demand package installation tool
+     # auto-apt update          # create db file for auto-apt
+     $ auto-apt search <var>pattern</var>  
+                     # search for pattern in all packages, installed or not
+</pre>
+
+<hr>
+
+<h3><a name="s-info-package"></a>6.4.2 Information on a package</h3>
+
+<p>
+Search and display information from package archives.  Make sure to point APT
+to the proper archive(s) by editing <code>/etc/apt/sources.list</code>.  If you
+want to see how packages in <samp>testing</samp>/<samp>unstable</samp> do
+against the currently installed one, use <samp>apt-cache
+policy</samp>&mdash;quite nice.
+</p>
+
+<pre>
+     # apt-get   check           # update cache and check for broken packages
+     $ apt-cache search  <var>pattern</var> # search package from text description
+     $ apt-cache policy  <var>package</var> # package priority/dists information
+     $ apt-cache show -a <var>package</var> # show description of package in all dists
+     $ apt-cache showsrc <var>package</var> # show description of matching source package
+     $ apt-cache showpkg <var>package</var> # package information for debugging
+     # dpkg  --audit|-C          # search for partially installed packages
+     $ dpkg {-s|--status} <var>package</var> ... # description of installed package
+     $ dpkg -l <var>package</var> ...       # status of installed package (1 line each)
+     $ dpkg -L <var>package</var> ...       # list filenames installed by the package
+</pre>
+
+<p>
+<samp>apt-cache showsrc</samp> is not documented as of the Woody release but
+works :)
+</p>
+
+<p>
+You can also find package information in (I use <samp>mc</samp> to browse
+these):
+</p>
+
+<pre>
+     /var/lib/apt/lists/*
+     /var/lib/dpkg/available
+</pre>
+
+<p>
+The comparison of the following files provides information on what exactly has
+happened in the last few install sessions.
+</p>
+
+<pre>
+     /var/lib/dpkg/status
+     /var/backups/dpkg.status*
+</pre>
+
+<hr>
+
+<h3><a name="s-apt-get-auto"></a>6.4.3 Unattended installation with APT</h3>
+
+<p>
+For an unattended installation, add the following line in
+<code>/etc/apt/apt.conf</code>:
+</p>
+
+<pre>
+     Dpkg::Options {&quot;--force-confold&quot;;}
+</pre>
+
+<p>
+This equivalent to running <samp>aptitude -y install
+<var>packagename</var></samp> or <samp>apt-get -q -y install
+<var>packagename</var></samp>.  Because this automatically answers
+&quot;yes&quot; to all prompts, it may cause problems, so use this trick with
+care.  See <code>apt.conf(5)</code> and <code>dpkg(1)</code>.
+</p>
+
+<p>
+You can configure any particular packages later by following <a
+href="#s-reconfigure">Reconfigure installed packages, Section 6.4.4</a>.
+</p>
+
+<hr>
+
+<h3><a name="s-reconfigure"></a>6.4.4 Reconfigure installed packages</h3>
+
+<p>
+Use the following to reconfigure any already-installed package.
+</p>
+
+<pre>
+     # dpkg-reconfigure --priority=<var>medium</var> <var>package</var> [...]
+     # dpkg-reconfigure --all   # reconfigure all packages
+     # dpkg-reconfigure locales # generate any extra locales
+     # dpkg-reconfigure --p=<var>low</var> xserver-xfree86 # reconfigure X server
+</pre>
+
+<p>
+Do this for <code>debconf</code> if you need to change the <code>debconf</code>
+dialog mode permanently.
+</p>
+
+<p>
+Some programs come with special configuration scripts.  [<a
+href="footnotes.en.html#f36" name="fr36">36</a>]
+</p>
+
+<pre>
+     apt-setup     - create /etc/apt/sources.list
+     install-mbr   - install a Master Boot Record manager
+     tzconfig      - set the local time zone
+     gpmconfig     - set gpm mouse daemon
+     eximconfig    - configure Exim (MTA)
+     texconfig     - configure teTeX
+     apacheconfig  - configure Apache (httpd)
+     cvsconfig     - configure CVS
+     sndconfig     - configure sound system
+     ...
+     update-alternatives - set default command, e.g., vim as vi
+     update-rc.d         - System-V init script management
+     update-menus        - Debian menu system
+     ...
+</pre>
+
+<hr>
+
+<h3><a name="s-remove"></a>6.4.5 Remove and purge packages</h3>
+
+<p>
+Remove a package while maintaining its configuration:
+</p>
+
+<pre>
+     # aptitude remove <var>package</var> ...
+     # dpkg   --remove <var>package</var> ...
+</pre>
+
+<p>
+Remove a package and all configuration:
+</p>
+
+<pre>
+     # aptitude purge  <var>package</var> ...
+     # dpkg   --purge  <var>package</var> ...
+</pre>
+
+<hr>
+
+<h3><a name="s-hold"></a>6.4.6 Holding older packages</h3>
+
+<p>
+For example, holding of <code>libc6</code> and <code>libc6-dev</code> for
+<code>dselect</code> and <samp>aptitude install <var>package</var></samp> can
+be done as follows:
+</p>
+
+<pre>
+     # echo -e &quot;libc6 hold\nlibc6-dev hold&quot; | dpkg --set-selections
+</pre>
+
+<p>
+<samp>aptitude install <var>package</var></samp> will not be hindered by this
+&quot;hold&quot;.  To hold a package through forcing automatic downgrade for
+<samp>aptitude upgrade <var>package</var></samp> or <samp>aptitude
+dist-upgrade</samp>, add the following to <code>/etc/apt/preferences</code>:
+</p>
+
+<pre>
+     Package: libc6
+     Pin: release a=stable
+     Pin-Priority: 2000
+</pre>
+
+<p>
+Here the &quot;<samp>Package:</samp>&quot; entry cannot use entries such as
+&quot;<samp>libc6*</samp>&quot;.  If you need to keep all binary packages
+related to the <code>glibc</code> source package in a synchronized version, you
+need to list them explicitly.
+</p>
+
+<p>
+The following will list packages on hold:
+</p>
+
+<pre>
+     dpkg --get-selections &quot;*&quot;|grep -e &quot;hold$&quot;
+</pre>
+
+<hr>
+
+<h3><a name="s-mixedsys"></a>6.4.7 Mixed <samp>stable</samp>/<samp>testing</samp>/<samp>unstable</samp> system</h3>
+
+<p>
+<code>apt-show-versions</code> can list available package versions by
+distribution.
+</p>
+
+<pre>
+     $ apt-show-versions | fgrep /testing | wc
+     ... how many packages you have from testing
+     $ apt-show-versions -u
+     ... list of upgradeable packages
+     $ aptitude install `apt-show-versions -u -b | fgrep /unstable`
+     ... upgrade all unstable packages to their newest versions
+</pre>
+
+<hr>
+
+<h3><a name="s-cache"></a>6.4.8 Prune cached package files</h3>
+
+<p>
+Package installation with APT leaves cached package files in
+<code>/var/cache/apt/archives/</code> and these need to be cleaned.
+</p>
+
+<pre>
+     # aptitude autoclean # removes only useless package files
+     # aptitude clean     # removes all cached package files
+</pre>
+
+<hr>
+
+<h3><a name="s-record"></a>6.4.9 Record/copy system configuration</h3>
+
+<p>
+To make a local copy of the package selection states:
+</p>
+
+<pre>
+     # dpkg --get-selections &quot;*&quot; &gt;<var>myselections</var>   # or use \*
+     # debconf-get-selections &gt; <var>debconfsel.txt</var>
+</pre>
+
+<p>
+<samp>&quot;*&quot;</samp> makes <samp><var>myselections</var></samp> include
+package entries for &quot;purge&quot; too.
+</p>
+
+<p>
+You can transfer this file to another computer, and install it there with:
+</p>
+
+<pre>
+     # dselect update
+     # debconf-set-selections &lt; <var>debconfsel.txt</var>
+     # dpkg --set-selections &lt;<var>myselections</var>
+     # apt-get -u dselect-upgrade    # <var>or</var> dselect install
+</pre>
+
+<hr>
+
+<h3><a name="s-port"></a>6.4.10 Port a package to the <samp>stable</samp> system</h3>
+
+<p>
+For partial upgrades of the <samp>stable</samp> system, rebuilding a package
+within its environment using the source package is desirable.  This avoids
+massive package upgrades due to their dependencies.  First, add the following
+entries to <code>/etc/apt/sources.list</code>:
+</p>
+
+<pre>
+     deb-src http://http.us.debian.org/debian testing \
+      main contrib non-free
+     deb-src http://http.us.debian.org/debian unstable \
+      main contrib non-free
+</pre>
+
+<p>
+Here each entry for <samp>deb-src</samp> is broken into two lines because of
+printing constraints, but the actual entry in <code>sources.list</code> should
+consist of a single line.
+</p>
+
+<p>
+Then get the source and make a local package:
+</p>
+
+<pre>
+     $ apt-get update  # update the source package search list
+     $ apt-get source <var>package</var>
+     $ dpkg-source -x <var>package.dsc</var>
+     $ cd <var>package-version</var>
+       ... inspect required packages (Build-Depends in .dsc file) and
+           install them too.  You need the &quot;fakeroot&quot; package also.
+     
+     $ dpkg-buildpackage -rfakeroot 
+     
+       ...or (no sig)
+     $ dpkg-buildpackage -rfakeroot -us -uc # use &quot;debsign&quot; later if needed
+     
+       ...Then to install
+     $ su -c &quot;dpkg -i <var>packagefile.deb</var>&quot;
+</pre>
+
+<p>
+Usually, one needs to install a few packages with the &quot;-dev&quot; suffix
+to satisfy package dependencies.  <code>debsign</code> is in the
+<code>devscripts</code> package.  <code>auto-apt</code> may ease satisfying
+these dependencies.  Use of <code>fakeroot</code> avoids unnecessary use of the
+root account.
+</p>
+
+<p>
+In Woody, these dependency issues can be simplified.  For example, to compile a
+source-only <code>pine</code> package:
+</p>
+
+<pre>
+     # apt-get build-dep pine
+     # apt-get source -b pine
+</pre>
+
+<hr>
+
+<h3><a name="s-local"></a>6.4.11 Local package archive</h3>
+
+<p>
+In order to create a local package archive which is compatible with APT and the
+<code>dselect</code> system, <code>Packages</code> needs to be created and
+package files need to be populated in a particular directory tree.
+</p>
+
+<p>
+A local <samp>deb</samp> repository similar to an official Debian archive can
+be made in this way:
+</p>
+
+<pre>
+     # aptitude install dpkg-dev
+     # cd <var>/usr/local</var>
+     # install -d <var>pool</var> # physical packages are located here
+     # install -d dists/<var>unstable</var>/<var>main</var>/binary-<var>i386</var>
+     # ls -1 <var>pool</var> | sed 's/_.*$/ <var>priority</var> <var>section</var>/' | uniq &gt; <var>override</var>
+     # editor <var>override</var> # adjust <var>priority</var> and <var>section</var>
+     # dpkg-scanpackages <var>pool</var> <var>override</var> <var>/usr/local</var>/ \
+        &gt; dists/<var>unstable</var>/<var>main</var>/binary-<var>i386</var>/Packages
+     # cat &gt; dists/<var>unstable</var>/<var>main</var>/Release &lt;&lt; EOF
+     Archive: <var>unstable</var>
+     Version: <var>3.0</var>
+     Component: <var>main</var>
+     Origin: <var>Local</var>
+     Label: <var>Local</var>
+     Architecture: <var>i386</var>
+     EOF
+     # echo &quot;deb file:<var>/usr/local</var> <var>unstable</var> <var>main</var>&quot; \
+        &gt;&gt; /etc/apt/sources.list
+</pre>
+
+<p>
+Alternatively, a quick-and-dirty local <samp>deb</samp> repository can be made:
+</p>
+
+<pre>
+     # aptitude install dpkg-dev
+     # mkdir <var>/usr/local/debian</var>
+     # mv <var>/some/where/package.deb</var> <var>/usr/local/debian</var>
+     # dpkg-scanpackages <var>/usr/local/debian</var> /dev/null | \
+       gzip - &gt; <var>/usr/local/debian</var>/Packages.gz
+     #  echo &quot;deb file:<var>/usr/local/debian</var> ./&quot; &gt;&gt; /etc/apt/sources.list
+</pre>
+
+<p>
+These archives can be remotely accessed by providing access to these
+directories through either HTTP or FTP methods and changing entries in
+<code>/etc/apt/sources.list</code> accordingly.
+</p>
+
+<hr>
+
+<h3><a name="s-alien"></a>6.4.12 Convert or install an alien binary package</h3>
+
+<p>
+<code>alien</code> enables the conversion of binary packages provided in Red
+Hat <samp>rpm</samp>, Stampede <samp>slp</samp>, Slackware <samp>tgz</samp>,
+and Solaris <samp>pkg</samp> file formats into a Debian <samp>deb</samp>
+package.  If you want to use a package from another Linux distribution than the
+one you have installed on your system, you can use <code>alien</code> to
+convert it to your preferred package format and install it.  <code>alien</code>
+also supports LSB packages.
+</p>
+
+<hr>
+
+<h3><a name="s-auto-apt"></a>6.4.13 Automatically install command</h3>
+
+<p>
+<code>auto-apt</code> is an on-demand package installation tool.
+</p>
+
+<pre>
+     $ sudo auto-apt update
+      ... update database
+     $ auto-apt -x -y run
+     Entering auto-apt mode: /bin/bash
+     Exit the command to leave auto-apt mode.
+     $ less /usr/share/doc/med-bio/copyright # access non-existing file
+      ...  Install the package which provide this file.
+      ... Also install dependencies
+</pre>
+
+<hr>
+
+<h3><a name="s-debsums"></a>6.4.14 Verify installed package files</h3>
+
+<p>
+<code>debsums</code> enables verification of installed package files against
+MD5 checksums.  Some packages do not have available MD5 checksums.  A possible
+temporary fix for sysadmins:
+</p>
+
+<pre>
+     # cat &gt;&gt;/etc/apt/apt.conf.d/90debsums
+     DPkg::Post-Install-Pkgs {&quot;xargs /usr/bin/debsums -sg&quot;;};
+     ^D
+</pre>
+
+<p>
+per Joerg Wendland <code><a
+href="mailto:joergland@debian.org">joergland@debian.org</a></code> (untested).
+</p>
+
+<hr>
+
+<h3><a name="s-spy"></a>6.4.15 Optimized <code>sources.list</code></h3>
+
+<p>
+In short, fancy efforts to create an optimized <code>sources.list</code> did
+not produce a significant improvement for me from a location in the USA.  I
+manually chose a nearby site using <code>apt-setup</code>.
+</p>
+
+<p>
+<code>apt-spy</code> creates <code>sources.list</code> automatically, based on
+latency and bandwidth.  <code>netselect-apt</code> creates a more complete
+<code>sources.list</code>, but uses an inferior method of choosing the best
+mirror (ping time comparison).
+</p>
+
+<pre>
+     # aptitude install apt-spy
+     # cd /etc/apt ; mv sources.list sources.list.org
+     # apt-spy -d testing -l sources.apt
+</pre>
+
+<hr>
+
+<h2><a name="s-pecuriarities"></a>6.5 Other Debian peculiarities</h2>
+
+<hr>
+
+<h3><a name="s-dpkg-divert"></a>6.5.1 The <code>dpkg-divert</code> command</h3>
+
+<p>
+File <strong>diversions</strong> are a way of forcing <code>dpkg</code> not to
+install a file into its default location, but to a <strong>diverted</strong>
+location.  Diversions can be used through the Debian package scripts to move a
+file away when it causes a conflict.  System administrators can also use a
+diversion to override a package's configuration file, or whenever some files
+(which aren't marked as conffiles) need to be preserved by <code>dpkg</code>,
+when installing a newer version of a package which contains those files (see <a
+href="ch-system.en.html#s-conffile">Preservation of local configuration,
+Section 2.2.4</a>).
+</p>
+
+<pre>
+     # dpkg-divert [--add]  <var>filename</var> # add &quot;diversion&quot;
+     # dpkg-divert --remove <var>filename</var> # remove &quot;diversion&quot;
+</pre>
+
+<p>
+It's usually a good idea not to use <code>dpkg-divert</code> unless it is
+absolutely necessary.
+</p>
+
+<hr>
+
+<h3><a name="s-equivs"></a>6.5.2 The <code>equivs</code> package</h3>
+
+<p>
+If you compile a program from source, it is best to make it into a real local
+debianized package (<samp>*.deb</samp>).  Use <samp>equivs</samp> as a last
+resort.
+</p>
+
+<pre>
+     Package: equivs
+     Priority: extra
+     Section: admin
+     Description: Circumventing Debian package dependencies
+      This is a dummy package which can be used to create Debian
+      packages, which only contain dependency information.
+</pre>
+
+<hr>
+
+<h3><a name="s-alternatives"></a>6.5.3 Alternative commands</h3>
+
+<p>
+To make the command <code>vi</code> run <code>vim</code>, use
+<code>update-alternatives</code>:
+</p>
+
+<pre>
+     # update-alternatives --display vi
+     ...
+     # update-alternatives --config vi
+       Selection    Command
+     -----------------------------------------------
+           1        /usr/bin/elvis-tiny
+           2        /usr/bin/vim
+     *+    3        /usr/bin/nvi
+     
+     Enter to keep the default[*], or type selection number: 2
+</pre>
+
+<p>
+Items in the Debian alternatives system are kept in
+<code>/etc/alternatives/</code> as symlinks.
+</p>
+
+<p>
+To set your favorite X Window environment, apply
+<code>update-alternatives</code> to <code>/usr/bin/x-session-manager</code> and
+<code>/usr/bin/x-window-manager</code>.  For details, see <a
+href="ch-tune.en.html#s-custom-x">Custom X sessions, Section 9.4.5.1</a>.
+</p>
+
+<p>
+<code>/bin/sh</code> is a direct symlink to <code>/bin/bash</code> or
+<code>/bin/dash</code>.  It's safer to use <code>/bin/bash</code> to be
+compatible with old Bashism-contaminated scripts but better discipline to use
+<code>/bin/dash</code> to enforce POSIX compliance.  Upgrading to a 2.4 Linux
+kernel tends to set this to <code>/bin/dash</code>.
+</p>
+
+<hr>
+
+<h3><a name="s-sys-v"></a>6.5.4 Runlevel usage</h3>
+
+<p>
+When installed, most Debian packages configure their services to run in
+runlevels 2 through 5.  Thus, there are no differences between runlevels 2, 3,
+4 and 5 on a Debian system that has not been customized; Debian leaves it up to
+the local administrator to customize runlevels as described in <a
+href="ch-system.en.html#s-custombootscripts">Customizing runlevels, Section
+2.4.3</a>.  This differs from the way runlevels are used by some other popular
+GNU/Linux distributions.  One change you may want to make is to disable
+<code>xdm</code> or <code>gdm</code> in runlevel 2 so that the X display
+manager is not started at the end of the boot sequence; you can then start it
+by switching to runlevel 3.
+</p>
+
+<p>
+For more information about runlevels see <a
+href="ch-system.en.html#s-runlevels">Runlevels, Section 2.4.2</a>.
+</p>
+
+<hr>
+
+<h3><a name="s-disables"></a>6.5.5 Disabled daemon services</h3>
+
+<p>
+Debian developers take system security seriously.  Many daemon services are
+installed with the fewest services and features enabled.
+</p>
+
+<p>
+Run <samp>ps aux</samp> or check the contents of <code>/etc/init.d/*</code> and
+<code>/etc/inetd.conf</code>, if you have any doubts (about Exim, DHCP, ...).
+Also check <code>/etc/hosts.deny</code> as in <a
+href="ch-tune.en.html#s-loginctrl">Restricting logins with PAM, Section
+9.2.1</a>.  The <code>pidof</code> command is also useful (see
+<code>pidof(8)</code>).
+</p>
+
+<p>
+X11 doesn't allow TCP/IP (remote) connections by default in recent versions of
+Debian.  See <a href="ch-tune.en.html#s-xtcp">Using X over TCP/IP, Section
+9.4.6</a>.  X forwarding in SSH is also disabled.  See <a
+href="ch-tune.en.html#s-xssh">Connecting to a remote X server &ndash;
+<code>ssh</code>, Section 9.4.8</a>.
+</p>
+
+<hr>
+
+<p>
+[ <a href="ch-woody.en.html">previous</a> ]
+[ <a href="index.en.html#contents">Contents</a> ]
+[ <a href="ch-preface.en.html">1</a> ]
+[ <a href="ch-system.en.html">2</a> ]
+[ <a href="ch-install.en.html">3</a> ]
+[ <a href="ch-tutorial.en.html">4</a> ]
+[ <a href="ch-woody.en.html">5</a> ]
+[ 6 ]
+[ <a href="ch-kernel.en.html">7</a> ]
+[ <a href="ch-tips.en.html">8</a> ]
+[ <a href="ch-tune.en.html">9</a> ]
+[ <a href="ch-gateway.en.html">10</a> ]
+[ <a href="ch-edit.en.html">11</a> ]
+[ <a href="ch-vcs.en.html">12</a> ]
+[ <a href="ch-program.en.html">13</a> ]
+[ <a href="ch-gnupg.en.html">14</a> ]
+[ <a href="ch-support.en.html">15</a> ]
+[ <a href="ap-appendix.en.html">A</a> ]
+[ <a href="ch-kernel.en.html">next</a> ]
+</p>
+
+<hr>
+
+<p>
+Debian Reference
+</p>
+
+<address>
+CVS, Mon Jun 16 21:20:26 UTC 2008<br>
+<br>
+Osamu Aoki <code><a href="mailto:osamu#at#debian.org">osamu#at#debian.org</a></code><br>
+<a href="ap-appendix.en.html#s-authors">Authors, Section A.1</a><br>
+<br>
+</address>
+<hr>
+
+</body>
+
+</html>
+

@@ -1,0 +1,2049 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>Chapter 25. Controls and Other Views</title>
+    <link rel="stylesheet" type="text/css" href="docbook-xsl-mymods.css" />
+    <meta name="generator" content="DocBook XSL Stylesheets V1.76.0" />
+    <link rel="home" href="index.html" />
+    <link rel="up" href="pt05.html" />
+    <link rel="prev" href="ch24.html" />
+    <link rel="next" href="ch26.html" />
+  </head>
+  <body>
+    <div class="mattnotice">
+      <p>As a courtesy, this is a <b>full free</b> rendering of my book, <i>Programming iOS 6</i>, by Matt Neuburg. Copyright 2013 Matt Neuburg. Please note that this book has now been completely superseded by two more recent books, <a href="http://shop.oreilly.com/product/0636920032465.do">iOS 7 Fundamentals</a> and <a href="http://shop.oreilly.com/product/0636920031017.do">Programming iOS 7</a>. If my work has been of help to you, please <b>consider purchasing</b> one or both of them. Thank you!
+	</p>
+    </div>
+    <div class="navfooter">
+      <table width="100%" summary="Navigation footer">
+        <tr>
+          <td width="40%" align="left"><a accesskey="p" href="ch24.html">Prev</a> </td>
+          <td width="20%" align="center">
+            <a accesskey="u" href="pt05.html">Up</a>
+          </td>
+          <td width="40%" align="right"> <a accesskey="n" href="ch26.html">Next</a></td>
+        </tr>
+        <tr>
+          <td width="40%" align="left" valign="top">Chapter 24. Web Views </td>
+          <td width="20%" align="center">
+            <a accesskey="h" href="index.html">Table of Contents</a>
+          </td>
+          <td width="40%" align="right" valign="top"> Chapter 26. Modal Dialogs</td>
+        </tr>
+      </table>
+    </div>
+    <div class="chapter">
+      <div class="titlepage">
+        <div>
+          <div>
+            <h2 class="title"><a id="chap_id25"></a>Chapter 25. Controls and Other Views</h2>
+          </div>
+        </div>
+      </div>
+      <p>This chapter discusses all UIView subclasses provided by UIKit that haven’t been discussed already (except for the two modal dialog classes, which are described in the next chapter). It’s remarkable how few of them there are; UIKit exhibits a noteworthy economy of means in this regard.</p>
+      <p>Additional UIView subclasses are provided by other frameworks. For example, the Map Kit framework provides the MKMapView (<a class="xref" href="ch34.html">Chapter 34</a>). Also, additional UIViewController subclasses are provided by other frameworks as a way of creating interface. For example, the MessageUI framework provides MFMailComposeViewController, which supplies a user interface for composing and sending a mail message (<a class="xref" href="ch33.html">Chapter 33</a>). There will be lots of examples in <a class="xref" href="pt06.html">Part VI. Some Frameworks</a>.</p>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_uiactivityindicatorview"></a>UIActivityIndicatorView</h2>
+            </div>
+          </div>
+        </div>
+        <p>An activity indicator (UIActivityIndicatorView) appears as the spokes of a small wheel.<a id="idm441643865648" class="indexterm"></a><a id="idm441643864752" class="indexterm"></a> You set the spokes spinning with <code class="literal">startAnimating</code>, giving the user a sense that some time-consuming process is taking place. You stop the spinning with <code class="literal">stopAnimating</code>. If the activity indicator’s <code class="literal">hidesWhenStopped</code> is YES (the default), it is visible only while spinning.</p>
+        <p>An activity indicator comes in a style, its <code class="literal">activityIndicatorViewStyle</code>; if it is created in code, you’ll set its style with <code class="literal">initWithActivityIndicatorStyle:</code>. Your choices are:</p>
+        <div class="itemizedlist">
+          <ul class="itemizedlist" type="disc">
+            <li class="listitem">
+<code class="literal">UIActivityIndicatorViewStyleWhiteLarge</code>
+</li>
+            <li class="listitem">
+<code class="literal">UIActivityIndicatorViewStyleWhite</code>
+</li>
+            <li class="listitem">
+<code class="literal">UIActivityIndicatorViewStyleGray</code>
+</li>
+          </ul>
+        </div>
+        <p>An activity indicator has a standard size, which depends on its style. Changing its size in code changes the size of the view, but not the size of the spokes. For bigger spokes, you can resort to a scale transform.</p>
+        <p>You can assign an activity indicator a <code class="literal">color</code>; this overrides the color assigned through the style. An activity indicator is a UIView, so you can set its <code class="literal">backgroundColor</code>; a nice effect is to give an activity indicator a contrasting background color and to round its corners by way of the view’s layer (<a class="xref" href="ch25.html#FIGactivity">Figure 25.1</a>):</p>
+        <pre class="screen">self.activity.color = [UIColor yellowColor];
+self.activity.backgroundColor = [UIColor colorWithWhite:0.2 alpha:0.4];
+self.activity.layer.cornerRadius = 10;
+CGRect f = self.activity.bounds;
+f.size.width += 10;
+f.size.height += 10;
+self.activity.bounds = f;</pre>
+        <div class="figure">
+          <a id="FIGactivity"></a>
+          <div class="figure-contents">
+            <div class="mediaobject">
+              <img src="figs/pios_2501.png" alt="figs/pios_2501.png" />
+            </div>
+          </div>
+          <p class="title">Figure 25.1. A large activity indicator</p>
+        </div>
+        <br class="figure-break" />
+        <p>Here’s some code from a UITableViewCell subclass in one of my apps. In this app, it takes some time, after the user taps a cell to select it, for me to construct the next view and navigate to it; to cover the delay, I show a spinning activity indicator in the center of the cell while it’s selected:</p>
+        <pre class="screen">- (void)setSelected:(BOOL)selected animated:(BOOL)animated {
+    if (selected) {
+        UIActivityIndicatorView* v =
+            [[UIActivityIndicatorView alloc] initWithActivityIndicatorStyle:
+                UIActivityIndicatorViewStyleWhiteLarge];
+        v.center =
+            CGPointMake(self.bounds.size.width/2.0,
+                        self.bounds.size.height/2.0);
+        v.frame = CGRectIntegral(v.frame);
+        v.color = [UIColor yellowColor];
+        v.tag = 1001;
+        [self.contentView addSubview:v];
+        [v startAnimating];
+    } else {
+        [[self.contentView viewWithTag:1001] removeFromSuperview];
+        // no harm if non-existent
+    }
+    [super setSelected:selected animated:animated];
+}</pre>
+        <p>If activity involves the network, you might want to set UIApplication’s <code class="literal">networkActivityIndicatorVisible</code> to YES.<a id="idm441643843344" class="indexterm"></a>
+<a id="idm441643842016" class="indexterm"></a> This displays a small spinning activity indicator in the status bar. The indicator is not reflecting actual network activity; if it’s visible, it’s spinning. Be sure to set it back to NO when the activity is over.</p>
+        <p>An activity indicator is simple and standard, but you can’t change the way it’s drawn. One obvious alternative would be a UIImageView with an animated image, as described in <a class="xref" href="ch17.html">Chapter 17</a>.</p>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_uiprogressview"></a>UIProgressView</h2>
+            </div>
+          </div>
+        </div>
+        <p>A progress view (UIProgressView, <a class="xref" href="ch25.html#FIGprogress">Figure 25.2</a>) is a “thermometer,” graphically displaying a percentage.<a id="idm441643836944" class="indexterm"></a><a id="idm441643836064" class="indexterm"></a> It is often used to represent a time-consuming process whose percentage of completion is known (if the percentage of completion is unknown, you’re more likely to use an activity indicator). But it’s good for static percentages too. In one of my apps, I use a progress view to show the current position within the song being played by the built-in music player; in another app, which is a card game, I use a progress view to show how many cards are left in the deck.</p>
+        <div class="figure">
+          <a id="FIGprogress"></a>
+          <div class="figure-contents">
+            <div class="mediaobject">
+              <img src="figs/pios_2502.png" alt="figs/pios_2502.png" />
+            </div>
+          </div>
+          <p class="title">Figure 25.2. A progress view</p>
+        </div>
+        <br class="figure-break" />
+        <p>A progress view comes in a style, its <code class="literal">progressViewStyle</code>; if the progress view is created in code, you’ll set its style with <code class="literal">initWithProgressViewStyle:</code>. Your choices are:</p>
+        <div class="itemizedlist">
+          <ul class="itemizedlist" type="disc">
+            <li class="listitem">
+<code class="literal">UIProgressViewStyleDefault</code>
+</li>
+            <li class="listitem">
+<code class="literal">UIProgressViewStyleBar</code>
+</li>
+          </ul>
+        </div>
+        <p>The latter is intended for use in a UIBarButtonItem, as the title view of a navigation item, and so on.</p>
+        <p>The height (the narrow dimension) of a progress view is generally not up to you; it’s determined by the progress view’s style. Changing a progress view’s height has no visible effect on how the thermometer is drawn.</p>
+        <p>The fullness of the thermometer is the progress view’s <code class="literal">progress</code> property. This is a value between 0 and 1, inclusive; obviously, you’ll need to do some elementary arithmetic in order to convert from the actual value you’re reflecting to a value within that range. For example, to reflect the number of cards remaining in a deck of 52 cards:</p>
+        <pre class="screen">prog.progress = [[deck cards] count] / 52.0;</pre>
+        <p>You can animate the change from one <code class="literal">progress</code> value to another by calling <code class="literal">setProgress:animated:</code>.</p>
+        <p>You can customize the colors or images of the parts of the progress view. To customize the colors, set the progress view’s <code class="literal">progressTintColor</code> and <code class="literal">trackTintColor</code> (the track is the unfilled part of the progress view); this can also be done in the nib. To customize the images, set the progress view’s <code class="literal">progressImage</code> and <code class="literal">trackImage</code>; these, if set, override the tint colors. The images will be squashed and stretched to fill the appropriate bounds, so a good choice is a resizable image whose height is the progress view’s standard height (9 points). In this simple example, the track image and progress image are squares rotated 45 degrees:</p>
+        <pre class="screen">UIGraphicsBeginImageContextWithOptions(CGSizeMake(9,9), NO, 0);
+CGContextRef con = UIGraphicsGetCurrentContext();
+CGContextSetFillColorWithColor(con, [UIColor blackColor].CGColor);
+CGContextMoveToPoint(con, 0, 4.5);
+CGContextAddLineToPoint(con, 4.5, 9);
+CGContextAddLineToPoint(con, 9, 4.5);
+CGContextAddLineToPoint(con, 4.5, 0);
+CGContextClosePath(con);
+CGPathRef p = CGContextCopyPath(con);
+CGContextFillPath(con);
+UIImage* im = UIGraphicsGetImageFromCurrentImageContext();
+CGContextSetFillColorWithColor(con, [UIColor whiteColor].CGColor);
+CGContextAddPath(con, p);
+CGContextFillPath(con);
+UIImage* im2 = UIGraphicsGetImageFromCurrentImageContext();
+CGPathRelease(p);
+UIGraphicsEndImageContext();
+im = [im resizableImageWithCapInsets:UIEdgeInsetsMake(4, 4, 4, 4)
+                        resizingMode:UIImageResizingModeStretch];
+im2 = [im2 resizableImageWithCapInsets:UIEdgeInsetsMake(4, 4, 4, 4)
+                          resizingMode:UIImageResizingModeStretch];
+prog.trackImage = im;
+prog.progressImage = im2;</pre>
+        <p>For additional customization — for example, to make a taller progress view — you can design your own UIView subclass that draws something similar to a thermometer. <a class="xref" href="ch25.html#FIGmytherm">Figure 25.3</a> shows a simple custom thermometer view; it has a <code class="literal">value</code> property, and you set this to something between 0 and 1 and call <code class="literal">setNeedsDisplay</code> to make the view redraw itself. Here’s its <code class="literal">drawRect:</code> code:</p>
+        <pre class="screen">- (void)drawRect:(CGRect)rect {
+    CGContextRef c = UIGraphicsGetCurrentContext();
+    [[UIColor whiteColor] set];
+    CGFloat ins = 2.0;
+    CGRect r = CGRectInset(self.bounds, ins, ins);
+    CGFloat radius = r.size.height / 2.0;
+    CGMutablePathRef path = CGPathCreateMutable();
+    CGPathMoveToPoint(path, nil, CGRectGetMaxX(r)-radius, ins);
+    CGPathAddArc(path, nil,
+        radius+ins, radius+ins, radius, -M_PI/2.0, M_PI/2.0, true);
+    CGPathAddArc(path, nil,
+        CGRectGetMaxX(r)-radius, radius+ins, radius,
+        M_PI/2.0, -M_PI/2.0, true);
+    CGPathCloseSubpath(path);
+    CGContextAddPath(c, path);
+    CGContextSetLineWidth(c, 2);
+    CGContextStrokePath(c);
+    CGContextAddPath(c, path);
+    CGContextClip(c);
+    CGContextFillRect(c, CGRectMake(
+        r.origin.x, r.origin.y, r.size.width * self.value, r.size.height));
+}</pre>
+        <div class="figure">
+          <a id="FIGmytherm"></a>
+          <div class="figure-contents">
+            <div class="mediaobject">
+              <img src="figs/pios_2503.png" alt="figs/pios_2503.png" />
+            </div>
+          </div>
+          <p class="title">Figure 25.3. A custom progress view</p>
+        </div>
+        <br class="figure-break" />
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_uipickerview"></a>UIPickerView</h2>
+            </div>
+          </div>
+        </div>
+        <p>A UIPickerView displays selectable choices using a rotating drum metaphor.<a id="idm441643808048" class="indexterm"></a><a id="idm441643807168" class="indexterm"></a> It has a standard legal range of possible heights, which is undocumented and must be discovered by trial and error (attempting to set the height outside this range will fail with a warning in the console); its width is largely up to you. Each drum, or column, is called a <span class="emphasis"><em>component</em></span>.<a id="idm441643805456" class="indexterm"></a><a id="idm441643788240" class="indexterm"></a>
+<a id="idm441643786672" class="indexterm"></a>
+<a id="idm441643785344" class="indexterm"></a></p>
+        <p>Your code configures the UIPickerView’s content through its data source (UIPickerViewDataSource) and delegate (UIPickerViewDelegate), which are usually the same object (see also <a class="xref" href="ch11.html">Chapter 11</a>). Your data source and delegate must answer questions similar to those posed by a UITableView (<a class="xref" href="ch21.html">Chapter 21</a>):</p>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+<code class="literal">numberOfComponentsInPickerView:</code> (data source)
+</span>
+            </dt>
+            <dd>
+How many components (drums) does this picker view have?
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">pickerView:numberOfRowsInComponent:</code> (data source)
+</span>
+            </dt>
+            <dd>
+How many rows does this component have? The first component is numbered <code class="literal">0</code>.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">pickerView:titleForRow:forComponent:</code>
+<br /></span>
+              <span class="term">
+<code class="literal">pickerView:attributedTitleForRow:forComponent:</code> (new in iOS 6)
+<br /></span>
+              <span class="term">
+<code class="literal">pickerView:viewForRow:forComponent:reusingView:</code> (delegate)
+</span>
+            </dt>
+            <dd>
+What should this row of this component display? The first row is numbered <code class="literal">0</code>. You can supply a simple string, an attributed string (<a class="xref" href="ch23.html">Chapter 23</a>), or an entire view such as a UILabel; but you should supply every row of every component the same way. The <code class="literal">reusingView</code> parameter, if not nil, is a view that you supplied for a row now no longer visible, giving you a chance to reuse it, much as cells are reused in a table view.
+</dd>
+          </dl>
+        </div>
+        <p>Here’s the code for a UIPickerView (<a class="xref" href="ch25.html#FIGpicker">Figure 25.4</a>) that displays the names of the <span class="keep-together">50 U.S. states</span>, stored in an array. We implement <code class="literal">pickerView:viewForRow:forComponent:reusingView:</code> just because it’s the most interesting case; as our views, we supply UILabel instances. The state names appear centered because the labels are centered within the picker view:</p>
+        <pre class="screen">- (NSInteger)numberOfComponentsInPickerView:(UIPickerView *)pickerView {
+    return 1;
+}
+
+- (NSInteger)pickerView:(UIPickerView *)pickerView
+        numberOfRowsInComponent:(NSInteger)component {
+    return 50;
+}
+
+- (UIView *)pickerView:(UIPickerView *)pickerView viewForRow:(NSInteger)row
+          forComponent:(NSInteger)component reusingView:(UIView *)view {
+    UILabel* lab;
+    if (view)
+        lab = (UILabel*)view; // reuse it
+    else
+        lab = [UILabel new];
+    lab.text = self.states[row];
+    lab.backgroundColor = [UIColor clearColor];
+    [lab sizeToFit];
+    return lab;
+}</pre>
+        <div class="figure">
+          <a id="FIGpicker"></a>
+          <div class="figure-contents">
+            <div class="mediaobject">
+              <img src="figs/pios_2504.png" alt="figs/pios_2504.png" />
+            </div>
+          </div>
+          <p class="title">Figure 25.4. A picker view</p>
+        </div>
+        <br class="figure-break" />
+        <p>The delegate may further configure the UIPickerView’s physical appearance by means of these methods:</p>
+        <div class="itemizedlist">
+          <ul class="itemizedlist" type="disc">
+            <li class="listitem">
+<code class="literal">pickerView:rowHeightForComponent:</code>
+</li>
+            <li class="listitem">
+<code class="literal">pickerView:widthForComponent:</code>
+</li>
+          </ul>
+        </div>
+        <p>The delegate may implement <code class="literal">pickerView:didSelectRow:inComponent:</code> to be notified each time the user spins a drum to a new position. You can also query the picker view directly by sending it <code class="literal">selectedRowInComponent:</code>.</p>
+        <p>You can set the value to which any drum is turned using <code class="literal">selectRow:inComponent:animated:</code>. Other handy picker view methods allow you to request that the data be reloaded, and there are properties and methods to query the picker view’s contents (though of course they do not relieve you of responsibility for knowing the data model from which the picker view’s contents are supplied):</p>
+        <div class="itemizedlist">
+          <ul class="itemizedlist" type="disc">
+            <li class="listitem">
+<code class="literal">reloadComponent:</code>
+</li>
+            <li class="listitem">
+<code class="literal">reloadAllComponents</code>
+</li>
+            <li class="listitem">
+<code class="literal">numberOfComponents</code>
+</li>
+            <li class="listitem">
+<code class="literal">numberOfRowsInComponent:</code>
+</li>
+            <li class="listitem">
+<code class="literal">viewForRow:forComponent:</code>
+</li>
+          </ul>
+        </div>
+        <p>By implementing <code class="literal">pickerView:didSelectRow:inComponent:</code> and using <code class="literal">reloadComponent:</code> you can make a picker view where the values displayed by one drum depend dynamically on what is selected in another. For example, one can imagine expanding our U.S. states example to include a second drum listing major cities in each state; when the user switches to a different state in the first drum, a different set of major cities appears in the second drum.</p>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_uisearchbar"></a>UISearchBar</h2>
+            </div>
+          </div>
+        </div>
+        <p>A search bar (UISearchBar) is essentially a wrapper for a text field; it has a text field as one of its subviews, though there is no official access to it.<a id="idm441643742976" class="indexterm"></a><a id="idm441643742096" class="indexterm"></a> It is displayed by default as a rounded rectangle containing a magnifying glass icon, where the user can enter text (<a class="xref" href="ch25.html#FIGsearchbar">Figure 25.5</a>). It does not, of itself, do any searching or display the results of a search; a common interface involves displaying the results of a search as a table, and the UISearchDisplayController class makes this easy to do (see <a class="xref" href="ch21.html">Chapter 21</a>).</p>
+        <div class="figure">
+          <a id="FIGsearchbar"></a>
+          <div class="figure-contents">
+            <div class="mediaobject">
+              <img src="figs/pios_2505.png" alt="figs/pios_2505.png" />
+            </div>
+          </div>
+          <p class="title">Figure 25.5. A search bar with a search results button</p>
+        </div>
+        <br class="figure-break" />
+        <p>A search bar’s current text is its <code class="literal">text</code> property. It can have a <code class="literal">placeholder</code>, which appears when there is no text. A <code class="literal">prompt</code> can be displayed above the search bar to explain its purpose. Delegate methods (UISearchBarDelegate) notify you of editing events; for their use, compare the text field and text view delegate methods discussed in <a class="xref" href="ch23.html">Chapter 23</a>:</p>
+        <div class="itemizedlist">
+          <ul class="itemizedlist" type="disc">
+            <li class="listitem">
+<code class="literal">searchBarShouldBeginEditing:</code>
+</li>
+            <li class="listitem">
+<code class="literal">searchBarTextDidBeginEditing:</code>
+</li>
+            <li class="listitem">
+<code class="literal">searchBar:textDidChange:</code>
+</li>
+            <li class="listitem">
+<code class="literal">searchBar:shouldChangeTextInRange:replacementText:</code>
+</li>
+            <li class="listitem">
+<code class="literal">searchBarShouldEndEditing:</code>
+</li>
+            <li class="listitem">
+<code class="literal">searchBarTextDidEndEditing:</code>
+</li>
+          </ul>
+        </div>
+        <p>A search bar has a <code class="literal">barStyle</code>, for which your choices are <code class="literal">UIBarStyleDefault</code> or <code class="literal">UIBarStyleBlack</code>, and either <code class="literal">translucent</code> or not. Alternatively, the search bar may have a <code class="literal">tintColor</code>. The bar style and tint color are the same as for a navigation bar or toolbar (see later in this chapter), and are drawn as a navigation bar or toolbar would draw them; thus, a search bar looks good where a navigation bar or toolbar might go.</p>
+        <p>A search bar can have a custom <code class="literal">backgroundImage</code>; this will be treated as a resizable image (that is, it will be either stretched or tiled; see <a class="xref" href="ch15.html">Chapter 15</a>), and overrides the bar style or tint color.</p>
+        <p>The search field area where the user enters text can be offset with respect to its background with the <code class="literal">searchFieldBackgroundPositionAdjustment</code> property; you might use this, for example, if you had enlarged the search bar’s height and wanted to position the field area within that height. The text can be offset within the field area with the <code class="literal">searchTextPositionAdjustment</code> property.</p>
+        <p>You can also replace the image of the search field itself; this is the image that is normally a rounded rectangle. To do so, call <code class="literal">setSearchFieldBackgroundImage:forState:</code>. According to the documentation, the possible <code class="literal">state:</code> values are <code class="literal">UIControlStateNormal</code> and <code class="literal">UIControlStateDisabled</code>; but the API provides no way in which a search field can be disabled, so what does Apple have in mind here? The only way I’ve found is to cycle through the search bar’s subviews, find the search field, and disable it:</p>
+        <pre class="screen">for (UIView* v in self.sb.subviews) {
+    if ([v isKindOfClass: [UITextField class]]) {
+        UITextField* tf = (UITextField*)v;
+        tf.enabled = NO;
+        break;
+    }
+}</pre>
+        <p>The search field image will be drawn in front of the background and behind the contents of the search field (such as the text); its width will be adjusted for you, but its height will not be — instead, the image is placed vertically centered where the search field needs to go, and choosing an appropriate height, and ensuring a light-colored area in the middle so the user can read the text, is up to you.</p>
+        <p>A search bar displays an internal cancel button automatically (normally an X in a circle) if there is text in the search field. Internally, at its right end, a search bar may display a search results button (<code class="literal">showsSearchResultsButton</code>), which may be selected or not (<code class="literal">searchResultsButtonSelected</code>), or a bookmark button (<code class="literal">showsBookmarkButton</code>); if you ask to display both, you’ll get the search results button. These buttons vanish if text is entered in the search bar so that the cancel button can be displayed. There is also an option to display a Cancel button externally (<code class="literal">showsCancelButton</code>, or call <code class="literal">setShowsCancelButton:animated:</code>). The internal cancel button works automatically to remove whatever text is in the field; the other buttons do nothing, but delegate methods notify you when they are tapped:</p>
+        <div class="itemizedlist">
+          <ul class="itemizedlist" type="disc">
+            <li class="listitem">
+<code class="literal">searchBarResultsListButtonClicked:</code>
+</li>
+            <li class="listitem">
+<code class="literal">searchBarBookmarkButtonClicked:</code>
+</li>
+            <li class="listitem">
+<code class="literal">searchBarCancelButtonClicked:</code>
+</li>
+          </ul>
+        </div>
+        <p>You can customize the images used for the internal left icon (the magnifying glass, by default) and any of the internal right icons (the cancel button, the search results button, and the bookmark button) with <code class="literal">setImage:forSearchBarIcon:state:</code>. About 20×20 seems to be a good size for the image. The icons are specified with constants:</p>
+        <div class="itemizedlist">
+          <ul class="itemizedlist" type="disc">
+            <li class="listitem">
+<code class="literal">UISearchBarIconSearch</code>
+</li>
+            <li class="listitem">
+<code class="literal">UISearchBarIconClear</code>
+</li>
+            <li class="listitem">
+<code class="literal">UISearchBarIconBookmark</code>
+</li>
+            <li class="listitem">
+<code class="literal">UISearchBarIconResultsList</code>
+</li>
+          </ul>
+        </div>
+        <p>The documentation says that the possible <code class="literal">state:</code> values are <code class="literal">UIControlStateNormal</code> and <code class="literal">UIControlStateDisabled</code>, but this is wrong; the choices are <code class="literal">UIControlStateNormal</code> and <code class="literal">UIControlStateHighlighted</code>. The highlighted image appears while the user taps on the icon (except for the left icon, which isn’t a button). If you don’t supply a normal image, the default image is used; if you supply a normal image but no highlighted image, the normal image is used for both. Setting <code class="literal">searchResultsButtonSelected</code> to YES reverses this button’s behavior: it displays the highlighted image, but when the user taps it, it displays the normal image.</p>
+        <p>The position of an icon can be adjusted with <code class="literal">setPositionAdjustment:forSearchBarIcon:</code>.</p>
+        <p>A search bar may also display scope buttons (see the example in <a class="xref" href="ch21.html">Chapter 21</a>). These are intended to let the user alter the meaning of the search; precisely how you use them is up to you. To make the scope buttons appear, use the <code class="literal">showsScopeBar</code> property; the button titles are the <code class="literal">scopeButtonTitles</code> property, and the currently selected scope button is the <code class="literal">selectedScopeButtonIndex</code> property. The delegate is notified when the user taps a different scope button:</p>
+        <div class="itemizedlist">
+          <ul class="itemizedlist" type="disc">
+            <li class="listitem">
+<code class="literal">searchBar:selectedScopeButtonIndexDidChange:</code>
+</li>
+          </ul>
+        </div>
+        <p>The overall look of the scope bar can be heavily customized. Its background is the <code class="literal">scopeBarBackgroundImage</code>, which will be stretched or tiled as needed. To set the background of the smaller area constituting the actual buttons, call <code class="literal">setScopeBarButtonBackgroundImage:forState:</code>; the states are <code class="literal">UIControlStateNormal</code> and <code class="literal">UIControlStateSelected</code>. If you don’t supply a separate selected image, a darkened version of the normal image is used. If you don’t supply a resizable image, the image will be made resizable for you; the runtime decides what region of the image will be stretched behind each button.</p>
+        <p>The dividers between the buttons are normally vertical lines, but you can customize them as well: call <code class="literal">setScopeBarButtonDividerImage:forLeftSegmentState:rightSegmentState:</code>. A full complement of dividers consists of three images, one when the buttons on both sides of the divider are normal (unselected) and one each when a button on one side or the other is selected; if you supply an image for just one state combination, it is used for the other two state combinations. The height of the divider image is adjusted for you, but the width is not; you’ll normally use an image just a few pixels wide.</p>
+        <p>The font attributes of the titles of the scope buttons can customized with respect to their font, color, shadow color, and shadow offset; this is done by calling <code class="literal">setScopeBarButtonTitleTextAttributes:forState:</code>. The <code class="literal">attributes:</code> argument is a dictionary whose possible keys will be used for several interface objects in this chapter, so I’ll call it a <span class="emphasis"><em>text attributes dictionary</em></span>. Don’t confuse a text attributes dictionary and its keys with an attributed string attributes dictionary and <span class="emphasis"><em>its</em></span> keys:</p>
+        <div class="itemizedlist">
+          <ul class="itemizedlist" type="disc">
+            <li class="listitem">
+<code class="literal">UITextAttributeFont</code>, a UIFont; a zero size means “the default size”
+</li>
+            <li class="listitem">
+<code class="literal">UITextAttributeTextColor</code>, a UIColor
+</li>
+            <li class="listitem">
+<code class="literal">UITextAttributeTextShadowColor</code>, a UIColor
+</li>
+            <li class="listitem">
+<code class="literal">UITextAttributeTextShadowOffset</code>, a UIOffset wrapped up as an NSValue
+</li>
+          </ul>
+        </div>
+        <p>(All the customizing <code class="literal">set...</code> methods I’ve mentioned have a corresponding getter, whose name is the same without the “set” prefix.)</p>
+        <p>It may appear that there is no way to customize the external Cancel button, but in fact, although you’ve no official direct access to it through the search bar, the Cancel button is a UIBarButtonItem and you can customize it using the UIBarButtonItem appearance proxy, discussed later in this chapter.</p>
+        <p>By combining the various customization possibilities, a completely unrecognizable search bar of inconceivable ugliness can easily be achieved (<a class="xref" href="ch25.html#FIGhorror">Figure 25.6</a>). Let’s be careful out there.</p>
+        <div class="figure">
+          <a id="FIGhorror"></a>
+          <div class="figure-contents">
+            <div class="mediaobject">
+              <img src="figs/pios_2506.png" alt="figs/pios_2506.png" />
+            </div>
+          </div>
+          <p class="title">Figure 25.6. A horrible search bar</p>
+        </div>
+        <br class="figure-break" />
+        <p>The problem of allowing the keyboard to appear without hiding the search bar is exactly as for a text field (<a class="xref" href="ch23.html">Chapter 23</a>). Text input properties of the search bar configure its keyboard and typing behavior like a text field as well: <code class="literal">keyboardType</code>, <code class="literal">autocapitalizationType</code>, <code class="literal">autocorrectionType</code>, and <code class="literal">spellCheckingType</code> (and, new in iOS 6, <code class="literal">inputAccessoryView</code>). When the user taps the Search key in the keyboard, the delegate is notified, and it is then up to you to dismiss the keyboard (<code class="literal">resignFirstResponder</code>) and perform the search:</p>
+        <div class="itemizedlist">
+          <ul class="itemizedlist" type="disc">
+            <li class="listitem">
+<code class="literal">searchBarSearchButtonClicked:</code>
+</li>
+          </ul>
+        </div>
+        <p>A common interface on the iPad is to embed a search bar as a bar button item’s view in a toolbar at the top of the screen. This approach has its pitfalls; for example, there is no room for a prompt, and scope buttons or an external Cancel button may not appear either. One rather slimy workaround is to layer the search bar over the toolbar rather than having it genuinely live in the toolbar. Another is to have the search bar itself occupy the position of the toolbar at the top of the screen. On the other hand, a search bar in a toolbar that is managed by a UISearchDisplayController will automatically display search results in a popover, which can be a considerable savings of time and effort (though the popover controller is unfortunately out of your hands); see <a class="xref" href="ch22.html">Chapter 22</a> for an example.<a id="idm441643650608" class="indexterm"></a>
+<a id="idm441643649312" class="indexterm"></a></p>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_uicontrol"></a>UIControl</h2>
+            </div>
+          </div>
+        </div>
+        <p>UIControl is a subclass of UIView whose chief purpose is to be the superclass of several further built-in classes and to endow them with common behavior. These are classes representing views with which the user can interact (controls).
+<a id="idm441643646128" class="indexterm"></a><a id="idxcontrols" class="indexterm"></a></p>
+        <p>The most important thing that controls have in common is that they automatically track and analyze touch events (<a class="xref" href="ch18.html">Chapter 18</a>) and report them to your code as significant control events by way of action messages. Each control implements some subset of the possible control events. The full set of control events is listed under UIControlEvents in the Constants section of the UIControl class documentation:</p>
+        <div class="itemizedlist">
+          <ul class="itemizedlist" type="disc">
+            <li class="listitem">
+<code class="literal">UIControlEventTouchDown</code>
+</li>
+            <li class="listitem">
+<code class="literal">UIControlEventTouchDownRepeat</code>
+</li>
+            <li class="listitem">
+<code class="literal">UIControlEventTouchDragInside</code>
+</li>
+            <li class="listitem">
+<code class="literal">UIControlEventTouchDragOutside</code>
+</li>
+            <li class="listitem">
+<code class="literal">UIControlEventTouchDragEnter</code>
+</li>
+            <li class="listitem">
+<code class="literal">UIControlEventTouchDragExit</code>
+</li>
+            <li class="listitem">
+<code class="literal">UIControlEventTouchUpInside</code>
+</li>
+            <li class="listitem">
+<code class="literal">UIControlEventTouchUpOutside</code>
+</li>
+            <li class="listitem">
+<code class="literal">UIControlEventTouchCancel</code>
+</li>
+            <li class="listitem">
+<code class="literal">UIControlEventValueChanged</code>
+</li>
+            <li class="listitem">
+<code class="literal">UIControlEventEditingDidBegin</code>
+</li>
+            <li class="listitem">
+<code class="literal">UIControlEventEditingChanged</code>
+</li>
+            <li class="listitem">
+<code class="literal">UIControlEventEditingDidEnd</code>
+</li>
+            <li class="listitem">
+<code class="literal">UIControlEventEditingDidEndOnExit</code>
+</li>
+            <li class="listitem">
+<code class="literal">UIControlEventAllTouchEvents</code>
+</li>
+            <li class="listitem">
+<code class="literal">UIControlEventAllEditingEvents</code>
+</li>
+            <li class="listitem">
+<code class="literal">UIControlEventAllEvents</code>
+</li>
+          </ul>
+        </div>
+        <p>The control events also have informal names that are visible in the Connections inspector when you’re editing a nib.<a id="idm441643617520" class="indexterm"></a> I’ll mostly use the informal names in the next couple of paragraphs.</p>
+        <p>Control events fall roughly into three groups: the user has touched the screen (Touch Down, Touch Drag Inside, Touch Up Inside, etc.), edited text (Editing Did Begin, Editing Changed, etc.), or changed the control’s value (Value Changed).</p>
+        <p>Apple’s documentation is rather coy about which controls normally emit actions for which control events, so here’s a list obtained through experimentation. Keep in mind that Apple’s silence on this matter may mean that the details are subject to change:<a id="idm441643615936" class="indexterm"></a></p>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+UIButton
+</span>
+            </dt>
+            <dd>
+All “Touch” events.
+</dd>
+            <dt>
+              <span class="term">
+UIDatePicker
+</span>
+            </dt>
+            <dd>
+Value Changed.
+</dd>
+            <dt>
+              <span class="term">
+UIPageControl
+</span>
+            </dt>
+            <dd>
+All “Touch” events, Value Changed.
+</dd>
+            <dt>
+              <span class="term">
+UIRefreshControl
+</span>
+            </dt>
+            <dd>
+Value Changed.
+</dd>
+            <dt>
+              <span class="term">
+UISegmentedControl
+</span>
+            </dt>
+            <dd>
+Value Changed.
+</dd>
+            <dt>
+              <span class="term">
+UISlider
+</span>
+            </dt>
+            <dd>
+All “Touch” events, Value Changed.
+</dd>
+            <dt>
+              <span class="term">
+UISwitch
+</span>
+            </dt>
+            <dd>
+All “Touch” events, Value Changed.
+</dd>
+            <dt>
+              <span class="term">
+UIStepper
+</span>
+            </dt>
+            <dd>
+All “Touch” events, Value Changed.
+</dd>
+            <dt>
+              <span class="term">
+UITextField
+</span>
+            </dt>
+            <dd>
+All “Touch” events except the “Up” events, and all “Editing” events (see <a class="xref" href="ch23.html">Chapter 23</a> for details).
+</dd>
+          </dl>
+        </div>
+        <div class="sidebar">
+          <div class="titlepage">
+            <div>
+              <div>
+                <p class="title">Touch Inside and Touch Outside</p>
+              </div>
+            </div>
+          </div>
+          <p>There is no explicit “Touch Down Inside” event, because <span class="emphasis"><em>any</em></span> sequence of “Touch” events begins with “Touch Down,” which <span class="emphasis"><em>must</em></span> be inside the control. (If it weren’t, this sequence of touches would not “belong” to the control, and there would be no control events at all.)</p>
+          <p>When the user taps within a control and starts dragging, the “Inside” events are triggered even after the drag moves outside the control’s bounds. But after a certain distance from the control is exceeded, an invisible boundary is crossed, Touch Drag Exit is triggered, and now “Outside” events are reported until the drag crosses back within the invisible boundary, at which point Touch Drag Enter is triggered and the “Inside” events are reported again. In the case of a UIButton, the crossing of this invisible boundary is exactly when the button automatically unhighlights (as the drag exits). Thus, to catch a legitimate button press, you probably want to consider only Touch Up Inside.</p>
+          <p>For other controls, there may be some slight complications. For example, a UISwitch will unhighlight when a drag reaches a certain distance from it, but the touch is still considered legitimate and can still change the UISwitch’s value; therefore, when the user’s finger leaves the screen, the UISwitch reports a Touch Up Inside event, even while reporting Touch Drag Outside events.</p>
+        </div>
+        <p>For each control event that you want to hear about automatically, you attach to the control one or more target–action pairs. You can do this in the nib (<a class="xref" href="ch07.html">Chapter 7</a>) or in code (<a class="xref" href="ch11.html">Chapter 11</a>).</p>
+        <p>For any given control, each control event and its target–action pairs form a dispatch table. The following methods permit you to manipulate and query the dispatch table:<a id="idm441643591392" class="indexterm"></a></p>
+        <div class="itemizedlist">
+          <ul class="itemizedlist" type="disc">
+            <li class="listitem">
+<code class="literal">addTarget:action:forControlEvents:</code>
+</li>
+            <li class="listitem">
+<code class="literal">removeTarget:action:forControlEvents:</code>
+</li>
+            <li class="listitem">
+<code class="literal">actionsForTarget:forControlEvent:</code>
+</li>
+            <li class="listitem">
+<code class="literal">allTargets</code>
+</li>
+            <li class="listitem">
+<code class="literal">allControlEvents</code> (a bitmask of control events to which a target–action pair is attached)
+</li>
+          </ul>
+        </div>
+        <p>An action selector may adopt any of three signatures, whose parameters are:<a id="idm441643582288" class="indexterm"></a></p>
+        <div class="itemizedlist">
+          <ul class="itemizedlist" type="disc">
+            <li class="listitem">
+The control and the UIEvent
+</li>
+            <li class="listitem">
+The control only
+</li>
+            <li class="listitem">
+No parameters
+</li>
+          </ul>
+        </div>
+        <p>The second signature is by far the most common. It’s unlikely that you’d want to dispense altogether with the parameter telling you which control sent the control event. On the other hand, it’s equally unlikely that you’d want to examine the original UIEvent that triggered this control event, since control events deliberately shield you from dealing with the nitty-gritty of touches — though you might have some reason to examine the UIEvent’s <code class="literal">timestamp</code>.</p>
+        <p>When a control event occurs, the control consults its dispatch table, finds all the target–action pairs associated with that control event, and reports the control event by sending each action message to the corresponding target.</p>
+        <div class="note" style="margin-left: 0; margin-right: 10%;">
+          <h3 class="title">Note</h3>
+          <p>The action messaging mechanism is actually more complex than I’ve just stated. The UIControl does not really send the action message directly; rather, it tells the shared application to send it. When a control wants to send an action message reporting a control event, it calls its own <code class="literal">sendAction:to:forEvent:</code> method.<a id="idm441643573760" class="indexterm"></a> This in turn calls the shared application instance’s <code class="literal">sendAction:to:from:forEvent:</code>, which actually sends the specified action message to the specified target. In theory, you could call or override either of these methods to customize this aspect of the message-sending architecture, but it is extremely unlikely that you would do so.</p>
+        </div>
+        <p>To make a control emit its action message to a particular control event right now, in code, call its <code class="literal">sendActionsForControlEvents:</code> method (which is never called automatically by the framework). For example, suppose you tell a UISwitch programmatically to change its setting from Off to On. This doesn’t cause the switch to report a control event, as it would if the user had slid the switch from off to on; if you wanted it to do so, you could use <code class="literal">sendActionsForControlEvents:</code>, like this:</p>
+        <pre class="screen">[switch setOn: YES animated: YES];
+[switch sendActionsForControlEvents:UIControlEventValueChanged];</pre>
+        <p>You might also use <code class="literal">sendActionsForControlEvents:</code> in a subclass to customize the circumstances under which a control reports control events.</p>
+        <p>A control has <code class="literal">enabled</code>, <code class="literal">selected</code>, and <code class="literal">highlighted</code> properties; any of these can be YES or NO independently of the others. These correspond to its <code class="literal">state</code>, which is reported as a bitmask of three possible values:<a id="idm441643564528" class="indexterm"></a><a id="idm441643563632" class="indexterm"></a></p>
+        <div class="itemizedlist">
+          <ul class="itemizedlist" type="disc">
+            <li class="listitem">
+<code class="literal">UIControlStateHighlighted</code>
+</li>
+            <li class="listitem">
+<code class="literal">UIControlStateDisabled</code>
+</li>
+            <li class="listitem">
+<code class="literal">UIControlStateSelected</code>
+</li>
+          </ul>
+        </div>
+        <p>A fourth state, <code class="literal">UIControlStateNormal</code>, corresponding to a zero <code class="literal">state</code> bitmask, means that <code class="literal">enabled</code>, <code class="literal">selected</code>, and <code class="literal">highlighted</code> are all NO.</p>
+        <p>A control that is not enabled does not respond to user interaction; whether the control also portrays itself differently, to cue the user to this fact, depends upon the control. For example, a disabled UISwitch is faded. But a rounded rect text field, unless you explicitly configure it to display a different background image when disabled (<a class="xref" href="ch23.html">Chapter 23</a>), gives the user no cue that it is disabled. The visual nature of control selection and highlighting, too, depends on the control. Neither highlighting nor selection make any difference to the appearance of a UISwitch, but a highlighted UIButton usually looks quite different from a nonhighlighted UIButton.</p>
+        <p>A control has <code class="literal">contentHorizontalAlignment</code> and <code class="literal">contentVerticalAlignment</code> properties. Again, these matter only if the control has content that can be aligned. You are most likely to use these properties in connection with a UIButton to position its title and internal image.</p>
+        <p>A text field (UITextField) is a control; see <a class="xref" href="ch23.html">Chapter 23</a>. A refresh control (UIRefreshControl) is a control; see <a class="xref" href="ch21.html">Chapter 21</a>. The remaining controls are covered here, and then I’ll give a simple example of writing your own custom control.</p>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_uiswitch"></a>UISwitch</h3>
+              </div>
+            </div>
+          </div>
+          <p>A UISwitch (<a class="xref" href="ch25.html#FIGswitch">Figure 25.7</a>) portrays a BOOL value: it looks like a sliding switch whose positions are labeled ON and OFF, and its <code class="literal">on</code> property is either YES or NO. The user can slide or tap to toggle the switch’s position. When the user changes the switch’s position, the switch reports a Value Changed control event. To change the <code class="literal">on</code> property’s value with accompanying animation, call <code class="literal">setOn:animated:</code>.<a id="idm441643543856" class="indexterm"></a><a id="idm441643542992" class="indexterm"></a></p>
+          <div class="figure">
+            <a id="FIGswitch"></a>
+            <div class="figure-contents">
+              <div class="mediaobject">
+                <img src="figs/pios_2507.png" alt="figs/pios_2507.png" />
+              </div>
+            </div>
+            <p class="title">Figure 25.7. A switch in iOS 5</p>
+          </div>
+          <br class="figure-break" />
+          <p>A switch has only one size (apparently 79×27); any attempt to set its size will be ignored. A switch is not as wide, or drawn the same way, as it was in system versions before iOS 5.</p>
+          <p>Starting in iOS 5 it became possible to set a switch’s <code class="literal">onTintColor</code>, and in iOS 6, after years of developer trickery and workarounds, Apple has at last relented and now permits you set a switch’s <code class="literal">tintColor</code> and <code class="literal">thumbTintColor</code> as well. The switch in <a class="xref" href="ch25.html#FIGswitch2">Figure 25.8</a> has a black <code class="literal">onTintColor</code> and an orange <code class="literal">thumbTintColor</code>; it also has a red <code class="literal">tintColor</code>, but you can’t see that because the switch is ON.<a id="idm441643532688" class="indexterm"></a>
+<a id="idm441643531376" class="indexterm"></a></p>
+          <div class="figure">
+            <a id="FIGswitch2"></a>
+            <div class="figure-contents">
+              <div class="mediaobject">
+                <img src="figs/pios_2508.png" alt="figs/pios_2508.png" />
+              </div>
+            </div>
+            <p class="title">Figure 25.8. A switch in iOS 6, with custom colors</p>
+          </div>
+          <br class="figure-break" />
+          <p>But wait, there’s more! iOS 6 also allows you set a switch’s <code class="literal">onImage</code> and <code class="literal">offImage</code>. This means that you can at last legally change the words shown inside the switch. Here’s how I drew the “YES” in <a class="xref" href="ch25.html#FIGswitch3">Figure 25.9</a>:</p>
+          <pre class="screen">UIGraphicsBeginImageContextWithOptions(CGSizeMake(79,27), NO, 0);
+[[UIColor blackColor] setFill];
+UIBezierPath* p = [UIBezierPath bezierPathWithRect:CGRectMake(0,0,79,27)];
+[p fill];
+NSMutableParagraphStyle* para = [NSMutableParagraphStyle new];
+para.alignment = NSTextAlignmentCenter;
+NSAttributedString* att =
+    [[NSAttributedString alloc] initWithString:@"YES" attributes:
+        @{
+            NSFontAttributeName:[UIFont fontWithName:@"GillSans-Bold" size:16],
+            NSForegroundColorAttributeName:[UIColor whiteColor],
+            NSParagraphStyleAttributeName:para
+        }];
+[att drawInRect:CGRectMake(0,5,79,22)];
+UIImage* im = UIGraphicsGetImageFromCurrentImageContext();
+UIGraphicsEndImageContext();
+self.sw2.onImage = im;</pre>
+          <div class="figure">
+            <a id="FIGswitch3"></a>
+            <div class="figure-contents">
+              <div class="mediaobject">
+                <img src="figs/pios_2509.png" alt="figs/pios_2509.png" />
+              </div>
+            </div>
+            <p class="title">Figure 25.9. A switch in iOS 6, with custom words</p>
+          </div>
+          <br class="figure-break" />
+          <div class="warning" style="margin-left: 0; margin-right: 10%;">
+            <h3 class="title">Warning</h3>
+            <p>Don’t name a UISwitch instance variable or property <code class="literal">switch</code>, as this is a reserved word in C.</p>
+          </div>
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_uistepper"></a>UIStepper</h3>
+              </div>
+            </div>
+          </div>
+          <p>A stepper (UIStepper, <a class="xref" href="ch25.html#FIGstepper">Figure 25.10</a>) lets the user increase or decrease a numeric value: it looks like two buttons side by side, one labeled (by default) with a minus sign, the other with a plus sign.<a id="idm441643517136" class="indexterm"></a><a id="idm441643516256" class="indexterm"></a> The user can slide a finger from one button to the other as part of the same interaction with the stepper. It has only one size (apparently 94×27). It maintains a numeric value, which is its <code class="literal">value</code>. Each time the user increments or decrements the value, it changes by the stepper’s <code class="literal">stepValue</code>. If the <code class="literal">minimumValue</code> or <code class="literal">maximumValue</code> is reached, the user can go no further in that direction, and to show this, the corresponding button is disabled — unless the stepper’s <code class="literal">wraps</code> property is YES, in which case the value goes beyond the maximum by starting again at the minimum, and <span class="emphasis"><em>vice versa</em></span>.</p>
+          <div class="figure">
+            <a id="FIGstepper"></a>
+            <div class="figure-contents">
+              <div class="mediaobject">
+                <img src="figs/pios_2510.png" alt="figs/pios_2510.png" />
+              </div>
+            </div>
+            <p class="title">Figure 25.10. A stepper</p>
+          </div>
+          <br class="figure-break" />
+          <p>As the user changes the stepper’s <code class="literal">value</code>, a Value Changed control event is reported. Portraying the numeric value itself is up to you; you might, for example, use a label or (as in this example) a progress view:</p>
+          <pre class="screen">- (IBAction)doStep:(UIStepper*)step {
+    self.prog.progress = step.value / (step.maximumValue - step.minimumValue);
+}</pre>
+          <p>If a stepper’s <code class="literal">continuous</code> is YES (the default), a long touch on one of the buttons will update the value repeatedly; the updates start slowly and get faster. If the stepper’s <code class="literal">autorepeat</code> is NO, the updated value is not reported as a Value Changed control event until the entire interaction with the stepper ends; the default is YES.</p>
+          <p>Starting in iOS 6, the appearance of a stepper can be customized.<a id="idm441643502768" class="indexterm"></a>
+<a id="idm441643501456" class="indexterm"></a> You can give it an overall <code class="literal">tintColor</code> instead of the default gray, and you can dictate the images that constitute its structure with these methods:</p>
+          <div class="itemizedlist">
+            <ul class="itemizedlist" type="disc">
+              <li class="listitem">
+<code class="literal">setDecrementImageForState:</code>
+</li>
+              <li class="listitem">
+<code class="literal">setIncrementImageForState:</code>
+</li>
+              <li class="listitem">
+<code class="literal">setDividerImage:forLeftSegmentState:rightSegmentState:</code>
+</li>
+              <li class="listitem">
+<code class="literal">setBackgroundImage:forState:</code>
+</li>
+            </ul>
+          </div>
+          <p>The images work similarly to a search bar and its scope bar (described earlier in this chapter). The background images should probably be resizable (see <a class="xref" href="ch15.html">Chapter 15</a>). They are stretched behind both buttons, half the image being seen as the background of each button. If the button is disabled (because we’ve reached the value’s limit in that direction), it displays the <code class="literal">UIControlStateDisabled</code> background image; otherwise, it displays the <code class="literal">UIControlStateNormal</code> background image, except that it displays the <code class="literal">UIControlStateHighlighted</code> background image while the user is tapping it. You’ll probably want to provide all three background images if you’re going to provide any; the default (or the tint) is used if a state’s background image is nil. You’ll probably want to provide three divider images as well, to cover the three combinations normal left and normal right, highlighted left and normal right, and normal left and highlighted right. The increment and decrement images are composited on top of the background image; at a minimum, you’ll provide a <code class="literal">UIControlStateNormal</code> image, which will be adjusted automatically for the other two states, though of course you can provide all three images for each button. <a class="xref" href="ch25.html#FIGstepper">Figure 25.10</a> shows a customized stepper.</p>
+          <div class="figure">
+            <a id="FIGstepper2"></a>
+            <div class="figure-contents">
+              <div class="mediaobject">
+                <img src="figs/pios_2511.png" alt="figs/pios_2511.png" />
+              </div>
+            </div>
+            <p class="title">Figure 25.11. A customized stepper</p>
+          </div>
+          <br class="figure-break" />
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_uipagecontrol"></a>UIPageControl</h3>
+              </div>
+            </div>
+          </div>
+          <p>A UIPageControl is a row of dots; each dot is called a <span class="emphasis"><em>page</em></span>, because it is intended to be used in conjunction with some other interface that portrays something analogous to pages, such as a UIScrollView with its <code class="literal">pagingEnabled</code> set to YES.<a id="idm441643482656" class="indexterm"></a><a id="idm441643481760" class="indexterm"></a> Coordinating the page control with this other interface is usually up to you; see <a class="xref" href="ch20.html">Chapter 20</a> for an example and <a class="xref" href="ch20.html#FIGpager">Figure 20.3</a> for an illustration. A UIPageViewController in scroll style can optionally display a page control that’s automatically coordinated with its content (<a class="xref" href="ch19.html">Chapter 19</a>).</p>
+          <p>The dot colors differentiate the current page, the page control’s <code class="literal">currentPage</code>, from the others; by default, the current page is portrayed as a solid dot, while the others are slightly transparent. Starting in iOS 6, you can customize a page control’s <code class="literal">pageIndicatorTintColor</code>, the color of the dots in general, and <code class="literal">currentPageIndicatorTintColor</code>, the color of the current dot.<a id="idm441643475520" class="indexterm"></a>
+<a id="idm441643474192" class="indexterm"></a></p>
+          <p>The number of dots is the page control’s <code class="literal">numberOfPages</code>; this should be small, as the dots need to fit within the page control’s bounds. The user can tap to one side or the other of the current page’s dot to increment or decrement the current page; the page control then reports a Value Changed control event. You can make the page control wider than the dots to increase the target region on which the user can tap. (You can make the page control taller as well, but only the horizontal component of a tap is taken into account, so this would probably be pointless as well as confusing to the user.) To learn the minimum size required for a given number of pages, call <code class="literal">sizeForNumberOfPages:</code>.</p>
+          <p>If a page control’s <code class="literal">hidesForSinglePage</code> is YES, the page control becomes invisible when its <code class="literal">numberOfPages</code> changes to 1.</p>
+          <p>If a page control’s <code class="literal">defersCurrentPageDisplay</code> is YES, then when the user taps to increment or decrement the page control’s value, the display of the current page is not changed. A Value Changed control event is reported, but it is up to your code to handle this action and call <code class="literal">updateCurrentPageDisplay</code>. A case in point might be if the user’s changing the current page starts an animation, but you don’t want the current page dot to change until the animation ends.</p>
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_uidatepicker"></a>UIDatePicker</h3>
+              </div>
+            </div>
+          </div>
+          <p>A date picker (UIDatePicker) looks like a UIPickerView (discussed earlier in this chapter), but it is not a UIPickerView subclass; it uses a UIPickerView to draw itself, but it provides no official access to that picker view.<a id="idm441643465440" class="indexterm"></a><a id="idm441643464544" class="indexterm"></a> Its purpose is to express the notion of a date and time, taking care of the calendrical and numerical complexities so that you don’t have to. When the user changes its setting, the date picker reports a Value Changed control event.</p>
+          <p>A UIDatePicker has one of four modes (<code class="literal">datePickerMode</code>), determining how it is drawn:</p>
+          <div class="variablelist">
+            <dl>
+              <dt>
+                <span class="term">
+<code class="literal">UIDatePickerModeTime</code>
+</span>
+              </dt>
+              <dd>
+The date picker displays a time; for example, it has an hour component and a minutes component.
+</dd>
+              <dt>
+                <span class="term">
+<code class="literal">UIDatePickerModeDate</code>
+</span>
+              </dt>
+              <dd>
+The date picker displays a date; for example, it has a month component, a day component, and a year component.
+</dd>
+              <dt>
+                <span class="term">
+<code class="literal">UIDatePickerModeDateAndTime</code>
+</span>
+              </dt>
+              <dd>
+The date picker displays a date and time; for example, it has a component showing day of the week, month, and day, plus an hour component and a minutes component.
+</dd>
+              <dt>
+                <span class="term">
+<code class="literal">UIDatePickerModeCountDownTimer</code>
+</span>
+              </dt>
+              <dd>
+The date picker displays a number of hours and minutes; for example, it has an hours component and a minutes component.
+</dd>
+            </dl>
+          </div>
+          <p>Exactly what components a date picker displays, and what values they contain, depends by default upon system settings. For example, a U.S. time displays an hour (numbered 1 through 12), minutes, and AM or PM, but a British time displays an hour (numbered 1 through 24) and minutes. If your app contains a date picker displaying a time, and the user changes the system region format on the device from United States to United Kingdom, the date picker’s display will change immediately, eliminating the AM/PM component and changing the hour numbers to run from 1 to 24.</p>
+          <p>A date picker has <code class="literal">calendar</code> and <code class="literal">timeZone</code> properties, respectively an NSCalendar and an NSTimeZone; these are nil by default, meaning that the date picker responds to the user’s system-level settings. You can also change these values manually; for example, if you live in California and you set a date picker’s <code class="literal">timeZone</code> to GMT, the displayed time is shifted forward by 8 hours, so that 11 AM is displayed as 7 PM (if it is winter).</p>
+          <div class="warning" style="margin-left: 0; margin-right: 10%;">
+            <h3 class="title">Warning</h3>
+            <p>Don’t change the <code class="literal">timeZone</code> of a <code class="literal">UIDatePickerModeCountDownTimer</code> date picker, or the displayed value will be shifted and you will confuse the heck out of yourself and your users.</p>
+          </div>
+          <p>The minutes component, if there is one, defaults to showing every minute, but you can change this with the <code class="literal">minuteInterval</code> property. The maximum value is 30, in which case the minutes component values are 0 and 30. An attempt to set a value that doesn’t divide evenly into 60 will be silently ignored.</p>
+          <p>The maximum and minimum values enabled in the date picker are determined by its <code class="literal">maximumDate</code> and <code class="literal">minimumDate</code> properties. Values outside this range may appear disabled. There isn’t really any practical limit on the range that a date picker can display, because the “drums” representing its components are not physical, and values are added dynamically as the user spins them. In this example, we set the initial minimum and maximum dates of a date picker (<code class="literal">dp</code>) to the beginning and end of 1954. We also set the actual <code class="literal">date</code>, because otherwise the date picker will appear initially set to now, which will be disabled because it isn’t within the minimum–maximum range:<a id="idm441643442480" class="indexterm"></a></p>
+          <pre class="screen">NSDateComponents* dc = [NSDateComponents new];
+[dc setYear:1954];
+[dc setMonth:1];
+[dc setDay:1];
+NSCalendar* c =
+    [[NSCalendar alloc] initWithCalendarIdentifier:NSGregorianCalendar];
+NSDate* d = [c dateFromComponents:dc];
+dp.minimumDate = d;
+dp.date = d;
+[dc setYear:1955];
+d = [c dateFromComponents:dc];
+dp.maximumDate = d;</pre>
+          <div class="warning" style="margin-left: 0; margin-right: 10%;">
+            <h3 class="title">Warning</h3>
+            <p>Don’t set the <code class="literal">maximumDate</code> and <code class="literal">minimumDate</code> properties values for a <code class="literal">UIDatePickerModeCountDownTimer</code> date picker, or you might cause a crash with an out-of-range exception.</p>
+          </div>
+          <p>The date represented by a date picker (unless its mode is <code class="literal">UIDatePickerModeCountDownTimer</code>) is its <code class="literal">date</code> property, an NSDate. The default date is now, at the time the date picker is instantiated. For a <code class="literal">UIDatePickerModeDate</code> date picker, the time by default is 12 AM (midnight), local time; for a <code class="literal">UIDatePickerModeTime</code> date picker, the date by default is today. The internal value is reckoned in the local time zone, so it may be different from the displayed value, if you have changed the date picker’s <code class="literal">timeZone</code>.</p>
+          <p>The value represented by a <code class="literal">UIDatePickerModeCountDownTimer</code> date picker is its <code class="literal">countDownDuration</code>. The minimum <code class="literal">countDownDuration</code> a countdown date picker will report is 1 minute. If the <code class="literal">minuteInterval</code> is more than 1, and if the date picker reports 1 minute, you should deduce that the user has set the timer to zero. (This is probably a bug; the user should not be able to set the timer to zero!)</p>
+          <p>The date picker does not actually do any counting down; you are expected to use some other interface to display the countdown. The Timer tab of Apple’s Clock app shows a typical interface; the user configures the date picker to set the <code class="literal">countDownDuration</code> initially, but once the counting starts, the date picker is hidden and a label displays the remaining time. The <code class="literal">countDownDuration</code> is an NSTimeInterval, which is a double representing a number of seconds; converting to hours and minutes is up to you. You could use the built-in calendrical classes:<a id="idm441643425952" class="indexterm"></a></p>
+          <pre class="screen">NSTimeInterval t = datePicker.countDownDuration;
+NSDate* d = [NSDate dateWithTimeIntervalSinceReferenceDate:t];
+NSCalendar* c =
+    [[NSCalendar alloc] initWithCalendarIdentifier:NSGregorianCalendar];
+[c setTimeZone: [NSTimeZone timeZoneForSecondsFromGMT:0]]; // normalize
+NSUInteger units = NSHourCalendarUnit | NSMinuteCalendarUnit;
+NSDateComponents* dc = [c components:units fromDate:d];
+NSLog(@"%i hr, %i min", [dc hour], [dc minute]);</pre>
+          <p>Similarly, to convert between an NSDate and a string, you’ll need an NSDateFormatter (see <a class="xref" href="ch10.html">Chapter 10</a>, and Apple’s <span class="emphasis"><em>Date and Time Programming Guide</em></span>):<a id="idm441643422416" class="indexterm"></a><a id="idm441643421536" class="indexterm"></a>
+<a id="idm441643420224" class="indexterm"></a></p>
+          <pre class="screen">NSDate* d = datePicker.date;
+NSDateFormatter* df = [NSDateFormatter new];
+[df setTimeStyle:kCFDateFormatterFullStyle];
+[df setDateStyle:kCFDateFormatterFullStyle];
+NSLog(@"%@", [df stringFromDate:d]);
+// "Tuesday, August 10, 1954, 3:16:25 AM GMT-07:00"</pre>
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_uislider"></a>UISlider</h3>
+              </div>
+            </div>
+          </div>
+          <p>A slider (UISlider) is an expression of a continuously settable value (its <code class="literal">value</code>) between some minimum and maximum (its <code class="literal">minimumValue</code> and <code class="literal">maximumValue</code>; they are 0 and 1 by default).<a id="idm441643414640" class="indexterm"></a><a id="idm441643413744" class="indexterm"></a> It is portrayed as an object, the <span class="emphasis"><em>thumb</em></span>, positioned along a <span class="emphasis"><em>track</em></span>.<a id="idm441643411840" class="indexterm"></a><a id="idm441643410928" class="indexterm"></a> As the user changes the thumb’s position, the slider reports a Value Changed control event; it may do this continuously as the user presses and drags the thumb (if the slider’s <code class="literal">continuous</code> is YES, the default) or only when the user releases the thumb (if its <code class="literal">continuous</code> is NO). While the user is pressing on the thumb, the slider is in the <code class="literal">highlighted</code> state. To change the slider’s value with animation, call <code class="literal">setValue:animated:</code>.</p>
+          <p>A commonly expressed desire is to modify a slider’s behavior so that if the user taps on its track, the slider moves to the spot where the user tapped. Unfortunately, a slider does not, of itself, respond to taps on its track; such a tap doesn’t even cause it to report a Touch Up Inside. However, with a gesture recognizer, most things are possible; here’s the action handler for a UITapGestureRecognizer attached to a UISlider:</p>
+          <pre class="screen">- (void) tapped: (UIGestureRecognizer*) g {
+    UISlider* s = (UISlider*)g.view;
+    if (s.highlighted)
+        return; // tap on thumb, let slider deal with it
+    CGPoint pt = [g locationInView: s];
+    CGRect track = [s trackRectForBounds:s.bounds];
+    if (!CGRectContainsPoint(CGRectInset(track, 0, -10), pt))
+        return; // not on track, forget it
+    CGFloat percentage = pt.x / s.bounds.size.width;
+    CGFloat delta = percentage * (s.maximumValue - s.minimumValue);
+    CGFloat value = s.minimumValue + delta;
+    [s setValue:value animated:YES];
+}</pre>
+          <p>To customize a slider’s appearance, you can change the color of the thumb and the track on either side of it (<code class="literal">thumbTintColor</code>, <code class="literal">minimumTrackTintColor</code>, and <code class="literal">maximumTintColor</code>), or you can go even further and provide your own thumb image and your own track image, along with images to appear at each end of the track, and you can override in a subclass the methods that position these.</p>
+          <p>The images at the ends of the track are the slider’s <code class="literal">minimumValueImage</code> and <code class="literal">maximumValueImage</code>, and they are nil by default. If you set them to actual images (which can also be done in the nib), the slider will attempt to position them within its own bounds, shrinking the drawing of the track to compensate. The slider does not clip its subviews by default, so the images can extend outside the slider’s bounds.</p>
+          <p>For example, suppose the slider’s dimensions are 250×23 (the standard height), and suppose the images are 30×30. Then the minimum image is drawn with its origin at <code class="literal">{0,-4}</code> — its left edge matches the slider’s left edge, and its top is raised so that the center of its height matches the center of the slider’s height — and the maximum image is drawn with its origin at <code class="literal">{220,-4}</code>. But the track is drawn with a width of only 164 pixels, instead of the normal 246; instead of being nearly the full width of the slider, the track is contracted to allow room for the images.</p>
+          <p>You can change these dimensions by overriding <code class="literal">minimumValueImageRectForBounds:</code>, <code class="literal">maximumValueImageRectForBounds:</code>, and <code class="literal">trackRectForBounds:</code> in a subclass. The bounds passed in are the slider’s bounds. In this example, we expand the track width to the full width of the slider, and draw the images outside the slider’s bounds (<a class="xref" href="ch25.html#FIGslider1">Figure 25.12</a>; I’ve given the slider a gray background color so you can see how the track and images are related to its bounds):</p>
+          <pre class="screen">- (CGRect)maximumValueImageRectForBounds:(CGRect)bounds {
+    CGRect result = [super maximumValueImageRectForBounds:bounds];
+    result = CGRectOffset(result, 31, 0);
+    return result;
+}
+
+- (CGRect)minimumValueImageRectForBounds:(CGRect)bounds {
+    CGRect result = [super minimumValueImageRectForBounds:bounds];
+    result = CGRectOffset(result, -31, 0);
+    return result;
+}
+
+- (CGRect)trackRectForBounds:(CGRect)bounds {
+    CGRect result = [super trackRectForBounds:bounds];
+    result.origin.x = 0;
+    result.size.width = bounds.size.width;
+    return result;
+}</pre>
+          <div class="figure">
+            <a id="FIGslider1"></a>
+            <div class="figure-contents">
+              <div class="mediaobject">
+                <img src="figs/pios_2512.png" alt="figs/pios_2512.png" />
+              </div>
+            </div>
+            <p class="title">Figure 25.12. Repositioning a slider’s images and track</p>
+          </div>
+          <br class="figure-break" />
+          <p>The thumb is also an image, and you set it with <code class="literal">setThumbImage:forState:</code>. There are two chiefly relevant states, <code class="literal">UIControlStateNormal</code> and <code class="literal">UIControlStateHighlighted</code>, so if you supply images for both, the thumb will change automatically while the user is dragging it. If you supply just an image for the normal state, the thumb image won’t change while the user is dragging it. By default, the image will be centered in the track at the point represented by the slider’s current value; you can shift this position by overriding <code class="literal">thumbRectForBounds:trackRect:value:</code> in a subclass. In this example, the image is repositioned upward slightly (<a class="xref" href="ch25.html#FIGslider2">Figure 25.13</a>):</p>
+          <pre class="screen">- (CGRect)thumbRectForBounds:(CGRect)bounds
+                   trackRect:(CGRect)rect value:(float)value {
+    CGRect result =
+        [super thumbRectForBounds:bounds trackRect:rect value:value];
+    result = CGRectOffset(result, 0, -7);
+    return result;
+}</pre>
+          <div class="figure">
+            <a id="FIGslider2"></a>
+            <div class="figure-contents">
+              <div class="mediaobject">
+                <img src="figs/pios_2513.png" alt="figs/pios_2513.png" />
+              </div>
+            </div>
+            <p class="title">Figure 25.13. Replacing a slider’s thumb</p>
+          </div>
+          <br class="figure-break" />
+          <p>Enlarging a slider’s thumb can mislead the user as to the area on which it can be tapped to drag it. The slider, not the thumb, is the touchable UIControl; only the part of the thumb that intersects the slider’s bounds will be draggable. The user may try to drag the part of the thumb that is drawn outside the slider’s bounds, and will fail (and be confused). A solution is to increase the slider’s height; you can’t do this in the nib editor, but you can do it in code.</p>
+          <p>The track is two images, one appearing to the left of the thumb, the other to its right. They are set with <code class="literal">setMinimumTrackImage:forState:</code> and <code class="literal">setMaximumTrackImage:forState:</code>. If you supply images both for normal state and for highlighted state, the images will change while the user is dragging the thumb.</p>
+          <p>The images should be resizable (<a class="xref" href="ch15.html">Chapter 15</a>), because that’s how the slider cleverly makes it look like the user is dragging the thumb along a single static track. In reality, there are two images; as the user drags the thumb, one image grows horizontally and the other shrinks horizontally. For the left track image, the right end cap inset will be partially or entirely hidden under the thumb; for the right track image, the left end cap inset will be partially or entirely hidden under the thumb. <a class="xref" href="ch25.html#FIGslider3">Figure 25.14</a> shows a track derived from a single 15×15 image of a circular object (a coin):</p>
+          <pre class="screen">UIImage* coin = [UIImage imageNamed: @"coin.png"];
+UIImage* coinEnd = [coin resizableImageWithCapInsets:UIEdgeInsetsMake(0,7,0,7)
+                                      resizingMode:UIImageResizingModeStretch];
+[slider setMinimumTrackImage:coinEnd forState:UIControlStateNormal];
+[slider setMaximumTrackImage:coinEnd forState:UIControlStateNormal];</pre>
+          <div class="figure">
+            <a id="FIGslider3"></a>
+            <div class="figure-contents">
+              <div class="mediaobject">
+                <img src="figs/pios_2514.png" alt="figs/pios_2514.png" />
+              </div>
+            </div>
+            <p class="title">Figure 25.14. Replacing a slider’s track</p>
+          </div>
+          <br class="figure-break" />
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_uisegmentedcontrol"></a>UISegmentedControl</h3>
+              </div>
+            </div>
+          </div>
+          <p>A segmented control (UISegmentedControl, <a class="xref" href="ch25.html#FIGsegmentedControl">Figure 25.15</a>) is a row of tappable segments; a segment is rather like a button.<a id="idm441643367328" class="indexterm"></a><a id="idm441643366464" class="indexterm"></a> This provides a way for the user to choose among several related options. By default (<code class="literal">momentary</code> is NO), the most recently tapped segment remains selected. Alternatively (<code class="literal">momentary</code> is YES), the tapped segment is shown as highlighted momentarily (by default, highlighted is indistinguishable from selected, but you can change that); afterward, however, no segment selection is displayed, though internally the tapped segment remains the selected segment.</p>
+          <div class="figure">
+            <a id="FIGsegmentedControl"></a>
+            <div class="figure-contents">
+              <div class="mediaobject">
+                <img src="figs/pios_2515.png" alt="figs/pios_2515.png" />
+              </div>
+            </div>
+            <p class="title">Figure 25.15. A segmented control</p>
+          </div>
+          <br class="figure-break" />
+          <p>The selected segment can be retrieved with the <code class="literal">selectedSegmentIndex</code> property; it can also be set with the <code class="literal">selectedSegmentIndex</code> property, and remains visibly selected (even for a <code class="literal">momentary</code> segmented control). A <code class="literal">selectedSegmentIndex</code> value of <code class="literal">UISegmentedControlNoSegment</code> means no segment is selected. When the user taps a segment that is not already visibly selected, the segmented control reports a Value Changed event.</p>
+          <p>A segment can be separately enabled or disabled with <code class="literal">setEnabled:forSegmentAtIndex:</code>, and its enabled state can be retrieved with <code class="literal">isEnabledForSegmentAtIndex:</code>. A disabled segment, by default, is drawn faded; the user can’t tap it, but it can still be selected in code.</p>
+          <p>A segment has either a title or an image; when one is set, the other becomes nil. The methods for setting and fetching the title and image for existing segments are:</p>
+          <div class="itemizedlist">
+            <ul class="itemizedlist" type="disc">
+              <li class="listitem">
+<code class="literal">setTitle:forSegmentAtIndex:</code>
+</li>
+              <li class="listitem">
+<code class="literal">setImage:forSegmentAtIndex:</code>
+</li>
+              <li class="listitem">
+<code class="literal">titleForSegmentAtIndex:</code>
+</li>
+              <li class="listitem">
+<code class="literal">imageForSegmentAtIndex:</code>
+</li>
+            </ul>
+          </div>
+          <p>You will also want to set the title or image when creating the segment. You can do this in code if you’re creating the segmented control from scratch, with <code class="literal">initWithItems:</code>, which takes an array each item of which is either a string or an image.</p>
+          <p>Methods for managing segments dynamically are:</p>
+          <div class="itemizedlist">
+            <ul class="itemizedlist" type="disc">
+              <li class="listitem">
+<code class="literal">insertSegmentWithTitle:atIndex:animated:</code>
+</li>
+              <li class="listitem">
+<code class="literal">insertSegmentWithImage:atIndex:animated:</code>
+</li>
+              <li class="listitem">
+<code class="literal">removeSegmentAtIndex:animated:</code>
+</li>
+              <li class="listitem">
+<code class="literal">removeAllSegments</code>
+</li>
+            </ul>
+          </div>
+          <p>The number of segments can be retrieved with the read-only <code class="literal">numberOfSegments</code> property.</p>
+          <p>A segment’s width is adjusted automatically when you create it or call <code class="literal">sizeToFit</code>, or you can set it manually with <code class="literal">setWidth:forSegmentAtIndex:</code> (and retrieve it with <code class="literal">widthForSegmentAtIndex:</code>). Alternatively, if you set a segment’s width to 0, the system will adjust the width for you if the segmented control’s <code class="literal">apportionsSegmentWidthsByContent</code> property is YES. If you’re using autolayout (<a class="xref" href="ch14.html">Chapter 14</a>), the segmented control’s width constraint (which will exist if the segmented control is created in a nib or storyboard) must have its priority reduced to less than 750 for its width to adjust itself automatically.<a id="idm441643334112" class="indexterm"></a>
+<a id="idm441643332816" class="indexterm"></a><a id="idm441643331888" class="indexterm"></a></p>
+          <p>You can also change the position of the content (title or image) within a segment. To set this position in code, call <code class="literal">setContentOffset:forSegmentAtIndex:</code> (and retrieve it with <code class="literal">contentOffsetForSegmentAtIndex:</code>), where the offset is expressed as a CGSize describing how much to move the content from its default centered position.</p>
+          <p>A segmented control’s height is standard in accordance with its style. You can change a segmented control’s height in code (if you’re using autolayout, this would involve adding a height constraint), but if you later call <code class="literal">sizeToFit</code>, it will resume its standard height. A more coherent way to change a segmented control’s height is to set its background image, as I’ll describe in a moment.</p>
+          <p>A segmented control comes in a choice of styles (its <code class="literal">segmentedControlStyle</code>):</p>
+          <div class="variablelist">
+            <dl>
+              <dt>
+                <span class="term">
+<code class="literal">UISegmentedControlStylePlain</code>
+</span>
+              </dt>
+              <dd>
+Large default height (44 pixels) and large titles. Deselected segments are gray; the selected segment is blue and has a depressed look.
+</dd>
+              <dt>
+                <span class="term">
+<code class="literal">UISegmentedControlStyleBordered</code>
+</span>
+              </dt>
+              <dd>
+Just like <code class="literal">UISegmentedControlStylePlain</code>, but a dark border emphasizes the segmented control’s outline.
+</dd>
+              <dt>
+                <span class="term">
+<code class="literal">UISegmentedControlStyleBar</code>
+</span>
+              </dt>
+              <dd>
+Small default height (30 pixels) and small titles. All segments are blue, but you can change this by setting the <code class="literal">tintColor</code>; the selected segment is slightly darker.
+</dd>
+            </dl>
+          </div>
+          <div class="warning" style="margin-left: 0; margin-right: 10%;">
+            <h3 class="title">Warning</h3>
+            <p>A fourth style, <code class="literal">UISegmentedControlStyleBezeled</code>, is deprecated (in the header) and appears to be no longer available. This is a pity, as it was a nice style, with a large default height (44 pixels) and small titles, and could be tinted with the <code class="literal">tintColor</code>.</p>
+          </div>
+          <p>Further methods for customizing a segmented control’s appearance are parallel to those for setting the look of a stepper or the scope bar portion of a search bar, both described earlier in this chapter. You can set the overall background, the divider image, the text attributes for the segment titles, and the position of segment contents:</p>
+          <div class="itemizedlist">
+            <ul class="itemizedlist" type="disc">
+              <li class="listitem">
+<code class="literal">setBackgroundImage:forState:barMetrics:</code>
+</li>
+              <li class="listitem">
+<code class="literal">setDividerImage:forLeftSegmentState:rightSegmentState:barMetrics:</code>
+</li>
+              <li class="listitem">
+<code class="literal">setTitleTextAttributes:forState:</code>
+</li>
+              <li class="listitem">
+<code class="literal">setContentPositionAdjustment:forSegmentType:barMetrics:</code>
+</li>
+            </ul>
+          </div>
+          <p>You don’t have to customize for every state, as the segmented control will use the normal state setting for the states you don’t specify. As I mentioned a moment ago, setting a background image is a robust way to change a segmented control’s height. Here’s the code that achieved <a class="xref" href="ch25.html#FIGsegmentedControl2">Figure 25.16</a>; selecting a segment automatically darkens the background image for us (similar to a button’s <code class="literal">adjustsImageWhenHighlighted</code>, described in the next section), so there’s no need to specify a separate selected image:</p>
+          <pre class="screen">// background, set desired height but make width resizable
+// sufficient to set for Normal only
+UIImage* image = [UIImage imageNamed: @"linen.png"];
+CGFloat w = 100;
+CGFloat h = 60;
+UIGraphicsBeginImageContextWithOptions(CGSizeMake(w,h), NO, 0);
+[image drawInRect:CGRectMake(0,0,w,h)];
+UIImage* image2 = UIGraphicsGetImageFromCurrentImageContext();
+UIGraphicsEndImageContext();
+UIImage* image3 =
+    [image2 resizableImageWithCapInsets:UIEdgeInsetsMake(0,10,0,10)
+                           resizingMode:UIImageResizingModeStretch];
+[self.seg setBackgroundImage:image3 forState:UIControlStateNormal
+                  barMetrics:UIBarMetricsDefault];
+
+// segment images, redraw at final size
+NSArray* pep = @[@"manny.jpg", @"moe.jpg", @"jack.jpg"];
+for (int i = 0; i &lt; 3; i++) {
+    UIImage* image = [UIImage imageNamed: pep[i]];
+    UIGraphicsBeginImageContextWithOptions(CGSizeMake(30,30), NO, 0);
+    [image drawInRect:CGRectMake(0,0,30,30)];
+    UIImage* image2 = UIGraphicsGetImageFromCurrentImageContext();
+    UIGraphicsEndImageContext();
+    [self.seg setImage:image2 forSegmentAtIndex:i];
+}
+
+// divider, set at desired width, sufficient to set for Normal only
+UIGraphicsBeginImageContextWithOptions(CGSizeMake(1,10), NO, 0);
+[[UIColor whiteColor] set];
+CGContextFillRect(UIGraphicsGetCurrentContext(), CGRectMake(0,0,1,10));
+UIImage* div = UIGraphicsGetImageFromCurrentImageContext();
+UIGraphicsEndImageContext();
+[self.seg setDividerImage:div
+      forLeftSegmentState:UIControlStateNormal
+        rightSegmentState:UIControlStateNormal
+               barMetrics:UIBarMetricsDefault];</pre>
+          <div class="figure">
+            <a id="FIGsegmentedControl2"></a>
+            <div class="figure-contents">
+              <div class="mediaobject">
+                <img src="figs/pios_2516.png" alt="figs/pios_2516.png" />
+              </div>
+            </div>
+            <p class="title">Figure 25.16. A segmented control, customized</p>
+          </div>
+          <br class="figure-break" />
+          <p>The <code class="literal">segmentType:</code> parameter in <code class="literal">setContentPositionAdjustment:forSegmentType:barMetrics:</code> is needed because, by default, the segments at the two extremes have rounded ends (and, if a segment is the lone segment, both its ends are rounded). The argument allows you distinguish between the various possibilities:</p>
+          <div class="itemizedlist">
+            <ul class="itemizedlist" type="disc">
+              <li class="listitem">
+<code class="literal">UISegmentedControlSegmentAny</code>
+</li>
+              <li class="listitem">
+<code class="literal">UISegmentedControlSegmentLeft</code>
+</li>
+              <li class="listitem">
+<code class="literal">UISegmentedControlSegmentCenter</code>
+</li>
+              <li class="listitem">
+<code class="literal">UISegmentedControlSegmentRight</code>
+</li>
+              <li class="listitem">
+<code class="literal">UISegmentedControlSegmentAlone</code>
+</li>
+            </ul>
+          </div>
+          <p>The <code class="literal">barMetrics:</code> parameter will recur later in this chapter, in the discussion of navigation bars, toolbars, and bar button items; for a segmented control, its value matters only if the segmented control has <code class="literal">UISegmentedControlStyleBar</code> and only if it is being used inside a navigation bar or toolbar. Otherwise, use <code class="literal">UIBarMetricsDefault</code>. See <a class="xref" href="ch25.html#SBbarMetrics">Landscape iPhone Bar Metrics</a> for more information.</p>
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_uibutton"></a>UIButton</h3>
+              </div>
+            </div>
+          </div>
+          <p>A button (UIButton) is a fundamental tappable control; its appearance is extremely flexible. It is endowed at creation with a type. The code creation method is a class method, <code class="literal">buttonWithType:</code>.<a id="idm441643286208" class="indexterm"></a><a id="idm441643285312" class="indexterm"></a> The types are:</p>
+          <div class="variablelist">
+            <dl>
+              <dt>
+                <span class="term">
+<code class="literal">UIButtonTypeCustom</code>
+</span>
+              </dt>
+              <dd>
+Could be completely invisible, if the <code class="literal">backgroundColor</code> is <code class="literal">clearColor</code> and there’s no title or other content. If a <code class="literal">backgroundColor</code> is supplied, a thin, subtle rectangular border is also present; you can add more of a border by modifying the button’s <code class="literal">layer</code>. Alternatively, you can provide a background image, thus making the button appear to be any shape you like (though this does not automatically affect its tappable region).
+</dd>
+              <dt>
+                <span class="term">
+<code class="literal">UIButtonTypeDetailDisclosure</code>
+<br /></span>
+                <span class="term">
+<code class="literal">UIButtonTypeContactAdd</code>
+<br /></span>
+                <span class="term">
+<code class="literal">UIButtonTypeInfoLight</code>
+<br /></span>
+                <span class="term">
+<code class="literal">UIButtonTypeInfoDark</code>
+</span>
+              </dt>
+              <dd>
+Basically, these are all <code class="literal">UIButtonTypeCustom</code> buttons whose image is set automatically to standard button images: a right-pointing chevron, a plus sign, a light letter “i,” and a dark letter “i,” respectively.
+</dd>
+              <dt>
+                <span class="term">
+<code class="literal">UIButtonTypeRoundedRect</code>
+</span>
+              </dt>
+              <dd>
+                <p class="simpara">
+A rounded rectangle with a white background and an antialiased gray border. However, supplying a rectangular opaque background image results in a rectangle similar to a <code class="literal">UIButtonTypeCustom</code> button. (A rounded rect button is actually an instance of a UIButton subclass, UIRoundedRectButton, but you’re probably not supposed to know that.)
+</p>
+                <p class="simpara">A rounded rect button can have a <code class="literal">tintColor</code> which fills the button only while the button is highlighted.</p>
+              </dd>
+            </dl>
+          </div>
+          <p>A button has a title, a title color, and a title shadow color. In iOS 6, you can supply instead an attributed title, thus dictating these features and more in a single value through an NSAttributedString (<a class="xref" href="ch23.html">Chapter 23</a>).<a id="idm441643266384" class="indexterm"></a>
+<a id="idm441643264912" class="indexterm"></a>
+<a id="idm441643263600" class="indexterm"></a></p>
+          <p>Distinguish a button’s image from its background image. The background image, if any, is stretched to fit the button’s bounds. The image, on the other hand, if smaller than the button, is not resized, and is thus shown internally within the button. The button can have both a title and an image, if the image is small enough; in that case, the image is shown to the left of the title by default.</p>
+          <p>These six features (title, title color, title shadow color, attributed title, image, and background image) can all be made to vary depending on the button’s current state: <code class="literal">UIControlStateHighlighted</code>, <code class="literal">UIControlStateSelected</code>, <code class="literal">UIControlStateDisabled</code>, and <code class="literal">UIControlStateNormal</code>.<a id="idm441643258800" class="indexterm"></a> The button can be in more than one state at once, except for <code class="literal">UIControlStateNormal</code> which effectively means “none of the other states”. A state change, whether automatic (the button is highlighted while the user is tapping it) or programmatically imposed, will thus in and of itself alter a button’s appearance. To make this possible, the methods for setting these button features all involve specifying a corresponding state — or multiple states, using a bitmask:</p>
+          <div class="itemizedlist">
+            <ul class="itemizedlist" type="disc">
+              <li class="listitem">
+<code class="literal">setTitle:forState:</code>
+</li>
+              <li class="listitem">
+<code class="literal">setTitleColor:forState:</code> (by default, the title color is white when the button is highlighted)
+</li>
+              <li class="listitem">
+<code class="literal">setTitleShadowColor:forState:</code>
+</li>
+              <li class="listitem">
+<code class="literal">setAttributedTitle:forState:</code>
+</li>
+              <li class="listitem">
+<code class="literal">setImage:forState:</code>
+</li>
+              <li class="listitem">
+<code class="literal">setBackgroundImage:forState:</code>
+</li>
+            </ul>
+          </div>
+          <p>Similarly, when getting these button features, you must either use a method to specify a single state you’re interested in or use a property to ask about the feature as currently displayed:</p>
+          <div class="itemizedlist">
+            <ul class="itemizedlist" type="disc">
+              <li class="listitem">
+<code class="literal">titleForState:</code>
+</li>
+              <li class="listitem">
+<code class="literal">titleColorForState:</code>
+</li>
+              <li class="listitem">
+<code class="literal">titleShadowColorForState:</code>
+</li>
+              <li class="listitem">
+<code class="literal">attributedTitleForState:</code>
+</li>
+              <li class="listitem">
+<code class="literal">imageForState:</code>
+</li>
+              <li class="listitem">
+<code class="literal">backgroundImageForState:</code>
+</li>
+              <li class="listitem">
+<code class="literal">currentTitle</code>
+</li>
+              <li class="listitem">
+<code class="literal">currentTitleColor</code>
+</li>
+              <li class="listitem">
+<code class="literal">currentTitleShadowColor</code>
+</li>
+              <li class="listitem">
+<code class="literal">currentAttributedTitle</code>
+</li>
+              <li class="listitem">
+<code class="literal">currentImage</code>
+</li>
+              <li class="listitem">
+<code class="literal">currentBackgroundImage</code>
+</li>
+            </ul>
+          </div>
+          <p>If you don’t specify a feature for a particular state, or if the button adopts more than one state at once, an internal heuristic is used to determine what to display. I can’t describe all possible combinations, but here are some general observations:</p>
+          <div class="itemizedlist">
+            <ul class="itemizedlist" type="disc">
+              <li class="listitem">
+If you specify a feature for a particular state (highlighted, selected, or disabled), and the button is in <span class="emphasis"><em>only</em></span> that state, that feature will be used.
+</li>
+              <li class="listitem">
+If you <span class="emphasis"><em>don’t</em></span> specify a feature for a particular state (highlighted, selected, or disabled), and the button is in <span class="emphasis"><em>only</em></span> that state, the normal version of that feature will be used as fallback. (That’s why many examples earlier in this book have assigned a title for <code class="literal">UIControlStateNormal</code> only; this is sufficient to give the button a title in every state.)
+</li>
+              <li class="listitem">
+Combinations of states often cause the button to fall back on the feature for normal state. For example, if a button is both highlighted and selected, the button will display its normal title, even if it has a highlighted title, a selected title, or both.
+</li>
+            </ul>
+          </div>
+          <p>Don’t try to use an attributed title for one state and a plain string title for another state; if you’re going to use an attributed title at all, use an attributed title for every state whose title you set. If you set an attributed title for the normal state, you won’t automatically get a white version of that title for the highlighted state. This is not surprising, since all of this is being handled by a UILabel (see <a class="xref" href="ch23.html">Chapter 23</a>), the button’s <code class="literal">titleLabel</code>; I’ll talk more about it in a moment.</p>
+          <p>In this example, we modify an existing button with an image and a title, so as to use an attributed title instead (<a class="xref" href="ch25.html#FIGbuttonattrib">Figure 25.17</a>). To get the white color when highlighted, we supply a second version of the same string. I’ll show how the background image was achieved later in this section:</p>
+          <pre class="screen">NSMutableAttributedString* mas =
+    [[NSMutableAttributedString alloc]
+        initWithString:self.button.currentTitle
+            attributes: @{
+                NSFontAttributeName:
+                    self.button.titleLabel.font,
+                NSForegroundColorAttributeName:
+                    self.button.titleLabel.textColor
+            }
+    ];
+[mas addAttributes:
+    @{
+        NSStrokeColorAttributeName:[UIColor redColor],
+        NSStrokeWidthAttributeName:@(-2.0),
+        NSUnderlineStyleAttributeName:@1
+    } range:NSMakeRange(4,mas.length-4)];
+[self.button setAttributedTitle:mas forState:UIControlStateNormal];
+
+mas = [mas mutableCopy];
+[mas setAttributes:
+    @{
+        NSForegroundColorAttributeName:[UIColor whiteColor]
+    } range:NSMakeRange(0,mas.length)];
+[self.button setAttributedTitle:mas forState:UIControlStateHighlighted];</pre>
+          <div class="figure">
+            <a id="FIGbuttonattrib"></a>
+            <div class="figure-contents">
+              <div class="mediaobject">
+                <img src="figs/pios_2517.png" alt="figs/pios_2517.png" />
+              </div>
+            </div>
+            <p class="title">Figure 25.17. A button with an attributed title</p>
+          </div>
+          <br class="figure-break" />
+          <p>In addition, a UIButton has some properties determining how it draws itself in various states, which can save you the trouble of specifying different images for different states:</p>
+          <div class="variablelist">
+            <dl>
+              <dt>
+                <span class="term">
+<code class="literal">showsTouchWhenHighlighted</code>
+</span>
+              </dt>
+              <dd>
+If YES, then the button projects a circular white glow when highlighted. If the button has an internal image, the glow is centered behind it (<a class="xref" href="ch25.html#FIGglowingButton">Figure 25.18</a>); thus, this feature is suitable particularly if the button image is small and circular; for example, it’s the default behavior for a <code class="literal">UIButtonTypeInfoLight</code> or <code class="literal">UIButtonTypeInfoDark</code> button. (If the button has no internal image, the glow is centered at the button’s center.) The glow is drawn on top of the background image or color, if any.
+</dd>
+            </dl>
+          </div>
+          <div class="figure">
+            <a id="FIGglowingButton"></a>
+            <div class="figure-contents">
+              <div class="mediaobject">
+                <img src="figs/pios_2518.png" alt="figs/pios_2518.png" />
+              </div>
+            </div>
+            <p class="title">Figure 25.18. A button with highlighted glow</p>
+          </div>
+          <br class="figure-break" />
+          <div class="variablelist">
+            <dl>
+              <dt>
+                <span class="term">
+<code class="literal">adjustsImageWhenHighlighted</code>
+</span>
+              </dt>
+              <dd>
+If YES (the default), then if there is no separate highlighted image (and if <code class="literal">showsTouchWhenHighlighted</code> is NO), the normal image is darkened when the button is highlighted. This applies equally to the internal image and the background image.
+</dd>
+              <dt>
+                <span class="term">
+<code class="literal">adjustsImageWhenDisabled</code>
+</span>
+              </dt>
+              <dd>
+If YES (the default), then if there is no separate disabled image, the normal image is lightened (faded) when the button is disabled. This applies equally to the internal image and the background image.
+</dd>
+            </dl>
+          </div>
+          <p>A button has a natural size in relation to its contents. If you’re using autolayout, the button can adopt that size automatically, as its <code class="literal">intrinsicContentSize</code>; if not, then if you create a button in code, you’ll ultimately want to send <code class="literal">sizeToFit</code> to the button (or give it an explicit size), as shown in examples in <a class="xref" href="ch17.html">Chapter 17</a>, <a class="xref" href="ch19.html">Chapter 19</a>, and <a class="xref" href="ch21.html">Chapter 21</a> — otherwise, the button will have a zero size and you’ll be left wondering why your button hasn’t appeared in the interface.<a id="idm441643196240" class="indexterm"></a>
+<a id="idm441643194624" class="indexterm"></a><a id="idm441643193696" class="indexterm"></a></p>
+          <p>The title is a UILabel (<a class="xref" href="ch23.html">Chapter 23</a>), and the label features of the title can be accessed through the button’s <code class="literal">titleLabel</code>. Thus, for example, you can set the title’s <code class="literal">font</code>, <code class="literal">lineBreakMode</code>, and <code class="literal">shadowOffset</code>. If the <code class="literal">shadowOffset</code> is not <code class="literal">{0,0}</code>, then the title has a shadow, and the title shadow color feature comes into play; the button’s <code class="literal">reversesTitleShadowWhenHighlighted</code> property also applies: if YES, the <code class="literal">shadowOffset</code> values are replaced with their additive inverses when the button is highlighted. Similarly, you can manipulate the label’s wrapping behavior to make the button’s title consist of multiple lines.</p>
+          <p>The internal image is drawn by a UIImageView (<a class="xref" href="ch15.html">Chapter 15</a>) whose features can be accessed through the button’s <code class="literal">imageView</code>. Thus, for example, you can change the internal image view’s <code class="literal">alpha</code> to make the image more transparent.</p>
+          <p>The internal position of the image and title as a whole are governed by the button’s <code class="literal">contentVerticalAlignment</code> and <code class="literal">contentHorizontalAlignment</code> (inherited from UIControl). You can also tweak the position of the image and title, together or separately, by setting the button’s <code class="literal">contentEdgeInsets</code>, <code class="literal">titleEdgeInsets</code>, or <code class="literal">imageEdgeInsets</code>. Increasing an inset component increases that margin; thus, for example, a positive <code class="literal">top</code> component makes the distance between that object and the top of the button larger than normal (where “normal” is where the object would be according to the alignment settings). The <code class="literal">titleEdgeInsets</code> or <code class="literal">imageEdgeInsets</code> values are added to the overall <code class="literal">contentEdgeInsets</code> values. So, for example, if you really wanted to, you could make the internal image appear to the right of the title by decreasing the left <code class="literal">titleEdgeInsets</code> and increasing the left <code class="literal">imageEdgeInsets</code>.</p>
+          <p>Four methods also provide access to the button’s positioning of its elements:</p>
+          <div class="itemizedlist">
+            <ul class="itemizedlist" type="disc">
+              <li class="listitem">
+<code class="literal">titleRectForContentRect:</code>
+</li>
+              <li class="listitem">
+<code class="literal">imageRectForContentRect:</code>
+</li>
+              <li class="listitem">
+<code class="literal">contentRectForBounds:</code>
+</li>
+              <li class="listitem">
+<code class="literal">backgroundRectForBounds:</code>
+</li>
+            </ul>
+          </div>
+          <p>These methods are called whenever the button is redrawn, including every time it changes state. The content rect is the area in which the title and image are placed. By default, <code class="literal">contentRectForBounds:</code> and <code class="literal">backgroundRectForBounds:</code> yield the same result.</p>
+          <p>You can override these methods in a subclass to change the way the button’s elements are positioned. In this example, we shrink the button slightly when highlighted (as shown in <a class="xref" href="ch25.html#FIGglowingButton">Figure 25.18</a>) as a way of providing feedback:</p>
+          <pre class="screen">- (CGRect)backgroundRectForBounds:(CGRect)bounds {
+    CGRect result = [super backgroundRectForBounds:bounds];
+    if (self.highlighted)
+        result = CGRectInset(result, 3, 3);
+    return result;
+}</pre>
+          <p>A button’s background image is stretched if the image is smaller, in both dimensions, than the button’s <code class="literal">backgroundRectForBounds:</code>. You can take advantage of this stretching, for example, to construct a rounded rectangle background for the button by supplying a resizable image. In this example, which generates <a class="xref" href="ch25.html#FIGbuttonattrib">Figure 25.17</a> and <a class="xref" href="ch25.html#FIGglowingButton">Figure 25.18</a>, both the internal image and the background image are generated from the same image (which is in fact the same image used to generate the track in <a class="xref" href="ch25.html#FIGslider3">Figure 25.14</a>):</p>
+          <pre class="screen">UIImage* im = [UIImage imageNamed: @"coin2.png"];
+CGSize sz = [im size];
+UIImage* im2 =
+    [im resizableImageWithCapInsets:
+        UIEdgeInsetsMake(
+            sz.height/2.0, sz.width/2.0, sz.height/2.0, sz.width/2.0)
+                       resizingMode:UIImageResizingModeStretch];
+[self.button setBackgroundImage: im2 forState: UIControlStateNormal];
+self.button.backgroundColor = [UIColor clearColor];</pre>
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_custom_controls"></a>Custom Controls</h3>
+              </div>
+            </div>
+          </div>
+          <p>The UIControl class implements several touch-tracking methods that you might override in order to customize a built-in UIControl type or to create your own UIControl subclass, along with properties that tell you whether touch tracking is going on:<a id="idm441643156960" class="indexterm"></a></p>
+          <div class="itemizedlist">
+            <ul class="itemizedlist" type="disc">
+              <li class="listitem">
+<code class="literal">beginTrackingWithTouch:withEvent:</code>
+</li>
+              <li class="listitem">
+<code class="literal">continueTrackingWithTouch:withEvent:</code>
+</li>
+              <li class="listitem">
+<code class="literal">endTrackingWithTouch:withEvent:</code>
+</li>
+              <li class="listitem">
+<code class="literal">cancelTrackingWithEvent:</code>
+</li>
+              <li class="listitem">
+<code class="literal">tracking</code> (property)
+</li>
+              <li class="listitem">
+<code class="literal">touchInside</code> (property)
+</li>
+            </ul>
+          </div>
+          <p>With the advent of gesture recognizers (<a class="xref" href="ch18.html">Chapter 18</a>), such direct involvement with touch tracking is probably less needed than it used to be, especially if your purpose is to modify the behavior of a built-in UIControl subclass. So, to illustrate their use, I’ll give a simple example of creating a custom control. The main reason for doing this (rather than using, say, a UIView and gesture recognizers) would probably be to obtain the convenience of control events. Also, the touch-tracking methods, though not as high-level as gesture recognizers, are at least a level up from the UIResponder <code class="literal">touches...</code> methods (<a class="xref" href="ch18.html">Chapter 18</a>): they track a single touch, and both <code class="literal">beginTracking...</code> and <code class="literal">continueTracking...</code> return a BOOL, giving you a chance to stop tracking the current touch.</p>
+          <p>We’ll build a simplified knob control (<a class="xref" href="ch25.html#FIGcustomControl">Figure 25.19</a>). The control starts life at its minimum position, with an internal angle value of <code class="literal">0</code>; it can be rotated clockwise with a single finger as far as its maximum position, with an internal angle value of <code class="literal">5</code> (radians). To keep things simple, the words “Min” and “Max” appearing in the interface are actually labels; the control just draws the knob, and to rotate it we’ll apply a rotation transform.</p>
+          <div class="figure">
+            <a id="FIGcustomControl"></a>
+            <div class="figure-contents">
+              <div class="mediaobject">
+                <img src="figs/pios_2519.png" alt="figs/pios_2519.png" />
+              </div>
+            </div>
+            <p class="title">Figure 25.19. A custom control</p>
+          </div>
+          <br class="figure-break" />
+          <p>Our control is a UIControl subclass, MyKnob. It has a CGFloat <code class="literal">angle</code> property, and a CGFloat instance variable <code class="literal">_initialAngle</code> that we’ll use internally during rotation. Because a UIControl is a UIView, it can draw itself, which it does with a UIImage included in our app bundle:</p>
+          <pre class="screen">- (void) drawRect:(CGRect)rect {
+    UIImage* knob = [UIImage imageNamed:@"knob.png"];
+    [knob drawInRect:rect];
+}</pre>
+          <p>We’ll need a utility function for transforming a touch’s Cartesian coordinates into polar coordinates, giving us the angle to be applied as a rotation to the view:<a id="idm441643133760" class="indexterm"></a>
+<a id="idm441643132032" class="indexterm"></a><a id="idm441643131136" class="indexterm"></a></p>
+          <pre class="screen">static CGFloat pToA (UITouch* touch, UIView* self) {
+    CGPoint loc = [touch locationInView: self];
+    CGPoint c = CGPointMake(CGRectGetMidX(self.bounds),
+                            CGRectGetMidY(self.bounds));
+    return atan2(loc.y - c.y, loc.x - c.x);
+}</pre>
+          <p>Now we’re ready to override the tracking methods. <code class="literal">beginTrackingWithTouch:withEvent:</code> simply notes down the angle of the initial touch location. <code class="literal">continueTrackingWithTouch:withEvent:</code> uses the difference between the current touch location’s angle and the initial touch location’s angle to apply a transform to the view, and updates the <code class="literal">angle</code> property. <code class="literal">endTrackingWithTouch:withEvent:</code> triggers the Value Changed control event. So our first draft looks like this:</p>
+          <pre class="screen">- (BOOL) beginTrackingWithTouch:(UITouch*)touch withEvent:(UIEvent*)event {
+    self-&gt;_initialAngle = pToA(touch, self);
+    return YES;
+}
+
+- (BOOL) continueTrackingWithTouch:(UITouch*)touch withEvent:(UIEvent*)event {
+    CGFloat ang = pToA(touch, self);
+    ang -= self-&gt;_initialAngle;
+    CGFloat absoluteAngle = self-&gt;_angle + ang;
+    self.transform = CGAffineTransformRotate(self.transform, ang);
+    self-&gt;_angle = absoluteAngle;
+    return YES;
+}
+
+- (void) endTrackingWithTouch:(UITouch *)touch withEvent:(UIEvent *)event {
+    [self sendActionsForControlEvents:UIControlEventValueChanged];
+}</pre>
+          <p>This works: we can put a MyKnob into the interface and hook up its Value Changed control event (this can be done in the nib editor), and sure enough, when we run the app, we can rotate the knob and, when our finger lifts from the knob, the Value Changed action handler is called. However, <code class="literal">continueTrackingWithTouch:withEvent:</code> needs modification.</p>
+          <p>First, we need to peg the minimum and maximum rotation at <code class="literal">0</code> and <code class="literal">5</code>, respectively. For simplicity, we’ll just stop tracking, by returning NO, if the rotation goes below <code class="literal">0</code> or above <code class="literal">5</code>, fixing the angle at the exceeded limit. However, because we’re no longer tracking, <code class="literal">endTracking...</code> will never be called, so we also need to trigger the Value Changed control event. (Doubtless you can come up with a more sophisticated way of pegging the knob at its minimum and maximum, but remember, this is only a simple example.) Second, it might be nice to give the programmer the option to have the Value Changed control event reported continuously as <code class="literal">continueTracking...</code> is called repeatedly. So we’ll add a <code class="literal">continuous</code> BOOL property and obey it.</p>
+          <p>Here, then, is our revised <code class="literal">continueTracking...</code> implementation:</p>
+          <pre class="screen">- (BOOL) continueTrackingWithTouch:(UITouch*)touch withEvent:(UIEvent*)event {
+    CGFloat ang = pToA(touch, self);
+    ang -= self-&gt;_initialAngle;
+    CGFloat absoluteAngle = self-&gt;_angle + ang;
+    if (absoluteAngle &lt; 0) {
+        self.transform = CGAffineTransformIdentity;
+        self-&gt;_angle = 0;
+        [self sendActionsForControlEvents:UIControlEventValueChanged];
+        return NO;
+    }
+    if (absoluteAngle &gt; 5) {
+        self.transform = CGAffineTransformMakeRotation(5);
+        self-&gt;_angle = 5;
+        [self sendActionsForControlEvents:UIControlEventValueChanged];
+        return NO;
+    }
+    self.transform = CGAffineTransformRotate(self.transform, ang);
+    self-&gt;_angle = absoluteAngle;
+    if (self-&gt;continuous)
+        [self sendActionsForControlEvents:UIControlEventValueChanged];
+    return YES;
+}</pre>
+          <p>Finally, we’ll probably want to be able to set the angle programmatically as a way of rotating the knob:</p>
+          <pre class="screen">- (void) setAngle: (CGFloat) ang {
+    if (ang &lt; 0)
+        ang = 0;
+    if (ang &gt; 5)
+        ang = 5;
+    self.transform = CGAffineTransformMakeRotation(ang);
+    self-&gt;_angle = ang;
+}</pre>
+          <p>This is more work than using a gesture recognizer (which is left as an exercise for the reader), but not much, and it gives a sense of what’s involved in creating a custom control.
+<a id="idm441643112672" class="indexterm"></a></p>
+        </div>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_bars"></a>Bars</h2>
+            </div>
+          </div>
+        </div>
+        <p>As you saw in <a class="xref" href="ch19.html">Chapter 19</a>, the three bar types — UINavigationBar, UIToolbar, and UITabBar — are often used in conjunction with a built-in view controller<a id="idm441643109440" class="indexterm"></a>:</p>
+        <div class="itemizedlist">
+          <ul class="itemizedlist" type="disc">
+            <li class="listitem">
+A UINavigationController has a UINavigationBar.
+</li>
+            <li class="listitem">
+A UINavigationController has a UIToolbar.
+</li>
+            <li class="listitem">
+A UITabBarController has a UITabBar.
+</li>
+          </ul>
+        </div>
+        <p>You can also use these bar types independently. You are most likely to do that with a UIToolbar, which is often used as an independent bottom bar. On the iPad, it can also be used as a top bar, adopting a role analogous to a menu bar on the desktop. That’s such a common interface, in fact, that certain special automatic behaviors are associated with it; for example, a UISearchBar in a UIToolbar and managed by a UISearchDisplayController will automatically display its search results table in a popover (<a class="xref" href="ch22.html">Chapter 22</a>), which is different from what happens if the UISearchBar is <span class="emphasis"><em>not</em></span> in a UIToolbar.</p>
+        <p>This section summarizes the facts about the three bar types and the items that populate them.</p>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_uinavigationbar"></a>UINavigationBar</h3>
+              </div>
+            </div>
+          </div>
+          <p>A UINavigationBar is populated by UINavigationItems.<a id="idm441643101456" class="indexterm"></a><a id="idm441643100576" class="indexterm"></a><a id="idm441643099696" class="indexterm"></a><a id="idm441643098800" class="indexterm"></a> The UINavigationBar maintains a stack; UINavigationItems are pushed onto and popped off of this stack.<a id="idm441643097664" class="indexterm"></a> Whatever UINavigationItem is currently topmost in the stack (the UINavigationBar’s <code class="literal">topItem</code>), in combination with the UINavigationItem just beneath it in the stack (the UINavigationBar’s <code class="literal">backItem</code>), determines what appears in the navigation bar:</p>
+          <div class="itemizedlist">
+            <ul class="itemizedlist" type="disc">
+              <li class="listitem">
+The <code class="literal">title</code> (string) or <code class="literal">titleView</code> (UIView) of the <code class="literal">topItem</code> appears in the center of the navigation bar.
+</li>
+              <li class="listitem">
+The <code class="literal">prompt</code> (string) of the <code class="literal">topItem</code> appears at the top of the navigation bar.
+</li>
+              <li class="listitem">
+                <p class="simpara">
+The <code class="literal">rightBarButtonItem</code> and <code class="literal">leftBarButtonItem</code> appear at the right and left ends of the navigation bar. These are UIBarButtonItems. A UIBarButtonItem can be a system button, a titled button, an image button, or a container for a UIView. A UIBarButtonItem is not itself a UIView, however. I’ll discuss bar button items further in a moment (and refer also to the discussion in <a class="xref" href="ch19.html">Chapter 19</a>).<a id="idm441643086512" class="indexterm"></a><a id="idm441643085632" class="indexterm"></a>
+</p>
+                <p class="simpara">A UINavigationItem can have multiple right bar button items and multiple left bar button items; its <code class="literal">rightBarButtonItems</code> and <code class="literal">leftBarButtonItems</code> properties are arrays (of UIBarButtonItems). The bar button items are displayed from the outside in: that is, the first item in the <code class="literal">leftBarButtonItems</code> is leftmost, while the first item in the <code class="literal">rightBarButtonItems</code> is rightmost. Even if there are multiple buttons on a side, you can still speak of that button in the singular: the <code class="literal">rightBarButtonItem</code> is the first item of the <code class="literal">rightBarButtonItems</code> array, and the <code class="literal">leftBarButtonItem</code> is the first item of the <code class="literal">leftBarButtonItems</code> array.</p>
+              </li>
+              <li class="listitem">
+The <code class="literal">backBarButtonItem</code> <span class="emphasis"><em>of the <code class="literal">backItem</code></em></span> appears at the left end of the navigation bar. It typically points to the left, and is automatically configured so that, when tapped, the <code class="literal">topItem</code> is popped off the stack. If the <code class="literal">backItem</code> has <span class="emphasis"><em>no</em></span> <code class="literal">backBarButtonItem</code>, then there is <span class="emphasis"><em>still</em></span> a back button at the left end of the navigation bar, taking its title from the <code class="literal">title</code> of the <code class="literal">backItem</code>. However, if the <code class="literal">topItem</code> has its <code class="literal">hidesBackButton</code> set to YES, the back button is suppressed. Also, unless the <code class="literal">topItem</code> has its <code class="literal">leftItemsSupplementBackButton</code> set to YES, the back button is suppressed if the <code class="literal">topItem</code> has a <code class="literal">leftBarButtonItem</code>.
+</li>
+            </ul>
+          </div>
+          <p>Changes to the navigation bar’s buttons can be animated by sending its <code class="literal">topItem</code> any of these messages:</p>
+          <div class="itemizedlist">
+            <ul class="itemizedlist" type="disc">
+              <li class="listitem">
+<code class="literal">setRightBarButtonItem:animated:</code>
+</li>
+              <li class="listitem">
+<code class="literal">setLeftBarButtonItem:animated:</code>
+</li>
+              <li class="listitem">
+<code class="literal">setRightBarButtonItems:animated:</code>
+</li>
+              <li class="listitem">
+<code class="literal">setLeftBarButtonItems:animated:</code>
+</li>
+              <li class="listitem">
+<code class="literal">setHidesBackButton:animated:</code>
+</li>
+            </ul>
+          </div>
+          <p>UINavigationItems are pushed and popped with <code class="literal">pushNavigationItem:animated:</code> and <code class="literal">popNavigationItemAnimated:</code>, or you can set all items on the stack at once with <code class="literal">setItems:animated:</code>.</p>
+          <p>A UINavigationBar can be styled using its <code class="literal">barStyle</code>, <code class="literal">translucent</code>, and <code class="literal">tintColor</code> properties. Possible <code class="literal">barStyle</code> values are <code class="literal">UIBarStyleDefault</code> and <code class="literal">UIBarStyleBlack</code>; setting a <code class="literal">tintColor</code> overrides the <code class="literal">barStyle</code>. For more extensive customization, you can provide a background image (<code class="literal">setBackgroundImage:forBarMetrics:</code>) and you can set the title’s text attributes dictionary (<code class="literal">titleTextAttributes</code>). You can also shift the title’s vertical position by calling <code class="literal">setTitleVerticalPositionAdjustment:forBarMetrics:</code>.</p>
+          <div class="sidebar">
+            <a id="SBbarMetrics"></a>
+            <div class="titlepage">
+              <div>
+                <div>
+                  <p class="title">Landscape iPhone Bar Metrics</p>
+                </div>
+              </div>
+            </div>
+            <p>Several methods that customize the look of a navigation bar, a toolbar, a bar button item, or a segmented control depend upon its bar metrics (<code class="literal">barMetrics:</code>). The values can be <code class="literal">UIBarMetricsDefault</code> or <code class="literal">UIBarMetricsLandscapePhone</code>. The same distinction is made by a bar button item’s <code class="literal">landscapeImagePhone...</code> in its <code class="literal">initWithImage:landscapeImagePhone:style:target:action:</code> method and its <code class="literal">landscapeImagePhone</code> and <code class="literal">landscapeImagePhoneInsets</code> properties.</p>
+            <p>What’s being distinguished here is what happens to a navigation bar or toolbar belonging to a UINavigationController on the iPhone (not on the iPad) when its interface rotates — the UINavigationController changes the height of the bar. The standard heights are <code class="literal">44</code> (portrait) and <code class="literal">32</code> (landscape). The idea is that you might want the thing you’re customizing to change when the bar height changes.<a id="idm441643039488" class="indexterm"></a><a id="idm441643038592" class="indexterm"></a></p>
+            <p>Under the hood, the navigation bar or toolbar is responding to the change in its height, plain and simple, regardless of how that change is caused. You could thus trigger the same response in <span class="emphasis"><em>any</em></span> navigation bar or toolbar. A height of <code class="literal">32</code> or less is considered <code class="literal">UIBarMetricsLandscapePhone</code>; a height of <code class="literal">34</code> or more is considered <code class="literal">UIBarMetricsDefault</code>.</p>
+          </div>
+          <p>A bar button item may be instantiated with any of five methods:</p>
+          <div class="itemizedlist">
+            <ul class="itemizedlist" type="disc">
+              <li class="listitem">
+<code class="literal">initWithBarButtonSystemItem:target:action:</code>
+</li>
+              <li class="listitem">
+<code class="literal">initWithTitle:style:target:action:</code>
+</li>
+              <li class="listitem">
+<code class="literal">initWithImage:style:target:action:</code>
+</li>
+              <li class="listitem">
+<code class="literal">initWithImage:landscapeImagePhone:style:target:action:</code>
+</li>
+              <li class="listitem">
+<code class="literal">initWithCustomView:</code>
+</li>
+            </ul>
+          </div>
+          <p>The styles are:</p>
+          <div class="itemizedlist">
+            <ul class="itemizedlist" type="disc">
+              <li class="listitem">
+<code class="literal">UIBarButtonItemStyleBordered</code>
+</li>
+              <li class="listitem">
+<code class="literal">UIBarButtonItemStylePlain</code> (portrayed like <code class="literal">UIBarButtonItemStyleBordered</code> in a navigation bar)
+</li>
+              <li class="listitem">
+<code class="literal">UIBarButtonItemStyleDone</code> (only in a navigation bar)
+</li>
+            </ul>
+          </div>
+          <p>In addition to its <code class="literal">title</code> and <code class="literal">image</code> (and its <code class="literal">landscapeImagePhone</code>), a bar button item inherits from UIBarItem the ability to adjust the image position with <code class="literal">imageInsets</code> (and <code class="literal">landscapeImagePhoneInsets</code>), plus the <code class="literal">enabled</code> and <code class="literal">tag</code> properties. Recall from <a class="xref" href="ch19.html">Chapter 19</a> that you can also set a bar button item’s <code class="literal">possibleTitles</code> and <code class="literal">width</code> properties, to determine its width.</p>
+          <p>You can also customize the look of a bar button item. It has a <code class="literal">tintColor</code> property, or you can give it a background image; and you can apply a text attributes dictionary to its title. These are the customization methods:</p>
+          <div class="itemizedlist">
+            <ul class="itemizedlist" type="disc">
+              <li class="listitem">
+<code class="literal">setTitleTextAttributes:forState:</code> (inherited from UIBarItem)
+</li>
+              <li class="listitem">
+<code class="literal">setTitlePositionAdjustment:forBarMetrics:</code>
+</li>
+              <li class="listitem">
+<code class="literal">setBackgroundImage:forState:barMetrics:</code>
+</li>
+              <li class="listitem">
+<code class="literal">setBackgroundVerticalPositionAdjustment:forBarMetrics:</code>
+</li>
+            </ul>
+          </div>
+          <p>An additional method, <code class="literal">setBackgroundImage:forState:style:barMetrics:</code>, is new in iOS 6 and adds further specificity to <code class="literal">backgroundImageForState:barMetrics:</code>. Thus, the bar button item can have a different background image depending on what style it is assigned. The value of being able to do this will be obvious when using this method in conjunction with the bar button item appearance proxy, discussed later in this chapter.</p>
+          <p>In addition, these methods apply only if the bar button item is being used as a back button item:</p>
+          <div class="itemizedlist">
+            <ul class="itemizedlist" type="disc">
+              <li class="listitem">
+<code class="literal">setBackButtonTitlePositionAdjustment:forBarMetrics:</code>
+</li>
+              <li class="listitem">
+<code class="literal">setBackButtonBackgroundImage:forState:barMetrics:</code>
+</li>
+              <li class="listitem">
+<code class="literal">setBackButtonBackgroundVerticalPositionAdjustment:forBarMetrics:</code>
+</li>
+            </ul>
+          </div>
+          <p><a class="xref" href="ch19.html#FIGalbumenNavBar">Figure 19.10</a> shows how the navigation bar of my Albumen app used to look. When iOS 5 came along, custom colorization became possible, and I jazzed it up a little (<a class="xref" href="ch25.html#FIGalbumenNavBarNew">Figure 25.20</a>).</p>
+          <div class="figure">
+            <a id="FIGalbumenNavBarNew"></a>
+            <div class="figure-contents">
+              <div class="mediaobject">
+                <img src="figs/pios_2520.png" alt="figs/pios_2520.png" />
+              </div>
+            </div>
+            <p class="title">Figure 25.20. A colorful navigation bar</p>
+          </div>
+          <br class="figure-break" />
+          <p>When you use a UINavigationBar implicitly as part of a UINavigationController interface, the controller is the navigation bar’s delegate. If you were to use a UINavigationBar on its own, you might want to supply your own delegate. The delegate methods are:</p>
+          <div class="itemizedlist">
+            <ul class="itemizedlist" type="disc">
+              <li class="listitem">
+<code class="literal">navigationBar:shouldPushItem:</code>
+</li>
+              <li class="listitem">
+<code class="literal">navigationBar:didPushItem:</code>
+</li>
+              <li class="listitem">
+<code class="literal">navigationBar:shouldPopItem:</code>
+</li>
+              <li class="listitem">
+<code class="literal">navigationBar:didPopItem:</code>
+</li>
+            </ul>
+          </div>
+          <p>This simple (and silly) example of a stand-alone UINavigationBar (<a class="xref" href="ch25.html#FIGnavbar">Figure 25.21</a>) implements the legendary baseball combination trio of Tinker to Evers to Chance (see the relevant Wikipedia article if you don’t know about them):</p>
+          <pre class="screen">- (void)viewDidLoad {
+    [super viewDidLoad];
+    UINavigationItem* ni = [[UINavigationItem alloc] initWithTitle:@"Tinker"];
+    UIBarButtonItem* b = [[UIBarButtonItem alloc] initWithTitle:@"Evers"
+        style:UIBarButtonItemStyleBordered
+        target:self action:@selector(pushNext:)];
+    ni.rightBarButtonItem = b;
+    self.nav.items = @[ni];
+}
+
+- (void) pushNext: (id) sender {
+    UIBarButtonItem* oldb = sender;
+    NSString* s = oldb.title;
+    UINavigationItem* ni = [[UINavigationItem alloc] initWithTitle:s];
+    if ([s isEqualToString: @"Evers"]) {
+        UIBarButtonItem* b = [[UIBarButtonItem alloc] initWithTitle:@"Chance"
+            style:UIBarButtonItemStyleBordered
+            target:self action:@selector(pushNext:)];
+        ni.rightBarButtonItem = b;
+    }
+    [self.nav pushNavigationItem:ni animated:YES];
+}</pre>
+          <div class="figure">
+            <a id="FIGnavbar"></a>
+            <div class="figure-contents">
+              <div class="mediaobject">
+                <img src="figs/pios_2521.png" alt="figs/pios_2521.png" />
+              </div>
+            </div>
+            <p class="title">Figure 25.21. A navigation bar</p>
+          </div>
+          <br class="figure-break" />
+          <p>Notice the subtle shadow at the bottom of the navigation bar in <a class="xref" href="ch25.html#FIGnavbar">Figure 25.21</a>, cast on whatever is behind it.<a id="idm441642979616" class="indexterm"></a>
+<a id="idm441642978304" class="indexterm"></a> This effect is new in iOS 6, and can be customized with <code class="literal">setBackgroundImage:forBarMetrics:</code>, if you have also customized the navigation bar’s background image. You want a very small image (1×3 is a good size) with some transparency, preferably more transparency at the bottom than at the top; the image will be tiled horizontally across the navigation bar’s width. In this way you can harmonize the shadow with your custom background image. The navigation bar’s <code class="literal">clipsToBounds</code> must be NO, or the shadow won’t appear.</p>
+          <p>Another thing in <a class="xref" href="ch25.html#FIGnavbar">Figure 25.21</a> that harmonizes with the navigation bar is the color of the status bar. This behavior is new in iOS 6, confined to the iPhone (and iPod touch). The rule is that if there is a navigation bar at the top of the screen — regardless of whether it is part of a navigation interface — the status bar will derive its color from the color at the <span class="emphasis"><em>bottom</em></span> of the navigation bar. If your interface contains differently customized navigation bars, the status bar will change color in real time to match each one as it appears. This is why, as mentioned in <a class="xref" href="ch09.html">Chapter 9</a>, you must describe your app’s initial navigation bar in your <span class="emphasis"><em>Info.plist</em></span> if you want the status bar during launch to adopt the color that it will have when launch is over and the navigation bar has actually appeared.<a id="idm441642971504" class="indexterm"></a>
+<a id="idm441642970192" class="indexterm"></a><a id="idm441642969296" class="indexterm"></a>
+<a id="idm441642967952" class="indexterm"></a></p>
+          <p>You can prevent this behavior to some extent by setting the shared application’s <code class="literal">statusBarStyle</code>. For example, this results in a black status bar, regardless of the navigation bar appearance:</p>
+          <pre class="screen">[[UIApplication sharedApplication]setStatusBarStyle:UIStatusBarStyleDefault];</pre>
+          <p>Another trick is to add a <span class="emphasis"><em>second</em></span> navigation bar in front of the real navigation bar. You can prevent this navigation bar from being visible (and keep the user from interacting with it) by setting its <code class="literal">alpha</code> to 0. I like to make the second navigation bar just 1 pixel high for good measure. For example, this code results in a red status bar, overriding the status bar color that would be derived from the real navigation bar:</p>
+          <pre class="screen">UINavigationBar* nav =
+    [[UINavigationBar alloc] initWithFrame:CGRectMake(0,0,320,1)];
+nav.tintColor = [UIColor redColor];
+nav.alpha = 0; // prevent visibility
+[self.nav.superview addSubview:nav];</pre>
+          <p>The same trick can be used in an app that has no visible navigation bar, as a way of coloring the status bar. But you can’t obtain what used to be the default status bar; its familiar gray gradient is now a distant fond memory.</p>
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_uitoolbar"></a>UIToolbar</h3>
+              </div>
+            </div>
+          </div>
+          <p>A UIToolbar is intended to appear at the bottom of the screen; on the iPad, it may appear at the top of the screen. It displays a row of UIBarButtonItems, which are its <code class="literal">items</code>.<a id="idm441642959184" class="indexterm"></a><a id="idm441642958288" class="indexterm"></a><a id="idm441642957392" class="indexterm"></a><a id="idm441642956496" class="indexterm"></a><a id="idm441642955600" class="indexterm"></a> The items are displayed from left to right in the order in which they appear in the <code class="literal">items</code> array. You can set the items with animation by calling <code class="literal">setItems:animated:</code>. You can use the system bar button items <code class="literal">UIBarButtonSystemItemFlexibleSpace</code> and <code class="literal">UIBarButtonSystemItemFixedSpace</code>, along with the UIBarButtonItem <code class="literal">width</code> property, to position the items within the toolbar.</p>
+          <p>See the previous section and <a class="xref" href="ch19.html">Chapter 19</a> for more about creation and customization of UIBarButtonItems. A bar button item’s image, to be used with <code class="literal">UIBarButtonItemStylePlain</code> in a toolbar, must be a transparency mask; colors will be ignored — all that matters is the transparency of the various parts of the image. The color for the image will be supplied by default, or you can customize it with the bar button item’s <code class="literal">tintColor</code>. For <code class="literal">UIBarButtonItemStyleBordered</code>, on the other hand, the image color does matter, and it is the background of the button that will be colored by the <code class="literal">tintColor</code>.</p>
+          <p>A toolbar can be styled using its <code class="literal">barStyle</code>, <code class="literal">translucent</code>, and <code class="literal">tintColor</code> properties. Possible <code class="literal">barStyle</code> values are <code class="literal">UIBarStyleDefault</code> and <code class="literal">UIBarStyleBlack</code>; setting a <code class="literal">tintColor</code> overrides the <code class="literal">barStyle</code>. Alternatively, you can provide a background image with <code class="literal">setBackgroundImage:forToolbarPosition:barMetrics:</code>; the toolbar positions are:</p>
+          <div class="itemizedlist">
+            <ul class="itemizedlist" type="disc">
+              <li class="listitem">
+<code class="literal">UIToolbarPositionAny</code>
+</li>
+              <li class="listitem">
+<code class="literal">UIToolbarPositionBottom</code>
+</li>
+              <li class="listitem">
+<code class="literal">UIToolbarPositionTop</code> (not supported in the iPhone)
+</li>
+            </ul>
+          </div>
+          <p>In <a class="xref" href="ch19.html#FIGlatincarddrill">Figure 19.5</a>, the toolbar has a <code class="literal">UIBarStyleBlack</code> style, its height is taller than normal to accommodate larger bar button items, and it is populated with three tinted bar button items — a <code class="literal">UIBarButtonSystemItemCancel</code> bar button item (the tint color tints the button background) and two <code class="literal">UIBarButtonItemStylePlain</code> bar button items with transparency mask images (the tint color tints the images).</p>
+          <p>As with a UINavigationBar (see the previous section), a UIToolbar in iOS 6 has a shadow (if its <code class="literal">clipsToBounds</code> is NO).<a id="idm441642930624" class="indexterm"></a>
+<a id="idm441642929312" class="indexterm"></a> It normally appears at the top of the toolbar, as a toolbar is expected to be at the bottom of the screen; but on the iPad, where a toolbar at the top of the screen has become standard, the shadow cleverly appears at the bottom of the toolbar in that case. If you’ve customized the toolbar’s background image, you can customize the shadow image as well, with <code class="literal">setShadowImage:forToolbarPosition:</code>.</p>
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_uitabbar"></a>UITabBar</h3>
+              </div>
+            </div>
+          </div>
+          <p>A UITabBar displays UITabBarItems (its <code class="literal">items</code>), each consisting of an image and a name, and maintains a current selection among those items (its <code class="literal">selectedItem</code>, which is a UITabBarItem, not an index number).<a id="idm441642924192" class="indexterm"></a><a id="idm441642923296" class="indexterm"></a><a id="idm441642922400" class="indexterm"></a><a id="idm441642921504" class="indexterm"></a> To hear about a change of selection, implement <code class="literal">tabBar:didSelectItem:</code> in the delegate (UITabBarDelegate). To change the items in an animated fashion, call <code class="literal">setItems:animated:</code>.</p>
+          <p>The look of a tab bar can be customized. You can set its <code class="literal">tintColor</code> and <code class="literal">backgroundImage</code>. The <code class="literal">tintColor</code> is used to color a tab bar item’s image when it is not selected (even if you also set the <code class="literal">backgroundImage</code>). The tab bar’s <code class="literal">selectedImageTintColor</code> is used to color a tab bar item when it <span class="emphasis"><em>is</em></span> selected. You can also set the image drawn behind the selected tab bar item to indicate that it’s selected, the <code class="literal">selectionIndicatorImage</code>. As with a toolbar (see the previous section), a tab bar in iOS 6 has a shadow, which appears at the top of the tab bar (if its <code class="literal">clipsToBounds</code> is NO); if you’ve customized the tab bar’s background image, you can customize the shadow image as well, through its <code class="literal">shadowImage</code> property.<a id="idm441642912080" class="indexterm"></a>
+<a id="idm441642910768" class="indexterm"></a></p>
+          <p>A UITabBarItem is created with one of these two methods:</p>
+          <div class="itemizedlist">
+            <ul class="itemizedlist" type="disc">
+              <li class="listitem">
+<code class="literal">initWithTabBarSystemItem:tag:</code>
+</li>
+              <li class="listitem">
+<code class="literal">initWithTitle:image:tag:</code>
+</li>
+            </ul>
+          </div>
+          <p>UITabBarItem is a subclass of UIBarItem, so in addition to its <code class="literal">title</code> and <code class="literal">image</code> it inherits the ability to adjust the image position with <code class="literal">imageInsets</code>, plus the <code class="literal">enabled</code> and <code class="literal">tag</code> properties.</p>
+          <p>A tab bar item’s <code class="literal">image</code> must be a transparency mask; its colors are ignored — only the transparency matters, with tinting applied to the nontransparent areas of the image (the tab bar’s <code class="literal">tintColor</code> and <code class="literal">selectedImageTintColor</code>). Alternatively, you can call <code class="literal">setFinishedSelectedImage:withFinishedUnselectedImage:</code> to supply normal images to be shown when the tab bar item is selected and unselected respectively.</p>
+          <p>You can also customize the look of a tab bar item’s title. Call <code class="literal">setTitleTextAttributes:forState:</code> to apply a text attributes dictionary; and you can adjust the title’s position with the <code class="literal">titlePositionAdjustment</code> property.</p>
+          <p>The user can be permitted to alter the contents of the tab bar, setting its tab bar items from among a larger repertory of tab bar items.<a id="idm441642896336" class="indexterm"></a>
+<a id="idm441642895024" class="indexterm"></a> To summon the interface that lets the user do this, call <code class="literal">beginCustomizingItems:</code>, passing an array of UITabBarItems that may or may not appear in the tab bar. (To prevent the user from removing an item from the tab bar, include it in the tab bar’s <code class="literal">items</code> and <span class="emphasis"><em>don’t</em></span> include it in the argument passed to <code class="literal">beginCustomizingItems:</code>.) A presented view with a Done button appears, behind the tab bar but in front of everything else, displaying the customizable items. The user can then drag an item into the tab bar, replacing an item that’s already there. To hear about the customizing view appearing and disappearing, implement delegate methods:</p>
+          <div class="itemizedlist">
+            <ul class="itemizedlist" type="disc">
+              <li class="listitem">
+<code class="literal">tabBar:willBeginCustomizingItems:</code>
+</li>
+              <li class="listitem">
+<code class="literal">tabBar:didBeginCustomizingItems:</code>
+</li>
+              <li class="listitem">
+<code class="literal">tabBar:willEndCustomizingItems:changed:</code>
+</li>
+              <li class="listitem">
+<code class="literal">tabBar:didEndCustomizingItems:changed:</code>
+</li>
+            </ul>
+          </div>
+          <p>A UITabBar on its own (outside a UITabBarController) does not provide any automatic access to the user customization interface; it’s up to you. In this (silly) example, we populate a UITabBar with four system tab bar items and a More item; we also populate an instance variable array with those same four system tab bar items, plus four more. When the user taps the More item, we show the user customization interface with all eight tab bar items:</p>
+          <pre class="screen">- (void)viewDidLoad {
+    [super viewDidLoad];
+    NSMutableArray* arr = [NSMutableArray array];
+    for (int ix = 1; ix &lt; 8; ix++) {
+        UITabBarItem* tbi =
+            [[UITabBarItem alloc] initWithTabBarSystemItem:ix tag:ix];
+        [arr addObject: tbi];
+    }
+    self.items = arr; // copy policy
+    [arr removeAllObjects];
+    [arr addObjectsFromArray: [self.items subarrayWithRange:NSMakeRange(0,4)]];
+    UITabBarItem* tbi =
+        [[UITabBarItem alloc] initWithTabBarSystemItem:0 tag:0];
+    [arr addObject: tbi]; // More button
+    tb.items = arr; // tb is the UITabBar
+}
+
+- (void)tabBar:(UITabBar *)tabBar didSelectItem:(UITabBarItem *)item {
+    NSLog(@"did select item with tag %i", item.tag);
+    if (item.tag == 0) {
+        // More button
+        tabBar.selectedItem = nil;
+        [tabBar beginCustomizingItems:self.items];
+    }
+}</pre>
+          <p>When used in conjunction with a UITabBarController, the customization interface is provided automatically, in an elaborate way. If there are a lot of items, a More item is automatically present, and can be used to access the remaining items in a table view. Here, the user can select any of the excess items, navigating to the corresponding view. Or, the user can switch to the customization interface by tapping the Edit button. (See the iPhone Music app for a familiar example.) <a class="xref" href="ch25.html#FIGmoreList">Figure 25.22</a> shows how a More list looks by default.</p>
+          <div class="figure">
+            <a id="FIGmoreList"></a>
+            <div class="figure-contents">
+              <div class="mediaobject">
+                <img src="figs/pios_2522.png" alt="figs/pios_2522.png" />
+              </div>
+            </div>
+            <p class="title">Figure 25.22. Automatically generated More list</p>
+          </div>
+          <br class="figure-break" />
+          <p>The way this works is that the automatically provided More item corresponds to a UINavigationController with a root view controller (UIViewController) whose <code class="literal">view</code> is a UITableView. Thus, a navigation interface containing this UITableView appears as a tab view when the user taps the More button. When the user selects an item in the table, the corresponding UIViewController is pushed onto the UINavigationController’s stack.</p>
+          <p>You can access this UINavigationController: it is the UITabBarController’s <code class="literal">moreNavigationController</code>. Through it, you can access the root view controller: it is the first item in the UINavigationController’s <code class="literal">viewControllers</code> array. And through that, you can access the table view: it is the root view controller’s <code class="literal">view</code>. This means you can customize what appears when the user taps the More button! For example, let’s make the navigation bar black, and let’s remove the word More from its title:</p>
+          <pre class="screen">UINavigationController* more = self.tabBarController.moreNavigationController;
+UIViewController* list = more.viewControllers[0];
+list.title = @"";
+UIBarButtonItem* b = [UIBarButtonItem new];
+b.title = @"Back";
+list.navigationItem.backBarButtonItem = b; // so user can navigate back
+more.navigationBar.barStyle = UIBarStyleBlack;</pre>
+          <p>We can go even further by supplementing the table view’s data source with a data source of our own, thus proceeding to customize the table itself. This is tricky because we have no internal access to the actual data source, and we mustn’t accidentally disable it from populating the table. Still, it can be done. I’ll start by replacing the table view’s data source with an instance of my own MyDataSource, storing a reference to the original data source object in an instance variable of MyDataSource:</p>
+          <pre class="screen">UITableView* tv = (UITableView*)list.view;
+MyDataSource* mds = [MyDataSource new];
+self.myDataSource = mds; // retain policy
+self.myDataSource.originalDataSource = tv.dataSource;
+tv.dataSource = self.myDataSource;</pre>
+          <p>Next, I’ll use Objective-C’s automatic message forwarding mechanism (see the <span class="emphasis"><em>Objective-C Runtime Programming Guide</em></span>) so that MyDataSource acts as a front end for <code class="literal">originalDataSource</code>.<a id="idm441642868832" class="indexterm"></a><a id="idm441642867920" class="indexterm"></a>
+<a id="idm441642866608" class="indexterm"></a> MyDataSource will magically appear to respond to any message that <code class="literal">originalDataSource</code> responds to, and any message that arrives that MyDataSource can’t handle will be magically forwarded to <code class="literal">originalDataSource</code>. This way, the insertion of the MyDataSource instance as data source doesn’t break whatever the original data source does:</p>
+          <pre class="screen">- (id)forwardingTargetForSelector:(SEL)aSelector {
+    if ([self.originalDataSource respondsToSelector: aSelector])
+        return self.originalDataSource;
+    return [super forwardingTargetForSelector:aSelector];
+}</pre>
+          <p>Finally, we’ll implement the two Big Questions required by the UITableViewDataSource protocol, to quiet the compiler. In both cases, we first pass the message along to <code class="literal">originalDataSource</code> (somewhat analogous to calling <code class="literal">super</code>); then we add our own customizations as desired. Here, I’ll remove each cell’s disclosure indicator and change its text font:</p>
+          <pre class="screen">- (NSInteger)tableView:(UITableView *)tv numberOfRowsInSection:(NSInteger)sec {
+    // this is just to quiet the compiler
+    return [self.originalDataSource tableView:tv numberOfRowsInSection:sec];
+}
+
+- (UITableViewCell *)tableView:(UITableView *)tv
+        cellForRowAtIndexPath:(NSIndexPath *)ip {
+    UITableViewCell* cell =
+        [self.originalDataSource tableView:tv cellForRowAtIndexPath:ip];
+    cell.accessoryType = UITableViewCellAccessoryNone;
+    cell.textLabel.font = [UIFont systemFontOfSize:14];
+    return cell;
+}</pre>
+          <p>The outcome is shown in <a class="xref" href="ch25.html#FIGmoreList2">Figure 25.23</a>:</p>
+          <div class="figure">
+            <a id="FIGmoreList2"></a>
+            <div class="figure-contents">
+              <div class="mediaobject">
+                <img src="figs/pios_2523.png" alt="figs/pios_2523.png" />
+              </div>
+            </div>
+            <p class="title">Figure 25.23. Customized More list</p>
+          </div>
+          <br class="figure-break" />
+        </div>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_appearance_proxy"></a>Appearance Proxy</h2>
+            </div>
+          </div>
+        </div>
+        <p>Instead of sending messages that customize the look of an interface object to the object itself, you can send them to an <span class="emphasis"><em>appearance proxy</em></span> for that object’s class. The appearance proxy then passes that same message along to the actual <span class="emphasis"><em>future</em></span> instances of that class.<a id="idm441642852752" class="indexterm"></a> You’ll usually configure your appearance proxies very early in the lifetime of the app, and never again. The app delegate’s <code class="literal">application:didFinishLaunchingWithOptions:</code>, before the app’s window has been displayed, is the most obvious and common location.</p>
+        <p>Thus, for example, instead of sending <code class="literal">setTitleTextAttributes:forState:</code> to a particular UIBarButtonItem, you could send it to a UIBarButtonItem appearance proxy. <span class="emphasis"><em>All</em></span> actual UIBarButtonItems <span class="emphasis"><em>from then on</em></span> would have the text attributes you specified.</p>
+        <p>This architecture has two chief uses:</p>
+        <div class="itemizedlist">
+          <ul class="itemizedlist" type="disc">
+            <li class="listitem">
+It simplifies the task of giving your app a consistent overall appearance. Suppose you want all UIBarButtonItems to have a certain title font. Instead of having to remember to send <code class="literal">setTitleTextAttributes:forState:</code> to <span class="emphasis"><em>each</em></span> UIBarButtonItem your app ever instantiates, you send it <span class="emphasis"><em>once</em></span> to the appearance proxy and it is sent to those UIBarButtonItems for you.
+</li>
+            <li class="listitem">
+It provides access to interface objects that might otherwise be difficult to refer to. For example, you don’t get direct access to a search bar’s external Cancel button, but it is a UIBarButtonItem and you can customize it through the UIBarButtonItem appearance proxy.
+</li>
+          </ul>
+        </div>
+        <p>There are two class methods for obtaining an appearance proxy:</p>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+<code class="literal">appearance</code>
+</span>
+            </dt>
+            <dd>
+Returns a general appearance proxy for that class.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">appearanceWhenContainedIn:</code>
+</span>
+            </dt>
+            <dd>
+The argument is a nil-terminated list (not an array!) of classes,
+arranged in order of containment from inner to outer. The method you send to the appearance proxy returned from this call will be passed on only to instances of the target class that are actually contained in the way you describe. The notion of what “contained” means is deliberately left vague; basically, it works the way you intuitively expect it to work.
+</dd>
+          </dl>
+        </div>
+        <p>When configuring appearance proxy objects, <span class="emphasis"><em>specificity trumps generality</em></span>. Thus, you could call <code class="literal">appearance</code> to say what should happen for <span class="emphasis"><em>most</em></span> instances of some class, and call <code class="literal">appearanceWhenContainedIn:</code> to say what should happen <span class="emphasis"><em>instead</em></span> for <span class="emphasis"><em>certain</em></span> instances of that class. Similarly, longer <code class="literal">appearanceWhenContainedIn:</code> chains are more specific than shorter ones.</p>
+        <p>For example, here’s some code from my Latin flashcard app (<code class="literal">myGolden</code> and <code class="literal">myPaler</code> are methods defined by a category on UIColor):</p>
+        <pre class="screen">[[UIBarButtonItem appearance]
+    setTintColor: [UIColor myGolden]]; <a id="CO7-1"></a>❶
+[[UIBarButtonItem appearanceWhenContainedIn:
+    [UIToolbar class], nil]
+        setTintColor: [UIColor myPaler]]; <a id="CO7-2"></a>❷
+[[UIBarButtonItem appearanceWhenContainedIn:
+    [UIToolbar class], [DrillViewController class], nil]
+        setTintColor: [UIColor myGolden]]; <a id="CO7-3"></a>❸</pre>
+        <p>That means:</p>
+        <div class="calloutlist">
+          <table border="0" summary="Callout list">
+            <tr>
+              <td width="5%" valign="top" align="left">
+                <p><a href="#CO7-1">❶</a> </p>
+              </td>
+              <td valign="top" align="left">
+                <p>
+In general, bar button items should be tinted golden.
+</p>
+              </td>
+            </tr>
+            <tr>
+              <td width="5%" valign="top" align="left">
+                <p><a href="#CO7-2">❷</a> </p>
+              </td>
+              <td valign="top" align="left">
+                <p>
+But bar button items in a toolbar are an exception: they should be paler.
+</p>
+              </td>
+            </tr>
+            <tr>
+              <td width="5%" valign="top" align="left">
+                <p><a href="#CO7-3">❸</a> </p>
+              </td>
+              <td valign="top" align="left">
+                <p>
+But bar button items in a toolbar in DrillViewController’s view are an exception to <span class="emphasis"><em>that</em></span>: they should be golden.
+</p>
+              </td>
+            </tr>
+          </table>
+        </div>
+        <p>(If you’re looking at this book’s figures in color, you can see this difference made manifest in <a class="xref" href="ch19.html#FIGlatincard">Figure 19.3</a> and <a class="xref" href="ch19.html#FIGlatincarddrill">Figure 19.5</a>.)</p>
+        <p>Sometimes, in order to express sufficient specificity, I find myself defining subclasses for no other purpose than to refer to them when obtaining an appearance proxy. For example, here’s some more code from my Latin flashcard app:</p>
+        <pre class="screen">[[UINavigationBar appearance] setBackgroundImage:marble2
+                                   forBarMetrics:UIBarMetricsDefault];
+// counteract the above for the black navigation bar
+[[BlackNavigationBar appearance] setBackgroundImage:nil
+                                      forBarMetrics:UIBarMetricsDefault];</pre>
+        <p>In that code, BlackNavigationBar is a UINavigationBar subclass that does nothing whatever. Its sole purpose is to tag one navigation bar in my interface so that I can refer it in that code! Thus, I’m able to say, in effect, “All navigation bars in this app should have <code class="literal">marble2</code> as their background image, unless they are instances of BlackNavigationBar.”</p>
+        <p>The ultimate in specificity is, of course, to customize the look of an instance directly. Thus, for example, if you set one particular UIBarButtonItem’s <code class="literal">tintColor</code> property, then <code class="literal">setTintColor:</code> sent to a UIBarButtonItem appearance proxy will have no effect on that particular bar button item.</p>
+        <p>You’ll want to know which messages can be sent to the appearance proxies for which classes. The best way to find out is to look in the header for that class (or a superclass); any appropriate property or method will be tagged <code class="literal">UI_APPEARANCE_SELECTOR</code>. For example, here’s how the <code class="literal">tintColor</code> property is declared in <span class="emphasis"><em>UIBarButtonItem.h</em></span>:</p>
+        <pre class="screen">@property(nonatomic,retain) UIColor *tintColor NS_AVAILABLE_IOS(5_0)
+                                               UI_APPEARANCE_SELECTOR;</pre>
+        <p>You may also be able to deduce this information from the classification of properties and methods in the documentation, but I find the header to be far more reliable and explicit.</p>
+        <p>The appearance proxy is an <code class="literal">id</code>. Therefore, it can be sent <span class="emphasis"><em>any</em></span> message for which a <span class="keep-together">method signature</span> can be found; if you send it a message that isn’t tagged <code class="literal">UI_APPEARANCE_SELECTOR</code> for the class that the proxy represents, the compiler can’t stop you, but you’ll crash at runtime when the message is actually sent. Also, an <code class="literal">id</code> has no properties; that’s why we must call <code class="literal">setTintColor:</code> in order to set the UIBarButtonItem’s <code class="literal">tintColor</code> property. A clever workaround for both problems (from a WWDC 2012 video) is to cast the appearance proxy to the class whose proxy you’re using. For example, instead of saying this:</p>
+        <pre class="screen">[[UIBarButtonItem appearance] setTintColor: [UIColor brownColor]];</pre>
+        <p>Say this:</p>
+        <pre class="screen">((UIBarButtonItem*)[UIBarButtonItem appearance]).tintColor =
+    [UIColor brownColor];</pre>
+      </div>
+    </div>
+    <div class="navfooter">
+      <table width="100%" summary="Navigation footer">
+        <tr>
+          <td width="40%" align="left"><a accesskey="p" href="ch24.html">Prev</a> </td>
+          <td width="20%" align="center">
+            <a accesskey="u" href="pt05.html">Up</a>
+          </td>
+          <td width="40%" align="right"> <a accesskey="n" href="ch26.html">Next</a></td>
+        </tr>
+        <tr>
+          <td width="40%" align="left" valign="top">Chapter 24. Web Views </td>
+          <td width="20%" align="center">
+            <a accesskey="h" href="index.html">Table of Contents</a>
+          </td>
+          <td width="40%" align="right" valign="top"> Chapter 26. Modal Dialogs</td>
+        </tr>
+      </table>
+    </div>
+  </body>
+</html>

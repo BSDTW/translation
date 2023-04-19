@@ -1,0 +1,623 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>Chapter 32. Calendar</title>
+    <link rel="stylesheet" type="text/css" href="docbook-xsl-mymods.css" />
+    <meta name="generator" content="DocBook XSL Stylesheets V1.76.0" />
+    <link rel="home" href="index.html" />
+    <link rel="up" href="pt06.html" />
+    <link rel="prev" href="ch31.html" />
+    <link rel="next" href="ch33.html" />
+  </head>
+  <body>
+    <div class="mattnotice">
+      <p>As a courtesy, this is a <b>full free</b> rendering of my book, <i>Programming iOS 6</i>, by Matt Neuburg. Copyright 2013 Matt Neuburg. Please note that this book has now been completely superseded by two more recent books, <a href="http://shop.oreilly.com/product/0636920032465.do">iOS 7 Fundamentals</a> and <a href="http://shop.oreilly.com/product/0636920031017.do">Programming iOS 7</a>. If my work has been of help to you, please <b>consider purchasing</b> one or both of them. Thank you!
+	</p>
+    </div>
+    <div class="navfooter">
+      <table width="100%" summary="Navigation footer">
+        <tr>
+          <td width="40%" align="left"><a accesskey="p" href="ch31.html">Prev</a> </td>
+          <td width="20%" align="center">
+            <a accesskey="u" href="pt06.html">Up</a>
+          </td>
+          <td width="40%" align="right"> <a accesskey="n" href="ch33.html">Next</a></td>
+        </tr>
+        <tr>
+          <td width="40%" align="left" valign="top">Chapter 31. Address Book </td>
+          <td width="20%" align="center">
+            <a accesskey="h" href="index.html">Table of Contents</a>
+          </td>
+          <td width="40%" align="right" valign="top"> Chapter 33. Mail and Messages</td>
+        </tr>
+      </table>
+    </div>
+    <div class="chapter">
+      <div class="titlepage">
+        <div>
+          <div>
+            <h2 class="title"><a id="chap_id32"></a>Chapter 32. Calendar</h2>
+          </div>
+        </div>
+      </div>
+      <p>The user’s calendar information, which the user sees through the Calendar app, is effectively a database. This database can be accessed directly through the Event Kit framework. You’ll link to <span class="emphasis"><em>EventKit.framework</em></span> and import <code class="literal">&lt;EventKit/EventKit.h&gt;</code>. Starting in iOS 6, the calendar database also includes reminders, which the user sees through the Reminders app.<a id="idm441641281424" class="indexterm"></a>
+<a id="idm441641280128" class="indexterm"></a><a id="idm441641279216" class="indexterm"></a><a id="idm441641278320" class="indexterm"></a>
+<a id="idm441641277296" class="indexterm"></a></p>
+      <p>A user interface for interacting with the calendar, similar to the Calendar app, is also provided, through the Event Kit UI framework. You’ll link to <span class="emphasis"><em>EventKitUI.framework</em></span> and import <code class="literal">&lt;EventKitUI/EventKitUI.h&gt;</code>.<a id="idm441641274576" class="indexterm"></a>
+<a id="idm441641273296" class="indexterm"></a></p>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_calendar_database"></a>Calendar Database</h2>
+            </div>
+          </div>
+        </div>
+        <p>The calendar database is accessed as an instance of the EKEventStore class. This instance is expensive to obtain but lightweight to maintain, so your usual strategy, in an app where you’ll be working with the user’s calendar database, will be to instantiate EKEventStore (by calling <code class="literal">[EKEventStore new]</code>) early in the life of the app or of some other appropriate object, such as a view controller, and to maintain that instance in an instance variable until you no longer need it. That’s the strategy adopted by the examples in this chapter; my EKEventStore instance is called <code class="literal">self.database</code> throughout.</p>
+        <p>New in iOS 6, an attempt to work with the calendar database will fail unless the user has authorized access.<a id="idm441641268176" class="indexterm"></a>
+<a id="idm441641266832" class="indexterm"></a> You should start by calling <code class="literal">authorizationStatusForEntityType:</code> with either <code class="literal">EKEntityTypeEvent</code> (to work with calendar events) or <code class="literal">EKEntityTypeReminder</code> (to work with reminders). If the returned EKAuthorizationStatus is <code class="literal">EKAuthorizationStatusNotDetermined</code>, you can call <code class="literal">requestAccessToEntityType:completion:</code>, with a non-nil completion block taking a BOOL and an NSError; this causes a system alert to appear, prompting the user to grant your app permission to access the user’s Calendar or Reminders. You can modify the body of this alert by setting the “Privacy — Calendars Usage Description” key (<code class="literal">NSCalendarsUsageDescription</code>) or the “Privacy — Reminders Usage Description” key (<code class="literal">NSRemindersUsageDescription</code>) in your app’s <span class="emphasis"><em>Info.plist</em></span> to tell the user <span class="emphasis"><em>why</em></span> you want to access the database. This is a kind of “elevator pitch”; you need to persuade the user in very few words. Here’s an example, showing how I create my EKEventStore reference and check for authorization at the outset:</p>
+        <pre class="screen">self.database = [EKEventStore new];
+EKAuthorizationStatus status =
+    [EKEventStore authorizationStatusForEntityType:EKEntityTypeEvent];
+if (status == EKAuthorizationStatusNotDetermined)
+    // completion block cannot be nil!
+    [self.database requestAccessToEntityType:EKEntityTypeEvent
+                                  completion:^(BOOL granted, NSError *error)
+     {
+         NSLog(@"%i", granted);
+     }];</pre>
+        <p>If the user <span class="emphasis"><em>has</em></span> denied your app access, you can’t make the system alert appear again. You can, of course, use some other interface to request that the user grant access in the Settings app, under Privacy → Calendars or Privacy → Reminders.</p>
+        <div class="note" style="margin-left: 0; margin-right: 10%;">
+          <h3 class="title">Note</h3>
+          <p>To retest the system alert and other access-related behaviors, go to the Settings app and choose General → Reset → Reset Location &amp; Privacy. This causes the system to forget that it has ever asked about access for any app.</p>
+        </div>
+        <div class="warning" style="margin-left: 0; margin-right: 10%;">
+          <h3 class="title">Warning</h3>
+          <p>If the user in fact switches to the Settings app and enables access for your app under Privacy → Calendars or Privacy → Reminders, your app will crash in the background! This is unfortunate, but is probably not a bug; Apple presumably feels that in this situation your app cannot continue coherently and should start over from scratch.</p>
+        </div>
+        <p>Starting with an EKEventStore instance, you can obtain two kinds of object:</p>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+A calendar
+</span>
+            </dt>
+            <dd>
+              <p class="simpara">
+A calendar is a named (<code class="literal">title</code>) collection of calendar items (<span class="emphasis"><em>entities</em></span>). It is an instance of EKCalendar. A particular calendar comprises calendar items that are either calendar events or reminders; a calendar’s <code class="literal">allowedEntityTypes</code> tells you which type(s) of calendar item it comprises. Curiously, an EKCalendar object has no calendar items; to obtain and create calendar items, you work directly with the EKEventStore itself.
+</p>
+              <p class="simpara">Calendars have various types (<code class="literal">type</code>), reflecting the nature of their origin: a calendar can be created and maintained by the user locally (<code class="literal">EKCalendarTypeLocal</code>), but it might also live remotely on the network (<code class="literal">EKCalendarTypeCalDAV</code>, <code class="literal">EKCalendarTypeExchange</code>), possibly being updated by subscription (<code class="literal">EKCalendarTypeSubscription</code>); the Birthday calendar (<code class="literal">EKCalendarTypeBirthday</code>) is generated automatically from information in the address book. The <code class="literal">type</code> is supplemented and embraced by the calendar’s <code class="literal">source</code>, an EKSource whose <code class="literal">sourceType</code> can be <code class="literal">EKSourceTypeLocal</code>, <code class="literal">EKSourceTypeExchange</code>, <code class="literal">EKSourceTypeCalDAV</code> (which includes iCloud), and so forth; a source can also have a <code class="literal">title</code>, and it has a unique identifier (<code class="literal">sourceIdentifier</code>).<a id="idm441641239616" class="indexterm"></a> You can get an array of all <code class="literal">sources</code> known to the EKEventStore, or specify a source by its identifier. You’ll probably use the <code class="literal">source</code> exclusively and ignore the calendar’s <code class="literal">type</code> property.</p>
+              <p class="simpara">There are three ways of requesting a calendar:</p>
+              <div class="itemizedlist">
+                <ul class="itemizedlist" type="disc">
+                  <li class="listitem">
+Fetch all calendars comprising a particular calendar item type (<code class="literal">EKEntityTypeEvent</code> or <code class="literal">EKEntityTypeReminder</code>) by calling <code class="literal">calendarsForEntityType:</code>. You can send this message either to the EKEventStore or to an EKSource.
+</li>
+                  <li class="listitem">
+Fetch an individual calendar by means of a previously obtained <code class="literal">calendarIdentifier</code> by calling <code class="literal">calendarWithIdentifier:</code>.
+</li>
+                  <li class="listitem">
+Fetch the default calendar for a particular calendar item type through the <code class="literal">defaultCalendarForNewEvents</code> property or the <code class="literal">defaultCalendarForNewReminders</code> property; this is appropriate particularly if your intention is to create a new calendar item.
+</li>
+                </ul>
+              </div>
+              <p class="simpara">You can also create a calendar, by calling <code class="literal">calendarForEntityType:eventStore:</code>. At that point, you can specify the source to which the calendar belongs.</p>
+              <p class="simpara">Depending on the source, a calendar will be modifiable in various ways. The calendar might be <code class="literal">subscribed</code>. If the calendar is <code class="literal">immutable</code>, you can’t delete the calendar or change its attributes; but its <code class="literal">allowsContentModifications</code> might still be YES, in which case you can add, remove, and alter its events. You can update your copy of the calendar from any remote sources by calling <code class="literal">refreshSourcesIfNecessary</code>.</p>
+            </dd>
+            <dt>
+              <span class="term">
+A calendar item
+</span>
+            </dt>
+            <dd>
+              <p class="simpara">
+A calendar item (EKCalendarItem), in iOS 6, is either a calendar event (EKEvent) or a reminder (EKReminder).<a id="idm441641221600" class="indexterm"></a>
+<a id="idm441641220304" class="indexterm"></a> Think of it as a memorandum describing when something happens. As I mentioned a moment ago, you don’t get calendar items from a calendar; rather, a calendar item has a <code class="literal">calendar</code>, but you get it from the EKEventStore as a whole. There are two chief ways of doing so:
+</p>
+              <div class="itemizedlist">
+                <ul class="itemizedlist" type="disc">
+                  <li class="listitem">
+Fetch all events or reminders according to a predicate: <code class="literal">eventsMatchingPredicate:</code>, <code class="literal">enumerateEventsMatchingPredicate:</code>, <code class="literal">fetchRemindersMatchingPredicate:completion:</code>. Methods starting with <code class="literal">predicate...</code> allow you to form the predicate. The predicate specifies things like the calendar(s) the item is to come from and the item’s date range.
+</li>
+                  <li class="listitem">
+Fetch an individual calendar item by means of a previously obtained <code class="literal">calendarItemIdentifier</code> by calling <code class="literal">calendarItemWithIdentifier:</code>.
+</li>
+                </ul>
+              </div>
+            </dd>
+          </dl>
+        </div>
+        <p>Changes to the database can be atomic. There are two prongs to the implementation of this feature:</p>
+        <div class="itemizedlist">
+          <ul class="itemizedlist" type="disc">
+            <li class="listitem">
+The methods for saving and removing calendar items and calendars have a <code class="literal">commit:</code> parameter. If you pass NO as the argument, the changes that you’re ordering are batched; later, you can call <code class="literal">commit:</code> (or <code class="literal">reset</code> if you change your mind). If you pass NO and forget to call <code class="literal">commit:</code>, your changes will never happen.
+</li>
+            <li class="listitem">
+An abstract class, EKObject, functions as the superclass for all the other persistent object types, such as EKCalendar, EKCalendarItem, EKSource, and so on. It endows those classes with methods <code class="literal">isNew</code> and <code class="literal">hasChanges</code>, along with <code class="literal">refresh</code>, <code class="literal">rollback</code>, and <code class="literal">reset</code>.
+</li>
+          </ul>
+        </div>
+        <p>Let’s start by creating an events calendar. We need to assign a source; we’ll choose <code class="literal">EKSourceTypeLocal</code>, meaning that the calendar will be created on the device itself. (To test this on your own device, you might have to unsubscribe from iCloud to give yourself a local source.) Assume that a reference to the database (the EKEventStore) is already stored in <code class="literal">self.database</code>. We can’t ask the database for the local source directly, so we have to cycle through all sources looking for it. When we find it, we make a new calendar called “CoolCal”:</p>
+        <pre class="screen">// check for authorization
+EKAuthorizationStatus status =
+    [EKEventStore authorizationStatusForEntityType:EKEntityTypeEvent];
+if (status == EKAuthorizationStatusDenied ||
+    status == EKAuthorizationStatusRestricted) {
+    NSLog(@"%@", @"no access");
+    return;
+}
+// obtain local source
+EKSource* src = nil;
+for (src in self.database.sources)
+    if (src.sourceType == EKSourceTypeLocal)
+        break;
+if (!src) {
+    NSLog(@"%@", @"failed to find local source");
+    return;
+}
+// create and configure new calendar
+EKCalendar* cal = [EKCalendar calendarForEntityType:EKEntityTypeEvent
+                                         eventStore:self.database];
+cal.source = src;
+cal.title = @"CoolCal";
+// save new calendar into the database
+NSError* err;
+BOOL ok;
+ok = [self.database saveCalendar:cal commit:YES error:&amp;err];
+if (!ok) {
+    NSLog(@"save calendar %@", err.localizedDescription);
+    return;
+}
+NSLog(@"%@", @"no errors");</pre>
+        <p>EKEvent is a subclass of EKCalendarItem, from which it inherits some of its important properties. If you’ve ever used the Calendar app, or iCal on the Mac, you already have a sense for how an EKEvent can be configured. It has a <code class="literal">title</code> and optional <code class="literal">notes</code>. It is associated with a <code class="literal">calendar</code>, as I’ve already said. It can have one or more alarms and one or more recurrence rules; I’ll talk about both of those in a moment. All of that is inherited from EKCalendarItem. EKEvent itself adds the all-important <code class="literal">startDate</code> and <code class="literal">endDate</code> properties; these are NSDates and involve both date and time. If the event’s <code class="literal">allDay</code> property is YES, the time aspect of its dates is ignored; the event is associated with a day or a stretch of days as a whole. If the event’s <code class="literal">allDay</code> property is NO, the time aspect of its dates matters; a typical event will then usually be bounded by two times on the same day.</p>
+        <p>Making an event is simple, if tedious. You <span class="emphasis"><em>must</em></span> provide a <code class="literal">startDate</code> and an <code class="literal">endDate</code>! The simplest way to construct dates is with <a id="idm441641190480" class="indexterm"></a>NSDateComponents.<a id="idm441641189664" class="indexterm"></a> I’ll create an event and add it to our new calendar, which I’ll locate by its title. We really should be using the <code class="literal">calendarIdentifier</code> to obtain our calendar; the title isn’t reliable, since the user might change it, and since multiple calendars can have the same title. However, it’s only an example:</p>
+        <pre class="screen">// ... assume we've checked for authorization ...
+// obtain calendar
+EKCalendar* cal = nil;
+NSArray* calendars =
+    [self.database calendarsForEntityType:EKEntityTypeEvent];
+for (cal in calendars) // (should be using identifier)
+    if ([cal.title isEqualToString: @"CoolCal"])
+        break;
+if (!cal) {
+    NSLog(@"%@", @"failed to find calendar");
+    return;
+}
+// construct start and end dates
+NSCalendar* greg =
+    [[NSCalendar alloc] initWithCalendarIdentifier:NSGregorianCalendar];
+NSDateComponents* comp = [NSDateComponents new];
+comp.year = 2013;
+comp.month = 8;
+comp.day = 10;
+comp.hour = 15;
+NSDate* d1 = [greg dateFromComponents:comp];
+comp.hour = comp.hour + 1;
+NSDate* d2 = [greg dateFromComponents:comp];
+// construct event
+EKEvent* ev = [EKEvent eventWithEventStore:self.database];
+ev.title = @"Take a nap";
+ev.notes = @"You deserve it!";
+ev.calendar = cal;
+ev.startDate = d1;
+ev.endDate = d2;
+// save event
+NSError* err;
+BOOL ok =
+    [self.database saveEvent:ev span:EKSpanThisEvent commit:YES error:&amp;err];
+if (!ok) {
+    NSLog(@"save simple event %@", err.localizedDescription);
+    return;
+}
+NSLog(@"%@", @"no errors");</pre>
+        <p>An alarm is an <a id="idm441641186176" class="indexterm"></a>EKAlarm, a very simple class; it can be set to fire either at an absolute date or at a relative offset from the event time.<a id="idm441641185312" class="indexterm"></a> On an iOS device, an alarm fires through a local notification (<a class="xref" href="ch26.html">Chapter 26</a>). We could easily have added an alarm to our event as we were configuring it:</p>
+        <pre class="screen">EKAlarm* alarm = [EKAlarm alarmWithRelativeOffset:-3600]; // one hour before
+[ev addAlarm:alarm];</pre>
+        <p>Recurrence is embodied in a recurrence rule (EKRecurrenceRule); a calendar item can have multiple recurrence rules, which you manipulate through its <code class="literal">recurrenceRules</code> property, along with methods <code class="literal">addRecurrenceRule:</code> and <code class="literal">removeRecurrenceRule:</code>. A simple <a id="idm441641180256" class="indexterm"></a>EKRecurrenceRule is described by three properties:</p>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+Frequency
+</span>
+            </dt>
+            <dd>
+By day, by week, by month, or by year.
+</dd>
+            <dt>
+              <span class="term">
+Interval
+</span>
+            </dt>
+            <dd>
+Fine-tunes the notion “by” in the frequency. A value of <code class="literal">1</code> means “every.” A value of <code class="literal">2</code> means “every other.” And so on.
+</dd>
+            <dt>
+              <span class="term">
+End
+</span>
+            </dt>
+            <dd>
+Optional, because the event might recur forever. It is an EKRecurrenceEnd instance, describing the limit of the event’s recurrence either as an end date or as a maximum number of occurrences.
+</dd>
+          </dl>
+        </div>
+        <p>The options for describing a more complex EKRecurrenceRule are best summarized by its initializer:</p>
+        <pre class="screen">- (id)initRecurrenceWithFrequency:(EKRecurrenceFrequency)type
+                         interval:(NSInteger)interval
+                    daysOfTheWeek:(NSArray *)days
+                   daysOfTheMonth:(NSArray *)monthDays
+                  monthsOfTheYear:(NSArray *)months
+                   weeksOfTheYear:(NSArray *)weeksOfTheYear
+                    daysOfTheYear:(NSArray *)daysOfTheYear
+                     setPositions:(NSArray *)setPositions
+                              end:(EKRecurrenceEnd *)end</pre>
+        <p>The meanings of all these parameters are mostly obvious from their names. The arrays are mostly of NSNumber, except for <code class="literal">daysOfTheWeek</code>, which is an array of EKRecurrenceDayOfWeek, a class that allows specification of a week number as well as a day number so that you can say things like “the fourth Thursday of the month.” Many of these values can be negative to indicate counting backwards from the last one. Numbers are all 1-based, not 0-based. The <code class="literal">setPositions</code> parameter is an array of numbers filtering the occurrences defined by the rest of the specification against the interval; for example, if <code class="literal">daysOfTheWeek</code> is Sunday, <code class="literal">-1</code> means the last Sunday. You can use any valid combination of parameters; the penalty for an invalid combination is a return value of nil.</p>
+        <p>An EKRecurrenceRule is intended to embody the <code class="literal">RRULE</code> event component in the iCalendar standard specification (originally published as RFC 2445 and recently superseded by RFC 5545, <a class="ulink" href="http://datatracker.ietf.org/doc/rfc5545" target="_top">http://datatracker.ietf.org/doc/rfc5545</a>); in fact, the documentation tells you how each EKRecurrenceRule property corresponds to an <code class="literal">RRULE</code> attribute, and if you log an EKRecurrenceRule with NSLog, what you’re shown <span class="emphasis"><em>is</em></span> the underlying <code class="literal">RRULE</code>. <code class="literal">RRULE</code> can describe some amazingly sophisticated recurrence rules, such as this one:</p>
+        <pre class="screen">RRULE:FREQ=YEARLY;INTERVAL=2;BYMONTH=1;BYDAY=SU</pre>
+        <p>That means “every Sunday in January, every other year.” Let’s form this rule. Observe that we should attach it to an event whose <code class="literal">startDate</code> and <code class="literal">endDate</code> make sense as an example of the rule — that is, on a Sunday in January. Fortunately, <a id="idm441641159184" class="indexterm"></a>NSDateComponents makes that easy:<a id="idm441641158416" class="indexterm"></a></p>
+        <pre class="screen">// ... make sure we have authorization ...
+// ... obtain our calendar (cal) ...
+// form the rule
+EKRecurrenceDayOfWeek* everySunday = [EKRecurrenceDayOfWeek dayOfWeek:1];
+NSNumber* january = @1;
+EKRecurrenceRule* recur =
+    [[EKRecurrenceRule alloc]
+     initRecurrenceWithFrequency:EKRecurrenceFrequencyYearly // every year
+     interval:2 // no, every *two* years!
+     daysOfTheWeek:@[everySunday]
+     daysOfTheMonth:nil
+     monthsOfTheYear:@[january]
+     weeksOfTheYear:nil
+     daysOfTheYear:nil
+     setPositions: nil
+     end:nil];
+// create event with this rule
+EKEvent* ev = [EKEvent eventWithEventStore:self.database];
+ev.title = @"Mysterious Sunday-in-January ritual";
+[ev addRecurrenceRule: recur];
+ev.calendar = cal;
+// need a start date and end date
+NSCalendar* greg =
+    [[NSCalendar alloc] initWithCalendarIdentifier:NSGregorianCalendar];
+NSDateComponents* comp = [NSDateComponents new];
+comp.year = 2013;
+comp.month = 1;
+comp.weekday = 1; // Sunday
+comp.weekdayOrdinal = 1; // *first* Sunday
+comp.hour = 10;
+ev.startDate = [greg dateFromComponents:comp];
+comp.hour = 11;
+ev.endDate = [greg dateFromComponents:comp];
+// save the event
+NSError* err;
+BOOL ok = [self.database saveEvent:ev span:EKSpanFutureEvents
+                            commit:YES error:&amp;err];
+if (!ok) {
+    NSLog(@"save recurring event %@", err.localizedDescription);
+    return;
+}
+NSLog(@"%@", @"no errors");</pre>
+        <p>In that code, the event we save into the database is a recurring event. When we save or delete a recurring event, we must specify its <code class="literal">span</code>. This is either <code class="literal">EKSpanThisEvent</code> or <code class="literal">EKSpanFutureEvents</code>, and corresponds exactly to the two buttons the user sees in the Calendar interface when saving or deleting a recurring event (<a class="xref" href="ch32.html#FIGspan">Figure 32.1</a>). The buttons and the span types reflect their meaning exactly: the change affects either this event alone, or this event plus all <span class="emphasis"><em>future</em></span> (not past) recurrences. This choice determines not only how this and future recurrences of the event are affected now, but also how they relate to one another from now on.</p>
+        <div class="figure">
+          <a id="FIGspan"></a>
+          <div class="figure-contents">
+            <div class="mediaobject">
+              <img src="figs/pios_3201.png" alt="figs/pios_3201.png" />
+            </div>
+          </div>
+          <p class="title">Figure 32.1. The user specifies a span</p>
+        </div>
+        <br class="figure-break" />
+        <p>An EKEvent can also be used to embody a meeting, with <code class="literal">attendees</code> (EKParticipant) and an <code class="literal">organizer</code>, but that is not a feature of an event that you can set.</p>
+        <p>Now let’s talk about how to extract an event from the database. One way, as I mentioned earlier, is by its unique identifier. Before iOS 6, this was its <code class="literal">eventIdentifier</code>; on iOS 6 there is a more general <code class="literal">calendarItemIdentifier</code>. Not only is this identifier a fast and unique way to obtain an event, but also it’s just a string, which means that it persists even if the EKEventStore subsequently goes out of existence. Remember to obtain it, though, while the EKEventStore <span class="emphasis"><em>is</em></span> still in existence; an EKEvent drawn from the database loses its meaning and its usability if the EKEventStore instance is destroyed. (Even this unique identifier <span class="emphasis"><em>might</em></span> not survive changes in a calendar between launches of your app.)</p>
+        <p>You can also extract events from the database by matching a predicate (NSPredicate). To form this predicate, you specify a start and end date and an array of eligible calendars, and call the EKEventStore method <code class="literal">predicateForEventsWithStartDate:endDate:calendars:</code>. That’s the only kind of predicate you can use, so any further filtering of events is then up to you. In this example, I’ll gather all events from our “CoolCal” calendar; because I have to specify a date range, I ask for events occurring over the next year. Because <code class="literal">enumerateEventsMatchingPredicate:</code> can be time-consuming, it’s best to run it on a background thread (<a class="xref" href="ch38.html">Chapter 38</a>):</p>
+        <pre class="screen">// ... make sure we have authorization ...
+// ... obtain our calendar (cal) ...
+NSDate* d1 = [NSDate date];
+// how to do calendrical arithmetic
+NSCalendar* greg =
+    [[NSCalendar alloc] initWithCalendarIdentifier:NSGregorianCalendar];
+NSDateComponents* comp = [NSDateComponents new];
+comp.year = 1; // we're going to add 2 to the year
+NSDate* d2 = [greg dateByAddingComponents:comp toDate:d1 options:0];
+NSPredicate* pred =
+    [self.database predicateForEventsWithStartDate:d1 endDate:d2
+                                         calendars:@[cal]];
+NSMutableArray* marr = [NSMutableArray array];
+dispatch_async(dispatch_get_global_queue(0, 0), ^{
+    [self.database enumerateEventsMatchingPredicate:pred usingBlock:
+     ^(EKEvent *event, BOOL *stop) {
+         [marr addObject: event];
+         if ([event.title rangeOfString:@"nap"].location != NSNotFound)
+            self.napid = event.calendarItemIdentifier;
+     }];
+    [marr sortUsingSelector:@selector(compareStartDateWithEvent:)];
+    NSLog(@"%@", marr);
+});</pre>
+        <p>That example shows you what I mean about further filtering of events. I obtain the “nap” event and the “mysterious Sunday-in-January ritual” events, but the “nap” event is the one I really want, so I filter further to find it in the block. In real life, if I weren’t also testing this call by collecting all returned events into an array, I would then set <code class="literal">*stop</code> to YES to end the enumeration. The events are enumerated in no particular order; the convenience method <code class="literal">compareStartDateWithEvent:</code> is provided as a sort selector to put them in order by start date.</p>
+        <p>When you extract events from the database, event recurrences are treated as separate events (as happened in the preceding example). Recurrences of the same event will have different start and end dates but the same identifier. When you fetch an event by identifier, you get the <span class="emphasis"><em>earliest</em></span> event with that identifier. This makes sense, because if you’re going to make a change affecting this and future recurrences of the event, you need the option to start with the earliest possible recurrence (so that “future” means “all”).</p>
+        <p>New in iOS 6 is support for reminders.<a id="idm441641134912" class="indexterm"></a>
+<a id="idm441641133648" class="indexterm"></a><a id="idm441641132752" class="indexterm"></a> A reminder (EKReminder) is very parallel to an event (EKEvent); they both inherit from EKCalendarItem, so a reminder has a calendar (which the Reminders app refers to as a “list”), a title, notes, alarms, recurrence rules, and attendees. Instead of a start date and an end date, it has a start date, a due date, a completion date, and a <code class="literal">completed</code> property. The start date and due date are expressed directly as NSDateComponents, so you can supply as much detail as you wish: if you don’t include any time components, it’s an all-day reminder.</p>
+        <p>To illustrate, I’ll make an all-day reminder for today:</p>
+        <pre class="screen">// specify calendar
+EKCalendar* cal = [self.database defaultCalendarForNewReminders];
+if (!cal) {
+    NSLog(@"%@", @"failed to find calendar");
+    return;
+}
+// create and configure the reminder
+EKReminder* rem = [EKReminder reminderWithEventStore:self.database];
+rem.title = @"Take a nap";
+rem.calendar = cal;
+NSDate* today = [NSDate date];
+NSCalendar* greg =
+    [[NSCalendar alloc] initWithCalendarIdentifier:NSGregorianCalendar];
+unsigned comps = NSYearCalendarUnit | NSMonthCalendarUnit |  NSDayCalendarUnit;
+rem.dueDateComponents = [greg components:comps fromDate:today];
+// save the reminder
+NSError* err = nil;
+BOOL ok = [self.database saveReminder:rem commit:YES error:&amp;err];
+if (!ok) {
+    NSLog(@"save calendar %@", err.localizedDescription);
+    return;
+}
+NSLog(@"%@", @"no error");</pre>
+        <p>New in iOS 6 are <span class="emphasis"><em>proximity</em></span> alarms, which are triggered by the user’s approaching or leaving a certain location (also known as <span class="emphasis"><em>geofencing</em></span>).<a id="idm441641126688" class="indexterm"></a>
+<a id="idm441641125536" class="indexterm"></a><a id="idm441641124640" class="indexterm"></a> This is appropriate particularly for reminders: one might wish to be reminded of something when approaching the place where that thing can be accomplished. To form the location, you’ll need to use the CLLocation class; you’ll link to <span class="emphasis"><em>CoreLocation.framework</em></span> and import <code class="literal">&lt;CoreLocation/CoreLocation.h&gt;</code> (and see <a class="xref" href="ch35.html">Chapter 35</a>).<a id="idm441641121472" class="indexterm"></a>
+<a id="idm441641120192" class="indexterm"></a> If Reminders doesn’t have location access, it might ask for it when you create a reminder with a proximity alarm. Here, I’ll attach a proximity alarm to a reminder (<code class="literal">rem</code>); the alarm will fire when I’m near my local Trader Joe’s:</p>
+        <pre class="screen">EKAlarm* alarm = [EKAlarm new];
+EKStructuredLocation *loc =
+    [EKStructuredLocation locationWithTitle:@"Trader Joe's"];
+loc.geoLocation =
+    [[CLLocation alloc] initWithLatitude:34.271848 longitude:-119.247714];
+loc.radius = 10*1000; // metres
+alarm.structuredLocation = loc;
+alarm.proximity = EKAlarmProximityEnter; // "geofence": alarm when *arriving*
+[rem addAlarm:alarm];</pre>
+        <p>The calendar database is an odd sort of database, because calendars can be maintained in so many ways and places. A calendar can change while your app is running (the user might sync, or the user might edit with the Calendar app), which can put your information out of date. You can register for a single EKEventStore notification, <code class="literal">EKEventStoreChangedNotification</code>; if you receive it, you should assume that any calendar-related instances you’re holding are invalid. This situation is made relatively painless, though, by the fact that every calendar-related instance can be refreshed with <code class="literal">refresh</code>. Keep in mind that <code class="literal">refresh</code> returns a Boolean; if it returns NO, this object is <span class="emphasis"><em>really</em></span> invalid and you should stop working with it entirely (it may have been deleted from the database).</p>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_calendar_interface"></a>Calendar Interface</h2>
+            </div>
+          </div>
+        </div>
+        <p>The graphical interface consists of three views for letting the user work with events and calendars:<a id="idm441641111040" class="indexterm"></a><a id="idm441641110176" class="indexterm"></a></p>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+EKEventViewController
+</span>
+            </dt>
+            <dd>
+Shows the description of a single event, possibly editable.
+</dd>
+            <dt>
+              <span class="term">
+EKEventEditViewController
+</span>
+            </dt>
+            <dd>
+Allows the user to create or edit an event.
+</dd>
+            <dt>
+              <span class="term">
+EKCalendarChooser
+</span>
+            </dt>
+            <dd>
+Allows the user to pick a calendar.
+</dd>
+          </dl>
+        </div>
+        <p><a id="idm441641103488" class="indexterm"></a>EKEventViewController simply shows the little rounded rectangle containing the event’s title, date, and time, familiar from the Calendar app, possibly with additional rounded rectangles describing alarms, notes, and so forth (<a class="xref" href="ch32.html#FIGevent">Figure 32.2</a>). The user can’t tap these to do anything (except that a URL, if the event has one, is a tappable hyperlink). To use EKEventViewController, instantiate it, give it an event in the database, and push it onto the stack of an existing UINavigationController. The user’s only way out will be the Back button.</p>
+        <div class="figure">
+          <a id="FIGevent"></a>
+          <div class="figure-contents">
+            <div class="mediaobject">
+              <img src="figs/pios_3202.png" alt="figs/pios_3202.png" />
+            </div>
+          </div>
+          <p class="title">Figure 32.2. The event interface</p>
+        </div>
+        <br class="figure-break" />
+        <div class="warning" style="margin-left: 0; margin-right: 10%;">
+          <h3 class="title">Warning</h3>
+          <p>Do <span class="emphasis"><em>not</em></span> use EKEventViewController for an event that isn’t in the database, or at a time when the database isn’t open! It won’t function correctly if you do.</p>
+        </div>
+        <p>So, for example:</p>
+        <pre class="screen">EKEventViewController* evc = [EKEventViewController new];
+evc.event = ev; // must be an event in the database...
+// ...and the database must be open (like our retained self.database)
+evc.delegate = self;
+evc.allowsEditing = YES;
+[self.navigationController pushViewController:evc animated:YES];</pre>
+        <p>The documentation says that <code class="literal">allowsEditing</code> is NO by default, but in my testing the default was YES; perhaps you’d best play safe and set it regardless. If it is YES, an Edit button appears in the navigation bar, and by tapping this, the user can edit the various aspects of an event in the same interface as the Calendar app, including the large red Delete button at the bottom. If the user ultimately deletes the event, or edits it and taps Done, the change is saved into the database.</p>
+        <p>You can assign the EKEventViewController a delegate (EKEventViewDelegate) in order to hear about what the user did. However, the delegate method, <code class="literal">eventViewController:didCompleteWithAction:</code>, is called only if the user deletes an event or accepts an invitation. There is no EKEventViewController delegate method informing you that the user has left the interface; if you want to know what editing the user may have performed on your event, you’ll have to examine the event in the database.</p>
+        <p>On the iPad, you use the EKEventViewController as the root view of a navigation controller created on the fly and set the navigation controller as a popover’s view controller. A Done button appears as the right bar button; the delegate method <code class="literal">eventViewController:didCompleteWithAction:</code> is called if the user taps the Done button, and you’ll need to dismiss the popover there. If <code class="literal">allowsEditing</code> is YES, the left bar button is the Edit button. Here’s a complete example that works both on the iPhone and on the iPad:</p>
+        <pre class="screen">- (IBAction) showEventUI:(id)sender {
+    // ... make sure we have authorization ...
+    // get event
+    EKEvent* ev =
+        (EKEvent*)[self.database calendarItemWithIdentifier:self.napid];
+    if (!ev) {
+        NSLog(@"failed to retrieve event");
+        return;
+    }
+    // create and configure the controller
+    EKEventViewController* evc = [EKEventViewController new];
+    evc.event = ev;
+    evc.delegate = self;
+    evc.allowsEditing = YES;
+    // on iPhone, push onto existing navigation interface
+    if (UI_USER_INTERFACE_IDIOM() == UIUserInterfaceIdiomPhone)
+        [self.navigationController pushViewController:evc animated:YES];
+    // on iPad, create navigation interface in popover
+    else {
+        UINavigationController* nc =
+        [[UINavigationController alloc] initWithRootViewController:evc];
+        UIPopoverController* pop =
+        [[UIPopoverController alloc] initWithContentViewController:nc];
+        self.currentPop = pop;
+        [pop presentPopoverFromRect:[sender bounds] inView:sender
+           permittedArrowDirections:UIPopoverArrowDirectionAny animated:YES];
+    }
+}
+
+-(void)eventViewController:(EKEventViewController *)controller
+        didCompleteWithAction:(EKEventViewAction)action {
+    if (self.currentPop &amp;&amp; self.currentPop.popoverVisible) {
+        [self.currentPop dismissPopoverAnimated:YES];
+        self.currentPop = nil;
+    }
+}</pre>
+        <p><a id="idm441641088560" class="indexterm"></a>EKEventEditViewController (a UINavigationController) presents the interface for editing an event. To use it, set its <code class="literal">eventStore</code> and <code class="literal">editViewDelegate</code> (EKEventEditViewDelegate, <span class="emphasis"><em>not</em></span> <code class="literal">delegate</code>), and optionally its <code class="literal">event</code>, and present it as a presented view controller (or, on the iPad, in a popover). The event can be nil for a completely empty new event; it can be an event you’ve just created (and possibly partially configured) and not stored in the database, or it can be an existing event from the database. If access to the database has been denied, the interface will be empty (like <a class="xref" href="ch30.html#FIGphotoAccess2">Figure 30.2</a>) and the user will simply cancel.</p>
+        <p>The delegate method <code class="literal">eventEditViewControllerDefaultCalendarForNewEvents:</code> may be implemented to specify what calendar a completely new event should be assigned to. If you’re partially constructing a new event, you can assign it a calendar then, and of course an event from the database already has a calendar.</p>
+        <p>You must implement the delegate method <code class="literal">eventEditViewController:didCompleteWithAction:</code> so that you can dismiss the presented view. Possible actions are that the user cancelled, saved the edited event into the database, or deleted an already existing event from the database. You can get a reference to the edited event as the EKEventEditViewController’s <code class="literal">event</code>.</p>
+        <p>On the iPad, the presented view works, or you can present the EKEventEditViewController as a popover. You’ll use <code class="literal">eventEditViewController:didCompleteWithAction:</code> to dismiss the popover; the user can also dismiss it by tapping outside it (in which case the user’s changes are not saved to the database). Here’s a complete example that works on both platforms to let the user create an event from scratch:</p>
+        <pre class="screen">- (IBAction)editEvent:(id)sender {
+    EKEventEditViewController* evc = [EKEventEditViewController new];
+    evc.eventStore = self.database;
+    evc.editViewDelegate = self;
+    if (UI_USER_INTERFACE_IDIOM() == UIUserInterfaceIdiomPhone)
+        [self presentViewController:evc animated:YES completion:nil];
+    else {
+        UIPopoverController* pop =
+        [[UIPopoverController alloc] initWithContentViewController:evc];
+        self.currentPop = pop;
+        [pop presentPopoverFromRect:[sender bounds] inView:sender
+           permittedArrowDirections:UIPopoverArrowDirectionAny animated:YES];
+    }
+}
+
+-(void)eventEditViewController:(EKEventEditViewController *)controller
+         didCompleteWithAction:(EKEventEditViewAction)action {
+    NSLog(@"%@", controller.event); // could do something with event here
+    if (self.currentPop &amp;&amp; self.currentPop.popoverVisible) {
+        [self.currentPop dismissPopoverAnimated:YES];
+        self.currentPop = nil;
+    } else if (self.presentedViewController)
+        [self dismissViewControllerAnimated:YES completion:nil];
+}</pre>
+        <p><a id="idm441641076944" class="indexterm"></a>EKCalendarChooser displays a list of calendars. To use it, call <code class="literal">initWithSelectionStyle:displayStyle:entityType:eventStore:</code>, set a <code class="literal">delegate</code> (EKCalendarChooserDelegate), create a UINavigationController with the EKCalendarChooser as its root view controller, and show the navigation controller as a presented view controller (iPhone) or a popover (iPad). The <code class="literal">selectionStyle</code> dictates whether the user can pick one or multiple calendars; the <code class="literal">displayStyle</code> states whether all calendars or only writable calendars will be displayed. If access to the database has been denied, the interface will be empty (like <a class="xref" href="ch30.html#FIGphotoAccess2">Figure 30.2</a>) and the user will simply cancel.</p>
+        <p>Two properties, <code class="literal">showsCancelButton</code> and <code class="literal">showsDoneButton</code>, determine whether these buttons will appear in the navigation bar. In a presented view controller, you’ll certainly show at least one and probably both, because otherwise the user has no way to dismiss the presented view. In a popover, though, the user can dismiss the popover by tapping elsewhere, and your delegate will hear about what the user does in the view, so depending on the circumstances you might not need either button; for example, if your purpose is to let the user change what calendar an existing event belongs to, this might be considered a reversible, nondestructive action, so it wouldn’t need the overhead of Cancel and Done buttons.</p>
+        <p>There are three delegate methods, all of them required:</p>
+        <div class="itemizedlist">
+          <ul class="itemizedlist" type="disc">
+            <li class="listitem">
+<code class="literal">calendarChooserSelectionDidChange:</code>
+</li>
+            <li class="listitem">
+<code class="literal">calendarChooserDidFinish:</code>
+</li>
+            <li class="listitem">
+<code class="literal">calendarChooserDidCancel:</code>
+</li>
+          </ul>
+        </div>
+        <p>(“Finish” means the user tapped the Done button.) In the Finish and Cancel methods, you’ll certainly dismiss the presented view controller or popover. What else you do will depend on the circumstances.</p>
+        <p>In this example, we implement a potentially destructive action: we offer to delete the selected calendar. Because this is potentially destructive, we pass through a UIActionSheet. There is no way to pass context information into a UIActionSheet, so we store the chosen calendar’s identifier in an instance variable:</p>
+        <pre class="screen">- (IBAction)deleteCalendar:(id)sender {
+    EKCalendarChooser* choo =
+    [[EKCalendarChooser alloc]
+     initWithSelectionStyle:EKCalendarChooserSelectionStyleSingle
+     displayStyle:EKCalendarChooserDisplayAllCalendars
+     entityType:EKEntityTypeEvent
+     eventStore:self.database];
+    choo.showsDoneButton = YES;
+    choo.showsCancelButton = YES;
+    choo.delegate = self;
+    UINavigationController* nav =
+        [[UINavigationController alloc] initWithRootViewController:choo];
+    if (UI_USER_INTERFACE_IDIOM() == UIUserInterfaceIdiomPhone)
+        [self presentViewController:nav animated:YES completion:nil];
+    // on iPad, create navigation interface in popover
+    else {
+        UIPopoverController* pop =
+        [[UIPopoverController alloc] initWithContentViewController:nav];
+        self.currentPop = pop;
+        [pop presentPopoverFromRect:[sender bounds] inView:sender
+           permittedArrowDirections:UIPopoverArrowDirectionAny animated:YES];
+    }
+}
+
+-(void)calendarChooserDidCancel:(EKCalendarChooser *)calendarChooser {
+    NSLog(@"chooser cancel");
+    if (self.currentPop &amp;&amp; self.currentPop.popoverVisible) {
+        [self.currentPop dismissPopoverAnimated:YES];
+        self.currentPop = nil;
+    } else if (self.presentedViewController)
+        [self dismissViewControllerAnimated:YES completion:nil];
+}
+
+-(void)calendarChooserDidFinish:(EKCalendarChooser *)calendarChooser {
+    NSLog(@"chooser finish");
+    NSSet* cals = calendarChooser.selectedCalendars;
+    if (cals &amp;&amp; cals.count) {
+        self.calsToDelete = [cals valueForKey:@"calendarIdentifier"];
+        UIActionSheet* act =
+            [[UIActionSheet alloc] initWithTitle:@"Delete selected calendar?"
+                delegate:self cancelButtonTitle:@"Cancel"
+                destructiveButtonTitle:@"Delete" otherButtonTitles: nil];
+        [act showInView:calendarChooser.view];
+        return;
+    }
+    if (self.currentPop &amp;&amp; self.currentPop.popoverVisible) {
+        [self.currentPop dismissPopoverAnimated:YES];
+        self.currentPop = nil;
+    } else if (self.presentedViewController)
+        [self dismissViewControllerAnimated:YES completion:nil];
+}
+
+-(void)calendarChooserSelectionDidChange:(EKCalendarChooser*)calendarChooser {
+    NSLog(@"chooser change");
+}
+
+-(void)actionSheet:(UIActionSheet *)actionSheet
+        didDismissWithButtonIndex:(NSInteger)buttonIndex {
+    NSString* title = [actionSheet buttonTitleAtIndex:buttonIndex];
+    if ([title isEqualToString:@"Delete"]) {
+        for (id ident in self.calsToDelete) {
+            EKCalendar* cal = [self.database calendarWithIdentifier:ident];
+            if (cal)
+                [self.database removeCalendar:cal commit:YES error:nil];
+        }
+        self.calsToDelete = nil;
+    }
+    if (self.currentPop &amp;&amp; self.currentPop.popoverVisible) {
+        [self.currentPop dismissPopoverAnimated:YES];
+        self.currentPop = nil;
+    } else if (self.presentedViewController)
+        [self dismissViewControllerAnimated:YES completion:nil];
+}</pre>
+        <p>These view controllers automatically listen for changes in the database and, if needed, will automatically call <code class="literal">refresh</code> on the information being edited, updating their display to match. If a view controller is displaying an event in the database and the database is deleted while the user is viewing it, the delegate will get the same notification as if the user had deleted it.</p>
+      </div>
+    </div>
+    <div class="navfooter">
+      <table width="100%" summary="Navigation footer">
+        <tr>
+          <td width="40%" align="left"><a accesskey="p" href="ch31.html">Prev</a> </td>
+          <td width="20%" align="center">
+            <a accesskey="u" href="pt06.html">Up</a>
+          </td>
+          <td width="40%" align="right"> <a accesskey="n" href="ch33.html">Next</a></td>
+        </tr>
+        <tr>
+          <td width="40%" align="left" valign="top">Chapter 31. Address Book </td>
+          <td width="20%" align="center">
+            <a accesskey="h" href="index.html">Table of Contents</a>
+          </td>
+          <td width="40%" align="right" valign="top"> Chapter 33. Mail and Messages</td>
+        </tr>
+      </table>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,128 @@
+<title>Appendix A Patterns</title>
+<h1>Appendix A Patterns</h1>
+<pre><H4>
+ AWK 藉由判斷 Pattern 之值來決定是否執行其後所對應的 
+Actions.這裡列出幾種常見的 Pattern :
+<ol>
+<li>
+ BEGIN  
+ BEGIN 為 AWK 的保留字, 是一種特殊的 Pattern.
+ BEGIN 成立(其值為true)的時機是 :
+           ``AWK 程式一開始執行, 尚未讀取任何資料之前.''
+所以在 BEGIN { Actions } 語法中, 其 Actions 部份僅於程式
+一開始執行時被執行一次. 當 AWK 從資料檔讀入資料列後, 
+BEGIN 便不再成立, 故不論有多少資料列, 該 Actions 部份僅被執行
+一次.<p>
+一般常把 ``與資料檔內容無關'' 與 ``只需執行ㄧ次'' 的部分置於該
+ Actions(以 BEGIN 為 Pattern)中.
+例如 :
+BEGIN { 
+        FS = "[ \t:]"   # 於程式一開始時, 改變AWK切割欄位的方式
+        RS = ""         # 於程式一開始時, 改變AWK分隔資料列的方式
+        count = 100     # 設定變數 count 的起始值
+        print " This is a title line "  # 印出一行 title
+      }
+       ....... # 其它 Pattern { Actions } .....
+
+有些AWK程式甚至''不需要讀入任何資料列''. 遇到這情況可把整個
+程式置於以 BEGIN 為 Pattern的 Actions 中.
+例如 :
+                  BEGIN {   print " Hello ! the Word ! " }
+
+注意 :執行該類僅含 BEGIN { Actions } 的程式時, AWK 並不會開啟
+任何資料檔進行處理.
+</li>
+<li><b>END
+END 為 AWK 的保留字, 是另一種特殊的 Pattern.
+END 成立(其值為true)的時機與 BEGIN 恰好相反, 為 :
+``AWK 處理完所有資料, 即將離開程式時''
+平常讀入資料列時, END並不成立, 故其對應的 Actions 並不被執行; 
+唯有當AWK讀完所有資料時, 該 Actions 才會被執行 
+注意 : 不管資料列有多少筆, 該 Actions 僅被執行一次.
+</li>
+<li>Relational Expression
+使用像 `` A  Relation Operator B'' 的 Expression 當成 Pattern.  
+當 A 與 B 存在所指定的關係(Relation)時, 該 Pattern 就算成立(true).
+        例如 : 
+          <i> length($0)&lt = 80  { print }</i>
+        上式中 { length($0)<= 80 是一個 Pattern, 當 $0(資料列)之長度
+        小於等於 80 時該 Pattern 之值為true, 將執行其後的 Action
+       (印出該資料列).<p>    
+        AWK 中提供下列 關係運算元(Relation Operator)
+<center>
+<table border=5>        
+ <tr><th>運算元<th>涵意</tr>    
+ <tr><th>&gt<th>大於</tr>   
+ <tr><th>&lt<th>小於</tr>   
+ <tr><th>&gt =<th>大於或等於</tr>  
+ <tr><th>&lt=<th>小於或等於  </tr>
+ <tr><th>==<th>等於 </tr>   
+ <tr><th>!=<th>不等於</tr>   
+ <tr><th>~<th>match</tr>
+ <tr><th>!~<th>not match</tr>  
+</table></center>
+上列關係運算元除~(match)與!~(not match)外與 C 語言中之
+涵意一致.
+~(match) 與!~(match) 在 AWK 之涵意簡述如下 :
+若 A 表一字串, B 表一 Regular Expression.
+ A ~B  判斷 字串A 中是否 包含   能合於(match)B式樣的子字串.
+ A !~B 判斷 字串A 中是否 未包含 能合於(match)B式樣的子字串.
+     例如 :
+<i>$0 ~ /program[0-9]+\.c/  \{ print } </i>
+$0 ~/program[0-9]+\.c/ }整個是一個 Pattern, 用來判斷$0(資料列)中
+是否含有可 match /program[0-9]+\.c/ 的子字串, 若$0 中含有該類
+字串, 則執行 print (印出該列資料).<p>
+Pattern 中被用來比對的字串為$0 時(如本例), 可僅以 Regular Expression
+部分表之.
+      故本例的 Pattern 部分
+$0 ~/program[0-9]+\.c/ 可僅用/program[0-9]+\.c/表之     
+
+     (有關 match 及 Regular Expression 請參考 附錄 E ) 
+<li>Regular Expression</li>
+直接使用 Regular Expression 當成 Pattern; 此為 $0 ~ 
+Regular Expression 的簡寫.
+該 Pattern 用以判斷 $0(資料列) 中是否含有 match 該 Regular Expression
+的子字串; 若含有該成立(true) 則執行其對應的 Actions.
+     例如 :  
+/^[0-9]*$/  print "This line is a integer !" 
+與{ $0 ~/^[0-9]*$/ { print "This line is a integer !" } 相同 
+<li>Compound Pattern</li>
+  之前所介紹的各種 Patterns, 其計算(evaluation)後結果為一邏輯值
+(True or False).AWK 中邏輯值彼此間可藉由&&(and),||(or), !(not)
+結合成一個新的邏輯值.故不同 Patterns 彼此可藉由上述結合符號
+來結合成一個新的 Pattern. 如此可進行複雜的條件判斷.
+例 如 : 
+<i> FNR &gt = 23 &&   FNR &lt=28  print "    " $0      }</i>
+     上式利用&& (and) 將兩個 Pattern 求值的結果合併成一個邏輯值.
+      該式 將資料檔中 第23行 到 28行 向右移5格(先印出5個空白
+      字元)後印出. 
+      ( FNR 為AWK的內建變數, 請參考 附錄 D )
+
+<li> Pattern1 , Pattern2</li>
+遇到這種 Pattern, AWK 會幫您設立一個 switch(或flag).
+當AWK讀入的資料列使得 Pattern1 成立時, AWK 會打開(turn on)
+這 switch.<p>
+當AWK讀入的資料列使得 Pattern2 成立時, AWK 會關上(turn off)
+這個 switch.<p>
+該 Pattern 成立的條件是 :
+當這個 switch 被打開(turn on)時 (包括 Pattern1, 或 Pattern2 成立
+的情況)例 如 :
+<i> FNR&gt= 23 && FNR&lt =28  { print "     " $0 </i> }
+     可改寫為
+     FNR == 23 ,  FNR == 28           { print "      " $0 }
+說 明 : 
+<ol>
+<li>當 FNR &gt= 23 時, AWK 就 turn on 這個 switch; </li>
+<li>因為隨著資料列的讀入, AWK不停的累加 FNR. </li>
+<li>當 FNR = 28 時, Pattern2 <b> FNR == 28 便成立, 這時 AWK
+會關上這個 switch.</l><p>
+當 switch 打開的期間, AWK 會執行 ``print "     " $0'' 
+</ol>
+( FNR 為AWK的內建變數, 請參考 附錄 D )
+</h4></pre><hr>
+
+
+
+
+
+

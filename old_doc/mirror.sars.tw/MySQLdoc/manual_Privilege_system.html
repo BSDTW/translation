@@ -1,0 +1,1234 @@
+<html>
+
+<head>
+<meta HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=big5">
+<style type="text/css">
+<!--
+.p13{font-size:14.8px;font-family:宋體;}
+.p14{font-size:14.8px;font-family:宋體;line-height:14pt;}
+a:hover{color:red;}
+a.t1:visited{color:red;}
+-->
+</style>
+<title>MySQL中文參考手冊-6 MySQL 存取權限系統</title>
+</head>
+
+<body BGCOLOR="#FFFFFF" TEXT="#000000" LINK="#101090" VLINK="#7030B0" class="p3">
+
+<h1><img src="Img/mysql-logo.gif" alt="mysql-logo.gif (3082 bytes)" WIDTH="127" HEIGHT="60"><font color="#FF0000">MySQL中文參考手冊</font></h1>
+
+<p>譯者：晏子 <a href="mailto:(clyan@sohu.com">(clyan@sohu.com</a>）<br>
+GB 碼主頁：<a href="http://linuxdb.yeah.net">http://linuxdb.yeah.net</a></p>
+
+<p>Big5 轉碼者：statue <a href="mailto:statue.bbs@bbs.yzu.edu.tw">
+(statue@bbs.yzu.edu.tw</a>） <br>
+詞彙轉換：彭武興 (<a href="mailto:wilson@mailbox.com.tw">wilson@mailbox.com.tw</a>)<br>
+Big5 碼主頁：
+<a href="http://cnpa.yzu.edu.tw/~cfc/docs/mysqldoc_big5/manual_toc.html">
+http://cnpa.yzu.edu.tw/~cfc/docs/mysqldoc_big5/manual_toc.html</a><br>
+Big5 碼分站：
+<a href="http://php.wilson.gs/mysqldoc/big5/manual_toc.html">
+http://php.wilson.gs/mysqldoc/big5/manual_toc.html
+</p>
+
+<hr>
+
+<p><a HREF="manual_Introduction.html">第一章</a>, <a HREF="manual_Compatibility.html">前一章</a>, 
+<a HREF="manual_Reference.html">下一章</a>, <a HREF="manual_Concept_Index.html">最後一章</a>，<a HREF="manual_toc.html">目錄</a>. </p>
+
+<hr>
+
+<h1><a NAME="Privilege_system" HREF="manual_toc.html#Privilege_system">6 MySQL 
+存取權限系統</a></h1>
+
+<p><strong>MySQL</strong>有一個先進但非標準的安全/權限系統。本節描述它的工作原理。 
+</p>
+
+<h2><a NAME="What_Privileges" HREF="manual_toc.html#What_Privileges">6.1 
+權限系統做什麼</a></h2>
+
+<p><strong>MySQL</strong>權限系統的主要功能是証實連接到一台給定主機的一個用戶，並且賦予該用戶在一個資料庫上<strong>select</strong>、 
+<strong>insert</strong>、<strong>update</strong>和<strong>delete</strong>的權限。 </p>
+
+<p>附加的功能包括有一個匿名的用戶和對於<strong>MySQL</strong>特定的功能例如<code>LOAD 
+DATA INFILE</code>進行授權及管理操作的能力。 </p>
+
+<h2><a NAME="User_names" HREF="manual_toc.html#User_names">6.2 MySQL 用戶名和密碼</a></h2>
+
+<p>由<strong>MySQL</strong>使用用戶名和密碼的方法與Unix或Windows使用的方式有很多不同之處： 
+
+<ul>
+  <li><strong>MySQL</strong>使用於認証目的的用戶名，與Unix用戶名(登錄名字)或Windows用戶名無關。內定地，大多數<strong>MySQL</strong>客戶嘗試使用當前Unix用戶名作為<strong>MySQL</strong>用戶名登錄，但是這僅僅為了方便。客戶程式允許用<code>-u</code>或<code>--user</code>選項指定一個不同的名字，這意味著無論如何你不能使得一個資料庫更安全，除非所有的<strong>MySQL</strong>用戶名都有密碼。任何人可以試圖用任何名字連接伺服器，而且如果他們指定了沒有密碼的任何名字，他們將成功。 
+  </li>
+  <li><strong>MySQL</strong>用戶名最長可以是16各字符﹔典型地，Unix用戶名限制為8個字符。 
+  </li>
+  <li><strong>MySQL</strong>密碼與Unix密碼沒關系。在你使用登錄到一台Unix機器密碼和你使用在那台機器上存取一個資料庫的密碼之間沒有必要有關聯。 
+  </li>
+  <li><strong>MySQL</strong>加密密碼使用了一個Unix登錄期間所用的不同算法，見<a HREF="manual_Reference.html#Miscellaneous_functions">7.4.12 雜項函數</a>一節中描述<code>PASSWORD()</code>和<code>ENCRYPT()</code>函數部分。</li>
+</ul>
+
+<h2><a NAME="Connecting" HREF="manual_toc.html#Connecting">6.3 與MySQL伺服器連接</a></h2>
+
+<p>當你想要存取一個<strong>MySQL</strong>伺服器時，<strong>MySQL</strong>客戶程式一般要求你指定連接參數：你想要聯接的主機、你的用戶名和你的密碼。例如，<code>mysql</code>客戶可以像這樣啟動(可選的參數被包括在<samp>“[”</samp>和<samp>“]”</samp>之間)： 
+</p>
+
+<pre>
+shell&gt; mysql [-h host_name][-u user_name][-pyour_pass ]</pre>
+
+<p><code>-h</code>, <code>-u</code>和<code>-p</code>選項的另一種形式是<code>--host=host_name</code>、<code>--user=user_name</code>和<code>--password=your_pass</code>。注意在<code>-p</code>或<code>--password=</code>與跟隨它後面的密碼之間<em>沒有空格</em>。 
+</p>
+
+<p><em>注意：</em>在命令行上指定一個密碼是不安全的！隨後在你系統上的任何用戶可以通過打類似這樣的命令發現你的密碼：<code>ps 
+auxww</code>。見<a HREF="manual_Installing.html#Option_files">4.15.4 選項文件</a>。 
+</p>
+
+<p>對於命令行沒有的聯接參數，<code>mysql</code>使用內定值： 
+
+<ul>
+  <li>內定主機名是<code>localhost</code>。</li>
+  <li>內定用戶名是你的Unix登錄名。 </li>
+  <li>如果沒有<code>-p</code>，則沒有提供密碼。 </li>
+</ul>
+
+<p>這樣, 對一個Unix用戶<code>joe</code>，下列命令是等價的： </p>
+
+<pre>
+shell&gt;mysql -h localhost -u joe 
+shell&gt;mysql -h localhost 
+shell&gt;mysql -u joe 
+shell&gt;mysql
+</pre>
+
+<p>其它<strong>MySQL</strong>客戶程式有同樣表現。 </p>
+
+<p>在Unix系統上，當你進行一個連接時，你可以指定要使用的不同的內定值，這樣你不必每次在你調用一個客戶程式是在命令行上輸入他們。這可以有很多方法做到： 
+
+<ul>
+  <li><a NAME="IDX120"></a>你能在你的主目錄下<tt>“.my.cnf”</tt>的配置文件的<code>[client]</code>小節裡指定連接參數。文件的相關小節看上去可能像這樣： 
+    <pre>[client] 
+host=host_name 
+user=user_name 
+password=your_pass
+</pre>
+    <p>見<a HREF="manual_Installing.html#Option_files">4.15.4 選項文件</a>。</p>
+  </li>
+  <li><a NAME="IDX121"></a><a NAME="IDX126"></a>你可以用環境變數指定連接參數。主機可用<code>MYSQL_HOST</code>指定，<strong>MySQL</strong>用戶名字可用<code>USER</code>指定(僅對 
+    Windows)，密碼可用<code>MYSQL_PWD</code>指定（但是這不安全，見下一節) 
+    。 </li>
+</ul>
+
+<p><a NAME="IDX127"></a>如果連接參數以多種方法被指定，在命令行上被指定的值優先於在配置文件和環境變數中指定的值，而在配置文件指定的值優先於在環境變數指定的值。 
+</p>
+
+<h2><a NAME="Password_security" HREF="manual_toc.html#Password_security">6.4 
+使你的密碼安全</a></h2>
+
+<p>以一種暴露的可被其他用戶發現的方式指定你的密碼是不妥當的。當你運行客戶程式時，你可以使用下列方法指定你的密碼，還有每個方法的風險評估： 
+
+<ul>
+  <li>使用一個在命令行上<code>-pyour_pass</code>或<code>--password=your_pass</code>的選項。這很方便但是不安全，因為你的密碼對系統狀態程式(例如<code>ps</code>)變得可見，它可以被其他的用戶調用來顯示命令行。(一般<strong>MySQL</strong>客戶在他們的初始化順序期間用零覆蓋命令行參數，但是仍然有一個短暫間隔時間內參數值可見的。）</li>
+  <li>使用一<code>個-p</code>或<code>--password</code>選項(沒有指定<code>your_pass</code>值)。在這種情況下，客戶程式請求來自終端的密碼： 
+    <pre>
+shell&gt;mysql - u  user_name - p
+Enter password: ********
+</pre>
+    <p>客戶回應<samp>“*”</samp>字符到作為輸入你的密碼的終端使得旁觀者不能看見它。因為它對其他用戶不可見，與在命令行上指定它相比，這樣進入你的密碼更安全。然而，這個輸入一個密碼的方法僅僅為你交互式運行程式是合適的。如果你想要從非交互式運行的一個腳本調用一個客戶，就沒有從終端輸入入密碼的機會。 
+    </p>
+  </li>
+  <li><a NAME="IDX128"></a>在一個配置文件中儲存你的密碼。例如，你可你的主目錄的<tt>“.my.cnf”</tt>文件中的<code>[client]</code>節列出你的密碼： 
+    <pre>[client]
+password=your_pass
+</pre>
+    <p>如果你在<tt>“.my.cnf”</tt>裡面儲存密碼，文件應該不是組或世界可讀或可寫的。保証文件的存取模式是<code>400</code>或<code>600</code>。見<a HREF="manual_Installing.html#Option_files">4.15.4 選項文件</a>。 </p>
+  </li>
+  <li>你可在<code>MYSQL_PWD</code>環境變數中儲存密碼，但是這個方法必須想到是極不安全的且應該不使用。<code>ps</code>的某些版本包括顯示運行進程的環境的選項﹔如果你設定<code>MYSQL_PWD</code>，你的密碼將對所有人是顯而易見的，甚至在沒有這樣一個版本的<code>ps</code>系統上，假設沒有其他方法觀察到進程環境是不明智的。 
+  </li>
+</ul>
+
+<p>總之，最安全的方法是讓客戶程式提示密碼或在一個適當保護<tt>的“.my.cnf”</tt>文件中指定密碼。 
+</p>
+
+<h2><a NAME="Privileges_provided" HREF="manual_toc.html#Privileges_provided">6.5 &nbsp; 
+MySQL提供的權限</a></h2>
+
+<p>權限資訊用<code>user</code>、<code>db</code>、<code>host</code>、<code>tables_priv</code>和<code>columns_priv</code>表被儲存在<code>mysql</code>資料庫中(即在名為<code>mysql</code>的資料庫中)。在<strong>MySQL</strong>啟動時和在<a HREF="manual_Privilege_system.html#Privilege_changes">6.9 權限修改何時生效</a>所說的情況時，伺服器讀入這些資料庫表內容。 
+</p>
+
+<p>本手冊所用的涉及由<strong>MySQL</strong>提供的權限名稱顯示在下表，還有在授權表中每個權限的表列名稱和每個權限有關的上下文： 
+</p>
+
+<table BORDER="manual_Privilege_system.html#Privilege_changes" WIDTH="100%" NOSAVE="#101090" class="p4">
+  <tr>
+    <td><strong>權限</strong> </td>
+    <td><strong>列</strong> </td>
+    <td><strong>上下文</strong> </td>
+  </tr>
+  <tr>
+    <td><strong>select</strong> </td>
+    <td><code>Select_priv</code> </td>
+    <td>表</td>
+  </tr>
+  <tr>
+    <td><strong>insert</strong> </td>
+    <td><code>Insert_priv</code> </td>
+    <td>表</td>
+  </tr>
+  <tr>
+    <td><strong>update</strong> </td>
+    <td><code>Update_priv</code> </td>
+    <td>表</td>
+  </tr>
+  <tr>
+    <td><strong>delete</strong> </td>
+    <td><code>Delete_priv</code> </td>
+    <td>表</td>
+  </tr>
+  <tr>
+    <td><strong>index</strong> </td>
+    <td><code>Index_priv</code> </td>
+    <td>表</td>
+  </tr>
+  <tr>
+    <td><strong>alter</strong> </td>
+    <td><code>Alter_priv</code> </td>
+    <td>表</td>
+  </tr>
+  <tr>
+    <td><strong>create</strong> </td>
+    <td><code>Create_priv</code> </td>
+    <td>資料庫、表或索引</td>
+  </tr>
+  <tr>
+    <td><strong>drop</strong> </td>
+    <td><code>Drop_priv</code> </td>
+    <td>資料庫或表</td>
+  </tr>
+  <tr>
+    <td><strong>grant</strong> </td>
+    <td><code>Grant_priv</code> </td>
+    <td>資料庫或表</td>
+  </tr>
+  <tr>
+    <td><strong>references</strong> </td>
+    <td><code>References_priv</code> </td>
+    <td>資料庫或表</td>
+  </tr>
+  <tr>
+    <td><strong>reload</strong> </td>
+    <td><code>Reload_priv</code> </td>
+    <td>伺服器管理</td>
+  </tr>
+  <tr>
+    <td><strong>shutdown</strong> </td>
+    <td><code>Shutdown_priv</code> </td>
+    <td>伺服器管理</td>
+  </tr>
+  <tr>
+    <td><strong>process</strong> </td>
+    <td><code>Process_priv</code> </td>
+    <td>伺服器管理</td>
+  </tr>
+  <tr>
+    <td><strong>file</strong> </td>
+    <td><code>File_priv</code> </td>
+    <td>在伺服器上的文件存取</td>
+  </tr>
+</table>
+
+<p><strong>select</strong>、<strong>insert</strong>、<strong>update</strong>和<strong>delete</strong>權限允許你在一個資料庫現有的表上實施操作。 
+</p>
+
+<p><code>SELECT</code>語句只有在他們真正從一個表中檢索行是才需要<strong>select</strong>權限，你可以執行某個<code>SELECT</code>語句，甚至沒有任何到伺服器上的資料庫裡的存取任何東西的許可。例如，你可使用<code>mysql</code>客戶作為一個簡單的計算器： 
+</p>
+
+<pre>mysql&gt; SELECT 1+1;
+mysql&gt; SELECT PI()*2;
+</pre>
+
+<p><strong>index</strong>權限允許你創建或拋棄(刪除)索引。 </p>
+
+<p><strong>alter</strong>權限允許你使用<code>ALTER TABLE</code>。 </p>
+
+<p><strong>create</strong>和<strong>drop</strong>權限允許你創建新的資料庫和表，或拋棄(刪除)現存的資料庫和表。 
+</p>
+
+<p>注意：如果你將<code>mysql</code>資料庫的<strong>drop</strong>權限授予一個用戶，該用戶能拋棄儲存了<strong>MySQL</strong>存取權限的資料庫！ 
+</p>
+
+<p><strong>grant</strong>權限允許你把你自己擁有的那些權限授給其他的用戶。 
+</p>
+
+<p><strong>file</strong>權限給予你用<code>LOAD DATA INFILE</code>和<code>SELECT ... 
+INTO OUTFILE</code>語句讀和寫伺服器上的文件，任何被授予這個權限的用戶都能讀或寫<strong>MySQL</strong>伺服器能讀或寫的任何文件。 
+</p>
+
+<p>其餘的權限用於管理性操作，它使用<code>mysqladmin</code>程式實施。下表顯示<code>mysqladmin</code>支配每個管理性權限允許你執行的命令： 
+</p>
+
+<table BORDER="manual_Privilege_system.html#Privilege_changes" WIDTH="100%" NOSAVE="#101090" class="p4">
+  <tr>
+    <td><strong>優惠</strong> </td>
+    <td><strong>權限擁有者允許執行的命令</strong> </td>
+  </tr>
+  <tr>
+    <td><strong>reload</strong> </td>
+    <td><code>reload</code>, <code>refresh</code>, <code>flush-privileges</code>, <code>flush-hosts</code>, 
+    <code>flush-logs</code>, <code>flush-tables</code> </td>
+  </tr>
+  <tr>
+    <td><strong>shutdown</strong> </td>
+    <td><code>shutdown</code> </td>
+  </tr>
+  <tr>
+    <td><strong>precess</strong> </td>
+    <td><code>processlist</code>, <code>kill</code> </td>
+  </tr>
+</table>
+
+<p><code>reload</code>命令告訴伺服器再讀入授權表，<code>refresh</code>命令清洗所有表並打開和關閉記錄文件，<code>flush-privileges</code>是<code>reload</code>的一個同義詞，其它<code>flush-*</code>命令執行類似<code>refresh</code>的功能，但是範圍更有限，並且在某些情況下可能更好用。例如，如果你只是想清洗記錄文件，<code>flush-logs</code>比<code>refresh</code>是更好的選擇。 
+</p>
+
+<p><code>shutdown</code>命令關掉伺服器。 </p>
+
+<p><code>processlist</code>命令顯示在伺服器內執行的執行緒的資訊。<code>kill</code>命令殺死伺服器執行緒。你總是能顯示或殺死你自己的執行緒，但是你需要<strong>process</strong>權限來顯示或殺死其他用戶啟動的執行緒。 
+</p>
+
+<p>總的說來，只授予權限給需要他們的那些用戶是一個好主意，但是你應該在授予某個權限時試驗特定的警告： 
+
+<ul>
+  <li><strong>grant</strong>權限允許用戶放棄他們的權限給其他用戶。2個有不同的權限並有<strong>grant</strong>權限的用戶可以合並權限。 
+  </li>
+  <li><strong>alter</strong>權限可以用於通過重新命名表來推翻權限系統。 </li>
+  <li><strong>file</strong>權限可以被濫用在伺服器上讀取任何世界可讀(world-readable，即任何人可讀)的文件到一張資料庫表，然後其內容能用<code>SELECT</code>被存取。 
+  </li>
+  <li><strong>shutdown</strong>權限通過終止伺服器可以被濫用完全拒絕為其他用戶服務, 
+    。 </li>
+  <li><strong>precess</strong>權限能被用來察看當前執行的查詢的純文字版，包括設定或改變密碼查詢。 
+  </li>
+  <li>在<code>mysql</code>資料庫上的權限能被用來改變密碼和其他存取權限資訊。（密碼被加密儲存，所以一個惡意的用戶不能簡單地讀取他們。然而，有足夠的權限，同一個用戶能用不同的一個代替一個密碼。）</li>
+</ul>
+
+<p>有一些事情你不能用<strong>MySQL</strong>權限系統做到： 
+
+<ul>
+  <li>你不能明顯地指定一個給定用戶應該被拒絕存取。即，你不能明顯地匹配一個用戶並且然後拒絕連接。 
+  </li>
+  <li>你不能指定一個用戶有權創建立或拋棄一個資料庫中的表，也不能創建或拋棄資料庫本身。 
+  </li>
+</ul>
+
+<h2><a NAME="Privileges" HREF="manual_toc.html#Privileges">6.6 權限系統工作原理</a></h2>
+
+<p><strong>MySQL</strong>權限系統保証所有的用戶可以嚴格地做他們假定被允許做的事情。當你連接一個<strong>MySQL</strong>伺服器時， 
+你的身份由<strong>你從那連接的主機</strong>和<strong>你指定的用戶名</strong>來決定，系統根據你的身份和<strong>你想做什麼</strong>來授予權限。 
+</p>
+
+<p><strong>MySQL</strong>在認定身份中考慮你的主機名和用戶名字，是因為有很小的原因假定一個給定的用戶在網際網路上屬於同一個人。例如，用戶從<code>whitehouse.gov</code>連接的<code>bill</code>不必和從<code>mosoft.com</code>連接<code>bill</code>是同一個人。 
+<strong>MySQL</strong>通過允許你區分在不同的主機上碰巧有同樣名字用戶來處理它：你可以對從<code>whitehouse.gov</code>連接授與<code>bill</code>一個權限集，而為從<code>microsoft.com</code>的連接授予一個不同的權限集。 
+</p>
+
+<p><strong>MySQL</strong>存取控制包含2個階段： 
+
+<ul>
+  <li>階段1：伺服器檢查你是否允許連接。 </li>
+  <li>階段2：假定你能連接，伺服器檢查你發出的每個請求。看你是否有足夠的權限實施它。例如，如果你從資料庫中一個表選取(select)行或從資料庫拋棄一個表，伺服器確定你對表有<strong>select</strong>權限或對資料庫有<strong>drop</strong>權限。 
+  </li>
+</ul>
+
+<p>伺服器在存取控制的兩個階段使用在<code>mysql</code>的資料庫中的<code>user</code>、<code>db</code>和<code>host</code>表，在這些授權表中字段如下： 
+</p>
+
+<table BORDER="Privileges" WIDTH="100%" NOSAVE="#101090">
+  <tr>
+    <td><strong>表名稱</strong> </td>
+    <td><code>user</code> </td>
+    <td><code>db</code> </td>
+    <td><code>host</code> </td>
+  </tr>
+  <tr>
+    <td><strong>範圍字段</strong> </td>
+    <td><code>Host</code> </td>
+    <td><code>Host</code> </td>
+    <td><code>Host</code> </td>
+  </tr>
+  <tr>
+    <td></td>
+    <td><code>User</code> </td>
+    <td><code>Db</code> </td>
+    <td><code>Db</code> </td>
+  </tr>
+  <tr>
+    <td></td>
+    <td><code>Password</code> </td>
+    <td><code>User</code> </td>
+    <td></td>
+  </tr>
+  <tr>
+    <td><strong>權限字段</strong> </td>
+    <td><code>Select_priv</code> </td>
+    <td><code>Select_priv</code> </td>
+    <td><code>Select_priv</code> </td>
+  </tr>
+  <tr>
+    <td></td>
+    <td><code>Insert_priv</code> </td>
+    <td><code>Insert_priv</code> </td>
+    <td><code>Insert_priv</code> </td>
+  </tr>
+  <tr>
+    <td></td>
+    <td><code>Update_priv</code> </td>
+    <td><code>Update_priv</code> </td>
+    <td><code>Update_priv</code> </td>
+  </tr>
+  <tr>
+    <td></td>
+    <td><code>Delete_priv</code> </td>
+    <td><code>Delete_priv</code> </td>
+    <td><code>Delete_priv</code> </td>
+  </tr>
+  <tr>
+    <td></td>
+    <td><code>Index_priv</code> </td>
+    <td><code>Index_priv</code> </td>
+    <td><code>Index_priv</code> </td>
+  </tr>
+  <tr>
+    <td></td>
+    <td><code>Alter_priv</code> </td>
+    <td><code>Alter_priv</code> </td>
+    <td><code>Alter_priv</code> </td>
+  </tr>
+  <tr>
+    <td></td>
+    <td><code>Create_priv</code> </td>
+    <td><code>Create_priv</code> </td>
+    <td><code>Create_priv</code> </td>
+  </tr>
+  <tr>
+    <td></td>
+    <td><code>Drop_priv</code> </td>
+    <td><code>Drop_priv</code> </td>
+    <td><code>Drop_priv</code> </td>
+  </tr>
+  <tr>
+    <td></td>
+    <td><code>Grant_priv</code> </td>
+    <td><code>Grant_priv</code> </td>
+    <td><code>Grant_priv</code> </td>
+  </tr>
+  <tr>
+    <td></td>
+    <td><code>Reload_priv</code> </td>
+    <td></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td></td>
+    <td><code>Shutdown_priv</code> </td>
+    <td></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td></td>
+    <td><code>Process_priv</code> </td>
+    <td></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td></td>
+    <td><code>File_priv</code> </td>
+    <td></td>
+    <td></td>
+  </tr>
+</table>
+
+<p>對存取控制的第二階段(請求証實)，如果請求涉及表，伺服器可以另外參考<code>tables_priv</code>和<code>columns_priv</code>表。這些表的字段如下： 
+</p>
+
+<table BORDER="Privileges" WIDTH="100%" NOSAVE="#101090">
+  <tr>
+    <td><strong>表名稱</strong></td>
+    <td><code>tables_priv</code> </td>
+    <td><code>columns_priv</code> </td>
+  </tr>
+  <tr>
+    <td><strong>範圍字段</strong> </td>
+    <td><code>Host</code> </td>
+    <td><code>Host</code> </td>
+  </tr>
+  <tr>
+    <td></td>
+    <td><code>Db</code> </td>
+    <td><code>Db</code> </td>
+  </tr>
+  <tr>
+    <td></td>
+    <td><code>User</code> </td>
+    <td><code>User</code> </td>
+  </tr>
+  <tr>
+    <td></td>
+    <td><code>Table_name</code> </td>
+    <td><code>Table_name</code> </td>
+  </tr>
+  <tr>
+    <td></td>
+    <td></td>
+    <td><code>Column_name</code> </td>
+  </tr>
+  <tr>
+    <td><strong>權限字段</strong> </td>
+    <td><code>Table_priv</code> </td>
+    <td><code>Column_priv</code> </td>
+  </tr>
+  <tr>
+    <td></td>
+    <td><code>Column_priv</code> </td>
+    <td></td>
+  </tr>
+  <tr>
+    <td><strong>其他字段</strong> </td>
+    <td><code>Timestamp</code> </td>
+    <td><code>Timestamp</code> </td>
+  </tr>
+  <tr>
+    <td></td>
+    <td><code>Grantor</code> </td>
+    <td></td>
+  </tr>
+</table>
+
+<p>每個授權表包含範圍字段和權限字段。 </p>
+
+<p>範圍字段決定表中每個條目的範圍，即，條目適用的上下文。例如, 
+一個<code>user</code>表條目的<code>Host</code>和<code>User</code>值為<code>'thomas.loc.gov'</code>和<code>'bob'</code>將被用於証實來自主機<code>thomas.loc.gov</code>的<code>bob</code>對伺服器的連接。同樣，一個<code>db</code>表條目的<code>Host</code>、<code>User</code>和<code>Db</code>字段的值是<code>'thomas.loc.gov'</code>、<code>'bob'</code>和<code>'reports'</code>將用在<code>bob</code>從主機聯接<code>thomas.loc.gov</code>存取<code>reports</code>資料庫的時候。 
+<code>tables_priv</code>和<code>columns_priv</code>表包含範圍字段，指出每個條目適用的表或表／列的組合。 
+</p>
+
+<p><a NAME="IDX129"></a>對於檢查存取的用途，比較<code>Host</code>值是忽略大小寫的。<code>User</code>、<code>Passwor</code>d、<code>Db</code>和<code>Table_name</code>值是區分大小寫的。<code>Column_name</code>值在<strong>MySQL</strong>3.22.12或以後版本是忽略大小寫的。 
+</p>
+
+<p>權限字段指出由一個表條目授予的權限，即，可實施什麼操作。伺服器組合各種的授權表的資訊形成一個用戶權限的完整描述。為此使用的規則在<a HREF="manual_Privilege_system.html#Request_access">6.8 存取控制, 階段2：請求証實</a>描述。</p>
+
+<p>範圍字段是字符串，如下所述﹔每個字段的內定值是空字符串： </p>
+
+<table BORDER="manual_Privilege_system.html#Request_access" WIDTH="100%" NOSAVE="#101090">
+  <tr>
+    <td><strong>字段名</strong> </td>
+    <td><strong>類型</strong> </td>
+  </tr>
+  <tr>
+    <td><code>Host</code> </td>
+    <td><code>CHAR(60)</code> </td>
+  </tr>
+  <tr>
+    <td><code>User</code> </td>
+    <td><code>CHAR(16)</code> </td>
+  </tr>
+  <tr>
+    <td><code>Password</code> </td>
+    <td><code>CHAR(16)</code> </td>
+  </tr>
+  <tr>
+    <td><code>Db</code> </td>
+    <td><code>CHAR(64)</code> </td>
+    <td>(<code>tables_priv</code>和<code>columns_priv</code>表為<code>CHAR(60)</code>）</td>
+  </tr>
+</table>
+
+<p>在<code>user</code>、<code>db</code>和<code>host</code>表中，所有權限字段被聲明為<code>ENUM('N','Y')</code>--每一個都可有值<code>'N'</code>或<code>'Y'</code>，並且內定值是<code>'N'</code>. 
+</p>
+
+<p>在<code>tables_priv</code>和<code>columns_priv</code>表中，權限字段被聲明為<code>SET</code>字段： 
+</p>
+
+<table BORDER="manual_Privilege_system.html#Request_access" WIDTH="100%" NOSAVE="#101090">
+  <tr>
+    <td><strong>表名</strong> </td>
+    <td><strong>字段名</strong> </td>
+    <td><strong>可能的集合成員</strong> </td>
+  </tr>
+  <tr>
+    <td><code>tables_priv</code> </td>
+    <td><code>Table_priv</code> </td>
+    <td><code>'Select', 'Insert', 'Update', 'Delete', 'Create', 'Drop', 'Grant', 'References', 
+    'Index', 'Alter'</code> </td>
+  </tr>
+  <tr>
+    <td><code>tables_priv</code> </td>
+    <td><code>Column_priv</code> </td>
+    <td><code>'Select', 'Insert', 'Update', 'References'</code> </td>
+  </tr>
+  <tr>
+    <td><code>columns_priv</code> </td>
+    <td><code>Column_priv</code> </td>
+    <td><code>'Select', 'Insert', 'Update', 'References'</code> </td>
+  </tr>
+</table>
+
+<p>簡單地說，伺服器使用這樣的授權表： 
+
+<ul>
+  <li><code>user</code>表範圍字段決定是否允許或拒絕到來的連接。對於允許的連接，權限字段指出用戶的全局(超級用戶)權限。 
+  </li>
+  <li><code>db</code>和<code>host</code>表一起使用： <ul>
+      <li><code>db</code>表範圍字段決定用戶能從哪個主機存取哪個資料庫。權限字段決定允許哪個操作。 
+      </li>
+      <li>當你想要一個給定的<code>db</code>條目應用於若干主機時，<code>host</code>表作為<code>db</code>表的擴展被使用。例如，如果你想要一個用戶能在你的網路從若干主機使用一個資料庫，在用戶的<code>db</code>表的<code>Host</code>條目設為空值，然後將那些主機的每一個移入<code>host</code>表。這個機制詳細描述在<a HREF="manual_Privilege_system.html#Request_access">6.8 存取控制, 階段2：請求証實</a>。 
+      </li>
+    </ul>
+  </li>
+  <li><code>tables_priv</code>和<code>columns_priv</code>表類似於<code>db</code>表，但是更精致：他們在表和列級應用而非在資料庫級。 
+  </li>
+</ul>
+
+<p>注意管理權限(<strong>reload</strong>, <strong>shutdown</strong>, 等等)僅在<code>user</code>表中被指定。這是因為管理性操作是伺服器本身的操作並且不是特定資料庫，因此沒有理由在其他授權表中列出這樣的權限。事實上，只需要請教<code>user</code>表來決定你是否執行一個管理操作。 
+</p>
+
+<p><strong>file</strong>權限也僅在<code>user</code>表中指定。它不是管理性權限，但你讀或謝在伺服器主機上的文件的的能力獨立於你正在存取的資料庫。 
+</p>
+
+<p>當<code>mysqld</code>伺服器啟動時，讀取一次授權表內容。對授權表的更改生效在<a HREF="manual_Privilege_system.html#Privilege_changes">6.9 權限更改何時生效</a>描述。 
+</p>
+
+<p>當你修改授權表的內容時，確保你按你想要的方式更改權限設置是一個好主意。為幫助診斷問題，見<a HREF="manual_Privilege_system.html#Access_denied">6.13 “存取拒絕引起<code>”</code>錯誤的原因</a>。對於安全問題上的忠告，見<a HREF="manual_Privilege_system.html#Security">6.14 怎麼對使MySQL安全對抗解密高手</a>。 
+</p>
+
+<p>一個有用的診斷工具是<code>mysqlaccess</code>腳本，由Carlier Yves 
+提供給<strong>MySQL</strong>分發。使用<code>--help</code>選項調用<code>mysqlaccess</code>查明它怎樣工作。注意：<code>mysqlaccess</code>僅用<code>user</code>、<code>db</code>和<code>host</code>表僅檢查存取。它不檢查表或列級權限。 
+</p>
+
+<h2><a NAME="Connection_access" HREF="manual_toc.html#Connection_access">6.7 存取控制, 
+階段1：連接証實</a></h2>
+
+<p>當你試圖聯接一個<strong>MySQL</strong>伺服器時，伺服器基於你的身份和你是否能通過供應正確的密碼驗証身份來接受或拒絕連接。如果不是，伺服器完全具結你的存取，否則，伺服器接受連接，然後進入階段2並且等待請求。 
+</p>
+
+<p>你的身份基於2個資訊： 
+
+<ul>
+  <li>你從那個主機連接</li>
+  <li>你的<strong>MySQL</strong>用戶名</li>
+</ul>
+
+<p>身份檢查使用3個<code>user</code>表(<code>Host</code>, <code>User</code>和<code>Password</code>)範圍字段執行。伺服器只有在一個<code>user</code>表條目匹配你的主機名和用戶名並且你提供了正確的密碼時才接受連接。 
+</p>
+
+<p>在<code>user</code>表範圍字段可以如下被指定： 
+
+<ul>
+  <li>一個<code>Host</code>值可以是主機名或一個IP數字，或<code>'localhost'</code>指出本地主機。 
+  </li>
+  <li><a NAME="IDX130"></a>你可以在<code>Host</code>字段裡使用通配符字符<samp>“%”</samp>和<samp>“_”</samp>。 
+  </li>
+  <li>一個<code>Host</code>值<code>'%'</code>匹配任何主機名，一個空白<code>Host</code>值等價於<code>'%'</code>。注意這些值匹配<em>能創建一個連接到你的伺服器的任何主機！</em> 
+  </li>
+  <li><a NAME="IDX131"></a>通配符字符在<code>User</code>字段中不允許，但是你能指定空白的值，它匹配任何名字。如果<code>user</code>表匹配到來的連接的條目有一個空白的用戶名，用戶被認為是匿名用戶(沒有名字的用戶)，而非客戶實際指定的名字。這意味著一個空白的用戶名被用於在連接期間的進一步的存取檢查(即，在階段2期間)。 
+  </li>
+  <li><code>Password</code>字段可以是空白的。這不意味著匹配任何密碼，它意味著用戶必須不指定一個密碼進行連接。 
+  </li>
+</ul>
+
+<p><a NAME="IDX132"></a>非空白<code>Password</code>值代表加密的密碼。 <strong>MySQL</strong>不以任何人可以看的純文本格式儲存密碼，相反，正在試圖聯接的一個用戶提供的密碼被加密(使用<code>PASSWORD()</code>函數)，並且與儲存了<code>user</code>表中的已經加密的版本比較。如果他們匹配，密碼是正確的。 
+</p>
+
+<p>下面的例子顯示出各種<code>user</code>表中<code>Host</code>和<code>User</code>條目的值的組合如何應用於到來的連接： 
+</p>
+
+<table BORDER="IDX132" WIDTH="100%" NOSAVE="#101090">
+  <tr>
+    <td><code>Host</code> <strong>值</strong> </td>
+    <td><code>User</code> <strong>值</strong> </td>
+    <td><strong>被條目匹配的連接</strong> </td>
+  </tr>
+  <tr>
+    <td><code>'thomas.loc.gov'</code> </td>
+    <td><code>'fred'</code> </td>
+    <td><code>fred</code>, 從<code>thomas.loc.gov</code> 連接</td>
+  </tr>
+  <tr>
+    <td><code>'thomas.loc.gov'</code> </td>
+    <td><code>''</code> </td>
+    <td>任何用戶, 從<code>thomas.loc.gov</code>連接 </td>
+  </tr>
+  <tr>
+    <td><code>'%'</code> </td>
+    <td><code>'fred'</code> </td>
+    <td><code>fred</code>, 從任何主機連接</td>
+  </tr>
+  <tr>
+    <td><code>'%'</code> </td>
+    <td><code>''</code> </td>
+    <td>任何用戶, 從任何主機連接</td>
+  </tr>
+  <tr>
+    <td><code>'%.loc.gov'</code> </td>
+    <td><code>'fred'</code> </td>
+    <td><code>fred</code>, 從在<code>loc.gov</code>域的任何主機連接</td>
+  </tr>
+  <tr>
+    <td><code>'x.y.%'</code> </td>
+    <td><code>'fred'</code> </td>
+    <td><code>fred</code>, 從<code>x.y.net</code>、<code>x.y.com</code>,<code>x.y.edu</code>等聯接。（這或許無用）</td>
+  </tr>
+  <tr>
+    <td><code>'144.155.166.177'</code> </td>
+    <td><code>'fred'</code> </td>
+    <td><code>fred</code>, 從<code>有144.155.166.177</code> IP 地址的主機連接</td>
+  </tr>
+  <tr>
+    <td><code>'144.155.166.%'</code> </td>
+    <td><code>'fred'</code> </td>
+    <td><code>fred</code>, 從<code>144.155.166</code> C類子網的任何主機連接</td>
+  </tr>
+</table>
+
+<p>既然你能在<code>Host</code>字段使用IP通配符值(例如，<code>'144.155.166.%'</code>匹配在一個子網上的每台主機)，有可能某人可能企圖探究這種能力，通過命名一台主機為<code>144.155.166.somewhere.com</code>。為了阻止這樣的企圖，<strong>MySQL</strong>不允許匹配以數字和一個點起始的主機名，這樣，如果你用一個命名為類似<code>1.2.foo.com</code>的主機，它的名字決不會匹配授權表中<code>Host</code>列。只有一個IP數字能匹配IP通配符值。 
+</p>
+
+<p>一個到來的連接可以被在<code>user</code>表中的超過一個條目匹配。例如，一個由<code>fred</code>從<code>thomas.loc.gov</code>的連接匹配多個條目如上所述。如果超過一個匹配，伺服器怎麼選擇使用哪個條目呢？伺服器在啟動時讀入<code>user</code>表後通過排序來解決這個問題，然後當一個用戶試圖連接時，以排序的順序瀏覽條目，第一個匹配的條目被使用。 
+</p>
+
+<p><code>user</code>表排序工作如下，假定<code>user</code>表看起來像這樣： 
+</p>
+
+<pre>
++-----------+----------+-
+| Host      | User     | ...
++-----------+----------+-
+| %         | root     | ...
+| %         | jeffrey  | ...
+| localhost | root     | ...
+| localhost |          | ...
++-----------+----------+-
+</pre>
+
+<p>當伺服器在表中讀取時，它以最特定的<code>Host</code>值為先的次序排列(<code>'%'</code>在<code>Host</code>列裡意味著“任何主機”並且是最不特定的)。有相同<code>Host</code>值的條目以最特定的<code>User</code>值為先的次序排列(一個空白<code>User</code>值意味著“任何用戶”並且是最不特定的)。最終排序的<code>user</code>表看起來像這樣： 
+</p>
+
+<pre>
++-----------+----------+-
+| Host      | User     | ...
++-----------+----------+-
+| localhost | root     | ...
+| localhost |          | ...
+| %         | jeffrey  | ...
+| %         | root     | ...
++-----------+----------+-
+</pre>
+
+<p><a NAME="IDX133"></a>當一個連接被嘗試時，伺服器瀏覽排序的條目並使用找到的第一個匹配。對於由<code>jeffrey</code>從<code>localhost</code>的一個連接，在<code>Host</code>列的<code>'localhost'</code>條目首先匹配。那些有空白用戶名的條目匹配連接的主機名和用戶名。（<code>'%'/'jeffrey'</code>條目也將匹配，但是它不是在表中的第一匹配。）</p>
+
+<p>這是另外一個例子。假定<code>user</code>桌子看起來像這樣： </p>
+
+<pre>
++----------------+----------+-
+| Host           | User     | ...
++----------------+----------+-
+| %              | jeffrey  | ...
+| thomas.loc.gov |          | ...
++----------------+----------+-
+</pre>
+
+<p>排序後的表看起來像這樣： </p>
+
+<pre>
++----------------+----------+-
+| Host           | User     | ...
++----------------+----------+-
+| thomas.loc.gov |          | ...
+| %              | jeffrey  | ...
++----------------+----------+-
+</pre>
+
+<p>一個由<code>jeffrey</code>從<code>thomas.loc.gov</code>的連接被第一個條目匹配，而一個由<code>jeffrey</code>從<code>whitehouse.gov</code>的連接被第二個匹配。 
+</p>
+
+<p>普遍的誤解是認為，對一個給定的用戶名，當伺服器試圖對連接尋找匹配時，明確命名那個用戶的所有條目將首先被使用。這明顯不是事實。先前的例子說明了這點，在那裡一個由<code>jeffrey</code>從<code>thomas.loc.gov</code>的連接沒被包含<code>'jeffrey'</code>作為<code>User</code>字段值的條目匹配，但是由沒有用戶名的題目匹配！ 
+</p>
+
+<p>如果你有伺服器連接的問題，列印出<code>user</code>表並且手工排序它看看第一個匹配在哪兒進行。 
+</p>
+
+<h2><a NAME="Request_access" HREF="manual_toc.html#Request_access">6.8 
+存取控制，階段2：請求証實</a></h2>
+
+<p>一旦你建立了一個連接，伺服器進入階段2。對在此連接上進來的每個請求，伺服器檢查你是否有足夠的權限來執行它，它基於你希望執行的操作類型。這正是在授權表中的權限字段發揮作用的地方。這些權限可以來子<code>user</code>、<code>db</code>、<code>host</code>、<code>tables_priv</code>或<code>columns_priv</code>表的任何一個。授權表用<code>GRANT</code>和<code>REVOKE</code>命令操作。見<a HREF="manual_Reference.html#GRANT">7.26<code> GRANT</code>和<code>REVOKE</code> 句法</a>。（你可以發覺參考<a HREF="manual_Privilege_system.html#Privileges">6.6 權限系統怎樣工作</a>很有幫助，它列出了在每個權限表中呈現的字段。）</p>
+
+<p><code>user</code>表在一個全局基礎上授予賦予你的權限，該權限不管當前的資料庫是什麼均適用。例如，如果<code>user</code>表授予你<strong>delete</strong>權限， 
+你可以刪除在伺服器主機上從任何資料庫刪除行！換句話說，<code>user</code>表權限是超級用戶權限。只把<code>user</code>表的權限授予超級用戶如伺服器或資料庫主管是明智的。對其他用戶，你應該把在<code>user</code>表中的權限設成<code>'N'</code>並且僅在一個特定資料庫的基礎上授權， 
+使用<code>db</code>和<code>host</code>表。 </p>
+
+<p><a NAME="IDX136"></a><code>db</code>和<code>host</code>表授予資料庫特定的權限。在範圍字段的值可以如下被指定： 
+
+<ul>
+  <li>通配符字符<samp>“%”</samp>和<samp>“_”</samp>可被用於兩個表的<code>Host</code>和<code>Db</code>字段。 
+  </li>
+  <li>在<code>db</code>表的<code>'%'Host</code>值意味著“任何主機”，在<code>db</code>表中一個空白<code>Host</code>值意味著“對進一步的資訊咨詢<code>host</code>表”。</li>
+  <li>在<code>host</code>表的一個<code>'%'</code>或空白<code>Host</code>值意味著“任何主機”。</li>
+  <li>在兩個表中的一個<code>'%'</code>或空白<code>Db</code>值意味著“任何資料庫”。</li>
+  <li>在兩個表中的一個空白<code>User</code>值匹配匿名用戶。 </li>
+</ul>
+
+<p><a NAME="IDX139"></a><code>db</code>和<code>host</code>表在伺服器啟動時被讀取和排序(同時它讀<code>user</code>表)。<code>db</code>表在<code>Host</code>、<code>Db</code>和<code>User</code>範圍字段上排序，並且<code>host</code>表在<code>Host</code>和<code>Db</code>範圍字段上排序。對於<code>user</code>表，排序首先放置最特定的值然後最後最不特定的值，並且當伺服器尋找匹配入條目時，它使用它找到的第一個匹配。 
+</p>
+
+<p><code>tables_priv</code>和<code>columns_priv</code>表授予表和列特定的權限。在範圍字段的值可以如下被指定： 
+
+<ul>
+  <li>通配符<samp>“%”</samp>和<samp>“_”</samp>可用在使用在兩個表的<code>Host</code>字段。 
+  </li>
+  <li>在兩個表中的一個<code>'%'</code>或空白<code>Host</code>意味著“任何主機”。</li>
+  <li>在兩個表中的<code>Db</code>、<code>Table_name</code>和<code>Column_name</code>字段不能包含通配符或空白。 
+  </li>
+</ul>
+
+<p><code>tables_priv</code>和<code>columns_priv</code>表在<code>Host</code>、<code>Db</code>和<code>User</code>字段上被排序。這類似於<code>db</code>表的排序，盡管因為只有<code>Host</code>字段可以包含通配符，但排序更簡單。 
+</p>
+
+<p>請求証實進程在下面描述。（如果你熟悉存取檢查的原始程式，你會注意到這裡的描述與在代碼使用的算法略有不同。描述等價於代碼實際做的東西﹔它只是不同於使解釋更簡單。）</p>
+
+<p>對管理請求(<strong>shutdown</strong>、<strong>reload</strong>等等)，伺服器僅檢查<code>user</code>表條目，因為那是唯一指定管理權限的表。如果條目許可請求的操作，存取被授權了，否則拒絕。例如，如果你想要執行<code>mysqladmin 
+shutdown</code>，但是你的<code>user</code>表條目沒有為你授予<strong>shutdown</strong>權限，存取甚至不用檢查<code>db</code>或<code>host</code>表就被拒絕。（因為他們不包含<code>Shutdown_priv</code>行列，沒有這樣做的必要。）</p>
+
+<p>對資料庫有關的請求(<strong>insert</strong>、<strong>update</strong>等等)，伺服器首先通過查找<code>user</code>表條目來檢查用戶的全局(超級用戶)權限。如果條目允許請求的操作，存取被授權。如果在<code>user</code>表刈釪局權限不夠，伺服器通過檢查<code>db</code>和<code>host</code>表確定特定的用戶資料庫權限： 
+
+<ol>
+  <li>伺服器在<code>db</code>表的<code>Host</code>、<code>Db</code>和<code>User</code>字段上查找一個匹配。 
+    <code>Host</code>和<code>User</code>對應連接用戶的主機名和<strong>MySQL</strong>用戶名。<code>Db</code>字段對應用戶想要存取的資料庫。如果沒有<code>Host</code>和<code>User</code>的條目，存取被拒絕。 
+  </li>
+  <li>如果<code>db</code>表中的條目有一個匹配而且它的<code>Host</code>字段不是空白的，該條目定義用戶的資料庫特定的權限。 
+  </li>
+  <li>如果匹配的<code>db</code>表的條目的<code>Host</code>字段是空白的，它表示<code>host</code>表列舉主機應該被允許存取資料庫的主機。在這種情況下，在<code>host</code>表中作進一步查找以發現<code>Host</code>和<code>Db</code>字段上的匹配。如果沒有<code>host</code>表條目匹配，存取被拒絕。如果有匹配，用戶資料庫特定的權限以在<code>db</code>和<code>host</code>表的條目的權限，即在兩個條目都是<code>'Y'</code>的權限的交集(<em>而不是</em>並集！)計算。（這樣你可以授予在<code>db</code>表條目中的一般權限，然後用<code>host</code>表條目按一個主機一個主機為基礎地有選擇地限制它們。）</li>
+</ol>
+
+<p>在確定了由<code>db</code>和<code>host</code>表條目授予的資料庫特定的權限後，伺服器把他們加到由<code>user</code>表授予的全局權限中。如果結果允許請求的操作，存取被授權。否則，伺服器檢查在<code>tables_priv</code>和<code>columns_priv</code>表中的用戶的表和列權限並把它們加到用戶權限中。基於此結果允許或拒絕存取。 
+</p>
+
+<p>用布爾術語表示，前面關於一個用戶權限如何計算的描述可以這樣總結： 
+</p>
+
+<pre>global privileges
+OR (database privileges AND host privileges)
+OR table privileges
+OR column privileges
+</pre>
+
+<p>它可能不明顯，為什麼呢，如果全局<code>user</code>條目的權限最初發現對請求的操作不夠，伺服器以後把這些權限加到資料庫、表和列的特定權限。原因是一個請求可能要求超過一種類型的權限。例如，如果你執行一個<code>INSERT 
+... SELECT</code>語句，你就都要<strong>insert</strong>和<strong>select</strong>權限。你的權限必須如此以便<code>user</code>表條目授予一個權限而<code>db</code>表條目授予另一個。在這種情況下，你有必要的權限執行請求，但是伺服器不能自己把兩個表區別開來﹔兩個條目授予的權限必須組合起來。 
+</p>
+
+<p><code>host</code>表能被用來維護一個“安全”伺服器列表。在TcX，<code>host</code>表包含一個在本地的網路上所有的機器的表，這些被授予所有的權限。 
+</p>
+
+<p>你也可以使用<code>host</code>表指定<em>不</em>安全的主機。假定你有一台機器<code>public.your.domain</code>，它位於你不認為是安全的一個公共區域，你可以用下列的<code>host</code>表條目子允許除了那台機器外的網路上所有主機的存取： 
+</p>
+
+<pre>
++--------------------+----+-
+| Host               | Db | ...
++--------------------+----+-
+| public.your.domain | %  | ... (所有權限設為 'N')
+| %.your.domain      | %  | ... (所有權限設為 'Y')
++--------------------+----+-
+</pre>
+
+<p>當然，你應該總是測試你在授權表中的條目(例如，使用<code>mysqlaccess</code>)讓你確保你的存取權限實際上以你認為的方式被設置。 
+</p>
+
+<h2><a NAME="Privilege_changes" HREF="manual_toc.html#Privilege_changes">6.9 
+權限更改何時生效</a></h2>
+
+<p>當<code>mysqld</code>啟動時，所有的授權表內容被讀進儲存器並且從那點生效。 
+</p>
+
+<p>用<code>GRANT</code>、REVOKE或<code>SET PASSWORD</code>對授權表施行的修改會立即被伺服器注意到。 
+</p>
+
+<p>如果你手工地修改授權表(使用<code>INSERT</code>、UPDATE等等)，你應該執行一個<code>FLUSH 
+PRIVILEGES</code>語句或運行<code>mysqladmin flush-privileges</code>告訴伺服器再裝載授權表，否則你的改變將<em>不生效</em>，除非你重啟伺服器。 
+</p>
+
+<p>當伺服器注意到授權表被改變了時，現存的客戶連接有如下影響： 
+
+<ul>
+  <li>表和列權限在客戶的下一次請求時生效。 </li>
+  <li>資料庫權限改變在下一個<code>USE db_name</code>命令生效。 </li>
+</ul>
+
+<p>全局權限的改變和密碼改變在下一次客戶連接時生效。 </p>
+
+<h2><a NAME="Default_privileges" HREF="manual_toc.html#Default_privileges">6.10 
+建立初始的MySQL權限</a></h2>
+
+<p>在安裝<strong>MySQL</strong>後，你通過運行<code>scripts/mysql_install_db</code>安裝初始的存取權限。見<a HREF="manual_Installing.html#Quick_install">4.7.1 快速安裝概述</a>。 <code>scripts/mysql_install_db</code>腳本啟動<code>mysqld</code>伺服器，然後初始化授權表，包含下列權限集合： 
+
+<ul>
+  <li><strong>MySQL</strong> <code>root</code>用戶作為可做任何事情的一個超級用戶被創造。連接必須由本地主機發出。<strong>注意</strong>：出世的<code>root</code>密碼是空的，因此任何人能以<code>root</code>而<em>沒有一個密碼</em>進行連接並且被授予所有權限。 
+  </li>
+  <li><a NAME="IDX145"></a>一個匿名用戶被創造，他可對有<code>一個'test'</code>或以<code>'test_'</code>開始的名字的資料庫做任何時期事情，連接必須由本地主機發出。這意味著任何本地用戶能連接並且視為匿名用戶。 
+  </li>
+  <li>其他權限被拒絕。例如，一般用戶不能使用<code>mysqladmin shutdown</code>或<code>mysqladmin 
+    processlist</code>。 </li>
+</ul>
+
+<p><strong>注意：</strong>對Win32的初始權限是不同的。見<a HREF="manual_Installing.html#Win32_running">4.12.4 在Win32上運行MySQL</a>。 </p>
+
+<p>既然你的安裝初始時廣開大門，你首先應該做的事情之一是為<strong>MySQL</strong> 
+<code>root</code>用戶指定一個密碼。你可以做如下(注意，你使用<code>PASSWORD()</code>函數指定密碼)： 
+</p>
+
+<pre>shell&gt; mysql -u root mysql
+mysql&gt; UPDATE user SET Password=PASSWORD('new_password')
+           WHERE user='root';
+mysql&gt; FLUSH PRIVILEGES;
+</pre>
+
+<p>在<strong>MySQL</strong> 3.22和以上版本中，你可以使用<code>SET PASSWORD</code>語句： 
+</p>
+
+<pre>shell&gt; mysql -u root mysql
+mysql&gt; SET PASSWORD FOR root=PASSWORD('new_password');
+</pre>
+
+<p>設置密碼的另一種方法是使用<code>mysqladmin</code>命令： </p>
+
+<pre>shell&gt; mysqladmin -u root password new_password 
+</pre>
+
+<p>注意：如果你使用第一種方法在<code>user</code>表裡直接更新密碼，你必須告訴伺服器再次讀入授權表(用<code>FLUSH 
+PRIVILEGES</code>)，因為否則改變將不被注意到。 </p>
+
+<p>一旦<code>root</code>密碼被設置，此後當你作為<code>root</code>與伺服器連接時，你必須供應那個密碼。 
+</p>
+
+<p>你可能希望讓<code>root</code>密碼為空白以便當你施行附加的安裝時，你不需要指定它或測試，但是保証在任何真實的生產工作中使用你的安裝之前，設置它。 
+</p>
+
+<p>看看<code>scripts/mysql_install_db</code>腳本，看它如何安裝內定的權限。你可用它作為一個研究如何增加其他用戶的基礎。 
+</p>
+
+<p>如果你想要初始的權限不同於上面描述的那些，在你運行<code>mysql_install_db</code>之前，你可以修改它。 
+</p>
+
+<p>為了完全重建權限表，刪除在包含<code>mysql</code>資料庫的目錄下所有<tt>“*.frm”</tt>,<tt>“*.MYI”</tt>和<tt>“*.MYD”</tt>文件。（這是在資料庫目錄下面命名為<tt>“mysql”</tt>的目錄，當你運行<code>mysqld 
+--help</code>時，它被列出。)然後運行<code>mysql_install_db</code>腳本，可能在首先編輯它擁有你想要的權限之後。 
+</p>
+
+<p><strong>注意</strong>：對於比<strong>MySQL</strong> 3.22.10舊的版本，你不應該刪除<tt>“*.frm”</tt>文件。如果你偶然做了，你應該在運行<code>mysql_install_db</code>之前你的<strong>MySQL</strong>分發中拷回它們。 
+</p>
+
+<h2><a NAME="Adding_users" HREF="manual_toc.html#Adding_users">6.11 向MySQL增加新用戶權限</a></h2>
+
+<p>你可以有2個不同的方法增加用戶：通過使用<code>GRANT</code>語句或通過直接操作<strong>MySQL</strong>授權表。比較好的方法是使用<code>GRANT</code>語句，因為他們是更簡明並且好像錯誤少些。 
+</p>
+
+<p>下面的例子顯示出如何使用<code>mysql</code>客戶安裝新用戶。這些例子假定權限根據以前的章節描述的內定被安裝。這意味著為了改變，你必須在<code>mysqld</code>正在運行同一台機器上，你必須作為<strong>MySQL</strong> 
+<code>root</code>用戶連接，並且<code>root</code>用戶必須對<code>mysql</code>資料庫有<strong>insert</strong>權限和<strong>reload</strong>管理權限。另外，如果你改變了<code>root</code>用戶密碼，你必須如下的<code>mysql</code>命令指定它。 
+</p>
+
+<p>你可以通過發出<code>GRANT</code>語句增加新用戶： </p>
+
+<pre>shell&gt; mysql --user=root mysql
+mysql&gt; GRANT ALL PRIVILEGES ON *.* TO monty@localhost
+           IDENTIFIED BY 'something' WITH GRANT OPTION;
+mysql&gt; GRANT ALL PRIVILEGES ON *.* TO monty@&quot;%&quot;
+           IDENTIFIED BY 'something' WITH GRANT OPTION;
+mysql&gt; GRANT RELOAD,PROCESS ON *.* TO admin@localhost;
+mysql&gt; GRANT USAGE ON *.* TO dummy@localhost;
+</pre>
+
+<p>這些<code>GRANT</code>語句安裝3個新用戶： 
+
+<dl COMPACT="Adding_users">
+  <dt><code>monty</code> </dt>
+  <dd>可以從任何地方連接伺服器的一個完全的超級用戶，但是必須使用一個密碼(<code>'something'</code>做這個。注意，我們必須對<code>monty@localhost</code>和<code>monty@&quot;%&quot;</code>發出<code>GRANT</code>語句。如果我們增加<code>localhost</code>條目，對<code>localhost</code>的匿名用戶條目在我們從本地主機連接接時由<code>mysql_install_db</code>創建的條目將優先考慮，因為它有更特定的<code>Host</code>字段值，所以以<code>user</code>表排列順序看更早到來。</dd>
+  <dt><code>admin</code> </dt>
+  <dd>可以從<code>localhost</code>沒有一個密碼進行連接並且被授予<strong>reload</strong>和<strong>process</strong>管理權限的用戶。這允許用戶執行<code>mysqladmin 
+    reload</code>、<code>mysqladmin refresh</code>和<code>mysqladmin flush-*</code>命令，還有<code>mysqladmin 
+    processlist</code>。沒有授予資料庫有關的權限。他們能在以後通過發出另一個<code>GRANT</code>語句授權。 
+  </dd>
+  <dt><code>dummy</code> </dt>
+  <dd>可以不用一個密碼連接的一個用戶，但是只能從本地主機。全局權限被設置為<code>'N'</code>--<code>USAGE</code>權限類型允許你無需權限就可設置一個用戶。它假定你將在以後授予資料庫相關的權限。 
+  </dd>
+</dl>
+
+<p>你也可以直接通過發出<code>INSERT</code>語句增加同樣的用戶存取資訊，然後告訴伺服器再次裝入授權表： 
+</p>
+
+<pre>shell&gt; mysql --user=root mysql
+mysql&gt; INSERT INTO user VALUES('localhost','monty',PASSWORD('something'),
+                'Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y')
+mysql&gt; INSERT INTO user VALUES('%','monty',PASSWORD('something'),
+                'Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y')
+mysql&gt; INSERT INTO user SET Host='localhost',User='admin',
+                 Reload_priv='Y', Process_priv='Y';
+mysql&gt; INSERT INTO user (Host,User,Password)
+                        VALUES('localhost','dummy','');
+mysql&gt; FLUSH PRIVILEGES;
+</pre>
+
+<p>取決於你的<strong>MySQL</strong>版本，對上述，你可能必須使用一個不同數目<code>'Y'</code>值(在3.22.11以前的版本有更少的權限列)。對<code>admin</code>用戶，只用在3.22.11開始的版本具有的更加可讀的<code>INSERT</code>擴充的語法。 
+</p>
+
+<p>注意，為了設置一個超級用戶，你只需創造一個<code>user</code>表條目，其權限字段設為<code>'Y'</code>。不需要<code>db</code>或<code>host</code>表的條目。 
+</p>
+
+<p>在<code>user</code>表中的權限列不是由最後一個<code>INSERT</code>語句明確設置的(對<code>dummy</code>用戶)，因此那些列被賦予內定值<code>'N'</code>。這是<code>GRANT 
+USAGE</code>做的同樣的事情。 </p>
+
+<p>下列例子增加一個用戶<code>custom</code>，他能從主機<code>localhost</code>、<code>server.domain</code>和<code>whitehouse.gov</code>連接。他只想要從<code>localhost</code>存取<code>bankaccount</code>資料庫，從<code>whitehouse.gov</code>存取<code>expenses</code>資料庫和從所有3台主機存取<code>customer</code>資料庫。他想要從所有3台主機上使用密碼<code>stupid</code>。 
+</p>
+
+<p>為了使用<code>GRANT</code>語句設置個用戶的權限，運行這些命令： </p>
+
+<pre>shell&gt; mysql --user=root mysql
+mysql&gt; GRANT SELECT,INSERT,UPDATE,DELETE,CREATE,DROP
+           ON bankaccount.*
+           TO custom@localhost
+           IDENTIFIED BY 'stupid';
+mysql&gt; GRANT SELECT,INSERT,UPDATE,DELETE,CREATE,DROP
+           ON expenses.*
+           TO custom@whitehouse.gov
+           IDENTIFIED BY 'stupid';
+mysql&gt; GRANT SELECT,INSERT,UPDATE,DELETE,CREATE,DROP
+           ON customer.*
+           TO custom@'%'
+           IDENTIFIED BY 'stupid';
+</pre>
+
+<p>通過直接修改授權表設置用戶權限，運行這些命令(注意，在結束時<code>FLUSH 
+PRIVILEGES</code>)： </p>
+
+<pre>shell&gt; mysql --user=root mysql
+mysql&gt; INSERT INTO user (Host,User,Password)
+       VALUES('localhost','custom',PASSWORD('stupid'));
+mysql&gt; INSERT INTO user (Host,User,Password)
+       VALUES('server.domain','custom',PASSWORD('stupid'));
+mysql&gt; INSERT INTO user (Host,User,Password)
+       VALUES('whitehouse.gov','custom',PASSWORD('stupid'));
+mysql&gt; INSERT INTO db
+       (Host,Db,User,Select_priv,Insert_priv,Update_priv,Delete_priv,
+        Create_priv,Drop_priv)
+       VALUES
+       ('localhost','bankaccount','custom','Y','Y','Y','Y','Y','Y');
+mysql&gt; INSERT INTO db
+       (Host,Db,User,Select_priv,Insert_priv,Update_priv,Delete_priv,
+        Create_priv,Drop_priv)
+       VALUES
+       ('whitehouse.gov','expenses','custom','Y','Y','Y','Y','Y','Y');
+mysql&gt; INSERT INTO db
+       (Host,Db,User,Select_priv,Insert_priv,Update_priv,Delete_priv,
+        Create_priv,Drop_priv)
+       VALUES('%','customer','custom','Y','Y','Y','Y','Y','Y');
+mysql&gt; FLUSH PRIVILEGES;
+</pre>
+
+<p>頭3個<code>INSERT</code>語句增加<code>user</code>表條目，允許用戶<code>custom</code>用給定密碼從不同的主機進行連接，但是沒有授予任何許可(所有權限被設置為內定值<code>'N'</code>)。後3個<code>INSERT</code>語句增加<code>db</code>表條目，授予<code>custom</code>以<code>bankaccount</code>、<code>expenses</code>和<code>customer</code>資料庫權限，但是只能在從正確的主機存取時。通常，在授權表直接被修改時，伺服器必須被告知再次裝入他們(用<code>FLUSH 
+PRIVILEGES</code>)以便使權限修改生效。</p>
+
+<p>如果你想要給特定的用戶從一個給定的域上的任何機器上存取權限，你可以發出一個如下的<code>GRANT</code>語句： 
+</p>
+
+<pre>mysql&gt; GRANT ...
+           ON *.*
+           TO myusername@&quot;%.mydomainname.com&quot;
+           IDENTIFIED BY 'mypassword';
+</pre>
+
+<p>為了通過直接修改授權表做同樣的事情，這樣做： </p>
+
+<pre>mysql&gt; INSERT INTO user VALUES ('%.mydomainname.com', 'myusername',
+           PASSWORD('mypassword'),...);
+mysql&gt; FLUSH PRIVILEGES;
+</pre>
+
+<p>你也可以使用<code>xmysqladmin</code>、<code>mysql_webadmin</code>甚至<code>xmysql</code>在授權表中插入、改變和更新值。你可以在<strong>MySQL</strong>的<a HREF="http://www.mysql.com/Contrib/">Contrib目錄</a>找到這些實用程式。 </p>
+
+<h2><a NAME="Passwords" HREF="manual_toc.html#Passwords">6.12 怎樣設置密碼</a></h2>
+
+<p>在前面小節的例子裡說明了一個重要的原則：當你使用<code>INSERT</code>或<code>UPDATE</code>語句儲存一個非空的密碼時，你必須使用<code>PASSWORD()</code>函數加密它。這是因為在<code>user</code>表刈脛加密形式儲存密碼，而不是作為純文本。如果你忘記這個事實，你可能像這樣試圖設置密碼： 
+</p>
+
+<pre>shell&gt; mysql -u root mysql 
+mysql&gt; INSERT INTO user (Host,User,Password) VALUES('%','jeffrey','biscuit'); 
+mysql&gt; FLUSH PRIVILEGES
+</pre>
+
+<p>結果是純文本值<code>'biscuit'</code>作為密碼被儲存在<code>user</code>表中。在用戶<code>jeffrey</code>試圖用這個密碼連接伺服器時，<code>mysql</code>客戶用<code>PASSWORD()</code>加密它並且將結果送給伺服器，伺服器比較在<code>user</code>表中的值(它是純文本值<code>'biscuit'</code>)和加密的密碼(<em>而不是</em> 
+<code>'biscuit'</code>)，比較失敗並且伺服器拒絕連接： </p>
+
+<pre>shell&gt; mysql -u jeffrey -pbiscuit test
+Access denied
+</pre>
+
+<p>因為當他們被插入<code>user</code>表時，密碼必須被加密，<code>相反，INSERT</code>語句應該像這樣被指定： 
+</p>
+
+<pre>mysql&gt; INSERT INTO user (Host,User,Password)
+       VALUES('%','jeffrey',PASSWORD('biscuit'));
+</pre>
+
+<p>當你使用<code>SET PASSWORD</code>語句時，你也必須使用<code>PASSWORD()</code>函數： 
+</p>
+
+<pre>mysql&gt; SET PASSWORD FOR jeffrey@&quot;%&quot; = PASSWORD('biscuit'); 
+</pre>
+
+<p>如果你使用<code>GRANT ... IDENTIFIED BY</code>語句或<code>mysqladmin password</code>命令設置密碼，<code>PASSWORD()</code>函數是不必要的。他們都考慮到為你加密密碼，多以你可像這樣指定一個密碼<code>'biscuit'</code>： 
+</p>
+
+<pre>mysql&gt; GRANT USAGE ON *.* TO jeffrey@&quot;%&quot; IDENTIFIED BY 'biscuit';
+</pre>
+
+<p>或</p>
+
+<pre>shell&gt; mysqladmin -u jeffrey password biscuit 
+</pre>
+
+<p>注意： <code>PASSWORD()</code>不是以在Unix密碼加密的同樣方法施行密碼加密。你不應該假定如果你的Unix密碼和你的<strong>MySQL</strong>密碼是一樣的，<code>PASSWORD()</code>將導致與在Unix密碼文件被儲存的同樣的加密值。見<a HREF="manual_Privilege_system.html#User_names">6.2 MySQL 用戶名和密碼</a>。 </p>
+
+<h2><a NAME="Access_denied" HREF="manual_toc.html#Access_denied">6.13 <code>Access denied</code>錯誤的原因</a></h2>
+
+<p>當你試著聯接<strong>MySQL</strong>伺服器時，如果你碰到<code>Access 
+denied</code>錯誤，顯示在下面的表指出一些你能用來更正這個問題的動作： 
+
+<ul>
+  <li>你是在安裝<strong>MySQL</strong>以後運行<code>mysql_install_db</code>的腳本，來設置初始授權表內容嗎？如果不是，這樣做。見<a HREF="manual_Privilege_system.html#Default_privileges">6.10 設置初始MySQL權限</a>。通過執行這個命令測試初始權限： 
+    <pre>shell&gt; mysql -u root test 
+</pre>
+    <p>伺服器應該讓你無誤地連接。你也應該保証你在<strong>MySQL</strong>資料庫目錄有一個文件<tt>“user.MYD”</tt>。通常，它是<tt>“PATH/var/mysql/user.MYD”</tt>，在此<code>PATH</code>是<strong>MySQL</strong>安裝根目錄的路徑。 
+    </p>
+  </li>
+  <li>在一個新的安裝以後，你應該連接伺服器並且設置你的用戶及其存取許可： 
+    <pre>shell&gt; mysql -u root mysql 
+</pre>
+    <p>伺服器應該讓你連接，因為<strong>MySQL</strong> <code>root</code>用戶初始時沒有密碼。既然那也是一個安全風險，當你正在設置其他<strong>MySQL</strong>用戶時，設定<code>root</code>密碼是一件重要的事請。如果你作為<code>root</code>嘗試連接並且得到這個錯誤： 
+    </p>
+    <pre>Access denied for user: '@unknown' to database mysql 
+</pre>
+    <p>這意味著，你沒有一個條目在<code>user</code>表中的一個<code>User</code>列值為<code>'root'</code>並且<code>mysqld</code>不能為你的客庫解析主機名。在這種情況下，你必須用<code>--skip-grant-tables</code>選項重啟伺服器並且編輯你的<tt>“/etc/hosts”</tt>或<tt>“\windows\hosts”</tt>文件為你的主機增加一個條目。 
+    </p>
+  </li>
+  <li><a NAME="IDX148"></a>如果你從一個3.22.11以前的版本更新一個現存的<strong>MySQL</strong>安裝到3.22.11版或以後版本，你運行了<code>mysql_fix_privilege_tables</code>腳本嗎？如果沒有，運行它。在<code>GRANT</code>語句變得能工作時，授權表的結構用<strong>MySQL</strong> 
+    3.22.11修改 。 </li>
+  <li>如果你直接對授權表做修改(使用<code>INSERT</code>或<code>UPDATE</code>語句)並且你的改變似乎被忽略，記住，你必須發出一個<code>FLUSH 
+    PRIVILEGES</code>語句或執行一個<code>mysqladmin flush-privileges</code>命令導致伺服器再次讀入表，否則你的改變要道下一次伺服器被重啟時再生效。記住在你設定<code>root</code>密碼以後，你將不需要指定它，直到在你清洗(flush)權限以後，因為伺服器仍然不會知道你改變了密碼！ 
+  </li>
+  <li>如果你的權限似乎在一個會話(session)當中改變了，可能是一個超級用戶改變了他們。再次裝入授權表作用於新客戶連接，但是它也影響現存的連接，如<a HREF="manual_Privilege_system.html#Privilege_changes">6.9 權限改變何時生效</a>小節所述。 
+  </li>
+  <li>為了測試，用<code>--skip-grant-tables</code>選項啟動<code>mysqld</code>背景執行程式，然後你可以改變<strong>MySQL</strong>授權表並且使用<code>mysqlaccess</code>腳本檢查你的修改是否有如期的效果。當你對你的改變滿意時，執行<code>mysqladmin 
+    flush-privileges</code>告訴<code>mysqld</code>伺服器開始使用新的權限表。<strong>注意：</strong>再次裝入授權表覆蓋了<code>--skip-grant-tables</code>選項。這允許你告訴伺服器開始使用授權表，而不用停掉並重啟它。 
+  </li>
+  <li>如果你有一個Perl、Python或ODBC程式的存取問題，試著用<code>mysql -u 
+    user_name db_name</code>或<code>mysql -u user_name -pyour_pass db_name</code>與伺服器連接。如果你能用<code>mysql</code>客戶連接，這是你程式的一個問題而不是存取權限的問題。（注意在<code>-p</code>和密碼之間沒有空格﹔你也能使用<code>--password=your_pass</code>句法指定密碼。）</li>
+  <li>如果你不能讓密碼工作，記得如果你用<code>INSERT</code>, <code>UPDATE</code>或<code>SET 
+    PASSWORD</code>語句設置密碼，你必須使用<code>PASSWORD()</code>函數。如果你用<code>GRANT 
+    ... INDENTIFIED BY</code>語句或<code>mysqladmin password</code>命令指定密碼，<code>PASSWORD()</code>函數是不需要的。見<a HREF="manual_Privilege_system.html#Passwords">6.12 怎樣設置密碼</a>。 </li>
+  <li><code>localhost</code>是你本地主機名的一個同義詞，並且也是如果你不明確地指定主機而客戶嘗試連接的內定主機。然而，如果你正在運行於一個使用MIT-pthreads的系統上，連接<code>localhost</code>是不行的(<code>localhost</code>連接使用Unix套接字進行，它沒被 
+    MIT-pthreads支援)，為了在這樣的系統上避免這個問題，你應該使用<code>--host</code>選項明確地命名伺服器主機，這將做一個 
+    TCP/IP連接到<code>mysqld</code>伺服器。在這種情況下，你必須有在伺服器主機上的<code>user</code>表中條目的你真實的主機名。（即使你在伺服器同一台的主機上運行一個客戶程式，這也是真的。）</li>
+  <li>當嘗試用<code>mysql -u user_name db_name</code>與資料庫連接時，如果你得到一個<code>Access 
+    denied</code>錯誤，你可能有與<code>user</code>桌有關的問題，通過執行<code>mysql 
+    -u root mysql</code>並且發出下面的SQL語句檢查： <pre>mysql&gt; SELECT * FROM user; 
+</pre>
+    <p>結果應該包含一個有<code>Host</code>和<code>User</code>列的條目匹配你的計算機主機名和你的<strong>MySQL</strong>用戶名。 
+    </p>
+  </li>
+  <li><code>Access denied</code>錯誤消息將告訴你，你正在用哪個用戶嘗試登錄，你正在試圖用連接哪個主機，並且你是否正在使用一個密碼。通常，你應該在<code>user</code>表中有一個條目，正確地匹配在錯誤消息給出的主機名和用戶名。 
+  </li>
+  <li>如果當你試著從一個不是<strong>MySQL</strong>伺服器正在運行的主機上連接時，你得到下列錯誤，那麼在<code>user</code>表中沒有匹配那台主機行： 
+    <pre>Host ... is not allowed to connect to this MySQL server 
+</pre>
+    <p>你可以通過使用<code>mysql</code>命令行工具（在伺服器主機上！)修正它，把你正在試圖連接的用戶/主機名組合新加一行到<code>user</code>表中。如果你不在運行<strong>MySQL</strong> 
+    3.22並且你不知道你正在從它連接的機器的IP數字或主機名，你應該把一個<code>'%'</code>條目作為<code>Host</code>列值放在<code>user</code>表中並且在伺服器機器上使用<code>--log</code>選項重啟<code>mysqld</code>。在試圖從客戶機器連接以後，在<strong>MySQL</strong>記錄文件中的資訊將顯示你如何真正進行連接。（然後用在記錄文件上面顯示出的實際的主機名代替<code>user</code>表中的<code>'%'</code>條目。否則，你將有一個不安全的系統。）</p>
+  </li>
+  <li>如果<code>mysql -u root test</code>工作但是<code>mysql -h your_hostname -u root 
+    test</code>導致<code>Access denied</code>，那麼在<code>user</code>表中你可能沒有你的主機的正確名字。這裡的一個普遍的問題是在<code>user</code>表條目中的<code>Host</code>值指定一個唯一的主機名，但是你系統的名字解析例程返回一個完全正規的域名(或相反)。例如，如果你在<code>user</code>表中有一個主機是<code>'tcx'</code>的條目，但是你的 
+    DNS告訴<strong>MySQL</strong>你的主機名是<code>'tcx.subnet.se'</code>，條目將不工作。嘗試把一個條目加到<code>user</code>表中，它包含你主機的IP數字作為<code>Host</code>列的值。（另外，你可以把一個條目加到<code>user</code>表中，它有包含一個通配符如<code>'tcx.%'</code>的<code>Host</code>值。然而，使用以<samp>“%”</samp>結尾的主機名是<em>不安全的</em>並且<em>不</em>推薦！）</li>
+  <li>如果<code>mysql -u user_name test</code>工作但是<code>mysql -u user_name 
+    other_db_name</code>不工作，對<code>other_db_name</code>，你在<code>db</code>表中沒有沒有一個條目列出。 
+  </li>
+  <li>當在伺服器機器上執行<code>mysql -u user_name db_name</code>時，它工作，但是在其它客戶機器上執行<code>mysql 
+    -h host_name -u user_name db_name</code>時，它卻不工作，你沒有把客戶機器列在<code>user</code>表或<code>db</code>表中。 
+  </li>
+  <li>如果你不能弄明白你為什麼得到<code>Access denied</code>，從<code>user</code>表中刪除所有<code>Host</code>包含通配符值的條目(包含<samp>“%”</samp>或<samp>“_”的條目</samp>)。一個很普遍的錯誤是插入用<code>Host</code>=<code>'%'</code>和<code>User</code>=<code>'some 
+    user'</code>插入一個新條目，認為這將允許你指定<code>localhost</code>從同一台機器進行連接。它不工作的原因是內定權限包括一個有<code>Host</code>=<code>'localhost'</code>和<code>User</code>=<code>''</code>的條目，因為那個條目一個比<code>'%'</code>更具體的<code>Host</code>值<code>'localhost'</code>，當從<code>localhost</code>連接時，它用於指向新條目！正確的步驟是插入<code>Host</code>=<code>'localhost'</code>和<code>User</code>=<code>'some_user'</code>的第2個條目，或刪除<code>Host</code>=<code>'localhost'</code>和<code>User</code>=<code>''</code>條目。 
+  </li>
+  <li>如果你得到下列錯誤，你可以有一個與<code>db</code>或<code>host</code>表有關的問題： 
+    <pre>Access to database denied
+</pre>
+    <p>如果從<code>db</code>表中選擇了在<code>Host</code>列有空值的條目，保証在<code>host</code>表中有一個或多個相應的條目，指定運用<code>db</code>表中的哪些主機。如果在使用SQL命令<code>SELECT 
+    ... INTO OUTFILE</code>或<code>LOAD DATA INFILE</code>時，你得到錯誤，在<code>user</code>表中的你的條目可能啟用<strong>file</strong>權限。 
+    </p>
+  </li>
+  <li><a NAME="IDX149">記住</a>，客戶程式將使用在配置文件或環境變數被指定了的連接參數。如果當你不在命令行上指定他們時，一個客戶似乎正在發送錯誤的內定連接參數，檢查你的環境和在你的主目錄下的<tt>“.my.cnf”</tt>文件。你也可以檢查系統範圍的<strong>MySQL</strong>配置文件，盡管更不可能將在那裡指定那個客戶的連接參數。見<a HREF="manual_Installing.html#Option_files">4.15.4 選項文件</a>。如果當你沒有任何選項運行一個客戶時，你得到<code>Access 
+    denied</code>，確認你沒在任何選項文件裡指定一個舊的密碼！見<a HREF="manual_Installing.html#Option_files">4.15.4 選項文件</a>。 </li>
+  <li>如果任何其它事情失敗，用調試選項(例如，<code>--debug=d,general,query</code>)啟動<code>mysqld</code>背景執行程式。這將列印有關嘗試連接的主機和用戶資訊，和發出的每個命令的資訊。見<a HREF="manual_Porting.html#Debugging_server">G.1 調試一個MySQL伺服器</a>。 </li>
+  <li>如果你有任何與<strong>MySQL</strong>授權表的其它問題，而且覺得你必須郵寄這個問題到郵寄表，總是提供一個<strong>MySQL</strong>授權表的傾倒副本(dump)。你可用<code>mysqldump 
+    mysql</code>命令傾倒資料庫表。像平時一樣，用<code>mysqlbug</code>腳本郵寄你的問題。在一些情況下你可能用<code>--skip-grant-tables</code>重啟<code>mysqld</code>以便能運行<code>mysqldump</code>。 
+  </li>
+</ul>
+
+<h2><a NAME="Security" HREF="manual_toc.html#Security">6.14 怎樣使MySQL安全以對抗解密高手</a></h2>
+
+<p>當你連接一個<strong>MySQL</strong>伺服器時，你通常應該使用一個密碼。密碼不以明文在連接上傳輸。 
+</p>
+
+<p>所有其它資訊作為能被任何人讀懂的文本被傳輸。如果你擔心這個，你可使用壓縮協議(<strong>MySQL</strong>3.22和以上版本)使事情變得更難。甚至為了使一切更安全，你應該安裝<code>ssh</code>（見<a HREF="http://www.cs.hut.fi/ssh">http://www.cs.hut.fi/ssh</a>)。用它，你能在一個<strong>MySQL</strong>伺服器與一個<strong>MySQL</strong>客戶之間得到一個加密的TCP/IP連接。 
+</p>
+
+<p>為了使一個<strong>MySQL</strong>系統安全，強烈要求你考慮下列建議： 
+
+<ul>
+  <li>對所有<strong>MySQL</strong>用戶使用密碼。記住，如果<code>other_user</code>沒有密碼，任何人能簡單地用<code>mysql 
+    -u other_user db_name</code>作為任何其它的人登錄。對客戶機/伺服器應用程式，客戶可以指定任何用戶名是常見的做法。在你運行它以前，你可以通過編輯<code>mysql_install_db</code>腳本改變所有用戶的密碼，或僅僅<strong>MySQL</strong> 
+    <code>root</code>的密碼，像這樣： <pre>shell&gt; mysql -u root mysql
+mysql&gt; UPDATE user SET Password=PASSWORD('new_password')
+           WHERE user='root';
+mysql&gt; FLUSH PRIVILEGES;
+</pre>
+  </li>
+  <li>不要作為Unix的<code>root</code>用戶運行<strong>MySQL</strong>背景執行程式。<code>mysqld</code>能以任何用戶運行，你也可以創造一個新的Unix用戶<code>mysql</code>使一切更安全。如果你作為其它Unix用戶運行<code>mysqld</code>，你不需要改變在<code>user</code>表中的<code>root</code>用戶名，因為<strong>MySQL</strong>用戶名與Unix 
+    用戶名沒關系。你可以作為其它Unix用戶編輯<code>mysql.server</code>啟動腳本<code>mysqld</code>。通常這用<code>su</code>命令完成。對於更多的細節，見<a HREF="manual_Problems.html#Changing_MySQL_user">18.8 怎樣作為一個一般用戶運行MySQL</a>。 
+  </li>
+  <li>如果你把一個Unix<code> root</code>用戶密碼放在<code>mysql.server</code>腳本中，確保這個腳本只能對<code>root</code>是可讀的。 
+  </li>
+  <li>檢查那個運行<code>mysqld</code>的Unix用戶是唯一的在資料庫目錄下有讀/寫權限的用戶。 
+  </li>
+  <li>不要把<strong>process</strong>權限給所有用戶。<code>mysqladmin processlist</code>的輸出顯示出當前執行的查詢正文，如果另外的用戶發出一個<code>UPDATE 
+    user SET password=PASSWORD('not_secure')</code>查詢，被允許執行那個命令的任何用戶可能看得到。<code>mysqld</code>為有<strong>process</strong>權限的用戶保留一個額外的連接, 
+    以便一個<strong>MySQL</strong> <code>root</code>用戶能登錄並檢查，即使所有的正常連接在使用。 
+  </li>
+  <li>不要把<strong>file</strong>權限給所有的用戶。有這權限的任何用戶能在<code>擁有mysqld</code>背景執行程式權限的文件系統那裡寫一個文件！為了使這更安全一些，用<code>SELECT 
+    ... INTO OUTFILE</code>產生的所有文件對每個人是可讀的，並且你不能覆蓋已經存在的文件。<strong>file</strong>權限也可以被用來讀取任何作為運行伺服器的Unix用戶可存取的文件。這可能被濫用，例如，通過使用<code>LOAD 
+    DATA</code>裝載<tt>“/etc/passwd”</tt>進一個資料庫表，然後它能用<code>SELECT</code>被讀<code>入。</code> 
+  </li>
+  <li>如果你不信任你的DNS，你應該在授權表中使用IP數字而不是主機名。原則上講，<code>--secure</code>選項對<code>mysqld</code>應該使主機名更安全。在任何情況下，你應該非常小心地使用包含通配符的主機名！ 
+  </li>
+</ul>
+
+<p>下列<code>mysqld</code>選項影響安全： 
+
+<dl COMPACT="IDX152">
+  <dt><code>--secure</code> </dt>
+  <dd>由<code>gethostbyname()</code>系統調用返回的IP數字被檢查，確保他們解析回到原來的主機名。這對某些外人通過模仿其它主機獲得存取權限變得更難。這個選項也增加一些聰明的主機名檢查。在<strong>MySQL</strong>3.21裡，選擇內定是關掉的，因為它有時它花很長時間執行反向解析。<strong>MySQL</strong> 
+    3.22緩存主機名並內定地啟用了這個選項。 </dd>
+  <dt><code>--skip-grant-tables</code> </dt>
+  <dd>這個選項導致伺服器根本不使用權限系統。這給每個人以<em>完全存取</em>所有的資料庫的權力！（通過執行<code>mysqladmin 
+    reload</code>，你能告訴一個正在運行的伺服器再次開始使用授權表。) </dd>
+  <dt><code>--skip-name-resolve</code> </dt>
+  <dd>主機名不被解析。所有在授權表的<code>Host</code>的列值必須是IP數字或<code>localhost</code>。 
+  </dd>
+  <dt><code>--skip-networking</code> </dt>
+  <dd>在網路上不允許TCP/IP連接。所有到<code>mysqld</code>的連接必須經由Unix套接字進行。這個選項對使用MIT-pthreads的系統是不合適的，因為MIT-pthreads包不支援Unix套接字。 
+  </dd>
+</dl>
+
+<hr>
+
+<p><a HREF="manual_Introduction.html">第一章</a>, <a HREF="manual_Compatibility.html">前一章</a>, 
+<a HREF="manual_Reference.html">下一章</a>, <a HREF="manual_Concept_Index.html">最後一章</a>，<a HREF="manual_toc.html">目錄</a>.&nbsp; </p>
+</body>
+</html>

@@ -1,0 +1,737 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>Chapter 30. Photo Library and Image Capture</title>
+    <link rel="stylesheet" type="text/css" href="docbook-xsl-mymods.css" />
+    <meta name="generator" content="DocBook XSL Stylesheets V1.76.0" />
+    <link rel="home" href="index.html" />
+    <link rel="up" href="pt06.html" />
+    <link rel="prev" href="ch29.html" />
+    <link rel="next" href="ch31.html" />
+  </head>
+  <body>
+    <div class="mattnotice">
+      <p>As a courtesy, this is a <b>full free</b> rendering of my book, <i>Programming iOS 6</i>, by Matt Neuburg. Copyright 2013 Matt Neuburg. Please note that this book has now been completely superseded by two more recent books, <a href="http://shop.oreilly.com/product/0636920032465.do">iOS 7 Fundamentals</a> and <a href="http://shop.oreilly.com/product/0636920031017.do">Programming iOS 7</a>. If my work has been of help to you, please <b>consider purchasing</b> one or both of them. Thank you!
+	</p>
+    </div>
+    <div class="navfooter">
+      <table width="100%" summary="Navigation footer">
+        <tr>
+          <td width="40%" align="left"><a accesskey="p" href="ch29.html">Prev</a> </td>
+          <td width="20%" align="center">
+            <a accesskey="u" href="pt06.html">Up</a>
+          </td>
+          <td width="40%" align="right"> <a accesskey="n" href="ch31.html">Next</a></td>
+        </tr>
+        <tr>
+          <td width="40%" align="left" valign="top">Chapter 29. Music Library </td>
+          <td width="20%" align="center">
+            <a accesskey="h" href="index.html">Table of Contents</a>
+          </td>
+          <td width="40%" align="right" valign="top"> Chapter 31. Address Book</td>
+        </tr>
+      </table>
+    </div>
+    <div class="chapter">
+      <div class="titlepage">
+        <div>
+          <div>
+            <h2 class="title"><a id="chap_id30"></a>Chapter 30. Photo Library and Image Capture</h2>
+          </div>
+        </div>
+      </div>
+      <p>The still photos and movies accessed by the user through the Photos app constitute the <span class="emphasis"><em>photo library</em></span>.<a id="idm441641714432" class="indexterm"></a><a id="idm441641713568" class="indexterm"></a><a id="idm441641712688" class="indexterm"></a><a id="idm441641711792" class="indexterm"></a> Your app can give the user an interface for exploring this library, similar to the Photos app, through the UIImagePickerController class.</p>
+      <p>In addition, the Assets Library framework lets you access the photo library and its contents programmatically. You’ll need to link to <span class="emphasis"><em>AssetsLibrary.framework</em></span> and import <code class="literal">&lt;AssetsLibrary/AssetsLibrary.h&gt;</code>.</p>
+      <p>The UIImagePickerController class can also be used to give the user an interface similar to the Camera app, letting the user take photos and videos on devices with the necessary hardware.</p>
+      <p>At a deeper level, AV Foundation (<a class="xref" href="ch28.html">Chapter 28</a>) provides direct control over the camera hardware. You’ll need to link to <span class="emphasis"><em>AVFoundation.framework</em></span> (and probably <span class="emphasis"><em>CoreMedia.framework</em></span> as well), and import <code class="literal">&lt;AVFoundation/AVFoundation.h&gt;</code></p>
+      <p>To use constants such as <code class="literal">kUTTypeImage</code>, referred to in this chapter, your app must link to <span class="emphasis"><em>MobileCoreServices.framework</em></span> and import <code class="literal">&lt;MobileCoreServices/MobileCoreServices.h&gt;</code>.<a id="idm441641687168" class="indexterm"></a>
+<a id="idm441641685872" class="indexterm"></a></p>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_uiimagepickercontroller"></a>UIImagePickerController</h2>
+            </div>
+          </div>
+        </div>
+        <p>UIImagePickerController is a view controller (UINavigationController) whose view provides a navigation interface, similar to the Photos app, in which the user can choose an item from the photo library. Alternatively, it can provide an interface, similar to the Camera app, for taking a video or still photo if the necessary hardware is present.<a id="idm441641683136" class="indexterm"></a><a id="idm441641682224" class="indexterm"></a><a id="idm441641681312" class="indexterm"></a></p>
+        <p>How you display the UIImagePickerController depends on what kind of device this is:</p>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+On the iPhone
+</span>
+            </dt>
+            <dd>
+You will typically display the view controller’s view as a presented view controller. This presented view controller will appear in portrait orientation, regardless of your app’s rotation settings.
+</dd>
+          </dl>
+        </div>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+On the iPad
+</span>
+            </dt>
+            <dd>
+If you’re letting the user choose an item from the photo library, you’ll show it in a popover; attempting to display it as a presented view controller causes a runtime exception. (To see how to structure your universal app code, look at <a class="xref" href="ch29.html#EXmodalOrPop">Example 29.1</a>). But if you’re letting the user take a video or still photo, you’ll probably treat UIImagePickerController as a presented view controller on the iPad, just as on the iPhone.
+</dd>
+          </dl>
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_choosing_from_the_photo_library"></a>Choosing from the Photo Library</h3>
+              </div>
+            </div>
+          </div>
+          <p>To let the user choose an item from the photo library, instantiate UIImagePickerController and assign its <code class="literal">sourceType</code> one of these values:</p>
+          <div class="variablelist">
+            <dl>
+              <dt>
+                <span class="term">
+<code class="literal">UIImagePickerControllerSourceTypeSavedPhotosAlbum</code>
+</span>
+              </dt>
+              <dd>
+The user is confined to the contents of the Camera Roll / Saved Photos album.
+</dd>
+              <dt>
+                <span class="term">
+<code class="literal">UIImagePickerControllerSourceTypePhotoLibrary</code>
+</span>
+              </dt>
+              <dd>
+The user is shown a table of all albums, and can navigate into any of them.
+</dd>
+            </dl>
+          </div>
+          <p>You should call the class method <code class="literal">isSourceTypeAvailable:</code> beforehand; if it doesn’t return YES, don’t present the controller with that source type.</p>
+          <p>You’ll probably want to specify an array of <code class="literal">mediaTypes</code> you’re interested in. This array will usually contain <code class="literal">kUTTypeImage</code>, <code class="literal">kUTTypeMovie</code>, or both; or you can specify all available types by calling the class method <code class="literal">availableMediaTypesForSourceType:</code>.</p>
+          <p>After doing all of that, and having supplied a delegate (adopting UIImagePickerControllerDelegate and UINavigationControllerDelegate), present the view controller:</p>
+          <pre class="screen">UIImagePickerControllerSourceType type =
+    UIImagePickerControllerSourceTypePhotoLibrary;
+BOOL ok = [UIImagePickerController isSourceTypeAvailable:type];
+if (!ok) {
+    NSLog(@"alas");
+    return;
+}
+UIImagePickerController* picker = [UIImagePickerController new];
+picker.sourceType = type;
+picker.mediaTypes =
+    [UIImagePickerController availableMediaTypesForSourceType:type];
+picker.delegate = self;
+[self presentViewController:picker animated:YES completion:nil]; // iPhone</pre>
+          <p>New in iOS 6, the very first time you do this, a system alert will appear, prompting the user to grant your app permission to access the photo library (<a class="xref" href="ch30.html#FIGphotoAccess">Figure 30.1</a>). You can modify the body of this alert by setting the “Privacy — Photo Library Usage Description” key (<code class="literal">NSPhotoLibraryUsageDescription</code>) in your app’s <span class="emphasis"><em>Info.plist</em></span> to tell the user <span class="emphasis"><em>why</em></span> you want to access the photo library. This is a kind of “elevator pitch”; you need to persuade the user in very few words.<a id="idm441641656528" class="indexterm"></a>
+<a id="idm441641654880" class="indexterm"></a></p>
+          <div class="figure">
+            <a id="FIGphotoAccess"></a>
+            <div class="figure-contents">
+              <div class="mediaobject">
+                <img src="figs/pios_3001.png" alt="figs/pios_3001.png" />
+              </div>
+            </div>
+            <p class="title">Figure 30.1. The system prompts for photo library access</p>
+          </div>
+          <br class="figure-break" />
+          <p>If the user denies your app access, you’ll still be able to present the UIImagePickerController, but it will be empty (with a reminder that the user has denied your app access to the photo library) and the user won’t be able to do anything but cancel (<a class="xref" href="ch30.html#FIGphotoAccess2">Figure 30.2</a>). Thus, your code is unaffected. You <span class="emphasis"><em>can</em></span> check beforehand to learn whether your app has access to the photo library — I’ll explain how later in this chapter — and opt to do something other than present the UIImagePickerController if access has been denied; but you don’t <span class="emphasis"><em>have</em></span> to, because the user will see a coherent interface, and your app will proceed normally afterwards, thinking that the user has cancelled from the picker.</p>
+          <div class="figure">
+            <a id="FIGphotoAccess2"></a>
+            <div class="figure-contents">
+              <div class="mediaobject">
+                <img src="figs/pios_3002.png" alt="figs/pios_3002.png" />
+              </div>
+            </div>
+            <p class="title">Figure 30.2. The image picker, when the user has denied access</p>
+          </div>
+          <br class="figure-break" />
+          <div class="note" style="margin-left: 0; margin-right: 10%;">
+            <h3 class="title">Note</h3>
+            <p>To retest the system alert and other access-related behaviors, go to the Settings app and choose General → Reset → Reset Location &amp; Privacy. This causes the system to forget that it has ever asked about access for any app.</p>
+          </div>
+          <div class="warning" style="margin-left: 0; margin-right: 10%;">
+            <h3 class="title">Warning</h3>
+            <p>If the user does what <a class="xref" href="ch30.html#FIGphotoAccess2">Figure 30.2</a> suggests, switching to the Settings app and enabling access for your app under Privacy → Photos, your app will crash in the background! This is unfortunate, but is probably not a bug; Apple presumably feels that in this situation your app cannot continue coherently and should start over from scratch.</p>
+          </div>
+          <p>On the iPhone, the delegate will receive one of these messages:</p>
+          <div class="itemizedlist">
+            <ul class="itemizedlist" type="disc">
+              <li class="listitem">
+<code class="literal">imagePickerController:didFinishPickingMediaWithInfo:</code>
+</li>
+              <li class="listitem">
+<code class="literal">imagePickerControllerDidCancel:</code>
+</li>
+            </ul>
+          </div>
+          <p>On the iPad, there’s no Cancel button, so there’s no <code class="literal">imagePickerControllerDidCancel:</code>; you can detect the dismissal of the popover through the popover delegate. On the iPhone, if a UIImagePickerControllerDelegate method is not implemented, the view controller is dismissed automatically; but rather than relying on this, you should implement both delegate methods and dismiss the view controller yourself in each one.</p>
+          <p>The <code class="literal">didFinish...</code> method is handed a dictionary of information about the chosen item. The keys in this dictionary depend on the media type.</p>
+          <div class="variablelist">
+            <dl>
+              <dt>
+                <span class="term">
+An image
+</span>
+              </dt>
+              <dd>
+                <p class="simpara">
+The keys are:
+</p>
+                <div class="variablelist">
+                  <dl>
+                    <dt>
+                      <span class="term">
+<code class="literal">UIImagePickerControllerMediaType</code>
+</span>
+                    </dt>
+                    <dd>
+A UTI; probably <code class="literal">@"public.image"</code>, which is the same as <code class="literal">kUTTypeImage</code>.
+</dd>
+                    <dt>
+                      <span class="term">
+<code class="literal">UIImagePickerControllerOriginalImage</code>
+</span>
+                    </dt>
+                    <dd>
+A UIImage.
+</dd>
+                    <dt>
+                      <span class="term">
+<code class="literal">UIImagePickerControllerReferenceURL</code>
+</span>
+                    </dt>
+                    <dd>
+An ALAsset URL (discussed later in this chapter).
+</dd>
+                  </dl>
+                </div>
+              </dd>
+              <dt>
+                <span class="term">
+A movie
+</span>
+              </dt>
+              <dd>
+                <p class="simpara">
+The keys are:
+</p>
+                <div class="variablelist">
+                  <dl>
+                    <dt>
+                      <span class="term">
+<code class="literal">UIImagePickerControllerMediaType</code>
+</span>
+                    </dt>
+                    <dd>
+A UTI; probably <code class="literal">@"public.movie"</code>, which is the same as <code class="literal">kUTTypeMovie</code>.
+</dd>
+                    <dt>
+                      <span class="term">
+<code class="literal">UIImagePickerControllerMediaURL</code>
+</span>
+                    </dt>
+                    <dd>
+A file URL to a copy of the movie saved into a temporary directory. This would be suitable, for example, to display the movie with an MPMoviePlayerController (<a class="xref" href="ch28.html">Chapter 28</a>).
+</dd>
+                    <dt>
+                      <span class="term">
+<code class="literal">UIImagePickerControllerReferenceURL</code>
+</span>
+                    </dt>
+                    <dd>
+An ALAsset URL (discussed later in this chapter).
+</dd>
+                  </dl>
+                </div>
+              </dd>
+            </dl>
+          </div>
+          <p>Optionally, you can set the view controller’s <code class="literal">allowsEditing</code> to YES. In the case of an image, the interface then allows the user to scale the image up and to move it so as to be cropped by a preset rectangle; the dictionary will include two additional keys:</p>
+          <div class="variablelist">
+            <dl>
+              <dt>
+                <span class="term">
+<code class="literal">UIImagePickerControllerCropRect</code>
+</span>
+              </dt>
+              <dd>
+An NSValue wrapping a CGRect.
+</dd>
+              <dt>
+                <span class="term">
+<code class="literal">UIImagePickerControllerEditedImage</code>
+</span>
+              </dt>
+              <dd>
+A UIImage.
+</dd>
+            </dl>
+          </div>
+          <p>In the case of a movie, if the view controller’s <code class="literal">allowsEditing</code> is YES, the user can trim the movie just as with a UIVideoEditorController (<a class="xref" href="ch28.html">Chapter 28</a>). The dictionary keys are the same as before, but the file URL points to the trimmed copy in the temporary directory.</p>
+          <p>Because of restrictions on how many movies can play at once (see <a class="xref" href="ch28.html#SBonlyOne">There Can Be Only One</a> in <a class="xref" href="ch28.html">Chapter 28</a>), if you use a UIImagePickerController to let the user choose a movie and you then want to play that movie in an MPMoviePlayerController, you must destroy the UIImagePickerController first. How you do this depends on how you displayed the UIImagePickerController. If you’re using a presented view controller on the iPhone, you can use the completion handler to ensure that the MPMoviePlayerController isn’t configured until after the animation dismissing the presented view:</p>
+          <pre class="screen">-(void)imagePickerController:(UIImagePickerController *)picker
+        didFinishPickingMediaWithInfo:(NSDictionary *)info {
+    NSURL* url = info[UIImagePickerControllerMediaURL];
+    [self dismissViewControllerAnimated:YES completion:^{
+        if (url)
+            [self showMovie:url];
+    }];
+}</pre>
+          <p>If you’re using a popover on the iPad, you can release the UIPopoverController (probably by nilifying the instance variable that’s retaining it) after dismissing the popover <span class="emphasis"><em>without animation</em></span>; even then, I find, it is necessary to add a delay before trying to show the movie:</p>
+          <pre class="screen">-(void)imagePickerController:(UIImagePickerController *)picker
+        didFinishPickingMediaWithInfo:(NSDictionary *)info {
+    NSURL* url = info[UIImagePickerControllerMediaURL];
+    [self.currentPop dismissPopoverAnimated:NO]; // must be NO!
+    self.currentPop = nil;
+    if (url) {
+        [CATransaction setCompletionBlock:^{
+            [self showMovie:url];
+        }];
+    }
+}</pre>
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_using_the_camera"></a>Using the Camera</h3>
+              </div>
+            </div>
+          </div>
+          <p>To prompt the user to take a photo or video in an interface similar to the Camera app, first check <code class="literal">isSourceTypeAvailable:</code> for <code class="literal">UIImagePickerControllerSourceTypeCamera</code>; it will be NO if the user’s device has no camera or the camera is unavailable. If it is YES, call <code class="literal">availableMediaTypesForSourceType:</code> to learn whether the user can take a still photo (<code class="literal">kUTTypeImage</code>), a video (<code class="literal">kUTTypeMovie</code>), or both. Now instantiate UIImagePickerController, set its source type to <code class="literal">UIImagePickerControllerSourceTypeCamera</code>, and set its <code class="literal">mediaTypes</code> in accordance with which types you just learned are available. Finally, set a delegate (adopting UINavigationControllerDelegate and UIImagePickerControllerDelegate), and present the view controller. In this situation, it is legal (and preferable) to use a presented view controller even on the iPad.<a id="idm441641592672" class="indexterm"></a><a id="idm441641591776" class="indexterm"></a><a id="idm441641590880" class="indexterm"></a><a id="idm441641589968" class="indexterm"></a><a id="idm441641589056" class="indexterm"></a></p>
+          <p>For video, you can also specify the <code class="literal">videoQuality</code> and <code class="literal">videoMaximumDuration</code>. Moreover, these additional properties and class methods allow you to discover the camera capabilities:</p>
+          <div class="variablelist">
+            <dl>
+              <dt>
+                <span class="term">
+<code class="literal">isCameraDeviceAvailable:</code>
+</span>
+              </dt>
+              <dd>
+                <p class="simpara">
+Checks to see whether the front or rear camera is available, using one of these parameters:
+</p>
+                <div class="itemizedlist">
+                  <ul class="itemizedlist" type="disc">
+                    <li class="listitem">
+<code class="literal">UIImagePickerControllerCameraDeviceFront</code>
+</li>
+                    <li class="listitem">
+<code class="literal">UIImagePickerControllerCameraDeviceRear</code>
+</li>
+                  </ul>
+                </div>
+              </dd>
+              <dt>
+                <span class="term">
+<code class="literal">cameraDevice</code>
+</span>
+              </dt>
+              <dd>
+Lets you learn and set which camera is being used.
+</dd>
+              <dt>
+                <span class="term">
+<code class="literal">availableCaptureModesForCameraDevice:</code>
+</span>
+              </dt>
+              <dd>
+                <p class="simpara">
+Checks whether the given camera can capture still images, video, or both. You specify the front or rear camera; returns an NSArray of NSNumbers, from which you can extract the integer value. Possible modes are:
+</p>
+                <div class="itemizedlist">
+                  <ul class="itemizedlist" type="disc">
+                    <li class="listitem">
+<code class="literal">UIImagePickerControllerCameraCaptureModePhoto</code>
+</li>
+                    <li class="listitem">
+<code class="literal">UIImagePickerControllerCameraCaptureModeVideo</code>
+</li>
+                  </ul>
+                </div>
+              </dd>
+              <dt>
+                <span class="term">
+<code class="literal">cameraCaptureMode</code>
+</span>
+              </dt>
+              <dd>
+Lets you learn and set the capture mode (still or video).
+</dd>
+              <dt>
+                <span class="term">
+<code class="literal">isFlashAvailableForCameraDevice:</code>
+</span>
+              </dt>
+              <dd>
+Checks whether flash is available.
+</dd>
+              <dt>
+                <span class="term">
+<code class="literal">cameraFlashMode</code>
+</span>
+              </dt>
+              <dd>
+                <p class="simpara">
+Lets you learn and set the flash mode (or, for a movie, toggles the LED “torch”). Your choices are:
+</p>
+                <div class="itemizedlist">
+                  <ul class="itemizedlist" type="disc">
+                    <li class="listitem">
+<code class="literal">UIImagePickerControllerCameraFlashModeOff</code>
+</li>
+                    <li class="listitem">
+<code class="literal">UIImagePickerControllerCameraFlashModeAuto</code>
+</li>
+                    <li class="listitem">
+<code class="literal">UIImagePickerControllerCameraFlashModeOn</code>
+</li>
+                  </ul>
+                </div>
+              </dd>
+            </dl>
+          </div>
+          <div class="warning" style="margin-left: 0; margin-right: 10%;">
+            <h3 class="title">Warning</h3>
+            <p>Setting camera-related properties such as <code class="literal">cameraDevice</code> when there is no camera or when the UIImagePickerController is not set to camera mode can crash your app.</p>
+          </div>
+          <p>When the view controller appears, the user will see the interface for taking a picture, familiar from the Camera app, possibly including flash button, camera selection button, and digital zoom (if the hardware supports these), still/video switch (if your <code class="literal">mediaTypes</code> setting allows both), and Cancel and Shutter buttons.<a id="idm441641557664" class="indexterm"></a> If the user takes a picture, the presented view offers an opportunity to use the picture or to retake it.</p>
+          <p>Allowing the user to edit the captured image or movie, and handling the outcome with the delegate messages, is the same as I described in the previous section. There won’t be any <code class="literal">UIImagePickerControllerReferenceURL</code> key in the dictionary delivered to the delegate, because the image isn’t in the photo library. A still image might report a <code class="literal">UIImagePickerControllerMediaMetadata</code> key containing the metadata for the photo. The photo library was not involved in the process of media capture, so no user permission to access the photo library is needed; of course, if you <span class="emphasis"><em>now</em></span> propose to save the media into the photo library (as described later in this chapter), you <span class="emphasis"><em>will</em></span> need permission.</p>
+          <p>Here’s a very simple example in which we offer the user a chance to take a still image; if the user does so, we insert the image into our interface in a UIImageView (<code class="literal">iv</code>):</p>
+          <pre class="screen">- (IBAction)doTake:(id)sender {
+    BOOL ok = [UIImagePickerController isSourceTypeAvailable:
+               UIImagePickerControllerSourceTypeCamera];
+    if (!ok) {
+        NSLog(@"no camera");
+        return;
+    }
+    NSArray* arr = [UIImagePickerController availableMediaTypesForSourceType:
+                    UIImagePickerControllerSourceTypeCamera];
+    if ([arr indexOfObject:(NSString*)kUTTypeImage] == NSNotFound) {
+        NSLog(@"no stills");
+        return;
+    }
+    UIImagePickerController* picker = [UIImagePickerController new];
+    picker.sourceType = UIImagePickerControllerSourceTypeCamera;
+    picker.mediaTypes = @[kUTTypeImage];
+    picker.delegate = self;
+    [self presentViewController:picker animated:YES completion:nil];
+}
+
+- (void)imagePickerControllerDidCancel:(UIImagePickerController *)picker {
+    [self dismissViewControllerAnimated:YES completion:nil];
+}
+
+- (void)imagePickerController:(UIImagePickerController *)picker
+        didFinishPickingMediaWithInfo:(NSDictionary *)info {
+    UIImage* im = info[UIImagePickerControllerOriginalImage];
+    if (im)
+        self.iv.image = im;
+    [self dismissViewControllerAnimated:YES completion:nil];
+}</pre>
+          <p>In the image capture interface, you can hide the standard controls by setting <code class="literal">showsCameraControls</code> to NO, replacing them with your own overlay view, which you supply as the value of the <code class="literal">cameraOverlayView</code>. In this case, you’re probably going to want some means in your overlay view to allow the user to take a picture! You can do that through these methods:</p>
+          <div class="itemizedlist">
+            <ul class="itemizedlist" type="disc">
+              <li class="listitem">
+<code class="literal">takePicture</code>
+</li>
+              <li class="listitem">
+<code class="literal">startVideoCapture</code>
+</li>
+              <li class="listitem">
+<code class="literal">stopVideoCapture</code>
+</li>
+            </ul>
+          </div>
+          <p>You can supply a <code class="literal">cameraOverlayView</code> even if you don’t set <code class="literal">showsCameraControls</code> to NO; but in that case you’ll need to negotiate the position of your added controls if you don’t want them to cover the existing controls.</p>
+          <p>The key to customizing the look and behavior of the image capture interface is that a UIImagePickerController is a UINavigationController; the controls shown at the bottom of the default interface are the navigation controller’s toolbar. In this example, I’ll remove all the default controls and allow the user to double-tap the image in order to take a picture:</p>
+          <pre class="screen">// ... starts out as before ...
+picker.delegate = self;
+picker.showsCameraControls = NO;
+CGRect f = self.view.window.bounds;
+UIView* v = [[UIView alloc] initWithFrame:f];
+UITapGestureRecognizer* t =
+    [[UITapGestureRecognizer alloc] initWithTarget:self
+                                            action:@selector(tap:)];
+t.numberOfTapsRequired = 2;
+[v addGestureRecognizer:t];
+picker.cameraOverlayView = v;
+[self presentViewController:picker animated:YES completion:nil];
+self.picker = picker;
+
+// ...
+- (void) tap: (id) g {
+    [self.picker takePicture];
+}</pre>
+          <p>The interface is marred by a blank area the size of the toolbar at the bottom of the screen, below the preview image. What are we to do about this? You can zoom or otherwise transform the preview image by setting the <code class="literal">cameraViewTransform</code> property; but this can be tricky, because different versions of iOS apply your transform differently, and in any case it’s hard to know what values to use. An easier solution is to put your own view where the blank area will appear; that way, the blank area looks deliberate, not blank:</p>
+          <pre class="screen">CGFloat h = 53;
+UIView* v = [[UIView alloc] initWithFrame:f];
+UIView* v2 =
+    [[UIView alloc] initWithFrame:
+        CGRectMake(0,f.size.height-h,f.size.width,h)];
+v2.backgroundColor = [UIColor redColor];
+[v addSubview: v2];
+UILabel* lab = [UILabel new];
+lab.text = @"Double tap to take a picture";
+lab.backgroundColor = [UIColor clearColor];
+[lab sizeToFit];
+lab.center = CGPointMake(CGRectGetMidX(v2.bounds), CGRectGetMidY(v2.bounds));
+[v2 addSubview:lab];</pre>
+          <p>Another approach is to take advantage of the fact that, because we are the UIImagePickerController’s delegate, we are not only its UIImagePickerControllerDelegate but also its UINavigationControllerDelegate. We can therefore get some control over the navigation controller’s interface, and populate its root view controller’s toolbar — but only if we wait until the root view controller’s view actually appears. Here, I’ll increase the height of the toolbar to ensure that it covers the blank area, and put a Cancel button into it:</p>
+          <pre class="screen">- (void)navigationController:(UINavigationController *)nc
+       didShowViewController:(UIViewController *)vc
+                    animated:(BOOL)animated {
+    [nc setToolbarHidden:NO];
+    CGRect f = nc.toolbar.frame;
+    CGFloat h = 56; // determined experimentally
+    CGFloat diff = h - f.size.height;
+    f.size.height = h;
+    f.origin.y -= diff;
+    nc.toolbar.frame = f;
+    UIBarButtonItem* b =
+        [[UIBarButtonItem alloc] initWithTitle:@"Cancel"
+                                         style:UIBarButtonItemStyleBordered
+                                        target:self
+                                        action:@selector(doCancel:)];
+    UILabel* lab = [UILabel new];
+    lab.text = @"Double tap to take a picture";
+    lab.backgroundColor = [UIColor clearColor];
+    [lab sizeToFit];
+    UIBarButtonItem* b2 = [[UIBarButtonItem alloc] initWithCustomView:lab];
+    [nc.topViewController setToolbarItems:@[b, b2]];
+}</pre>
+          <p>When the user double-taps to take a picture, our <code class="literal">didFinishPickingMediaWithInfo</code> delegate method is called, just as before. We don’t automatically get the secondary interface where the user is shown the resulting image and offered an opportunity to use it or retake the image. But we can provide such an interface ourselves, by pushing another view controller onto the navigation controller:</p>
+          <pre class="screen">- (void)imagePickerController:(UIImagePickerController *)picker
+        didFinishPickingMediaWithInfo:(NSDictionary *)info {
+    UIImage* im = info[UIImagePickerControllerOriginalImage];
+    if (!im)
+        return;
+    SecondViewController* svc =
+        [[SecondViewController alloc] initWithNibName:nil bundle:nil image:im];
+    [picker pushViewController:svc animated:YES];
+}</pre>
+          <p>(Designing the SecondViewController class is left as an exercise for the reader.)</p>
+        </div>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_image_capture_with_av_foundation"></a>Image Capture With AV Foundation</h2>
+            </div>
+          </div>
+        </div>
+        <p>Instead of using UIImagePickerController, you can control the camera and capture images using the AV Foundation framework (<a class="xref" href="ch28.html">Chapter 28</a>). You get no help with interface (except for displaying in your interface what the camera “sees”), but you get far more detailed control than UIImagePickerController can give you; for example, for stills, you can control focus and exposure directly and independently, and for video, you can determine the quality, size, and frame rate of the resulting movie. You can also capture audio, of course.<a id="idm441641527440" class="indexterm"></a></p>
+        <p>The heart of all AV Foundation capture operations is an <a id="idm441641526176" class="indexterm"></a>AVCaptureSession object. You configure this and provide it as desired with inputs (such as a camera) and outputs (such as a file); then you call <code class="literal">startRunning</code> to begin the actual capture. You can reconfigure an AVCaptureSession, possibly adding or removing an input or output, while it is running — indeed, doing so is far more efficient than stopping the session and starting it again — but you should wrap your configuration changes in <code class="literal">beginConfiguration</code> and <code class="literal">commitConfiguration</code>.</p>
+        <p>As a rock-bottom example, let’s start by displaying in our interface, in real time, what the camera sees. This requires an AVCaptureVideoPreviewLayer, a CALayer subclass. This layer is not an AVCaptureSession output; rather, the layer receives its imagery by <span class="emphasis"><em>owning</em></span> the AVCaptureSession:</p>
+        <pre class="screen">self.sess = [AVCaptureSession new];
+AVCaptureDevice* cam =
+    [AVCaptureDevice defaultDeviceWithMediaType:AVMediaTypeVideo];
+AVCaptureDeviceInput* input =
+    [AVCaptureDeviceInput deviceInputWithDevice:cam error:nil];
+[self.sess addInput:input];
+
+AVCaptureVideoPreviewLayer* lay =
+    [[AVCaptureVideoPreviewLayer alloc] initWithSession:self.sess];
+lay.frame = CGRectMake(10,30,300,300);
+[self.view.layer addSublayer:lay];
+self.previewLayer = lay; // keep a reference so we can remove it later
+[self.sess startRunning];</pre>
+        <p>Presto! Our interface now contains a window on the world, so to speak. Next, let’s permit the user to snap a still photo, which our interface will display instead of the real-time view of what the camera sees. As a first step, we’ll need to revise what happens as we create our AVCaptureSession in the previous code. Since this image is to go directly into our interface, we won’t need the full eight megapixel size of which the iPhone 4 and 5 cameras are capable, so we’ll configure our AVCaptureSession’s <code class="literal">sessionPreset</code> to ask for a much smaller image. We’ll also provide an output for our AVCaptureSession, an AVCaptureStillImageOutput, setting its <code class="literal">outputSettings</code> to specify the quality of the JPEG image we’re after:</p>
+        <pre class="screen">self.sess = [AVCaptureSession new];
+self.sess.sessionPreset = AVCaptureSessionPreset640x480;
+self.snapper = [AVCaptureStillImageOutput new];
+self.snapper.outputSettings =
+    @{AVVideoCodecKey: AVVideoCodecJPEG, AVVideoQualityKey:@0.6};
+[self.sess addOutput:self.snapper];
+// ... and the rest is as before ...</pre>
+        <p>When the user asks to snap a picture, we send <code class="literal">captureStillImageAsynchronouslyFromConnection:completionHandler:</code> to our AVCaptureStillImageOutput object. This call requires some preparation. The first argument is an AVCaptureConnection; to find it, we ask the output for its connection that is currently inputting video. The second argument is the block that will be called, possibly on a background thread, when the image data is ready; in the block, we capture the data into a UIImage and, moving onto the main thread (<a class="xref" href="ch38.html">Chapter 38</a>), we construct in the interface a UIImageView containing that image, in place of the AVCaptureVideoPreviewLayer we were displaying previously:</p>
+        <pre class="screen">AVCaptureConnection *vc =
+    [self.snapper connectionWithMediaType:AVMediaTypeVideo];
+typedef void(^MyBufBlock)(CMSampleBufferRef, NSError*);
+MyBufBlock h = ^(CMSampleBufferRef buf, NSError *err) {
+    NSData* data =
+        [AVCaptureStillImageOutput jpegStillImageNSDataRepresentation:buf];
+    UIImage* im = [UIImage imageWithData:data];
+    dispatch_async(dispatch_get_main_queue(), ^{
+        UIImageView* iv =
+            [[UIImageView alloc] initWithFrame:CGRectMake(10,30,300,300)];
+        iv.contentMode = UIViewContentModeScaleAspectFit;
+        iv.image = im;
+        [self.view addSubview: iv];
+        [self.previewLayer removeFromSuperlayer];
+        self.previewLayer = nil;
+        [self.sess stopRunning];
+    });
+};
+[self.snapper captureStillImageAsynchronouslyFromConnection:vc
+                                          completionHandler:h];</pre>
+        <p>Our code has not illustrated setting the focus, changing the flash settings, and so forth; doing so is not difficult (see the class documentation on AVCaptureDevice), but note that you should wrap such changes in calls to <code class="literal">lockForConfiguration:</code> and <code class="literal">unlockForConfiguration</code>. You can turn on the LED “torch” by setting the back camera’s <code class="literal">torchMode</code> to <code class="literal">AVCaptureTorchModeOn</code>, even if no AVCaptureSession is running.</p>
+        <p>New in iOS 6, you can stop the flow of video data by setting the AVCaptureConnection’s <code class="literal">enabled</code> to NO, and there are some other new AVCaptureConnection features, mostly involving stabilization of the video image (not relevant to the example, because a preview layer’s video isn’t stabilized). Plus, AVCaptureVideoPreviewLayer now provides methods for converting between layer coordinates and capture device coordinates; previously, this was a very difficult problem to solve.</p>
+        <p>AV Foundation’s control over the camera, and its ability to process incoming data — especially video data — goes far deeper than there is room to discuss here, so consult the documentation; in particular, see the “Media Capture” chapter of the <span class="emphasis"><em>AV Foundation Programming Guide</em></span>, and the <span class="emphasis"><em>AV Foundation Release Notes for iOS 5</em></span> also contains some useful (and still relevant) hints. There are also excellent WWDC videos on AV Foundation, and some fine sample code; I found Apple’s AVCam example very helpful while preparing this discussion.</p>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_the_assets_library_framework"></a>The Assets Library Framework</h2>
+            </div>
+          </div>
+        </div>
+        <p>The Assets Library framework does for the photo library roughly what the Media Player framework does for the music library (<a class="xref" href="ch29.html">Chapter 29</a>), letting your code explore the library’s contents. One obvious use of the Assets Library framework might be to implement your own interface for letting the user choose an image, in a way that transcends the limitations of UIImagePickerController. But you can go further with the photo library than you can with the media library: you can save media into the Camera Roll / Saved Photos album, and you can even create a new album and save media into it.<a id="idm441641503632" class="indexterm"></a>
+<a id="idm441641502480" class="indexterm"></a></p>
+        <p>A photo or video in the photo library is an <a id="idm441641501136" class="indexterm"></a>ALAsset. Like a media entity (<a class="xref" href="ch29.html">Chapter 29</a>), an ALAsset can describe itself through key–value pairs called <span class="emphasis"><em>properties</em></span>. (This use of the word “properties” has nothing to do with the Objective-C properties discussed in <a class="xref" href="ch12.html">Chapter 12</a>.) For example, it can report its type (photo or video), its creation date, its orientation if it is a photo whose metadata contains this information, and its duration if it is a video. You fetch a property value with <code class="literal">valueForProperty:</code>. The properties have names like <code class="literal">ALAssetPropertyType</code>.</p>
+        <p>A photo can provide multiple <span class="emphasis"><em>representations</em></span> (roughly, image file formats). A given photo ALAsset lists these representations as one of its properties, <code class="literal">ALAssetPropertyRepresentations</code>, an array of strings giving the UTIs identifying the file formats; a typical UTI might be <code class="literal">@"public.jpeg"</code> (<code class="literal">kUTTypeJPEG</code>, if you’ve linked to <span class="emphasis"><em>MobileCoreServices.framework</em></span>). A representation is an ALAssetRepresentation. You can get a photo’s <code class="literal">defaultRepresentation</code>, or ask for a particular representation by submitting a file format’s UTI to <code class="literal">representationForUTI:</code>.</p>
+        <p>Once you have an ALAssetRepresentation, you can interrogate it to get the actual image, either as raw data or as a CGImage (see <a class="xref" href="ch15.html">Chapter 15</a>). The simplest way is to ask for its <code class="literal">fullResolutionImage</code> or its <code class="literal">fullScreenImage</code> (the latter is more suitable for display in your interface, and is identical to what the Photos app displays); you may then want to derive a UIImage from this using <code class="literal">imageWithCGImage:scale:orientation:</code>. The original scale and orientation of the image are available as the ALAssetRepresentation’s <code class="literal">scale</code> and <code class="literal">orientation</code>. Alternatively, if all you need is a small version of the image to display in your interface, you can ask the ALAsset itself for its <code class="literal">aspectRatioThumbnail</code>. An ALAssetRepresentation also has a <code class="literal">url</code>, which is the unique identifier for the ALAsset.</p>
+        <p>The photo library itself is an ALAssetsLibrary instance. It is divided into groups (ALAssetsGroup), which have types. For example, the user might have multiple albums; each of these is a group of type <code class="literal">ALAssetsGroupAlbum</code>. You also have access to the PhotoStream album. An ALAssetsGroup has properties, such as a name, which you can fetch with <code class="literal">valueForProperty:</code>; one such property, the group’s URL (<code class="literal">ALAssetsGroupPropertyURL</code>), is its unique identifier. To fetch assets from the library, you either fetch one specific asset by providing its URL, or you can start with a group, in which case you can then enumerate the group’s assets. To obtain a group, you can enumerate the library’s groups of a certain type, in which case you are handed each group as an ALAssetsGroup, or you can provide a particular group’s URL. Before enumerating a group’s assets, you may optionally filter the group using a simple ALAssetsFilter; this limits any subsequent enumeration to photos only, videos only, or both.</p>
+        <p>The Assets Library framework uses Objective-C blocks for fetching and enumerating assets and groups. These blocks behave in a special way: at the end of the enumeration, they are called one extra time with a nil first parameter. Thus, you must code your block carefully to avoid treating the first parameter as real on that final call. Formerly, I was mystified by this curious block enumeration behavior, but one day the reason for it came to me in a flash: these blocks are all called <span class="emphasis"><em>asynchronously</em></span> (on the main thread), meaning that the rest of your code has already finished running, so you’re given an extra pass through the block as your first opportunity to <span class="emphasis"><em>do</em></span> something with the data you’ve gathered in the previous passes.</p>
+        <p>As I mentioned earlier in this chapter, the system will ask the user for permission the first time your app tries to access the photo library, and the user can refuse. You can learn directly beforehand whether access has already been enabled:</p>
+        <pre class="screen">ALAuthorizationStatus stat = [ALAssetsLibrary authorizationStatus];
+if (stat == ALAuthorizationStatusDenied ||
+    stat == ALAuthorizationStatusRestricted) {
+    // in real life, we could put up interface asking for access
+    NSLog(@"%@", @"No access");
+    return;
+}</pre>
+        <p>There is, however, no need to do this, because all the block-based methods for accessing the library allow you to supply a failure block; thus, your code will be able to retreat in good order when it discovers that it can’t access the library.</p>
+        <p>We now know enough for an example! I’ll fetch the first photo from the album named “mattBestVertical” in my photo library and stick it into a UIImageView in the interface. For readability, I’ve set up the blocks in my code separately as variables <span class="emphasis"><em>before</em></span> they are used, so it will help to read backward: we enumerate (at the end of the code) using the <code class="literal">getGroups</code> block (previously defined), which itself enumerates using the <code class="literal">getPix</code> block (defined before that). We must also be prepared with a block that handles the possibility of an error. Here we go:</p>
+        <pre class="screen">// what I'll do with the assets from the group
+ALAssetsGroupEnumerationResultsBlock getPix =
+ ^ (ALAsset *result, NSUInteger index, BOOL *stop) {
+     if (!result)
+         return;
+     ALAssetRepresentation* rep = [result defaultRepresentation];
+     CGImageRef im = [rep fullScreenImage];
+     UIImage* im2 =
+         [UIImage imageWithCGImage:im scale:0
+                       orientation:(UIImageOrientation)rep.orientation];
+     self.iv.image = im2; // put image into our UIImageView
+     *stop = YES; // got first image, all done
+ };
+// what I'll do with the groups from the library
+ALAssetsLibraryGroupsEnumerationResultsBlock getGroups =
+ ^ (ALAssetsGroup *group, BOOL *stop) {
+     if (!group)
+         return;
+     NSString* title = [group valueForProperty: ALAssetsGroupPropertyName];
+     if ([title isEqualToString: @"mattBestVertical"]) {
+         [group enumerateAssetsUsingBlock:getPix];
+         *stop = YES; // got target group, all done
+     }
+ };
+// might not be able to access library at all
+ALAssetsLibraryAccessFailureBlock oops = ^ (NSError *error) {
+    NSLog(@"oops! %@", [error localizedDescription]);
+    // e.g., "Global denied access"
+};
+// and here we go with the actual enumeration!
+ALAssetsLibrary* library = [ALAssetsLibrary new];
+[library enumerateGroupsWithTypes: ALAssetsGroupAlbum
+                       usingBlock: getGroups
+                     failureBlock: oops];</pre>
+        <p>You can write files into the Camera Roll / Saved Photos album. The basic function for writing an image file to this location is <code class="literal">UIImageWriteToSavedPhotosAlbum</code>. Some kinds of video file can also be saved here; in an example in <a class="xref" href="ch28.html">Chapter 28</a>, I checked whether this was true of a certain video file by calling <code class="literal">UIVideoAtPathIsCompatibleWithSavedPhotosAlbum</code>, and I saved the file by calling <code class="literal">UISaveVideoAtPathToSavedPhotosAlbum</code>.</p>
+        <p>The ALAssetsLibrary class extends these abilities by providing five additional methods:<a id="idm441641469536" class="indexterm"></a><a id="idm441641468624" class="indexterm"></a></p>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+<code class="literal">writeImageToSavedPhotosAlbum:orientation:completionBlock:</code>
+</span>
+            </dt>
+            <dd>
+Takes a CGImageRef and orientation.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">writeImageToSavedPhotosAlbum:metadata:completionBlock:</code>
+</span>
+            </dt>
+            <dd>
+Takes a CGImageRef and optional metadata dictionary (such as might arrive through the <code class="literal">UIImagePickerControllerMediaMetadata</code> key when the user takes a picture using UIImagePickerController).
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">writeImageDataToSavedPhotosAlbum:metadata:completionBlock:</code>
+</span>
+            </dt>
+            <dd>
+Takes raw image data (NSData) and optional metadata.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">videoAtPathIsCompatibleWithSavedPhotosAlbum:</code>
+</span>
+            </dt>
+            <dd>
+Takes a file path string. Returns a boolean.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">writeVideoAtPathToSavedPhotosAlbum:completionBlock:</code>
+</span>
+            </dt>
+            <dd>
+Takes a file path string.
+</dd>
+          </dl>
+        </div>
+        <p>Saving takes time, so a completion block allows you to be notified when it’s over. The completion block supplies two parameters: an NSURL and an NSError. If the first parameter is not nil, the write succeeded, and this is the URL of the resulting ALAsset. If the first parameter <span class="emphasis"><em>is</em></span> nil, the write failed, and the second parameter describes the error.</p>
+        <p>You can create in the Camera Roll / Saved Photos album an image or video that is considered to be a modified version of an existing image or video, by calling an instance method on the original asset:</p>
+        <div class="itemizedlist">
+          <ul class="itemizedlist" type="disc">
+            <li class="listitem">
+<code class="literal">writeModifiedImageDataToSavedPhotosAlbum:metadata:completionBlock:</code>
+</li>
+            <li class="listitem">
+<code class="literal">writeModifiedVideoAtPathToSavedPhotosAlbum:completionBlock:</code>
+</li>
+          </ul>
+        </div>
+        <p>Afterwards, you can get from the modified asset to the original asset through the former’s <code class="literal">originalAsset</code> property.</p>
+        <p>You are also allowed to “edit” an asset — that is, you can replace an image or video in the library with a different image or video — but only if your application created the asset. Check the asset’s <code class="literal">editable</code> property; if it is YES, you can call either of these methods:</p>
+        <div class="itemizedlist">
+          <ul class="itemizedlist" type="disc">
+            <li class="listitem">
+<code class="literal">setImageData:metadata:completionBlock:</code>
+</li>
+            <li class="listitem">
+<code class="literal">setVideoAtPath:completionBlock:</code>
+</li>
+          </ul>
+        </div>
+        <p>Finally, you are allowed to create an album:</p>
+        <div class="itemizedlist">
+          <ul class="itemizedlist" type="disc">
+            <li class="listitem">
+<code class="literal">addAssetsGroupAlbumWithName:resultBlock:failureBlock:</code>
+</li>
+          </ul>
+        </div>
+        <p>If an album is <code class="literal">editable</code>, which would be because you created it, you can add an existing asset to it by calling <code class="literal">addAsset:</code>. This is not the same thing as saving a new asset to an album other than the Camera Roll / Saved Photos album; you can’t do that, but once an asset exists, it can belong to more than one album.</p>
+      </div>
+    </div>
+    <div class="navfooter">
+      <table width="100%" summary="Navigation footer">
+        <tr>
+          <td width="40%" align="left"><a accesskey="p" href="ch29.html">Prev</a> </td>
+          <td width="20%" align="center">
+            <a accesskey="u" href="pt06.html">Up</a>
+          </td>
+          <td width="40%" align="right"> <a accesskey="n" href="ch31.html">Next</a></td>
+        </tr>
+        <tr>
+          <td width="40%" align="left" valign="top">Chapter 29. Music Library </td>
+          <td width="20%" align="center">
+            <a accesskey="h" href="index.html">Table of Contents</a>
+          </td>
+          <td width="40%" align="right" valign="top"> Chapter 31. Address Book</td>
+        </tr>
+      </table>
+    </div>
+  </body>
+</html>

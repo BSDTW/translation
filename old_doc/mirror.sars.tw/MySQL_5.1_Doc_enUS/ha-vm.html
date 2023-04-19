@@ -1,0 +1,569 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><title>Chapter 15. MySQL and Virtualization</title><link rel="stylesheet" href="mysql-html.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.69.1"><link rel="start" href="index.html" title="MySQL 5.1 Reference Manual"><link rel="up" href="index.html" title="MySQL 5.1 Reference Manual"><link rel="prev" href="ha-overview.html" title="Chapter 14. High Availability and Scalability"><link rel="next" href="ha-memcached.html" title="Chapter 16. Using MySQL with memcached"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">Chapter 15. MySQL and Virtualization</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="ha-overview.html">Prev</a> </td><th width="60%" align="center"> </th><td width="20%" align="right"> <a accesskey="n" href="ha-memcached.html">Next</a></td></tr></table><hr></div><div class="chapter" lang="en"><div class="titlepage"><div><div><h2 class="title"><a name="ha-vm"></a>Chapter 15. MySQL and Virtualization</h2></div></div></div><div class="toc"><p><b>Table of Contents</b></p><dl><dt><span class="section"><a href="ha-vm.html#ha-vm-commonissues">15.1. Common Issues with Virtualization</a></span></dt><dd><dl><dt><span class="section"><a href="ha-vm.html#ha-vm-commonissues-performance">15.1.1. Virtualization Performance Issues</a></span></dt><dt><span class="section"><a href="ha-vm.html#ha-vm-commonissues-storage">15.1.2. Virtualization Storage Issues</a></span></dt><dt><span class="section"><a href="ha-vm.html#ha-vm-commonissues-networking">15.1.3. Virtualization Networking Issues</a></span></dt></dl></dd><dt><span class="section"><a href="ha-vm.html#ha-vm-aws">15.2. Using MySQL within an Amazon EC2 Instance</a></span></dt><dd><dl><dt><span class="section"><a href="ha-vm.html#ha-vm-aws-setup">15.2.1. Setting Up MySQL on an EC2 AMI</a></span></dt><dt><span class="section"><a href="ha-vm.html#ha-vm-aws-instance">15.2.2. EC2 Instance Limitations</a></span></dt><dt><span class="section"><a href="ha-vm.html#ha-vm-aws-deploy">15.2.3. Deploying a MySQL Database Using EC2</a></span></dt></dl></dd><dt><span class="section"><a href="ha-vm.html#ha-vm-resources">15.3. Virtualization Resources</a></span></dt></dl></div><p>
+    Using virtualization can be an effective way of better utilizing the
+    hardware of your machine when using MySQL, or to provide improved
+    security or isolation of different instances of MySQL on the same
+    machine. In some circumstances, virtualization may be a suitable
+    solution for scaling out your database environment by enabling you
+    to easily deploy additional instances of a pre-configured MySQL
+    server and application environment to new virtualization hosts.
+  </p><p>
+    With any virtualization solution there is often a tradeoff between
+    the flexibility and ease of deployment and performance, or between
+    the potential performance advantage and complexities of effectively
+    configuring multiple instances of MySQL to reside within a single
+    physical host.
+  </p><p>
+    Different issues are experienced according to the virtualization
+    environment you are using. Virtualization generally falls into one
+    of the following categories:
+  </p><div class="itemizedlist"><ul type="disc"><li><p>
+        <span class="bold"><strong>Native virtualization</strong></span>,
+        including products like VMware Workstation, Parallels
+        Desktop/Parallels Workstation, Microsoft Virtual PC and
+        VirtualBox, all work by acting as an application that runs
+        within an existing operating system environment. Recent versions
+        can take advantage of the virtualization extensions in the Intel
+        and AMD CPUs to help improve performance.
+      </p><p>
+        The application-based solutions have a number of advantages,
+        including the ability to prioritize CPU usage (including
+        multiple CPUs) and easily run multiple virtualized environments
+        simultaneously.
+      </p><p>
+        With these solutions, you also have the ability to easily create
+        a virtualized environment that can be packaged and shared among
+        different virtualization hosts. For example, you can create a
+        MySQL environment and configuration that can be deployed
+        multiple times to help extend an existing scalability or HA
+        environment.
+      </p><p>
+        The major disadvantage of this type of virtualization
+        environment is the effect of the host on the performance of the
+        virtualization instances. Disk storage is typically provided by
+        using one or more files on the host OS which are then emulated
+        to provide physical disks within the virtual instance. Other
+        resources on the host are similarly shared, including CPU,
+        network interfaces and additional devices (USB). It is also
+        difficult to directly share lower-level components, such as PCI
+        devices and that the ability to take advantage of RAID storage
+        solutions.
+      </p></li><li><p>
+        <span class="bold"><strong>Paravirtualization
+        (Hypervisor)</strong></span>, including Xen, Solaris xVM (based on
+        Xen), VMware ESX Server, Windows Server 2008 Hyper-V, and
+        Solaris Logical Domains (LDOM), work by running a specialized
+        version of the host operating system. The host OS then allows
+        slightly modified versions of different operating systems to run
+        within the virtualized environment.
+      </p><p>
+        With paravirtualization, the level of performance and the
+        control over the underlying hardware used to support the
+        virtualized environments is higher than native virtualization
+        solutions. For example, using paravirtualization you can
+        dedicate individual CPU cores, RAM, disk drives and even PCI
+        devices to be accessible to individual and specific virtual
+        instances.
+      </p><p>
+        For example, within a paravirtualized environment you could
+        dedicate a physical disk drive or subsystem to a particular
+        virtual environment and gain a performance benefit over a
+        typical file-based solution virtual disk.
+      </p></li><li><p>
+        <span class="bold"><strong>Operating system-level
+        virtualization</strong></span>, including BSD jails, and Solaris
+        Containers/Zones, offer methods for isolating different
+        instances of an operating system environment while sharing the
+        same hardware environment. Unlike the other virtualization
+        solutions, operating system level virtualization is not normally
+        used to run other operating systems, but instead to provide a
+        level of security isolation and resource control within the core
+        operating environment.
+      </p><p>
+        The isolation of these different instances is the key advantage
+        of this type of virtualization. Each virtualized instance sees
+        its environment as if it were completely different system. The
+        solution can be an effective method to provide isolated
+        computing resources for different departments or users, or to
+        provide unique instances for testing and development.
+      </p></li></ul></div><p>
+    The main reasons for using virtualization, particularly with a
+    database or an application stack that includes a database component,
+    include:
+  </p><div class="itemizedlist"><ul type="disc"><li><p>
+        <span class="bold"><strong>Security</strong></span> — separate
+        instances of different operating systems running within a single
+        host but with effective isolation from each other. When used
+        with MySQL, you can provide an increased level of security
+        between different instances of each server.
+      </p></li><li><p>
+        <span class="bold"><strong>Consolidation</strong></span> — merging a
+        number of individual systems with a relatively small load onto a
+        single, larger, server. This can help reduce footprint and
+        energy costs, or make more efficient use of a larger machine.
+        Performance is the main issue with this solution as the load of
+        many MySQL databases running in individual virtual instances on
+        a single machine can be considerable.
+      </p></li><li><p>
+        <span class="bold"><strong>Development/QA/Testing</strong></span> —
+        by creating different instances of different environments and
+        operating systems you can test your MySQL-based application in
+        different environments.
+      </p></li><li><p>
+        <span class="bold"><strong>Scalability</strong></span> — although
+        using virtualization imposes a performance hit, many
+        virtualization solutions allow you to create a packaged version
+        of an environment, including MySQL and the other application
+        components. By distributing the virtualization environment
+        package to new hosts you can often very quickly scale out by
+        adding new hosts and deploying the virtualized environment.
+      </p></li></ul></div><p>
+    The remainder of this chapter looks at common issues with using
+    MySQL in a virtualized environment and tips for using MySQL within
+    different virtualization tools.
+  </p><p>
+    For advice on common issues and problems, including performance and
+    configuration issues, when using virtualized instances, see
+    <a href="ha-vm.html#ha-vm-commonissues" title="15.1. Common Issues with Virtualization">Section 15.1, “Common Issues with Virtualization”</a>.
+  </p><div class="section" lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="ha-vm-commonissues"></a>15.1. Common Issues with Virtualization</h2></div></div></div><div class="toc"><dl><dt><span class="section"><a href="ha-vm.html#ha-vm-commonissues-performance">15.1.1. Virtualization Performance Issues</a></span></dt><dt><span class="section"><a href="ha-vm.html#ha-vm-commonissues-storage">15.1.2. Virtualization Storage Issues</a></span></dt><dt><span class="section"><a href="ha-vm.html#ha-vm-commonissues-networking">15.1.3. Virtualization Networking Issues</a></span></dt></dl></div><p>
+      There are many issues related to using MySQL within a virtualized
+      environment that are common across the different virtualization
+      types. Most are directly related to the performance or security of
+      the environment in which you are deploying the MySQL server
+      compared to the host on which you are running the virtualization
+      solution.
+    </p><p>
+      Before deciding to use virtualization as a solution for your
+      database, you should ensure that the expected load for the server
+      and the expected performance when run in a virtualized environment
+      meet your needs and requirements.
+    </p><p>
+      To help you determine the issues and some of the potential
+      solutions, use the following sections:
+    </p><div class="itemizedlist"><ul type="disc"><li><p>
+          For general performance issues and the problems and probably
+          causes of performance issues, see
+          <a href="ha-vm.html#ha-vm-commonissues-performance" title="15.1.1. Virtualization Performance Issues">Section 15.1.1, “Virtualization Performance Issues”</a>.
+        </p></li><li><p>
+          Disk and storage concerns directly affect database storage
+          because most database access is limited by the I/O bandwidth.
+          For some examples and issues, see
+          <a href="ha-vm.html#ha-vm-commonissues-storage" title="15.1.2. Virtualization Storage Issues">Section 15.1.2, “Virtualization Storage Issues”</a>.
+        </p></li><li><p>
+          Issues related to network configuration and performance may
+          need more careful planning, especially if you are using
+          network-specific technologies such as MySQL replication. For
+          further examples and details, see
+          <a href="ha-vm.html#ha-vm-commonissues-networking" title="15.1.3. Virtualization Networking Issues">Section 15.1.3, “Virtualization Networking Issues”</a>.
+        </p></li></ul></div><div class="section" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="ha-vm-commonissues-performance"></a>15.1.1. Virtualization Performance Issues</h3></div></div></div><p>
+        Often the biggest consideration is the performance of a
+        virtualized environment once hosted. In most cases, the
+        virtualized environment involves some level of emulation of one
+        or more of the hardware interfaces (CPU, network or disk) of the
+        host environment. The effect is to reduce the effective
+        performance of the virtualized environment compared to running
+        an application natively on the host.
+      </p><p>
+        Some core resourcing issues to be aware of include:
+      </p><div class="itemizedlist"><ul type="disc"><li><p>
+            Using virtualization does not reduce the amount of CPU
+            required to support a particular application or environment.
+            If your application stack requires 2GB of RAM on an
+            individual machine, the same RAM requirement will apply
+            within your virtualized environment. The additional overhead
+            of the virtualization layer and host operating system or
+            environment often mean that you will need 2.5GB or 3GB of
+            RAM to run the same application within the virtualized
+            environment.
+          </p><p>
+            You should configure your virtualization environment with
+            the correct RAM allocation according to your applications
+            needs, and not to maximize the number of virtualized
+            environments that you can execute within the virtualization
+            host.
+          </p></li><li><p>
+            Virtualization of the CPU resources is more complex. If your
+            MySQL database and application stack do not have a high CPU
+            load, then consolidating multiple environments onto a single
+            host is often more efficient. You should keep in mind that
+            at peak times your application and database CPU requirement
+            may need to grow beyond your default allocation.
+          </p><p>
+            With some virtualization environments (Xen, Solaris
+            Containers, Solaris LDOMs) you can dedicate CPU or core to a
+            virtual instance. You should use this functionality to
+            improve performance for database or application loads that
+            have a high constant CPU requirement as the performance
+            benefit will outweigh the flexibility of dynamic allocation
+            of the CPU resources.
+          </p></li><li><p>
+            Contention of resources within the host should be taken into
+            account. In a system with high CPU loads, even when
+            dedicating RAM and CPU resources, the I/O channels and
+            interfaces to storage and networking resources may exceed
+            the capacity of the host. Solutions such as Xen and Solaris
+            LDOMs dedicate specific resources to individual virtual
+            instances, but this will not eliminate the effects of the
+            overall load on the host.
+          </p></li><li><p>
+            If your database application is time sensitive, including
+            logging and real-time database applications, or you are
+            using MySQL Cluster, then the effects of virtualization may
+            severely reduce the performance of your application. Because
+            of the way the virtualized instances are executed and shared
+            between CPUs and the effects of load on other resources, the
+            response times for your database or application may be much
+            higher than normal. This is especially true if you are
+            running a large number of virtualized instances on a single
+            host.
+          </p></li><li><p>
+            Be aware of the limitation of using a single host to run
+            multiple virtualized instances. In the event of a machine or
+            component failure, the problem will affect more than just
+            one database instance. For example, a failure in a storage
+            device could bring down all your virtualized instances.
+            Using a RAID solution that supports fault tolerance (RAID
+            levels 1,3,4,5 or 6) will help protect you from the effects
+            of this.
+          </p></li></ul></div></div><div class="section" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="ha-vm-commonissues-storage"></a>15.1.2. Virtualization Storage Issues</h3></div></div></div><p>
+        Due to the random I/O nature of any database solution, running
+        MySQL within a virtualized environment places a heavy load on
+        the storage solution you are using. To help keep the performance
+        of your virtualized solution at the highest level, you should
+        use the following notes to help configure your systems.
+      </p><div class="itemizedlist"><ul type="disc"><li><p>
+            Some virtualization solutions allow you to use a physical
+            disk directly within your virtual host as if it were a local
+            disk. You should use this whenever possible to ensure that
+            disk contention issues do not affect the performance of your
+            virtual environment.
+          </p><p>
+            When running multiple virtual machines, you should use an
+            individual disk for each virtual instance. Using a single
+            disk and multiple partitions, with each partition dedicated
+            to a virtual host, will lead to the same contention issues.
+          </p></li><li><p>
+            If you are using standard file-based storage for your
+            virtualized disks:
+          </p><div class="itemizedlist"><ul type="circle"><li><p>
+                File-based storage is subject to fragmentation on the
+                host disk. To prevent fragmentation, create a fixed-size
+                disk (that is, one where the entire space for the disk
+                file is preallocated) instead of a dynamic disk that
+                will grow with usage. Also be prepared to defragment the
+                disk hosting the files at regular intervals to reduce
+                the fragmentation.
+              </p></li><li><p>
+                Use separate disk files for the operating system and
+                database disks, and try to avoid partitioning a disk
+                file as this increases the contention within the file.
+              </p></li><li><p>
+                Use a high-performance disk solution, such as RAID or
+                SAN, to store the disk files for your virtualized
+                environments. This will improve the performance of what
+                is essentially a large single file on a physical device.
+              </p></li><li><p>
+                When running a number of different virtualized
+                environments within a single host, do not use the same
+                physical host drive for multiple virtual disks. Instead,
+                spread the virtual disks among multiple physical disks.
+                Even when using a RAID device, be aware that each
+                virtual host is equivalent to increasing the load
+                linearly on the host RAID device.
+              </p></li></ul></div></li></ul></div></div><div class="section" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="ha-vm-commonissues-networking"></a>15.1.3. Virtualization Networking Issues</h3></div></div></div><p>
+        When running multiple virtual machines on a host, you should be
+        aware of the networking implications of each virtualized
+        instance. If your host machine has only one network card, then
+        you will be sharing the networking throughput for all of your
+        machines through only one card, and this may severely limit the
+        performance of your virtual environments.
+      </p><p>
+        If possible, you should use multiple network cards to support
+        your virtualized instances. Depending on the expected load of
+        each instance, you should dedicate or spread the allocation of
+        the virtual network devices across these physical devices to
+        ensure that you do not reach saturation.
+      </p><p>
+        If you are using packaged virtual machines as the basis for
+        deployment of your MySQL database solution, you should make sure
+        that the network interfaces are correctly reconfigured. Some
+        solutions duplicate the hardware MAC address which will cause
+        problems when you start up additional instances of the same
+        virtualized environment.
+      </p></div></div><div class="section" lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="ha-vm-aws"></a>15.2. Using MySQL within an Amazon EC2 Instance</h2></div></div></div><div class="toc"><dl><dt><span class="section"><a href="ha-vm.html#ha-vm-aws-setup">15.2.1. Setting Up MySQL on an EC2 AMI</a></span></dt><dt><span class="section"><a href="ha-vm.html#ha-vm-aws-instance">15.2.2. EC2 Instance Limitations</a></span></dt><dt><span class="section"><a href="ha-vm.html#ha-vm-aws-deploy">15.2.3. Deploying a MySQL Database Using EC2</a></span></dt></dl></div><p>
+      The Amazon Elastic Compute Cloud (EC2) service provides virtual
+      servers that you can build and deploy to run a variety of
+      different applications and services, including MySQL. The EC2
+      service is based around the Xen framework, supporting x86, Linux
+      based, platforms with individual instances of a virtual machine
+      referred to as an Amazon Machine Image (AMI). You have complete
+      (root) access to the AMI instance that you create, allowing you to
+      configure and install your AMI in any way you choose.
+    </p><p>
+      To use EC2, you create an AMI based on the configuration and
+      applications that you want to use and upload the AMI to the Amazon
+      Simple Storage Service (S3). From the S3 resource, you can deploy
+      one or more copies of the AMI to run as an instance within the EC2
+      environment. The EC2 environment provides management and control
+      of the instance and contextual information about the instance
+      while it is running.
+    </p><p>
+      Because you can create and control the AMI, the configuration, and
+      the applications, you can deploy and create any environment you
+      choose. This includes a basic MySQL server in addition to more
+      extensive replication, HA and scalability scenarios that enable
+      you to take advantage of the EC2 environment, and the ability to
+      deploy additional instances as the demand for your MySQL services
+      and applications grow.
+    </p><p>
+      To aid the deployment and distribution of work, three different
+      Amazon EC2 instances are available, small (identified as
+      <code class="literal">m1.small</code>), large (<code class="literal">m1.large</code>)
+      and extra large (<code class="literal">m1.xlarge</code>). The different
+      types provide different levels of computing power measured in EC2
+      computer units (ECU). A summary of the different instance
+      configurations is shown here.
+    </p><div class="informaltable"><table border="1"><colgroup><col><col><col><col></colgroup><thead><tr><th> </th><th>Small</th><th>Large</th><th>Extra Large</th></tr></thead><tbody><tr><td>Platform</td><td>32-bit</td><td>64-bit</td><td>64-bit</td></tr><tr><td>CPU cores</td><td>1</td><td>2</td><td>4</td></tr><tr><td>ECUs</td><td>1</td><td>4</td><td>8</td></tr><tr><td>RAM</td><td>1.7GB</td><td>7.5GB</td><td>15GB</td></tr><tr><td>Storage</td><td>150GB</td><td>840GB</td><td>1680GB</td></tr><tr><td>I/O Performance</td><td>Medium</td><td>High</td><td>High</td></tr></tbody></table></div><p>
+      The typical model for deploying and using MySQL within the EC2
+      environment is to create a basic AMI that you can use to hold your
+      database data and application. Once the basic environment for your
+      database and application has been created you can then choose to
+      deploy the AMI to a suitable instance. Here the flexibility of
+      having an AMI that can be re-deployed from the small to the large
+      or extra large EC2 instance makes it easy to upgrade the hardware
+      environment without rebuilding your application or database stack.
+    </p><p>
+      To get started with MySQL on EC2, including information on how to
+      set up and install MySQL within an EC2 installation and how to
+      port and migrate your data to the running instance, see
+      <a href="ha-vm.html#ha-vm-aws-setup" title="15.2.1. Setting Up MySQL on an EC2 AMI">Section 15.2.1, “Setting Up MySQL on an EC2 AMI”</a>.
+    </p><p>
+      For tips and advice on how to create a scalable EC2 environment
+      using MySQL, including guides on setting up replication, see
+      <a href="ha-vm.html#ha-vm-aws-deploy" title="15.2.3. Deploying a MySQL Database Using EC2">Section 15.2.3, “Deploying a MySQL Database Using EC2”</a>.
+    </p><div class="section" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="ha-vm-aws-setup"></a>15.2.1. Setting Up MySQL on an EC2 AMI</h3></div></div></div><p>
+        There are many different ways of setting up an EC2 AMI with
+        MySQL, including using any of the pre-configured AMIs supplied
+        by Amazon.
+      </p><p>
+        The default <span class="emphasis"><em>Getting Started</em></span> AMI provided by
+        Amazon uses Fedora Core 4, and you can install MySQL by using
+        <span><strong class="command">yum</strong></span>:
+      </p><pre class="programlisting">shell&gt; <strong class="userinput"><code>yum install mysql</code></strong></pre><p>
+        This will install both the MySQL server and the Perl DBD::mysql
+        driver for the Perl DBI API.
+      </p><p>
+        Alternatively, you can use one of the AMIs that include MySQL
+        within the standard installation.
+      </p><p>
+        Finally, you can also install a standard version of MySQL
+        downloaded from the MySQL website. The installation process and
+        instructions are identical to any other installation of MySQL on
+        Linux. See <a href="installing.html" title="Chapter 2. Installing and Upgrading MySQL">Chapter 2, <i>Installing and Upgrading MySQL</i></a>.
+      </p><p>
+        The standard configuration for MySQL places the data files in
+        the default location, <code class="filename">/var/lib/mysql</code>. The
+        default data directory on an EC2 instance is
+        <code class="filename">/mnt</code> (although on the large and extra large
+        instance you can alter this configuration). You must edit
+        <code class="filename">/etc/my.cnf</code> to set the
+        <code class="option">datadir</code> option to point to the larger storage
+        area.
+      </p><div class="important" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Important</h3><p>
+          The first time you use the main storage location within an EC2
+          instance it needs to be initialized. The initialization
+          process starts automatically the first time you write to the
+          device. You can start using the device right away, but the
+          write performance of the new device is significantly lower on
+          the initial writes until the initialization process has
+          finished.
+        </p><p>
+          To avoid this problem when setting up a new instance, you
+          should start the initialization process before populating your
+          MySQL database. One way to do this is to use
+          <span><strong class="command">dd</strong></span> to write to the filesystem:
+        </p><pre class="programlisting">root-shell&gt; <strong class="userinput"><code>dd if=/dev/zero of=initialize bs=1024M count=50</code></strong></pre><p>
+          The preceding will create a 50GB on the filesystem and start
+          the initialization process. You should delete the file once
+          the process has finished.
+        </p><p>
+          The initialization process can be time-consuming. On the small
+          instance, initialization will take between two and three
+          hours. For the large and extra large drives, the
+          initialization will be 10 or 20 hours, respectively.
+        </p></div><p>
+        In addition to configuring the correct storage location for your
+        MySQL data files, you should also consider setting the following
+        other settings in your instance before you save the instance
+        configuration for deployment:
+      </p><div class="itemizedlist"><ul type="disc"><li><p>
+            Set the MySQL server ID so that when you use it for
+            replication the ID information is set correctly.
+          </p></li><li><p>
+            Enabling binary logging so that replication can be
+            initialized without starting and stopping the server.
+          </p></li><li><p>
+            Set the caching and memory parameters for your storage
+            engines. There are no limitations or restrictions on what
+            storage engines you use in your EC2 environment. Choose a
+            configuration, possibly using one of the standard
+            configurations provided with MySQL appropriate for the
+            instance on which you expect to deploy. The large and extra
+            large instances have RAM that can be dedicated to caching.
+            Be aware that if you choose to install
+            <span><strong class="command">memcached</strong></span> on the servers as part of your
+            application stack you must ensure there is enough memory for
+            both MySQL and <span><strong class="command">memcached</strong></span>.
+          </p></li></ul></div><p>
+        Once you have configured your AMI with MySQL and the rest of
+        your application stack, you should save the AMI so that you can
+        deploy and reuse the instance.
+      </p><p>
+        Once you have your application stack configured in an AMI,
+        populating your MySQL database with data should be performed by
+        creating a dump of your database using
+        <code class="literal">mysqldump</code>, transferring the dump to the EC2
+        instance, and then reloading the information into the EC2
+        instance database.
+      </p><p>
+        Before using your instance with your application in a production
+        situation you should be aware of the limitations of the EC2
+        instance environment. See <a href="ha-vm.html#ha-vm-aws-instance" title="15.2.2. EC2 Instance Limitations">Section 15.2.2, “EC2 Instance Limitations”</a>.
+        To begin using your MySQL AMI, you should consult the notes on
+        deployment. See <a href="ha-vm.html#ha-vm-aws-deploy" title="15.2.3. Deploying a MySQL Database Using EC2">Section 15.2.3, “Deploying a MySQL Database Using EC2”</a>.
+      </p></div><div class="section" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="ha-vm-aws-instance"></a>15.2.2. EC2 Instance Limitations</h3></div></div></div><p>
+        There are some limitations of the EC2 instances that you should
+        be aware of before deploying your applications. Although these
+        shouldn't affect your ability to deploy within the Amazon EC2
+        environment, they may alter the way you setup and configure your
+        environment to support your application.
+      </p><div class="itemizedlist"><ul type="disc"><li><p>
+            Data stored within instances is not persistent. If you
+            create an instance and populate the instance with data, then
+            the data will only remain in place while the machine is
+            running. The data will survive a reboot. If you shut down
+            the instance, any data it contained will be lost.
+          </p><p>
+            To ensure that you do not lose information, take regular
+            backups using <span><strong class="command">mysqldump</strong></span>. If the data
+            being stored is critical, consider using replication to keep
+            a “<span class="quote">live</span>” backup of your data in the event of a
+            failure. When creating a backup, write the data to the
+            Amazon S3 service to avoid the transfer charges applied when
+            copying data offsite.
+          </p></li><li><p>
+            EC2 instances are not persistent. If the hardware on which
+            an instance is running fails, then the instance will be shut
+            down. This can lead to loss of data or service.
+          </p></li><li><p>
+            If you want to use replication with your EC2 instances to a
+            non-EC2 environment, be aware of the transfer costs to and
+            from the EC2 service. Data transfer between different EC2
+            instances is free, so using replication within the EC2
+            environment does not incur additional charges.
+          </p></li><li><p>
+            Certain HA features are either not directly supported, or
+            have limiting factors or problems that may reduce their
+            utility. For example, using DRBD or MySQL Cluster may not
+            work. The default storage configuration is also not
+            redundant. You can use software-based RAID to improve
+            redundancy, but this implies a further performance hit.
+          </p></li></ul></div></div><div class="section" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="ha-vm-aws-deploy"></a>15.2.3. Deploying a MySQL Database Using EC2</h3></div></div></div><p>
+        Because you cannot guarantee the uptime and availability of your
+        EC2 instances, when deploying MySQL within the EC2 environment
+        you should use an approach that enables you to easily distribute
+        work among your EC2 instances. There are a number of ways of
+        doing this. Using sharding techniques, where you split the
+        application across multiple servers dedicating specific blocks
+        of your dataset and users to different servers is an effective
+        way of doing this. As a general rule, it is easier to create
+        more EC2 instances to support more users than to upgrade the
+        instance to a larger machine.
+      </p><p>
+        The EC2 architecture means that you should treat the EC2
+        instances as temporary, cache-based solutions, rather than as a
+        long-term, high availability solution. In addition to using
+        multiple machines, you should also take advantage of other
+        services, such as <span><strong class="command">memcached</strong></span> to provide
+        additional caching for your application to help reduce the load
+        on the MySQL server so that it can concentrate on writes. On the
+        large and extra large instances within EC2, the RAM available
+        can be used to provide a large memory cache for data.
+      </p><p>
+        Most types of scale out topology that you would use with your
+        own hardware can be used and applied within the EC2 environment.
+        However, you should be use the limitations and advice already
+        given to ensure that any potential failures do not lose you any
+        data. Also, because the relative power of each EC2 instance is
+        so low, you should be prepared to alter your application to use
+        sharding and add further EC2 instances to improve the
+        performance of your application.
+      </p><p>
+        For example, take the typical scale-out environment shown
+        following, where a single master replicates to one or more
+        slaves (three in this example), with a web server running on
+        each replication slave.
+      </p><div class="mediaobject"><img src="images/ec2fig1.png" alt="Typical standard scale out
+          structure"></div><p>
+        You can reproduce this structure completely within the EC2
+        environment, using an EC2 instance for the master, and one
+        instance for each of the web and MySQL slave servers.
+      </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Note</h3><p>
+          Within the EC2 environment, internal (private) IP addresses
+          used by the EC2 instances are constant. You should always use
+          these internal addresses and names when communicating between
+          instances. Only use public IP addresses when communicating
+          with the outside world - for example, when publicizing your
+          application.
+        </p></div><p>
+        To ensure reliability of your database, you should add at least
+        one replication slave dedicated to providing an active backup
+        and storage to the Amazon S3 facility. You can see an example of
+        this in the following topology.
+      </p><div class="mediaobject"><img src="images/ec2fig2.png" alt="Typical standard scale out structure with
+          backup using EC2"></div><p>
+        <span class="bold"><strong>Using
+        <span><strong class="command">memcached</strong></span></strong></span> within your EC2
+        instances should provide better performance. The large and extra
+        large instances have a significant amount of RAM. To use
+        <span><strong class="command">memcached</strong></span> in your application, when loading
+        information from the database, first check whether the item
+        exists in the cache. If the data you are looking for exists in
+        the cache, use it. If not, reload the data from the database and
+        populate the cache.
+      </p><p>
+        <span class="bold"><strong>Sharding</strong></span> divides up data in
+        your entire database by allocating individual machines or
+        machine groups to provide a unique set of data according to an
+        appropriate group. For example, you might put all users with a
+        surname ending in the letters A-D onto a single server. When a
+        user connects to the application and their surname is known,
+        queries can be redirected to the appropriate MySQL server.
+      </p><p>
+        When using sharding with EC2 you should separate the web server
+        and MySQL server into separate EC2 instances, and then apply the
+        sharding decision logic into your application. Once you know
+        which MySQL server you should be using for accessing the data
+        you then distribute queries to the appropriate server. You can
+        see a sample of this in the following illustration.
+      </p><div class="mediaobject"><img src="images/ec2fig3.png" alt="Using sharding in EC2 to spread the
+          load"></div><div class="warning" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Warning</h3><p>
+          With sharding and EC2 you should be careful that the potential
+          for failure of an instance does not affect your application.
+          If the EC2 instance that provides the MySQL server for a
+          particular shard fails, then all of the data on that shard
+          will be unavailable.
+        </p></div></div></div><div class="section" lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="ha-vm-resources"></a>15.3. Virtualization Resources</h2></div></div></div><p>
+      For more information on virtualization, see the following links:
+    </p><div class="itemizedlist"><ul type="disc"><li><p>
+          <a href="http://forums.mysql.com/list.php?149" target="_top">MySQL
+          Virtualization Forum</a>
+        </p></li><li><p>
+          <a href="http://aws.amazon.com/ec2" target="_top">Amazon Elastic Compute
+          Cloud (Amazon EC2)</a>
+        </p></li><li><p>
+          <a href="http://www.mysql.com/products/enterprise/cloud.html" target="_top">MySQL
+          and Cloud Computing</a>
+        </p></li><li><p>
+          <a href="http://www.mysql.com/products/enterprise/ec2.html" target="_top">MySQL
+          Enterprise for Amazon EC2</a>
+        </p></li></ul></div></div></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="ha-overview.html">Prev</a> </td><td width="20%" align="center"> </td><td width="40%" align="right"> <a accesskey="n" href="ha-memcached.html">Next</a></td></tr><tr><td width="40%" align="left" valign="top">Chapter 14. High Availability and Scalability </td><td width="20%" align="center"><a accesskey="h" href="index.html">Home</a></td><td width="40%" align="right" valign="top"> Chapter 16. Using MySQL with <span><strong class="command">memcached</strong></span></td></tr></table></div></body></html>

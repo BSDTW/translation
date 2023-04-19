@@ -1,0 +1,736 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>Dial-in Service</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.79" />
+<link rel="HOME" title="FreeBSD 使用手冊" href="index.html" />
+<link rel="UP" title="Serial Communications" href="serialcomms.html" />
+<link rel="PREVIOUS" title="Terminals" href="term.html" />
+<link rel="NEXT" title="Dial-out Service" href="dialout.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD 使用手冊</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="term.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 24 Serial Communications</td>
+<td width="10%" align="right" valign="bottom"><a href="dialout.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="DIALUP" name="DIALUP">24.4 Dial-in Service</a></h1>
+
+<i class="AUTHORGROUP"><span class="CONTRIB">Contributed by</span> Guy Helmer.</i> <i
+class="AUTHORGROUP"><span class="CONTRIB">Additions by</span> Sean Kelly.</i> 
+
+<p>Configuring your FreeBSD system for dial-in service is very similar to connecting
+terminals except that you are dealing with modems instead of terminals.</p>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN30354" name="AEN30354">24.4.1 External vs. Internal
+Modems</a></h2>
+
+<p>External modems seem to be more convenient for dial-up, because external modems often
+can be semi-permanently configured via parameters stored in non-volatile RAM and they
+usually provide lighted indicators that display the state of important RS-232 signals.
+Blinking lights impress visitors, but lights are also very useful to see whether a modem
+is operating properly.</p>
+
+<p>Internal modems usually lack non-volatile RAM, so their configuration may be limited
+only to setting DIP switches. If your internal modem has any signal indicator lights, it
+is probably difficult to view the lights when the system's cover is in place.</p>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="AEN30358" name="AEN30358">24.4.1.1 Modems and Cables</a></h3>
+
+<p>If you are using an external modem, then you will of course need the proper cable. A
+standard RS-232C serial cable should suffice as long as all of the normal signals are
+wired:</p>
+
+<div class="TABLE"><a id="SERIALCOMMS-SIGNAL-NAMES" name="SERIALCOMMS-SIGNAL-NAMES"></a>
+<p><b>Table 24-4. Signal Names</b></p>
+
+<table border="0" frame="void" width="100%" class="CALSTABLE">
+<col />
+<col />
+<col />
+<col />
+<col />
+<thead>
+<tr>
+<th align="LEFT">Acronyms</th>
+<th align="LEFT">Names</th>
+<td>&nbsp;</td>
+<td>&nbsp;</td>
+<td>&nbsp;</td>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><acronym class="ACRONYM">RD</acronym></td>
+<td>Received Data</td>
+<td>&nbsp;</td>
+<td>&nbsp;</td>
+<td>&nbsp;</td>
+</tr>
+
+<tr>
+<td><acronym class="ACRONYM">TD</acronym></td>
+<td>Transmitted Data</td>
+<td>&nbsp;</td>
+<td>&nbsp;</td>
+<td>&nbsp;</td>
+</tr>
+
+<tr>
+<td><acronym class="ACRONYM">DTR</acronym></td>
+<td>Data Terminal Ready</td>
+<td>&nbsp;</td>
+<td>&nbsp;</td>
+<td>&nbsp;</td>
+</tr>
+
+<tr>
+<td><acronym class="ACRONYM">DSR</acronym></td>
+<td>Data Set Ready</td>
+<td>&nbsp;</td>
+<td>&nbsp;</td>
+<td>&nbsp;</td>
+</tr>
+
+<tr>
+<td><acronym class="ACRONYM">DCD</acronym></td>
+<td>Data Carrier Detect (RS-232's Received Line Signal Detector)</td>
+<td>&nbsp;</td>
+<td>&nbsp;</td>
+<td>&nbsp;</td>
+</tr>
+
+<tr>
+<td><acronym class="ACRONYM">SG</acronym></td>
+<td>Signal Ground</td>
+<td>&nbsp;</td>
+<td>&nbsp;</td>
+<td>&nbsp;</td>
+</tr>
+
+<tr>
+<td><acronym class="ACRONYM">RTS</acronym></td>
+<td>Request to Send</td>
+<td>&nbsp;</td>
+<td>&nbsp;</td>
+<td>&nbsp;</td>
+</tr>
+
+<tr>
+<td><acronym class="ACRONYM">CTS</acronym></td>
+<td>Clear to Send</td>
+<td>&nbsp;</td>
+<td>&nbsp;</td>
+<td>&nbsp;</td>
+</tr>
+</tbody>
+</table>
+</div>
+
+<p>FreeBSD needs the <acronym class="ACRONYM">RTS</acronym> and <acronym
+class="ACRONYM">CTS</acronym> signals for flow control at speeds above 2400&nbsp;bps, the
+<acronym class="ACRONYM">CD</acronym> signal to detect when a call has been answered or
+the line has been hung up, and the <acronym class="ACRONYM">DTR</acronym> signal to reset
+the modem after a session is complete. Some cables are wired without all of the needed
+signals, so if you have problems, such as a login session not going away when the line
+hangs up, you may have a problem with your cable.</p>
+
+<p>Like other <span class="TRADEMARK">UNIX</span>&reg; like operating systems, FreeBSD
+uses the hardware signals to find out when a call has been answered or a line has been
+hung up and to hangup and reset the modem after a call. FreeBSD avoids sending commands
+to the modem or watching for status reports from the modem. If you are familiar with
+connecting modems to PC-based bulletin board systems, this may seem awkward.</p>
+</div>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN30410" name="AEN30410">24.4.2 Serial Interface
+Considerations</a></h2>
+
+<p>FreeBSD supports NS8250-, NS16450-, NS16550-, and NS16550A-based EIA RS-232C (CCITT
+V.24) communications interfaces. The 8250 and 16450 devices have single-character
+buffers. The 16550 device provides a 16-character buffer, which allows for better system
+performance. (Bugs in plain 16550's prevent the use of the 16-character buffer, so use
+16550A's if possible). Because single-character-buffer devices require more work by the
+operating system than the 16-character-buffer devices, 16550A-based serial interface
+cards are much preferred. If the system has many active serial ports or will have a heavy
+load, 16550A-based cards are better for low-error-rate communications.</p>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN30413" name="AEN30413">24.4.3 Quick Overview</a></h2>
+
+<p>As with terminals, <tt class="COMMAND">init</tt> spawns a <tt
+class="COMMAND">getty</tt> process for each configured serial port for dial-in
+connections. For example, if a modem is attached to <tt class="FILENAME">/dev/ttyd0</tt>,
+the command <tt class="COMMAND">ps ax</tt> might show this:</p>
+
+<pre class="SCREEN">
+ 4850 ??  I      0:00.09 /usr/libexec/getty V19200 ttyd0
+</pre>
+
+<p>When a user dials the modem's line and the modems connect, the <acronym
+class="ACRONYM">CD</acronym> (Carrier Detect) line is reported by the modem. The kernel
+notices that carrier has been detected and completes <tt class="COMMAND">getty</tt>'s
+open of the port. <tt class="COMMAND">getty</tt> sends a <samp
+class="PROMPT">login:</samp> prompt at the specified initial line speed. <tt
+class="COMMAND">getty</tt> watches to see if legitimate characters are received, and, in
+a typical configuration, if it finds junk (probably due to the modem's connection speed
+being different than <tt class="COMMAND">getty</tt>'s speed), <tt
+class="COMMAND">getty</tt> tries adjusting the line speeds until it receives reasonable
+characters.</p>
+
+<p>After the user enters his/her login name, <tt class="COMMAND">getty</tt> executes <tt
+class="FILENAME">/usr/bin/login</tt>, which completes the login by asking for the user's
+password and then starting the user's shell.</p>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN30437" name="AEN30437">24.4.4 Configuration Files</a></h2>
+
+<p>There are three system configuration files in the <tt class="FILENAME">/etc</tt>
+directory that you will probably need to edit to allow dial-up access to your FreeBSD
+system. The first, <tt class="FILENAME">/etc/gettytab</tt>, contains configuration
+information for the <tt class="FILENAME">/usr/libexec/getty</tt> daemon. Second, <tt
+class="FILENAME">/etc/ttys</tt> holds information that tells <tt
+class="FILENAME">/sbin/init</tt> what <tt class="FILENAME">tty</tt> devices should have
+<tt class="COMMAND">getty</tt> processes running on them. Lastly, you can place port
+initialization commands in the <tt class="FILENAME">/etc/rc.d/serial</tt> script.</p>
+
+<p>There are two schools of thought regarding dial-up modems on <span
+class="TRADEMARK">UNIX</span>. One group likes to configure their modems and systems so
+that no matter at what speed a remote user dials in, the local computer-to-modem RS-232
+interface runs at a locked speed. The benefit of this configuration is that the remote
+user always sees a system login prompt immediately. The downside is that the system does
+not know what a user's true data rate is, so full-screen programs like Emacs will not
+adjust their screen-painting methods to make their response better for slower
+connections.</p>
+
+<p>The other school configures their modems' RS-232 interface to vary its speed based on
+the remote user's connection speed. For example, V.32bis (14.4&nbsp;Kbps) connections to
+the modem might make the modem run its RS-232 interface at 19.2&nbsp;Kbps, while
+2400&nbsp;bps connections make the modem's RS-232 interface run at 2400&nbsp;bps. Because
+<tt class="COMMAND">getty</tt> does not understand any particular modem's connection
+speed reporting, <tt class="COMMAND">getty</tt> gives a <samp
+class="PROMPT">login:</samp> message at an initial speed and watches the characters that
+come back in response. If the user sees junk, it is assumed that they know they should
+press the <span class="KEYCODE">Enter</span> key until they see a recognizable prompt. If
+the data rates do not match, <tt class="COMMAND">getty</tt> sees anything the user types
+as “junk”, tries going to the next speed and gives the <samp
+class="PROMPT">login:</samp> prompt again. This procedure can continue ad nauseam, but
+normally only takes a keystroke or two before the user sees a good prompt. Obviously,
+this login sequence does not look as clean as the former “locked-speed” method, but a
+user on a low-speed connection should receive better interactive response from
+full-screen programs.</p>
+
+<p>This section will try to give balanced configuration information, but is biased
+towards having the modem's data rate follow the connection rate.</p>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="AEN30460" name="AEN30460">24.4.4.1 <tt
+class="FILENAME">/etc/gettytab</tt></a></h3>
+
+<p><tt class="FILENAME">/etc/gettytab</tt> is a <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=termcap&amp;sektion=5"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">termcap</span>(5)</span></a>-style file
+of configuration information for <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=getty&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">getty</span>(8)</span></a>. Please see
+the <a href="http://www.FreeBSD.org/cgi/man.cgi?query=gettytab&amp;sektion=5"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">gettytab</span>(5)</span></a> manual
+page for complete information on the format of the file and the list of capabilities.</p>
+
+<div class="SECT4">
+<h4 class="SECT4"><a id="AEN30477" name="AEN30477">24.4.4.1.1 Locked-speed
+Config</a></h4>
+
+<p>If you are locking your modem's data communications rate at a particular speed, you
+probably will not need to make any changes to <tt
+class="FILENAME">/etc/gettytab</tt>.</p>
+</div>
+
+<div class="SECT4">
+<h4 class="SECT4"><a id="AEN30481" name="AEN30481">24.4.4.1.2 Matching-speed
+Config</a></h4>
+
+<p>You will need to set up an entry in <tt class="FILENAME">/etc/gettytab</tt> to give
+<tt class="COMMAND">getty</tt> information about the speeds you wish to use for your
+modem. If you have a 2400&nbsp;bps modem, you can probably use the existing <tt
+class="LITERAL">D2400</tt> entry.</p>
+
+<pre class="PROGRAMLISTING">
+#
+# Fast dialup terminals, 2400/1200/300 rotary (can start either way)
+#
+D2400|d2400|Fast-Dial-2400:\
+        :nx=D1200:tc=2400-baud:
+3|D1200|Fast-Dial-1200:\
+        :nx=D300:tc=1200-baud:
+5|D300|Fast-Dial-300:\
+        :nx=D2400:tc=300-baud:
+</pre>
+
+<p>If you have a higher speed modem, you will probably need to add an entry in <tt
+class="FILENAME">/etc/gettytab</tt>; here is an entry you could use for a 14.4&nbsp;Kbps
+modem with a top interface speed of 19.2&nbsp;Kbps:</p>
+
+<pre class="PROGRAMLISTING">
+#
+# Additions for a V.32bis Modem
+#
+um|V300|High Speed Modem at 300,8-bit:\
+        :nx=V19200:tc=std.300:
+un|V1200|High Speed Modem at 1200,8-bit:\
+        :nx=V300:tc=std.1200:
+uo|V2400|High Speed Modem at 2400,8-bit:\
+        :nx=V1200:tc=std.2400:
+up|V9600|High Speed Modem at 9600,8-bit:\
+        :nx=V2400:tc=std.9600:
+uq|V19200|High Speed Modem at 19200,8-bit:\
+        :nx=V9600:tc=std.19200:
+</pre>
+
+<p>This will result in 8-bit, no parity connections.</p>
+
+<p>The example above starts the communications rate at 19.2&nbsp;Kbps (for a V.32bis
+connection), then cycles through 9600&nbsp;bps (for V.32), 2400&nbsp;bps, 1200&nbsp;bps,
+300&nbsp;bps, and back to 19.2&nbsp;Kbps. Communications rate cycling is implemented with
+the <tt class="LITERAL">nx=</tt> (“next table”) capability. Each of the lines uses a
+<tt class="LITERAL">tc=</tt> (“table continuation”) entry to pick up the rest of the
+“standard” settings for a particular data rate.</p>
+
+<p>If you have a 28.8&nbsp;Kbps modem and/or you want to take advantage of compression on
+a 14.4&nbsp;Kbps modem, you need to use a higher communications rate than 19.2&nbsp;Kbps.
+Here is an example of a <tt class="FILENAME">gettytab</tt> entry starting a
+57.6&nbsp;Kbps:</p>
+
+<pre class="PROGRAMLISTING">
+#
+# Additions for a V.32bis or V.34 Modem
+# Starting at 57.6 Kbps
+#
+vm|VH300|Very High Speed Modem at 300,8-bit:\
+        :nx=VH57600:tc=std.300:
+vn|VH1200|Very High Speed Modem at 1200,8-bit:\
+        :nx=VH300:tc=std.1200:
+vo|VH2400|Very High Speed Modem at 2400,8-bit:\
+        :nx=VH1200:tc=std.2400:
+vp|VH9600|Very High Speed Modem at 9600,8-bit:\
+        :nx=VH2400:tc=std.9600:
+vq|VH57600|Very High Speed Modem at 57600,8-bit:\
+        :nx=VH9600:tc=std.57600:
+</pre>
+
+<p>If you have a slow CPU or a heavily loaded system and do not have 16550A-based serial
+ports, you may receive “<tt class="ERRORNAME">sio</tt>” “silo” errors at
+57.6&nbsp;Kbps.</p>
+</div>
+</div>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="DIALUP-TTYS" name="DIALUP-TTYS">24.4.4.2 <tt
+class="FILENAME">/etc/ttys</tt></a></h3>
+
+<p>Configuration of the <tt class="FILENAME">/etc/ttys</tt> file was covered in <a
+href="term.html#EX-ETC-TTYS">Example 24-1</a>. Configuration for modems is similar but we
+must pass a different argument to <tt class="COMMAND">getty</tt> and specify a different
+terminal type. The general format for both locked-speed and matching-speed configurations
+is:</p>
+
+<pre class="PROGRAMLISTING">
+ttyd0   "/usr/libexec/getty <tt class="REPLACEABLE"><i>xxx</i></tt>"   dialup on
+</pre>
+
+<p>The first item in the above line is the device special file for this entry —— <tt
+class="LITERAL">ttyd0</tt> means <tt class="FILENAME">/dev/ttyd0</tt> is the file that
+this <tt class="COMMAND">getty</tt> will be watching. The second item, <tt
+class="LITERAL">"/usr/libexec/getty <tt class="REPLACEABLE"><i>xxx</i></tt>"</tt> (<tt
+class="REPLACEABLE"><i>xxx</i></tt> will be replaced by the initial <tt
+class="FILENAME">gettytab</tt> capability) is the process <tt class="COMMAND">init</tt>
+will run on the device. The third item, <tt class="LITERAL">dialup</tt>, is the default
+terminal type. The fourth parameter, <tt class="LITERAL">on</tt>, indicates to <tt
+class="COMMAND">init</tt> that the line is operational. There can be a fifth parameter,
+<tt class="LITERAL">secure</tt>, but it should only be used for terminals which are
+physically secure (such as the system console).</p>
+
+<p>The default terminal type (<tt class="LITERAL">dialup</tt> in the example above) may
+depend on local preferences. <tt class="LITERAL">dialup</tt> is the traditional default
+terminal type on dial-up lines so that users may customize their login scripts to notice
+when the terminal is <tt class="LITERAL">dialup</tt> and automatically adjust their
+terminal type. However, the author finds it easier at his site to specify <tt
+class="LITERAL">vt102</tt> as the default terminal type, since the users just use VT102
+emulation on their remote systems.</p>
+
+<p>After you have made changes to <tt class="FILENAME">/etc/ttys</tt>, you may send the
+<tt class="COMMAND">init</tt> process a <acronym class="ACRONYM">HUP</acronym> signal to
+re-read the file. You can use the command</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">kill -HUP 1</kbd>
+</pre>
+
+to send the signal. If this is your first time setting up the system, you may want to
+wait until your modem(s) are properly configured and connected before signaling <tt
+class="COMMAND">init</tt>. <br />
+<br />
+<div class="SECT4">
+<h4 class="SECT4"><a id="AEN30542" name="AEN30542">24.4.4.2.1 Locked-speed
+Config</a></h4>
+
+<p>For a locked-speed configuration, your <tt class="FILENAME">ttys</tt> entry needs to
+have a fixed-speed entry provided to <tt class="COMMAND">getty</tt>. For a modem whose
+port speed is locked at 19.2&nbsp;Kbps, the <tt class="FILENAME">ttys</tt> entry might
+look like this:</p>
+
+<pre class="PROGRAMLISTING">
+ttyd0   "/usr/libexec/getty std.19200"   dialup on
+</pre>
+
+<p>If your modem is locked at a different data rate, substitute the appropriate value for
+<tt class="LITERAL">std.<tt class="REPLACEABLE"><i>speed</i></tt></tt> instead of <tt
+class="LITERAL">std.19200</tt>. Make sure that you use a valid type listed in <tt
+class="FILENAME">/etc/gettytab</tt>.</p>
+</div>
+
+<div class="SECT4">
+<h4 class="SECT4"><a id="AEN30554" name="AEN30554">24.4.4.2.2 Matching-speed
+Config</a></h4>
+
+<p>In a matching-speed configuration, your <tt class="FILENAME">ttys</tt> entry needs to
+reference the appropriate beginning “auto-baud” (sic) entry in <tt
+class="FILENAME">/etc/gettytab</tt>. For example, if you added the above suggested entry
+for a matching-speed modem that starts at 19.2&nbsp;Kbps (the <tt
+class="FILENAME">gettytab</tt> entry containing the <tt class="LITERAL">V19200</tt>
+starting point), your <tt class="FILENAME">ttys</tt> entry might look like this:</p>
+
+<pre class="PROGRAMLISTING">
+ttyd0   "/usr/libexec/getty V19200"   dialup on
+</pre>
+</div>
+</div>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="AEN30564" name="AEN30564">24.4.4.3 <tt
+class="FILENAME">/etc/rc.d/serial</tt></a></h3>
+
+<p>High-speed modems, like V.32, V.32bis, and V.34 modems, need to use hardware (<tt
+class="LITERAL">RTS/CTS</tt>) flow control. You can add <tt class="COMMAND">stty</tt>
+commands to <tt class="FILENAME">/etc/rc.d/serial</tt> to set the hardware flow control
+flag in the FreeBSD kernel for the modem ports.</p>
+
+<p>For example to set the <tt class="LITERAL">termios</tt> flag <code
+class="VARNAME">crtscts</code> on serial port #1's (<tt class="DEVICENAME">COM2</tt>)
+dial-in and dial-out initialization devices, the following lines could be added to <tt
+class="FILENAME">/etc/rc.d/serial</tt>:</p>
+
+<pre class="PROGRAMLISTING">
+# Serial port initial configuration
+stty -f /dev/ttyd1.init crtscts
+stty -f /dev/cuad1.init crtscts
+</pre>
+</div>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN30581" name="AEN30581">24.4.5 Modem Settings</a></h2>
+
+<p>If you have a modem whose parameters may be permanently set in non-volatile RAM, you
+will need to use a terminal program (such as Telix under <span
+class="TRADEMARK">MS-DOS</span>&reg; or <tt class="COMMAND">tip</tt> under FreeBSD) to
+set the parameters. Connect to the modem using the same communications speed as the
+initial speed <tt class="COMMAND">getty</tt> will use and configure the modem's
+non-volatile RAM to match these requirements:</p>
+
+<ul>
+<li>
+<p><acronym class="ACRONYM">CD</acronym> asserted when connected</p>
+</li>
+
+<li>
+<p><acronym class="ACRONYM">DTR</acronym> asserted for operation; dropping DTR hangs up
+line and resets modem</p>
+</li>
+
+<li>
+<p><acronym class="ACRONYM">CTS</acronym> transmitted data flow control</p>
+</li>
+
+<li>
+<p>Disable <acronym class="ACRONYM">XON/XOFF</acronym> flow control</p>
+</li>
+
+<li>
+<p><acronym class="ACRONYM">RTS</acronym> received data flow control</p>
+</li>
+
+<li>
+<p>Quiet mode (no result codes)</p>
+</li>
+
+<li>
+<p>No command echo</p>
+</li>
+</ul>
+
+<p>Please read the documentation for your modem to find out what commands and/or DIP
+switch settings you need to give it.</p>
+
+<p>For example, to set the above parameters on a <span class="TRADEMARK">U.S.
+Robotics</span>&reg; <span class="TRADEMARK">Sportster</span>&reg; 14,400 external modem,
+one could give these commands to the modem:</p>
+
+<pre class="PROGRAMLISTING">
+ATZ
+AT&amp;C1&amp;D2&amp;H1&amp;I0&amp;R2&amp;W
+</pre>
+
+<p>You might also want to take this opportunity to adjust other settings in the modem,
+such as whether it will use V.42bis and/or MNP5 compression.</p>
+
+<p>The <span class="TRADEMARK">U.S. Robotics</span> <span
+class="TRADEMARK">Sportster</span> 14,400 external modem also has some DIP switches that
+need to be set; for other modems, perhaps you can use these settings as an example:</p>
+
+<ul>
+<li>
+<p>Switch 1: UP —— DTR Normal</p>
+</li>
+
+<li>
+<p>Switch 2: N/A (Verbal Result Codes/Numeric Result Codes)</p>
+</li>
+
+<li>
+<p>Switch 3: UP —— Suppress Result Codes</p>
+</li>
+
+<li>
+<p>Switch 4: DOWN —— No echo, offline commands</p>
+</li>
+
+<li>
+<p>Switch 5: UP —— Auto Answer</p>
+</li>
+
+<li>
+<p>Switch 6: UP —— Carrier Detect Normal</p>
+</li>
+
+<li>
+<p>Switch 7: UP —— Load NVRAM Defaults</p>
+</li>
+
+<li>
+<p>Switch 8: N/A (Smart Mode/Dumb Mode)</p>
+</li>
+</ul>
+
+<p>Result codes should be disabled/suppressed for dial-up modems to avoid problems that
+can occur if <tt class="COMMAND">getty</tt> mistakenly gives a <samp
+class="PROMPT">login:</samp> prompt to a modem that is in command mode and the modem
+echoes the command or returns a result code. This sequence can result in a extended,
+silly conversation between <tt class="COMMAND">getty</tt> and the modem.</p>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="AEN30637" name="AEN30637">24.4.5.1 Locked-speed Config</a></h3>
+
+<p>For a locked-speed configuration, you will need to configure the modem to maintain a
+constant modem-to-computer data rate independent of the communications rate. On a <span
+class="TRADEMARK">U.S. Robotics</span> <span class="TRADEMARK">Sportster</span> 14,400
+external modem, these commands will lock the modem-to-computer data rate at the speed
+used to issue the commands:</p>
+
+<pre class="PROGRAMLISTING">
+ATZ
+AT&amp;B1&amp;W
+</pre>
+</div>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="AEN30643" name="AEN30643">24.4.5.2 Matching-speed
+Config</a></h3>
+
+<p>For a variable-speed configuration, you will need to configure your modem to adjust
+its serial port data rate to match the incoming call rate. On a <span
+class="TRADEMARK">U.S. Robotics</span> <span class="TRADEMARK">Sportster</span> 14,400
+external modem, these commands will lock the modem's error-corrected data rate to the
+speed used to issue the commands, but allow the serial port rate to vary for
+non-error-corrected connections:</p>
+
+<pre class="PROGRAMLISTING">
+ATZ
+AT&amp;B2&amp;W
+</pre>
+</div>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="AEN30649" name="AEN30649">24.4.5.3 Checking the Modem's
+Configuration</a></h3>
+
+<p>Most high-speed modems provide commands to view the modem's current operating
+parameters in a somewhat human-readable fashion. On the <span class="TRADEMARK">U.S.
+Robotics</span> <span class="TRADEMARK">Sportster</span> 14,400 external modems, the
+command <tt class="COMMAND">ATI5</tt> displays the settings that are stored in the
+non-volatile RAM. To see the true operating parameters of the modem (as influenced by the
+modem's DIP switch settings), use the commands <tt class="COMMAND">ATZ</tt> and then <tt
+class="COMMAND">ATI4</tt>.</p>
+
+<p>If you have a different brand of modem, check your modem's manual to see how to
+double-check your modem's configuration parameters.</p>
+</div>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN30658" name="AEN30658">24.4.6 Troubleshooting</a></h2>
+
+<p>Here are a few steps you can follow to check out the dial-up modem on your system.</p>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="AEN30661" name="AEN30661">24.4.6.1 Checking Out the FreeBSD
+System</a></h3>
+
+<p>Hook up your modem to your FreeBSD system, boot the system, and, if your modem has
+status indication lights, watch to see whether the modem's <acronym
+class="ACRONYM">DTR</acronym> indicator lights when the <samp
+class="PROMPT">login:</samp> prompt appears on the system's console —— if it lights up,
+that should mean that FreeBSD has started a <tt class="COMMAND">getty</tt> process on the
+appropriate communications port and is waiting for the modem to accept a call.</p>
+
+<p>If the <acronym class="ACRONYM">DTR</acronym> indicator does not light, login to the
+FreeBSD system through the console and issue a <tt class="COMMAND">ps ax</tt> to see if
+FreeBSD is trying to run a <tt class="COMMAND">getty</tt> process on the correct port.
+You should see lines like these among the processes displayed:</p>
+
+<pre class="SCREEN">
+  114 ??  I      0:00.10 /usr/libexec/getty V19200 ttyd0
+  115 ??  I      0:00.10 /usr/libexec/getty V19200 ttyd1
+</pre>
+
+<p>If you see something different, like this:</p>
+
+<pre class="SCREEN">
+  114 d0  I      0:00.10 /usr/libexec/getty V19200 ttyd0
+</pre>
+
+<p>and the modem has not accepted a call yet, this means that <tt
+class="COMMAND">getty</tt> has completed its open on the communications port. This could
+indicate a problem with the cabling or a mis-configured modem, because <tt
+class="COMMAND">getty</tt> should not be able to open the communications port until
+<acronym class="ACRONYM">CD</acronym> (carrier detect) has been asserted by the
+modem.</p>
+
+<p>If you do not see any <tt class="COMMAND">getty</tt> processes waiting to open the
+desired <tt class="FILENAME">ttyd<tt class="REPLACEABLE"><i>N</i></tt></tt> port,
+double-check your entries in <tt class="FILENAME">/etc/ttys</tt> to see if there are any
+mistakes there. Also, check the log file <tt class="FILENAME">/var/log/messages</tt> to
+see if there are any log messages from <tt class="COMMAND">init</tt> or <tt
+class="COMMAND">getty</tt> regarding any problems. If there are any messages,
+triple-check the configuration files <tt class="FILENAME">/etc/ttys</tt> and <tt
+class="FILENAME">/etc/gettytab</tt>, as well as the appropriate device special files <tt
+class="FILENAME">/dev/ttydN</tt>, for any mistakes, missing entries, or missing device
+special files.</p>
+</div>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="AEN30689" name="AEN30689">24.4.6.2 Try Dialing In</a></h3>
+
+<p>Try dialing into the system; be sure to use 8 bits, no parity, and 1 stop bit on the
+remote system. If you do not get a prompt right away, or get garbage, try pressing <span
+class="KEYCODE">Enter</span> about once per second. If you still do not see a <samp
+class="PROMPT">login:</samp> prompt after a while, try sending a <tt
+class="COMMAND">BREAK</tt>. If you are using a high-speed modem to do the dialing, try
+dialing again after locking the dialing modem's interface speed (via <tt
+class="COMMAND">AT&amp;B1</tt> on a <span class="TRADEMARK">U.S. Robotics</span> <span
+class="TRADEMARK">Sportster</span> modem, for example).</p>
+
+<p>If you still cannot get a <samp class="PROMPT">login:</samp> prompt, check <tt
+class="FILENAME">/etc/gettytab</tt> again and double-check that</p>
+
+<ul>
+<li>
+<p>The initial capability name specified in <tt class="FILENAME">/etc/ttys</tt> for the
+line matches a name of a capability in <tt class="FILENAME">/etc/gettytab</tt></p>
+</li>
+
+<li>
+<p>Each <tt class="LITERAL">nx=</tt> entry matches another <tt
+class="FILENAME">gettytab</tt> capability name</p>
+</li>
+
+<li>
+<p>Each <tt class="LITERAL">tc=</tt> entry matches another <tt
+class="FILENAME">gettytab</tt> capability name</p>
+</li>
+</ul>
+
+<p>If you dial but the modem on the FreeBSD system will not answer, make sure that the
+modem is configured to answer the phone when <acronym class="ACRONYM">DTR</acronym> is
+asserted. If the modem seems to be configured correctly, verify that the <acronym
+class="ACRONYM">DTR</acronym> line is asserted by checking the modem's indicator lights
+(if it has any).</p>
+
+<p>If you have gone over everything several times and it still does not work, take a
+break and come back to it later. If it still does not work, perhaps you can send an
+electronic mail message to the <a
+href="http://lists.FreeBSD.org/mailman/listinfo/freebsd-questions" target="_top">FreeBSD
+general questions 郵遞論壇</a> describing your modem and your problem, and the good folks
+on the list will try to help.</p>
+</div>
+</div>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="term.html" accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="dialout.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">Terminals</td>
+<td width="34%" align="center" valign="top"><a href="serialcomms.html"
+accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">Dial-out Service</td>
+</tr>
+</table>
+</div>
+
+<p align="center"><small>本文及其他文件，可由此下載：<a
+href="ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/">ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/</a>。</small></p>
+
+<p align="center"><small>若有 FreeBSD 方面疑問，請先閱讀 <a
+href="http://www.FreeBSD.org/docs.html">FreeBSD 相關文件</a>，如不能解決的話，再洽詢
+&#60;<a href="mailto:questions@FreeBSD.org">questions@FreeBSD.org</a>&#62;。<br />
+關於本文件的問題，請洽詢 &#60;<a
+href="mailto:doc@FreeBSD.org">doc@FreeBSD.org</a>&#62;。</small></p>
+</body>
+</html>
+

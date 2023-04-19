@@ -1,0 +1,246 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>管理稽核子系統</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.79" />
+<link rel="HOME" title="FreeBSD 使用手冊" href="index.html" />
+<link rel="UP" title="資安事件的稽核" href="audit.html" />
+<link rel="PREVIOUS" title="對稽核進行設定" href="audit-config.html" />
+<link rel="NEXT" title="儲存設備篇" href="disks.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD 使用手冊</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="audit-config.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 17 資安事件的稽核</td>
+<td width="10%" align="right" valign="bottom"><a href="disks.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="AUDIT-ADMINISTRATION" name="AUDIT-ADMINISTRATION">17.5
+管理稽核子系統</a></h1>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN23574" name="AEN23574">17.5.1 檢視稽核 log</a></h2>
+
+<p>稽核記帳是以 BSM 二進制格式儲存的，因此必須使用工具來對其進行修改，
+或將其轉換為純文字。 <tt class="COMMAND">praudit</tt>
+命令能夠將記帳檔案轉換為簡單的純文字格式； 而 <tt class="COMMAND">auditreduce</tt>
+命令則可以為分析、 存檔或列印目的來濃縮稽核 log 檔案。 <tt
+class="COMMAND">auditreduce</tt> 支援一系列篩選參數，包括事件類型、
+事件類、使用者、事件的日期和時間，以及檔案路徑或操作對象。</p>
+
+<p>例如，<tt class="COMMAND">praudit</tt>
+工具會將指定的稽核記帳轉存為簡單純文字格式的稽核 log ：</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">praudit /var/audit/AUDITFILE</kbd>
+</pre>
+
+<p>此處 <tt class="REPLACEABLE"><i>AUDITFILE</i></tt> 是要轉存的稽核 log 檔案。</p>
+
+<p>稽核記帳中包括一系列稽核記錄，這些記錄由一系列代號(token)組成， 而 <tt
+class="COMMAND">praudit</tt> 能把它們順序顯示為一行。 每個代號都屬於某個特定的類型，例如
+<tt class="LITERAL">header</tt> 表示稽核記錄頭，而 <tt class="LITERAL">path</tt>
+則表示在一次名字尋找中的檔案路徑。 下面是一個 <tt class="LITERAL">execve</tt>
+事件的例子：</p>
+
+<pre class="PROGRAMLISTING">
+header,133,10,execve(2),0,Mon Sep 25 15:58:03 2006, + 384 msec
+exec arg,finger,doug
+path,/usr/bin/finger
+attribute,555,root,wheel,90,24918,104944
+subject,robert,root,wheel,root,wheel,38439,38032,42086,128.232.9.100
+return,success,0
+trailer,133
+</pre>
+
+<p>這個稽核記錄表示一次成功的 <tt class="LITERAL">execve</tt> 調用，執行了 "finger
+doug"。 在參數代號中是由 shell 提交給 kernel 的指令。 path 代號包含了由 kernel
+尋找得到的可執行檔案路徑。 屬性代號中包含了對可執行檔案的描述，
+特別地，它包括了檔案的權限模式，用以確定應用程式是否是 setuid 的。
+主體代號描述了主體程序，並順序記錄了稽核使用者 ID、生效使用者 ID 和組 ID、實際使用者 ID
+和組 ID、程序 ID、會話 ID、端口 ID，以及登入地址。 注意稽核使用者 ID 和實際使用者 ID
+是不同的： 使用者 <tt class="LITERAL">robert</tt> 在執行這個命令之前已經切換為 <tt
+class="LITERAL">root</tt> 帳戶， 但它會以最初進行身份驗証的使用者身份進行稽核。
+最後，返回值代號表示執行成功，並終結這一記錄。</p>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN23597" name="AEN23597">17.5.2 濃縮稽核記帳</a></h2>
+
+<p>由於稽核 log 可能會很大，管理員可能會希望選擇記錄的一個子集來使用，
+例如與特定使用者相關的記錄：</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">auditreduce -u trhodes /var/audit/AUDITFILE | praudit</kbd>
+</pre>
+
+<p>這將選擇儲存在 <tt class="REPLACEABLE"><i>AUDITFILE</i></tt> 中的所有由 <tt
+class="USERNAME">trhodes</tt> 產生的稽核 log。</p>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN23606" name="AEN23606">17.5.3 委派稽核檢查權限</a></h2>
+
+<p>在 <tt class="LITERAL">audit</tt> 組中的使用者， 擁有讀取 <tt
+class="FILENAME">/var/audit</tt> 下的稽核記帳的權限； 預設情況下，這個組是空的，因此只有
+root 使用者可以讀取稽核記帳。 如果希望給某個使用者指定稽核檢查權，則可以將其加入 <tt
+class="LITERAL">audit</tt>。 由於檢視稽核 log
+的內容可以提供關於使用者和程序行為的大量深度資訊，
+在您委派這些權力時，請務必謹慎行事。</p>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN23612" name="AEN23612">17.5.4 透過稽核管道來實施監控</a></h2>
+
+<p>稽核管道是位於設備檔案系統中的自動複製(cloning)的虛擬設備，
+用於讓應用程式控制正在執行的稽核記錄流，
+這主要是為了滿足入侵檢測和系統監控軟體作者的需要。 不過，對管理員而言，
+稽核管道設備也提供了一種無須冒稽核記帳檔案屬主出現問題的麻煩， 或由於 log
+翻轉而打斷事件流的麻煩，而實作實施監控的方便途徑。 要跟蹤實施事件流，使用下面的指令：</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">praudit /dev/auditpipe</kbd>
+</pre>
+
+<p>預設情況下，稽核管道設備節點只有 root 使用者才能訪問。 如果希望 <tt
+class="LITERAL">audit</tt> 組的成員能夠訪問它，應在 <tt class="FILENAME">devfs.rules</tt>
+中加入下述 <tt class="LITERAL">devfs</tt> 規則：</p>
+
+<pre class="PROGRAMLISTING">
+add path 'auditpipe*' mode 0440 group audit
+</pre>
+
+<p>請參見 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=devfs.rules&amp;sektion=5"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">devfs.rules</span>(5)</span></a>
+以了解關於設定 devfs 檔案系統的進一步資訊。</p>
+
+<div class="WARNING">
+<blockquote class="WARNING">
+<p><b>Warning:</b>
+很容易設定出稽核事件反饋循環，也就是檢視事件的操作本身會產生更多的事件。
+例如，如果所有的網路 I/O 均被稽核，又在 SSH 會話中執行
+praudit，就會以很高的速率產生持續的稽核事件流， 因為每顯示一個事件都會產生新的事件。
+建議您在需要在稽核管道設備上執行 praudit 時，選擇一個沒有進行精細 I/O
+稽核的會話來執行。</p>
+</blockquote>
+</div>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN23629" name="AEN23629">17.5.5 稽核記帳檔案的輪轉</a></h2>
+
+<p>稽核計賬只由 kernel 寫入，且只能由 <tt class="COMMAND">auditd</tt> 管理。
+管理員不應嘗試使用 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=newsyslog.conf&amp;sektion=5"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">newsyslog.conf</span>(5)</span></a>
+或其它工具來完成稽核 log 的輪轉工作。 您可以使用 <tt class="COMMAND">audit</tt>
+管理工具來關閉稽核、重新設定稽核系統，並完成 log 輪轉。
+下面的命令將讓稽核服務新增新的稽核 log， 並發信號給 kernel 要求其使用新的 log。 舊 log
+將終止並被改名， 此時，管理員就可以操作它了。</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">audit -n</kbd>
+</pre>
+
+<div class="WARNING">
+<blockquote class="WARNING">
+<p><b>Warning:</b> 如果 <tt class="COMMAND">auditd</tt> 服務程式沒有在執行，
+則這個命令將失敗並給出錯誤提示。</p>
+</blockquote>
+</div>
+
+<p>在 <tt class="FILENAME">/etc/crontab</tt> 加入如下設置， 將使 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=cron&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">cron</span>(8)</span></a> 每十二小時將
+log 輪轉一次。</p>
+
+<pre class="PROGRAMLISTING">
+0     */12       *       *       *       root    /usr/sbin/audit -n
+</pre>
+
+<p>這些修改會在您儲存 <tt class="FILENAME">/etc/crontab</tt> 後生效。</p>
+
+<p>對於稽核記帳檔案基於大小的自動翻轉，可以透過 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=audit_control&amp;sektion=5"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">audit_control</span>(5)</span></a> 中的
+<code class="OPTION">filesz</code> 選項來設定，
+這個選項在這一章的設定檔一節中已經介紹過。</p>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN23656" name="AEN23656">17.5.6 壓縮稽核記帳</a></h2>
+
+<p>由於稽核記帳檔案會變得很大，通常會希望在稽核服務關閉它時， 對其進行壓縮或歸檔。 <tt
+class="FILENAME">audit_warn</tt> script 可以用來在一系列與稽核有關的事件發生時，
+執行一些使用者定義的操作，這也包括在稽核記帳翻轉時進行清理操作。 舉例而言，可以在 <tt
+class="FILENAME">audit_warn</tt> script 中加入下列內容來在稽核記帳關閉時壓縮它：</p>
+
+<pre class="PROGRAMLISTING">
+#
+# Compress audit trail files on close.
+#
+if [ "$1" = closefile ]; then
+        gzip -9 $2
+fi
+</pre>
+
+<p>其它存檔操作也包括將稽核記帳複製到一個中央的服務器，刪除舊的記帳檔案，
+或濃縮稽核記帳並刪除不需要的記錄等。 這個 script 會在稽核記帳檔案正常關閉時執行一次，
+因此在不正常關閉系統時，就不會執行它了。</p>
+</div>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="audit-config.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="disks.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">對稽核進行設定</td>
+<td width="34%" align="center" valign="top"><a href="audit.html"
+accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">儲存設備篇</td>
+</tr>
+</table>
+</div>
+
+<p align="center"><small>本文及其他文件，可由此下載：<a
+href="ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/">ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/</a>。</small></p>
+
+<p align="center"><small>若有 FreeBSD 方面疑問，請先閱讀 <a
+href="http://www.FreeBSD.org/docs.html">FreeBSD 相關文件</a>，如不能解決的話，再洽詢
+&#60;<a href="mailto:questions@FreeBSD.org">questions@FreeBSD.org</a>&#62;。<br />
+關於本文件的問題，請洽詢 &#60;<a
+href="mailto:doc@FreeBSD.org">doc@FreeBSD.org</a>&#62;。</small></p>
+</body>
+</html>
+

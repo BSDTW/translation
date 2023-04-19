@@ -1,0 +1,190 @@
+
+
+<!-- Vignette StoryServer 4 Sat Mar 11 15:43:24 2000 --> 
+<style type=text/css>
+<!--
+p,div {font-size:12pt; line-height:14pt; font-family:宋體;}
+.p1{font-size:12pt;font-family:宋體;}
+.p2{font-size:12pt;font-family:宋體;line-height:14pt;}
+.p3{font-size:14.8px;font-family:宋體;}
+.p4{font-size:14.8px;font-family:宋體;line-height:14pt;}
+.p5{font-size:1pt}
+a:hover{color:red;}
+a.t1:visited{color:red;}
+-->
+</style>
+<title>FreeBSD使用大全</title></head>
+
+<body bgcolor="#FFFFFF" text="#000000" link="#383098" vlink="#336699" alink="#FF0000" topmargin="0">
+<!-- Vignette StoryServer 4 Thu Mar 23 10:01:54 2000 --> <!-- Vignette StoryServer 4 Thu Mar 23 15:34:35 2000 --> 
+
+<!--開始：新聞內容-->
+<TABLE WIDTH=750 BORDER=0 CELLSPACING=0 CELLPADDING=0>
+
+<tr valign=top>
+
+
+
+<TD  valign=top>
+<CENTER><FONT COLOR=#000066 size=5><B>FreeBSD連載(87)：基於用戶的訪問控制</B><br></FONT></CENTER>
+
+<HR  ALIGN="center" SIZE=1>
+<CENTER><FONT FACE="Arial" SIZE=2> 2000年1月28日 17:07 </FONT><FONT COLOR="#990000" SIZE=2>王波</FONT></CENTER><p>
+
+<h1 align=center>基於用戶的訪問控制</h1>
+
+<p>　　更嚴格、有效的控制方法還是基於用戶和對應的密碼對瀏覽客戶進行控制。這使得對這個目錄進行強制性的保護，瀏
+覽器用戶必須輸入合法的用戶名和正確的密碼才能瀏覽網頁。如果要針對用戶對訪問伺服器的客戶進行控制，首先就要設置訪
+問控制檔案為對用戶進行認証，因此要允許目錄訪問控制檔案中具備AuthConfig的設置。</p>
+
+<p>　　設置用戶認証需要為這個目錄指定<B>AuthName</B>、<B>AuthType</B>和<B>AuthUserFile</B>
+指令，<B>AuthUserFile</B>定義一個密碼檔案，那麼此後就可以使用require valid-user命令讓客戶
+輸入名字和正確的密碼，根據這個密碼檔案對用戶的身份進行驗証。<B>AuthName</B>定義這個認証的
+標識，用於返回給瀏覽器用戶，起到提示作用。<B>AuthType</B>定義使用的認証加密類型，通常使用
+Basic，即使用Unix的標準加密算法進行加密。</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>AuthUserFile /usr/local/etc/htpasswd
+AuthName SecurityAuth
+AuthType Basic
+require vaild-user</td></pre></tr></table>
+
+<p>　　這個例子裡，使用/usr/local/etc/htpasswd作密碼檔案，使用Basic的加密認証方法
+，並定義AuthName為SecurityAuth。</p>
+
+<p>　　雖然瀏覽器訪問每個使用這種認証方式保護的網頁都需要先進行認証，然而不會每訪問一次網頁都讓用戶輸入用戶名
+和密碼，因為瀏覽器會將用戶輸入的用戶和密碼數據保存起來，每次需要認証的時候就自動進行認証操作。由於認証是通過H
+EAD請求來完成的，因此它不會影響瀏覽器顯示的網頁。然而，用戶有可能使用瀏覽器訪問了多個不同的對用戶進行認証的
+網頁，那麼瀏覽器就會保存了多個不同的用戶和密碼對，當自動進行認証的時候，瀏覽器必須區分出應該使用哪個用戶名和口
+令進行認証，而區分就是通過AuthName的值進行的，伺服器將首先將AuthName的值傳遞給客戶瀏覽器，此後
+瀏覽器就能發送正確的用戶和密碼進行認証了。</p>
+
+<p>　　要使用密碼檔案來認証合法用戶，首先就必須生成這個密碼檔案。當認証類型為Basic時，密碼檔案與Unix
+的passwd檔案非常類似，甚至可以直接使用系統passwd檔案來作認証檔案，當然由於現代Unix使用了sha
+dow技術，/etc/passwd中並沒有保存真實的加密密碼，因此直接使用系統passwd檔案進行認証只能適合
+那些沒有使用shadow技術的Unix系統。而使用shadow技術的Unix系統的真實密碼檔案（FreeBSD
+下為master.passwd）被保護起來，讀取它需要root權限，而Web伺服器通常以普通用戶的權限運行，不
+能直接使用系統密碼對用戶進行認証。如果強制使用root權限啟動httpd守護進程來訪問shadow之後的密碼，
+那麼必然會帶來嚴重的安全漏洞。</p>
+
+<p>　　因此一般使用與系統密碼相分離的密碼檔案來認証Web伺服器用戶，這樣即使密碼被泄露，並被破譯，造成的安全
+影響也很小，不至於影響系統的正常運行。可以使用Apache附帶的htpasswd命令來創建密碼檔案，並設置用戶
+及其密碼。</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>$ htpasswd -c .htpasswd user1
+Adding Password for user1
+New password:
+Re-type new password:</td></pre></tr></table>
+
+<p>　　htpasswd的-c選項告訴htpasswd創建一個新密碼檔案為.htpasswd，如果沒有這個選項
+，htpasswd就將用戶及其密碼加入已經存在的密碼檔案中。此後的參數就是密碼檔案名和需要增加或改變密碼的用戶
+名。</p>
+
+<p>　　為了便於管理，可以進一步將這些用戶分組，組檔案的每一行定義了一個組及其成員的名字，然後在.htaccess
+中使用AuthGroupFile指定這個目錄使用的組檔案的名字，例如：</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>group1: user1 user2 user3 user4</td></pre></tr></table>
+
+<p>　　這條內容創建了一個密碼組group1，包括user1,user2,user3,user4成員。</p>
+
+<p>　　除了可以使用require valid-user要求輸入的用戶必須為密碼檔案中的合法用戶之外，也可以設
+置要求只有特定的合法用戶才能訪問的目錄，這就需要使用require user或require group指令。
+例如使用require user user1要求只有user1用戶才能訪問，使用require group g
+roup1就要求必須是group1組的合法成員才能訪問。針對具體用戶和組的訪問控制就進一步增加了訪問控制的靈活
+性。</p>
+
+<p>　　當基於用戶的認証和基於地址的認証綜合使用時，可以通過使用satify參數指定不同的限制條件，如果設置
+satify all，那麼必須同時通過用戶和地址認証才能訪問網頁，而設置satify any，只需要通過一個認証
+客戶就能訪問這個目錄了。預設情況下Satify參數的值為all。下面為一個綜合了地址認証和用戶認証的.htaccess
+的例子，這個例子允許private.site的電腦可以不需認証訪問這台伺服器，而其他位置的用戶必須是
+group1組中的合法用戶，或者是user1、user2、user3用戶，才能訪問這台伺服器。</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>AuthUserFile /usr/local/etc/.htpasswd
+AuthGroupFile /usr/local/etc/.htgroup
+AuthName SecurityAuth
+AuthType Basic
+
+&lt;Limit HEAD GET POST&gt;
+order deny,allow
+deny from all
+allow from private.site
+require group group1
+require user user1 user2 user3
+&lt;/Limit&gt;
+
+satify any</td></pre></tr></table>
+
+<ul><B><P><LI>其他認証方式</LI></P></B></ul>
+
+<p>　　Apache使用AuthType指定加密的方式，AuthType設為Basic時為使用命令htpasswd
+創建密碼檔案並進行密碼加密。然而這種方式有兩個缺點，一個為瀏覽器將在Internet上使用明文發送用戶名和
+密碼信息，另一個是htpasswd的密碼檔案為普通文本檔案，這樣當用戶數目較多時，查找用戶的效率就很低。</p>
+
+<p>　　為了彌補安全性的缺點，可以將AuthType設置為Digest，這樣就會使用Digest鑒別方式進行認
+証，此時認証密碼檔案要使用AuthDigestFile來規定，而密碼檔案必須使用另一個加密程序htdigest
+產生和維護，而hdigest的使用方法和htpasswd相同。在Digest認証方式下，瀏覽器不會直接發送密碼
+的明文信息，而是在傳輸密碼之前先使用MD5算法進行編碼處理。注意，不是所有類型的瀏覽器都支持Digest類型的
+鑒別方式的，只有在瀏覽器和伺服器同時都支持Digest方式時，這種認証才可行。</p>
+
+<p>　　AuthType為Basic時，是使用系統加密方法，一般是使用DES算法，但在FreeBSD下有可能是
+使用的MD5算法，但除非管理員希望在不同系統間共享密碼檔案，否則不必考慮他們使用的到底是何種算法。需要與其他系
+統兼容時，可以重新安裝DES算法。但在系統使用時重新安裝加密算法，就無法重建整個密碼檔案，因此不推荐在系統使用
+過程中更換認証算法，而應該在系統安裝時就確定使用的認証算法。</p>
+
+<p>　　為了減少用戶數量較多時伺服器的處理開銷，就必須使用數據庫技術，這是因為數據庫使用了索引技術，對數據的查
+找就比較快速。Unix下最簡單的數據庫為使用系統提供的DB（或DBM）庫進行創建數據庫檔案的技術，Apache
+伺服器中使用模塊mod_auth_db.so對這種數據庫密碼檔案提供支持。htpasswd產生的文本檔案在有幾
+百個用戶時就會花費相當大的伺服器開銷，而DBM格式的認証方式可以高效的支持上萬個用戶。</p>
+
+<p>　　BSD風格的Unix系統通常使用DB庫，而其他Unix通常使用DBM庫。因此其他Unix使用的命令和設
+置中應該為dbm而非db。</p>
+
+<p>　　為了支持這種認証方式，應載入mod_auth_db.so模塊，使用Ports Collection安裝
+的Apache伺服器預設情況就支持這個模塊而不需要改動。可以讓Apache同時支持多種認証方式，而不會發生衝突
+。</p>
+
+<p>　　此外，配置檔案中的認証方式也需要改變，首先要創建數據庫檔案，這會在通過使用dbmmanage命令第一次
+增加用戶時創建。</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># dbmmanage /usr/local/etc/users adduser user1 pass123</td></pre></tr></table>
+
+<p>　　這個命令將創建/usr/local/etc/usersdbm數據庫檔案，並使用pass123為密碼在數
+據庫中增加用戶user1。然後就可以針對現有的數據庫檔案，增加、刪除和查看用戶信息了：</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># dbmmanage /usr/local/etc/httpd/usersdbm delete user2
+# dbmmanage /usr/local/etc/httpd/usersdbm view</td></pre></tr></table>
+
+<P>　　在擁有了數據庫檔案和用戶數據之後，就可以使用這種認証方式了：</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>AuthName DBMTest
+AuthType Basic
+AuthDBUserFile /usr/local/etc/usersdbm
+require  valid-user</td></pre></tr></table>
+
+<p>　　可以使用dbmmanage命令也可以用來管理組，例如將user1加入group1組，但必須添加用戶的同
+時進行設置，需要使用dhmmanage的另一個參數：</p>
+
+<p>　　# dbmmanage /usr/local/etc/users adduser user1 pass123 group1</p>
+
+<p>　　這樣就能使用AuthDBGroupFile和require group1進行認証管理。</p>
+
+<p>　　除了使用DBM之外，Apache還可以配置成與匿名ftp認証方式類似的方式，或者使用mSql、Oracle
+等SQL數據庫進行認証，或者使用Kerboros、LDAP伺服器進行認証，這些認証方式更為強大，能使Web
+認証與其他網路服務的認証方式相統一。但是這些額外的認証方式必須使用相應的認証模塊進行支持。</p>
+
+
+<BR>
+
+</TD>
+</TR></TABLE>
+
+
+
+</BODY>
+</HTML>

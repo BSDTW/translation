@@ -1,0 +1,439 @@
+<html>
+
+<head>
+<meta HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=big5">
+<style type="text/css">
+<!--
+.p13{font-size:14.8px;font-family:宋體;}
+.p14{font-size:14.8px;font-family:宋體;line-height:14pt;}
+.a:hover{color:red;}
+a.t1:visited{color:red;}
+-->
+</style>
+<title>MySQL中文參考手冊-5 MySQL 與標準如何兼容？</title>
+</head>
+
+<body BGCOLOR="#FFFFFF" TEXT="#000000" LINK="#101090" VLINK="#7030B0" class="p3">
+
+<h1><img src="Img/mysql-logo.gif" alt="mysql-logo.gif (3082 bytes)" WIDTH="127" HEIGHT="60"><font color="#FF0000">MySQL中文參考手冊</font></h1>
+
+<p>譯者：晏子 <a href="mailto:(clyan@sohu.com">(clyan@sohu.com</a>）<br>
+GB 碼主頁：<a href="http://linuxdb.yeah.net">http://linuxdb.yeah.net</a></p>
+
+<p>Big5 轉碼者：statue <a href="mailto:statue.bbs@bbs.yzu.edu.tw">
+(statue@bbs.yzu.edu.tw</a>） <br>
+詞彙轉換：彭武興 (<a href="mailto:wilson@mailbox.com.tw">wilson@mailbox.com.tw</a>)<br>
+Big5 碼主頁：
+<a href="http://cnpa.yzu.edu.tw/~cfc/docs/mysqldoc_big5/manual_toc.html">
+http://cnpa.yzu.edu.tw/~cfc/docs/mysqldoc_big5/manual_toc.html</a><br>
+Big5 碼分站：
+<a href="http://php.wilson.gs/mysqldoc/big5/manual_toc.html">
+http://php.wilson.gs/mysqldoc/big5/manual_toc.html
+</p>
+
+<hr>
+
+<p><a HREF="manual_Introduction.html">第一章</a>, <a HREF="manual_Installing.html">前一章</a>, 
+<a HREF="manual_Privilege_system.html">下一章</a>, <a HREF="manual_Concept_Index.html">最後一章</a>，<a HREF="manual_toc.html">目錄</a>. </p>
+
+<hr>
+
+<h1><a NAME="Compatibility" HREF="manual_toc.html#Compatibility">5 MySQL與標準的兼容性？</a></h1>
+
+<h2><a NAME="Extensions_to_ANSI" HREF="manual_toc.html#Extensions_to_ANSI">5.1 &nbsp; 
+MySQL對ANSI SQL92擴充</a></h2>
+
+<p><strong>MySQL</strong>包含了一些可能在其他SQL資料庫找不到的擴充。要注意如果你使用他們，你的代碼將不與其他SQL伺服器兼容。在一些情況下，你可以編寫包括<strong>MySQL</strong>擴展的代碼，但是仍然是可移植的，通過使用<code>/*! 
+... */</code>形式的注釋。在這種情況下，<strong>MySQL</strong>將進行詞法分析並且執行在注釋內的代碼，好像它是任何其它<strong>MySQL</strong>語句，但是其他SQL伺服器將忽略擴展。例如： 
+</p>
+
+<pre>SELECT /*! STRAIGHT_JOIN */ col_name FROM table1,table2 WHERE ... </pre>
+
+<p>如果你在'!'後增加一個版本數字，該語法將僅在<strong>MySQL</strong>版本是等於或比使用的版本數字新時才執行： 
+</p>
+
+<pre>CREATE /*!32302 TEMPORARY */ TABLE (a int);
+</pre>
+
+<p>上面的意思是如果你有3.23.02或更新，那麼<strong>MySQL</strong>將使用<code>TEMPORARY</code>關鍵詞。 
+</p>
+
+<p><strong>MySQL</strong>擴展被列在下面： 
+
+<ul>
+  <li>字段類型<code>MEDIUMINT</code>、<code>SET</code>、<code>ENUM</code>和不同的<code>BLOB</code>和<code>TEXT</code>類型。 
+  </li>
+  <li>字段屬性<code>AUTO_INCREMENT</code>、<code>BINARY</code>、<code>UNSIGNED</code>和<code>ZEROFILL</code>。 
+  </li>
+  <li>內定地，所有的字符串比較是忽略大小寫的，由當前的字符集決定了(內定為ISO-8859-1 
+    Latin1)排序順序。如果你不喜歡這樣，你應該用<code>BINARY</code>屬性或使用<code>BINARY</code>強制符聲明列，它導致根據<strong>MySQL</strong>伺服器主機的ASCII順序進行排序。 
+  </li>
+  <li><strong>MySQL</strong>將每個資料庫映射一個<strong>MySQL</strong>數據目錄下面的目錄，將資料庫表映射到資料庫目錄下的資料庫文件名。這有2個含意： 
+    <ul>
+      <li><a NAME="IDX112"></a>在區分大小寫文件名的作業系統(像大多數 Unix 
+        系統一樣)上的<strong>MySQL</strong>中資料庫名字和表名是區分大小寫的。如果你有困難記得表名，接受一個一致的約定，例如總是用小寫名字創建資料庫和表。 
+      </li>
+      <li>資料庫、表、索引、列或別名可以以數字開始(但是不能僅由數字組成)。 
+      </li>
+      <li>你可以使用標準的系統命令備份、重命名、移動、刪除和拷貝表。例如，重命名一個表，重命名<tt>“.MYD”</tt>、<tt>“.MYI”</tt>和<tt>“.frm”</tt>文件為相應的表。 
+      </li>
+    </ul>
+  </li>
+  <li>在SQL語句中，你可以用<code>db_name.tbl_name</code>語法訪問不同資料庫中的表。一些SQL伺服器提供同樣的功能但是稱它們為這<code>User 
+    space</code>（用戶空間）。<strong>MySQL</strong>不支援類似在<code>create 
+    table ralph.my_table...IN my_tablespace</code>中的表空間。 </li>
+  <li><code>LIKE</code>在數字列上被允許。 </li>
+  <li>在一<code>SELECT</code>語句裡面使用<code>INTO OUTFILE</code>和<code>STRAIGHT_JOIN</code>。見<a HREF="manual_Reference.html#SELECT">7.12<code> SELECT</code>句法</a>. </li>
+  <li>在一個<code>SELECT</code>語句<code>中SQL_SMALL_RESULT</code>選項。 </li>
+  <li><code>EXPLAIN SELECT</code>得到如何聯結表的描述。 </li>
+  <li>在一個<code>CREATE TABLE</code>語句裡面使用索引、在字段前綴上的索引和使用<code>INDEX</code>或<code>KEY</code>。見<a HREF="manual_Reference.html#CREATE_TABLE">7.7<code> CREATE TABLE</code> 句法</a>。 </li>
+  <li><code>CREATE TABLE</code>使用<code>TEMPORARY</code>或<code>IF NOT EXISTS</code>。 </li>
+  <li>使用<code>COUNT(DISTINCT list)</code>，這裡“list”超過一個元素。 </li>
+  <li>在一個<code>ALTER TABLE</code>語句裡面使用<code>CHANGE col_name</code>、<code>DROP 
+    col_name</code>或<code>DROP INDEX</code>。見<a HREF="manual_Reference.html#ALTER_TABLE">7.8<code> 
+    ALTER TABLE</code>句法</a>。 </li>
+  <li>在一個<code>ALTER TABLE</code>裡面語句使用<code>IGNORE</code>。 </li>
+  <li>在一個<code>ALTER TABLE</code>語句中使用多重<code>ADD</code>、<code>ALTER</code>、<code>DROP</code>或<code>CHANGE</code>子句。 
+  </li>
+  <li>使用帶關鍵詞<code>IF EXISTS</code>的<code>DROP TABLE</code>。</li>
+  <li>你能用單個<code>DROP TABLE</code>語句拋棄多個表。 </li>
+  <li><code>DELETE</code>語句的<code>LIMIT</code>子句。 </li>
+  <li><code>INSERT</code>和<code>REPLACE</code>語句的<code>DELAYED</code>子句。 </li>
+  <li><code>INSERT</code>, <code>REPLACE</code>, <code>DELETE</code>和<code>UPDATE</code>語句的<code>LOW_PRIORITY</code>子句。 
+    <a NAME="IDX113"></a> <a NAME="IDX114"></a> </li>
+  <li>使用<code>LOAD DATA INFILE</code>。在多數情況下，這句法與Oracle的<code>LOAD 
+    DATA INFILE</code>兼容。見<a HREF="manual_Reference.html#LOAD_DATA">7.16<code> LOAD 
+    DATA INFILE</code> 句法</a>。 </li>
+  <li><code>OPTIMIZE TABLE</code>語句。見<a HREF="manual_Reference.html#OPTIMIZE_TABLE">7.9<code> 
+    OPTIMIZE TABLE</code>句法</a>。 </li>
+  <li><code>SHOW</code>語句。見<a HREF="manual_Reference.html#SHOW">7.21<code> SHOW</code>句法(得到表、列等的資訊)</a>。 
+  </li>
+  <li>字符串可以被<samp>“&quot;”</samp>或<samp>“'”</samp>包圍，而不只是<samp>“'”</samp>。 
+  </li>
+  <li>使用<samp>“\”</samp>轉義字符。 </li>
+  <li><code>SET OPTION</code>語句。見<a HREF="manual_Reference.html#SET_OPTION">7.25<code> 
+    SET OPTION</code>句法</a>。 </li>
+  <li>你不需要命名所有在<code>GROUP BY</code>部分的被選擇的列。這為一些很特定的情況給出更好的性能，而不是一般的查詢。見<a HREF="manual_Reference.html#Group_by_functions">7.4.13 用於<code>GROUP BY</code>子句的函數</a>。 
+  </li>
+  <li>為了方便來自於SQL環境其他為用戶，<strong>MySQL</strong>對許多函數支援別名。例如，所有的字符串功能都支援ANSI 
+    SQL句法和 ODBC句法。 </li>
+  <li><strong>MySQL</strong>理解<code>||</code>和<code>&amp;&amp;</code>意味著邏輯的OR和AND，就像在C程式語言中。在<strong>MySQL</strong>中，<code>||</code>和<code>OR</code>是同義詞，<code>&amp;&amp;</code>和<code>AND</code>是同義詞。正因為這個好的句法，<strong>MySQL</strong>對字符串並置的不支援ANSI 
+    SQL<code> ||</code>操作符﹔相反使用<code>CONCAT()</code>，因為<code>CONCAT()</code>接受任何數量的參數，很容易把<code>||</code>操作符使用變換到<strong>MySQL</strong>。</li>
+  <li><code>CREATE DATABASE</code>或<code>DROP DATABASE</code>。見<a HREF="manual_Reference.html#CREATE_DATABASE">7.5<code> CREATE DATABASE</code>句法</a>。 
+    <a NAME="IDX115"></a> <a NAME="IDX116"></a> </li>
+  <li><code>%</code>操作符是<code>MOD()</code>一個同義詞，即，<code>N % M</code>等價於<code>MOD(N,M)</code>。<code>%</code>支援C程式員並與PostgreSQL兼容。 
+  </li>
+  <li><code>=</code>, <code>&lt;&gt;</code>, <code>&lt;=</code>,<code>&lt;</code>, <code>&gt;=</code>,<code>&gt;</code>, 
+    <code>&lt;&lt;</code>, <code>&gt;&gt;</code>, <code>&lt;=&gt;</code>, <code>AND</code>, <code>OR</code>或<code>LIKE</code>操作符可以放在<code>SELECT</code>語句的<code>FROM</code>左邊用於比較列。例如： 
+    <pre>mysql&gt; SELECT col1=1 AND col2=2 FROM tbl_name;
+</pre>
+  </li>
+  <li><code>LAST_INSERT_ID()</code>函數。見<a HREF="manual_Clients.html#mysql_insert_id">20.4.29<code> 
+    mysql_insert_id()</code></a>。 </li>
+  <li>擴展的正則表達式操作符<code>REGEXP</code>和<code>NOT REGEXP</code>。 </li>
+  <li><code>CONCAT()</code>或<code>CHAR()</code>有一個參數或超過2個參數。（在<strong>MySQL</strong>中，這些函數可取任何數量的參數。）</li>
+  <li><code>BIT_COUNT()</code>, <code>CASE</code>, <code>ELT()</code>, <code>FROM_DAYS()</code>, 
+    <code>FORMAT()</code>, <code>IF()</code>, <code>PASSWORD()</code>, <code>ENCRYPT()</code>, 
+    <code>md5()</code>, <code>ENCODE()</code>, <code>DECODE()</code>, <code>PERIOD_ADD()</code>, 
+    <code>PERIOD_DIFF()</code>, <code>TO_DAYS()</code>,或<code>WEEKDAY()</code>函數。 </li>
+  <li>使用<code>TRIM()</code>整修子串。ANSI SQL 只支援單個字符的刪除。 </li>
+  <li><code>GROUP BY</code>函數<code>STD()</code>, <code>BIT_OR()</code>和<code>BIT_AND()</code>。 
+  </li>
+  <li>使用<code>REPLACE</code>而不是<code>DELETE</code>+<code>INSERT</code>。見<a HREF="manual_Reference.html#REPLACE">7.15<code> REPLACE</code>句法</a>。 </li>
+  <li><code>FLUSH flush_option</code>語句。 </li>
+  <li>在一個語句用<code>:=</code>設置變數的可能性： <pre>SELECT @a:=SUM(total),@b=COUNT(*),@a/@b AS avg FROM test_table;
+SELECT @t1:=(@t2:=1)+@t3:=4,@t1,@t2,@t3;
+</pre>
+  </li>
+</ul>
+
+<h2><a NAME="Ansi_mode" HREF="manual_toc.html#Ansi_mode">5.2 以ANSI模式運行MySQL</a></h2>
+
+<p>如果你用<code>--ansi</code>選項啟動mysqld，<strong>MySQL</strong>的下列行為改變。 
+
+<ul>
+  <li><code>||</code>是字符串並置而不是<code>OR</code>。</li>
+  <li>可在一個函數名字之間與“(”有任何數量的空格。這也使所有的功能名字成為保留詞。 
+  </li>
+  <li><code>&quot;</code>將是一個標識符引號字符(像<strong>MySQL</strong> <code>`</code>引號字符一樣)而不是一個字符串引號字符。 
+  </li>
+  <li><code>REAL</code>將是<code>FLOAT</code>一個同義詞，不是<code>DOUBLE</code>一個同義詞。 
+  </li>
+</ul>
+
+<h2><a NAME="Differences_from_ANSI" HREF="manual_toc.html#Differences_from_ANSI">5.3 MySQL相比ANSI 
+SQL92的差別</a></h2>
+
+<p>我們嘗試使得<strong>MySQL</strong>遵照ANSI SQL標準和ODBC SQL標準，但是在一些情況下，<strong>MySQL</strong>做一些不同的事情： 
+
+<ul>
+  <li><code>--</code>只是一個注釋，如果後面跟一個白空字符。見<a HREF="manual_Compatibility.html#Missing_comments">5.4.7<samp> `--'</samp>作為一個注釋的開始</a>。 
+  </li>
+  <li>對於<code>VARCHAR</code>列，當值被儲存時，拖後的空格被刪除。見<a HREF="manual_Bugs.html#Bugs">E MySQL已知的錯誤和設計缺限</a>。 </li>
+  <li>在一些情況下，<code>CHAR</code>列偷偷地被改變為<code>VARCHAR</code>列。見<a HREF="manual_Reference.html#Silent_column_changes">7.7.1 平靜的列指定變化</a>。 </li>
+  <li>當你刪除一個表時，對表的權限不自動地廢除。你必須明確地發出一個<code>REVOKE</code>來廢除對一個表的權限。見<a HREF="manual_Reference.html#GRANT">7.26<code> GRANT</code>和<code>REVOKE</code>句法</a>。 
+  </li>
+</ul>
+
+<h2><a NAME="Missing_functions" HREF="manual_toc.html#Missing_functions">5.4 MySQL缺乏的功能</a></h2>
+
+<p>下列功能在當前的<strong>MySQL</strong>版本是沒有的。對於一張優先級表指出何時新擴展可以加入<strong>MySQL</strong>, 
+你應該咨詢<a HREF="manual_Todo.html">在線<strong>MySQL</strong> TODO 表</a>。這是本手冊最新的TODO表版本。見<a HREF="manual_TODO.html#TODO">F 我們想要在未來加入到MySQL的事情列表(TODO)</a>。 
+</p>
+
+<h3><a NAME="Missing_Sub-selects" HREF="manual_toc.html#Missing_Sub-selects">5.4.1 
+子選擇</a></h3>
+
+<p>在<strong>MySQL</strong>中下列語句還不能工作： </p>
+
+<pre>SELECT * FROM table1 WHERE id IN (SELECT id FROM table2);
+SELECT * FROM table1 WHERE id NOT IN (SELECT id FROM table2);
+</pre>
+
+<p>然而，在很多情況下，你可以重寫查詢，而不用子選擇： </p>
+
+<pre>SELECT table1.* FROM table1,table2 WHERE table1.id=table2.id;
+SELECT table1.* FROM table1 LEFT JOIN table2 ON table1.id=table2.id where table2.id IS NULL
+</pre>
+
+<p>對於更複雜的子查詢，通常你可以創建臨時的表保存子查詢。然而在一些情況下，這種選擇將行不通。最經常遇到的情形是<code>DELETE</code>語句，對於它標準SQL不支援聯結(join)(除了在子選擇)。對於這種情況，有2個可用選擇，直到子選擇被MySQL支援。 
+</p>
+
+<p>第一個選擇是使用一種程序化的程式語言(例如Perl或PHP)來提交一個<code>SELECT</code>查詢獲得要被刪除記錄主鍵，並然後使用這些值構造<code>DELETE</code>語句(<code>DELETE 
+FROM ... WHERE ... IN (key1, key2, ...)</code>)。 </p>
+
+<p>第二個選擇是使用交互式SQL自動構造一套<code>DELETE</code>語句，使用<strong>MySQL</strong>擴展<code>CONCAT()</code>（代替標準<code>||</code>操作符)。例如： 
+</p>
+
+<pre>SELECT CONCAT('DELETE FROM tab1 WHERE pkid = ', tab1.pkid, ';')
+  FROM tab1, tab2
+ WHERE tab1.col1 = tab2.col2;
+</pre>
+
+<p>你可以把這個查詢放在一個腳本文件並且從它重定向輸入到<code>mysql</code>命令行解釋器，將其輸出作為管道返回給解釋器的第2個實例： 
+</p>
+
+<pre>prompt&gt; mysql --skip-column-names mydb &lt; myscript.sql | mysql mydb
+</pre>
+
+<p><strong>MySQL</strong>僅支援<code>INSERT ... SELECT ...</code>和<code>REPLACE ... 
+SELECT ...</code>，獨立的子選擇將可能在3.24.0得到，然而，在其他環境下，你現在可以使用函數<code>IN()</code>。 
+</p>
+
+<h3><a NAME="Missing_SELECT_INTO_TABLE" HREF="manual_toc.html#Missing_SELECT_INTO_TABLE">5.4.2<code> 
+SELECT INTO TABLE</code></a></h3>
+
+<p><strong>MySQL</strong>還不支援Oracle SQL的擴展：<code>SELECT ... INTO TABLE ...</code>.，相反<strong>MySQL</strong>支援ANSI 
+SQL句法<code>INSERT INTO ... SELECT ...</code>，基本上他們是一樣的。</p>
+
+<p>另外，你可使用<code>SELECT INTO OUTFILE...</code>或<code>CREATE TABLE ... 
+SELECT</code>解決你的問題。 </p>
+
+<h3><a NAME="Missing_Transactions" HREF="manual_toc.html#Missing_Transactions">5.4.3 
+事務處理</a></h3>
+
+<p>不支援事務處理。<strong>MySQL</strong>將在短時間內支援原子(atomic)操作，它像沒有回卷的事務。用原子操作，你能執行一組<code>INSERT</code>/<code>SELECT</code>/whatever 
+命令並且保証沒有其他執行緒介入。在本文中，你通常不會需要回卷。目前，你可通過使用<code>LOCK 
+TABLES</code>和<code>UNLOCK TABLES</code>命令阻止其他執行緒的干擾。見<a HREF="manual_Reference.html#LOCK_TABLES">7.24<code> LOCK TABLES/UNLOCK TABLES</code>句法</a>。 
+</p>
+
+<h3><a NAME="Missing_Triggers" HREF="manual_toc.html#Missing_Triggers">5.4.4 
+儲存程序和觸發器</a></h3>
+
+<p>一個儲存程序是能在伺服器中編譯並儲存的一套SQL命令。一旦這樣做了，顧客不需要一直重新發出全部查詢，而可以參考儲存程序。因為查詢僅需一次詞法分析並且較少的資訊需要在伺服器和客戶之間傳送，因此這提供了更好的性能。你與可以通過擁有在伺服器中的函數庫提升概念上的層次。 
+</p>
+
+<p>一個觸發器是當一個特別的事件發生時，被調用的一個儲存程序。例如，你可以安裝一個儲存程序，它在每次從一個交易表刪除一條記錄時觸發，並且當它所有交易被刪除時，自動地從一個客戶表中刪除相應的客戶。 
+</p>
+
+<p>計劃修改的語言將能處理儲存程序，但是沒有觸發器。觸發器通常使每件事情變慢，即使對他們不需要的查詢。 
+</p>
+
+<p>為了倆解什麼時候<strong>MySQL</strong>可能得到儲存程序，見<a HREF="manual_TODO.html#TODO">F 我們想在未來加入到MySQL的事情列表(TODO)</a>。</p>
+
+<h3><a NAME="Missing_Foreign_Keys" HREF="manual_toc.html#Missing_Foreign_Keys">5.4.5 
+外鍵</a></h3>
+
+<p>注意，在SQL語法的外鍵不用於聯結表，而主要用於檢查參考完整性(RI)。如果你想要得到用一個<code>SELECT</code>語句從多個表得到結果， 
+你通過聯結表做！ </p>
+
+<pre>SELECT * from table1,table2 where table1.id = table2.id; 
+</pre>
+
+<p>見<a HREF="manual_Reference.html#JOIN">7.13<code> JOIN</code>句法</a>。見<a HREF="manual_Tutorial.html#example-Foreign_keys">8.3.5 使用外鍵</a>。 </p>
+
+<p>在<strong>MySQL</strong>裡存在<code>FOREIGN KEY</code>句法僅僅為了與其他SQL供應商的<code>CREATE 
+TABLE</code>命令相兼容﹔它不做任何事情。沒有<code>ON DELETE ...</code>的<code>FOREIGN 
+KEY</code>句法主要用於文檔目的。一些ODBC應用程式可以使用它自動產生<code>WHERE</code>子句，但是這通常很容易的覆蓋。 
+<code>FOREIGN KEY</code>有時用作一個約束檢查，但是如果行以正確的順序被插入表，該檢查實際上是不必要的。<strong>MySQL</strong>僅僅支援這些子句(不考慮是否他們工作!)，因為一些應用程式要求他們存在。 
+</p>
+
+<p>在<strong>MySQL</strong>中，你可以解決<code>ON DELETE ...</code>沒被實現的問題，，在你從一個用外鍵的表刪除記錄時，通過為一個應用程式增加適當的<code>DELETE</code>語句即可。實際上，這很快(在一些情況下更快)並且比使用外鍵更比便於移植。 
+</p>
+
+<p>在不久的將來我們將擴充<code>FOREIGN KEY</code>實現，以便至少資訊將在表說明文件中保存並且可以由<code>mysqldump</code>和ODBC檢索。 
+</p>
+
+<h4><a NAME="Broken_Foreign_KEY" HREF="manual_toc.html#Broken_Foreign_KEY">5.4.5.1 
+不使用外鍵的理由</a></h4>
+
+<p>有很多與<code>FOREIGN KEY</code>有關的問題我們不知道從哪兒開始： 
+
+<ul>
+  <li>外鍵使生活更複雜，因為外鍵的定義必須儲存在一個資料庫中並且實現他們將破壞使用能被移動、拷貝和刪除文件的全部“好方法”。 
+  </li>
+  <li>速度影響對<code>INSERT</code>和<code>UPDATE</code>語句是可怕的，並且在這種情況下幾乎所有的<code>FOREIGN 
+    KEY</code>檢查都是無用的，因為不管怎樣你通常以正確的順序在正確的表中插入記錄。 
+  </li>
+  <li>當更新一張表時，也有在許多表上保存鎖的需求，因為副作用可以串聯通過全部資料庫。首先從一張表中刪除記錄並且隨後從其他表中刪除他們，這更快。 
+  </li>
+  <li>你再也不可以通過做一個全面的表刪除並隨後恢復所有的記錄的方法來恢復一張表(從新來源或從一個備份)。 
+  </li>
+  <li>如果你有外鍵，你不能傾倒和恢復表，除非你以一個非常特定的做這些。 
+  </li>
+  <li>很容易做一個“允許的”的循環定義使得不可能用一個單個create語句重建每一個表，就算定義可行又可用。 
+  </li>
+</ul>
+
+<p><code>FOREIGN KEY</code>唯一好的方面是它給ODBC和一些其他客戶程式檢查一張表如何被連接的能力，並且使用它們顯示出連接圖表並幫助構造應用。 
+</p>
+
+<p><strong>MySQL</strong>不久將儲存<code>FOREIGN KEY</code>定義以便一個客戶能詢問並收到原來的連接如何進行的一個答案。當前的<tt>“.frm 
+</tt>文件格式沒有它應有的地位。 </p>
+
+<h3><a NAME="Missing_Views" HREF="manual_toc.html#Missing_Views">5.4.6 視圖</a></h3>
+
+<p><strong>MySQL</strong>不支援視圖，但是它在TODO上。 </p>
+
+<h3><a NAME="Missing_comments" HREF="manual_toc.html#Missing_comments">5.4.7<samp> '--'</samp>作為一個注釋的開始</a></h3>
+
+<p>有些其他SQL資料庫使用<samp>'--'</samp>開始注釋。<strong>MySQL</strong>有<samp>“#”</samp>作為開始數注釋的字符，即使<code>mysql</code>命令行工具刪除以<samp>'--'</samp>開始的所有行。你也可以在<strong>MySQL</strong>中使用C注釋風格<code>/* 
+this is a comment */</code>。見<a HREF="manual_Reference.html#Comments">7.29 
+注釋句法</a>。 </p>
+
+<p><strong>MySQL</strong>3.23.3和以上版本支援<samp>'--'</samp>注釋風格，只要注釋跟在一個空格之後。這是因為這種退化的注釋風格已經引起用像下列代碼那樣的自動產生的SQL查詢的許多問題，這裡我們自動地為<code>!payment!插入支付值：</code> 
+</p>
+
+<pre>UPDATE tbl_name SET credit=credit-!payment! </pre>
+
+<p>你想出當<code>payment</code>的值是負的時將發生什麼嗎？ </p>
+
+<p>因為<code>1--1</code>在SQL中是合法的，我們認為<samp>'--'</samp>開始注釋是可怕的。 
+</p>
+
+<p>然而在MySQL 3.23中，你可使用：<code>1-- This is a comment</code> </p>
+
+<p>如果你正在運行一個比3.23早的<strong>MySQL</strong>的版本，下列的討論才涉及你： 
+</p>
+
+<p>如果你在一個文本文件中有一個SQL程式，它包含<samp>'--'注釋，</samp>你應該使用： 
+</p>
+
+<pre>shell&gt; replace &quot; --&quot; &quot; #&quot; &lt; text-file-with-funny-comments.sql \
+         | mysql database
+
+而不是通常： </pre>
+
+<pre>shell&gt; mysql database &lt; text-file-with-funny-comments.sql
+</pre>
+
+<p>你也可以“現場☆弤輯命令文件將<samp>'--'注釋改為'#'注釋</samp>： </p>
+
+<pre>shell&gt; replace &quot; --&quot; &quot; #&quot; -- text-file-with-funny-comments.sql
+</pre>
+
+<p>用這個命令改回他們： </p>
+
+<pre>shell&gt; replace &quot; #&quot; &quot; --&quot; -- text-file-with-funny-comments.sql
+</pre>
+
+<h2><a NAME="Standards" HREF="manual_toc.html#Standards">5.5 MySQL 遵循什麼標準？</a></h2>
+
+<p>Entry level SQL92。ODBC level 0-2。 </p>
+
+<h2><a NAME="Commit-rollback" HREF="manual_toc.html#Commit-rollback">5.6 
+怎樣處理沒有<code>COMMIT</code>/<code>ROLLBACK</code></a></h2>
+
+<p><strong>MySQL</strong>不支援<code>COMMIT</code>-<code>ROLLBACK。</code>問題是有效地處理<code>COMMIT</code>-<code>ROLLBACK</code>將需要完全不同於<strong>MySQL</strong>今天使用的表布局。<strong>MySQL</strong>也將需要額外的執行緒在表上做自動清除工作，而且磁碟用量將更高。這將使<strong>MySQL</strong>比現今慢上大約2-4倍。<strong>MySQL</strong>比幾乎所有其他SQL資料庫都快(一般至少快2-3倍)。原因之一就是缺少<code>COMMIT</code>-<code>ROLLBACK</code>。 
+</p>
+
+<p>目前，我們是更多地實現SQL伺服器語言(像儲存程序)，有了它，你將確實很少需要<code>COMMIT</code>-<code>ROLLBACK，</code>這也將得到更好的性能。 
+</p>
+
+<p>通常需要事務的循環可以借助<code>LOCK TABLES</code>進行編碼，並且當你能即時地更新記錄時，你不需要光標(cursor)。 
+</p>
+
+<p>我們在TODO上有事務和光標，然而並非相當優先。如果我們實現這些，將作為<code>CREATE 
+TABLE</code>的選項，那意味著<code>COMMIT</code>-<code>ROLLBACK</code>將僅工作在那些表上，以便速度損失僅僅強加在那些表上。 
+</p>
+
+<p>我們在TcX有一個更大的需求，一個比100%通用資料庫的真正快速的資料庫。無論何時我們發現一個方法來實現這些特徵而沒有任何速度損失，我們將可能做它。暫時，有許多更重要的事情要做。檢查TODO，看我們此時如何將事情優先排列。（有的較高級別支援的客戶可以改變它，因此事情是可以重新優先化的。）</p>
+
+<p>當前的問題實際上是<code>ROLLBACK</code>，沒有<code>ROLLBACK</code>，你能用<code>LOCK 
+TABLES</code>做任何<code>COMMIT</code>動作。為了支援<code>ROLLBACK</code>，<strong>MySQL</strong>將必須被改變以儲存所有的舊記錄，如果發出<code>ROLLBACK</code>，它們被更新的並且將任何東西恢復到起點。對於簡單的情形，這不是難做的 
+(當前<code>isamlog</code>可以用於此目的)，但是為<code>ALTER/DROP/CREATE TABLE</code>實現<code>ROLLBACK</code>將是更困難的。 
+</p>
+
+<p>避免使用<code>ROLLBACK</code>，你可以使用下列策略： 
+
+<ol>
+  <li>使用<code>LOCK TABLES ...</code>鎖住所有你想要存取的資料庫表。 </li>
+  <li>測試條件。 </li>
+  <li>如果一切無誤，更新。 </li>
+  <li>使用<code>UNLOCK TABLES</code>釋放你的鎖。 </li>
+</ol>
+
+<p>這通常比使用可能帶<code>ROLLBACK</code>的交易是一個更快的方法，盡管不總是這樣。這個解決方案不能處理的唯一狀況是當某人在更新當中殺死執行緒時。在這種情況下，所有的鎖將被釋放，但是一些更改不能被執行。 
+</p>
+
+<p>你也可使函數以單個操作更新記錄。你能通過使用下列技術得到一個很有效率的應用程式： 
+
+<ul>
+  <li>相對他們的當前的值修改字段</li>
+  <li>僅僅更新那些實際上更改的字段</li>
+</ul>
+
+<p>例如，當我們正在更新一些客戶資訊時，我們僅僅更新那些改變了的客戶數據並只測試沒有任何數據的改變，或數據取決於改變的數據，與原來的行相比變化了。對於改變了的數據的測試用<code>WHERE</code>子句在<code>UPDATE</code>語句中完成。如果記錄沒被更新，我們給客戶一條消息：“你改變了的一些數據已被其他用戶改變了”，然後我們在一個窗口中顯示新行對照舊行，因此用戶能決定他該使用哪個版本的客戶記錄。 
+</p>
+
+<p>這給了我們類似於“列鎖定”的東西，但是實際上甚至更好，因為我們僅僅更新某些列，使用相對於他們的當前值的值。這意味著典型<code>的UPDATE</code>語句看上去像這些一樣東西： 
+</p>
+
+<pre>UPDATE tablename SET pay_back=pay_back+'relative change';
+
+UPDATE customer
+  SET
+    customer_date='current_date',
+    address='new address',
+    phone='new phone',
+    money_he_owes_us=money_he_owes_us+'new_money'
+  WHERE
+    customer_id=id AND address='old address' AND phone='old phone';
+</pre>
+
+<p>正如你能看到的，這是很有效的並且就算其他客戶已經改變了<code>pay_back</code>或<code>money_he_owes_us</code>列的也能工作。 
+</p>
+
+<p><a NAME="IDX117"></a>在許多情況下，為管理一些表格的唯一標識符目的，用戶已經想要<code>ROLLBACK</code>或<code>LOCK 
+TABLES</code>。這可用一個<code>AUTO_INCREMENT</code>列和一個SQL函數<code>LAST_INSERT_ID()</code>或C 
+API函數<code>mysql_insert_id()</code>更高效地處理。見<a HREF="manual_Clients.html#mysql_insert_id">20.4.29<code> mysql_insert_id()</code></a>。 </p>
+
+<p><a NAME="IDX119"></a>在TcX，我們從來沒有任何對行級鎖定的需求，因為我們總是能通過編碼解決它。一些情況下需要確實行鎖定，但是他們是很少見的。如果你想要行級鎖定，你可以在表中使用標誌列並且這樣做： 
+</p>
+
+<pre>UPDATE tbl_name SET row_flag=1 WHERE id=ID; 
+</pre>
+
+<p>如果行被找到發現並且<code>row_flag</code>在原來的行已經不是1，對受影響的行數<strong>MySQL</strong>返回1。 
+</p>
+
+<p>你可以想到它，因為<strong>MySQL</strong>把上面的查詢變為： </p>
+
+<pre>UPDATE tbl_name SET row_flag=1 WHERE id=ID and row_flag &lt;&gt; 1;</pre>
+
+<hr>
+
+<p><a HREF="manual_Introduction.html">第一章</a>, <a HREF="manual_Installing.html">前一章</a>, 
+<a HREF="manual_Privilege_system.html">下一章</a>, <a HREF="manual_Concept_Index.html">最後一章</a>，<a HREF="manual_toc.html">目錄</a>.</p>
+</body>
+</html>

@@ -1,0 +1,231 @@
+
+
+<!-- Vignette StoryServer 4 Sat Mar 11 15:43:24 2000 --> 
+<style type=text/css>
+<!--
+p,div {font-size:12pt; line-height:14pt; font-family:宋體;}
+.p1{font-size:12pt;font-family:宋體;}
+.p2{font-size:12pt;font-family:宋體;line-height:14pt;}
+.p3{font-size:14.8px;font-family:宋體;}
+.p4{font-size:14.8px;font-family:宋體;line-height:14pt;}
+.p5{font-size:1pt}
+a:hover{color:red;}
+a.t1:visited{color:red;}
+-->
+</style>
+<title>FreeBSD使用大全</title></head>
+
+<body bgcolor="#FFFFFF" text="#000000" link="#383098" vlink="#336699" alink="#FF0000" topmargin="0">
+<!-- Vignette StoryServer 4 Thu Mar 23 10:01:54 2000 --> <!-- Vignette StoryServer 4 Thu Mar 23 15:34:35 2000 --> 
+
+<!--開始：新聞內容-->
+<TABLE WIDTH=750 BORDER=0 CELLSPACING=0 CELLPADDING=0>
+
+<tr valign=top>
+
+
+
+<TD  valign=top>
+<CENTER><FONT COLOR=#000066 size=5><B>FreeBSD連載(12)：用戶管理-增加用戶</B><br></FONT></CENTER>
+
+<HR  ALIGN="center" SIZE=1>
+<CENTER><FONT FACE="Arial" SIZE=2> 1999年11月14日 17:20 </FONT><FONT COLOR="#990000" SIZE=2>王波</FONT></CENTER><p>
+
+<h1 align=center>用戶管理</h1>
+
+<p>　　為了使用多用戶的FreeBSD操作系統，必須是系統的登記用戶。用戶信息保存在/etc目錄下passwd
+檔案中，在這個檔案中定義的一個FreeBSD用戶應具有以下屬性：</p>
+
+<p>　　<B>用戶名</B>（Username）：在系統中使用這個用戶名來標識用戶，每個用戶名不超過8個字符，
+且是大小寫敏感的。習慣上用戶名只使用小寫字母，通常根據用戶真實名字的縮寫來選擇合適的用戶名。</p>
+
+<p>　　<B>用戶標識號</B>（User ID）：由於電腦中處理數字比處理字符串更容易，因而使用數字方式的
+用戶標識號來區分不同用戶更為適合。事實上Unix系統就是使用唯一的用戶標識號來區分用戶的，在某些特定目的下，可
+以存在多個有不同用戶名、但用戶標識號相同的用戶，這表示這些不同用戶名的用戶實際上是同一個用戶。</p>
+
+<p>　　<B>密碼</B>（password）：系統用它來驗証用戶是否合法。超級用戶root可以使用系統程序
+passwd來更改每個用戶的密碼，用戶也可以使用passwd來更改自己的密碼。較老的Unix系統中直接在
+passwd檔案中保存密碼的密文，由於passwd檔案是系統中的每個用戶都可以讀取的，只通過加密來保証密碼的安全性。然
+而現代電腦的發展使得情形發生了變化，高速計算能力使得通過猜測的方式來破譯密碼成為可能。因此現在Unix中密碼
+均不再直接保存在passwd檔案中了，而passwd檔案中的密碼域使用一個 “*” 來代替。FreeBSD使用
+/etc/master.passwd作為真正的密碼檔案，保存包括個人密碼在內的數據，但這個檔案不能被普通用戶讀
+取。</p>
+
+<p>　　<B>命令解釋程序</B>（shell）：用戶登錄後啟動這個程序來接收用戶的輸入並執行輸入相應命令，標
+準的shell有sh和csh，更複雜易用的shell有bash和tcsh等，但它們不是基本系統的一部分，必須額
+外安裝。shell程序是一個標準的Unix程序，但系統在/etc/shells檔案中定義了一些標準shell的
+名字，很多應用程序檢查這個檔案中內容和用戶的shell來判斷這個用戶是普通用戶，還是用於特定目的而創建的用戶。
+</p>
+<p>　　<B>個人目錄</B>（home directory）：由於FreeBSD是多用戶系統，每個用戶都要有
+自己的獨立使用環境，不同用戶的檔案不能相互交叉存放，因此Unix中為每個用戶配置了自己的個人目錄，用戶的檔案都
+放置在各自的目錄下，從而互不干擾。習慣上FreeBSD下用戶的個人目錄位於/home目錄下，使用用戶名作為子目
+錄名，多數shell中使用波浪符號~，來代表該用戶的個人目錄。</p>
+
+<p>　　<B>組標識號</B>（Group ID）：具有相似屬性的多個用戶可以被分配到一個組內，每個組都有自己
+的組名，且以自己的組標識號相區分（組標識號和組的對應關系在/etc/group檔案中給出），用戶的組標識號保存
+在passwd檔案中。早期的Unix中，每個用戶只能屬於一個組，而現代Unix中每個用戶可以同時屬於多個組，除
+了在passwd檔案中指定了其歸屬的基本組之外，還可以在檔案/etc/group中，明確指定一個組包括某個用戶
+，使得該用戶能屬於多個組。</p>
+
+<p>　　除此之外，用戶還有其他屬性，例如登錄類別，這些信息記錄在另一個密碼檔案：/etc/master.passwd中。
+</p>
+
+<ul><p><li><h2>增加用戶</h2></LI></P></ul>
+
+<p>　　雖然可以使用系統安裝程序/stand/sysinstall中的Add User選項來增加用戶和組，但熟
+練的管理員並不喜歡這種全螢幕操作方式。Unix下的習慣做法是使用命令行方式，如使用adduser命令來或pw命
+令添加用戶。</p>
+
+<p>　　adduser命令使用配置檔案/etc/adduser.conf來保存添加用戶使用的預設數據，如果沒有
+這個配置檔案，第一次執行adduser時會詢問預設設置，以自動生成這個設置檔案。這樣對於很多基本一致的用戶數據
+就設置了正確的預設值，以減少輸入的工作量。</p>
+
+<p>　　# adduser</p>
+
+<p>　　Use option ``-silent'' if you don't want see all warnings &amp; questions.</p>
+
+<p>　　Check /etc/shells</p>
+
+<p>　　Check /etc/master.passwd</p>
+
+<p>　　Check /etc/group</p>
+
+<p>　　Enter your default shell: bash csh date no sh [sh]:
+</p>
+<p>　　Your default shell is: sh -&gt; /bin/sh</p>
+
+<p>　　Enter your default HOME partition: [/home]:</p>
+
+<p>　　Copy dotfiles from: /usr/share/skel no [/usr/share/skel]:</p>
+
+<p>　　Send message from file: /etc/adduser.message no</p>
+
+<p>　　[/etc/adduser.message]:</p>
+
+<p>　　Use passwords (y/n) [y]:</p>
+
+<p>　　Ok, let's go.</p>
+
+<p>　　在前面的過程中生成了配置檔案之後，還可以使用編輯器來修改它的內容以更改adduser的配置。雖然生成了
+配置檔案，但每次啟動adduser還會詢問這些預設參數是否需要更改，使得操作不太簡便。為了讓adduser直接
+進入用戶數據輸入狀態，可以使用 “adduser -quiet” 減少提示信息，-quiet的縮寫方式為-q，
+-silent和-s參數也有同樣的效果。更一勞永逸的方式是直接修改adduser.conf檔案，將其中的
+verbose參數改為0，表示盡量減少提示。這個參數的預設值為1，將進行設置預設值的提示，而設置為2能提供更多的配置
+參數。</p>
+
+<p>　　# adduser -s</p>
+
+<p>　　Use option ``-verbose'' if you want see more warnings &amp; questions</p>
+
+<p>　　or try to repair bugs.</p>
+
+<p>　　Enter username [a-z0-9_-]: user22</p>
+
+<p>　　Enter full name []:</p>
+
+<p>　　Enter shell bash csh date no sh [sh]:</p>
+
+<p>　　Enter home directory (full path) [/home/user22]:</p>
+
+<p>　　Uid [1007]:</p>
+
+<p>　　Enter login class: default []:</p>
+
+<p>　　Login group user22 [user22]:</p>
+
+<p>　　Login group is ``user22''. Invite user22 into othergroups: guest no</p>
+
+<p>　　[no]:</p>
+
+<p>　　Enter password []:</p>
+
+<p>　　Use an empty password? (y/n) [y]:</p>
+
+<p>　　Name: user22</p>
+
+<p>　　Password: ****</p>
+
+<p>　　Fullname: user22</p>
+
+<p>　　Uid: 1007</p>
+
+<p>　　Gid: 1007 (user22)</p>
+
+<p>　　Class:</p>
+
+<p>　　Groups: user22</p>
+
+<p>　　HOME: /home/user22</p>
+
+<p>　　Shell: /bin/sh</p>
+
+<p>　　OK? (y/n) [y]: </p>
+
+<p>　　Added user ``user22''</p>
+
+<p>　　Send message to ``user22'' and: no root second_mail_address</p>
+
+<p>　　[no]:</p>
+
+<p>　　your account ``user22'' was created.</p>
+
+<p>　　Have fun!</p>
+
+<p>　　See also chpass(1), finger(1), passwd(1)</p>
+
+<p>　　Add anything to default message (y/n) [n]:</p>
+
+<p>　　Send message (y/n) [y]:</p>
+
+<p>　　Add another user? (y/n) [y]:n</p>
+
+<p>　　因此可以使用-s參數使adduser直接進入增加用戶的操作步驟，這將詢問增加用戶的必要數據，包括用戶名
+、密碼等數據。adduser將使用adduser.conf中的一些內容作為預設提示，通常有提示的步驟可以直接利
+用預設提示進行操作。</p>
+
+<p>　　比adduser命令功能更複雜的命令為pw，管理員能使用它來完成各種複雜的用戶管理任務，包括增加、刪除
+用戶，以及修改用戶的各項參數設置。</p>
+
+<p>　　另一種更直接的管理用戶的方式是直接編輯密碼檔案的內容。這是Unix早期常見的做法，但隨著Unix的發展
+，目前的Unix使用shadow的方法保存加密密碼數據，用戶數據不僅保存在passwd檔案中，而真實的密碼等內
+容被系統保存在另一個密碼檔案中，必須同時修改這兩個密碼檔案，使其保持一致才可以。因此不能直接使用vi等編輯器來
+編輯一個/etc/passwd檔案，而應該使用系統提供的vipw命令修改這密碼檔案，並同時寫入兩個檔案。出於安
+全的考慮，vipw將使用一個內部編輯器（與vi相同）編輯master.passwd檔案，保存時同步這兩個密碼文
+件。事實上master.passwd檔案才是真正的密碼檔案，單獨改變/etc/passwd檔案，對用戶數據沒有
+影響。</p>
+
+<p>　　由於系統中會反復讀取用戶密碼，而在普通文本形式的passwd檔案中查找用戶的速度與用戶數量是一種線性關
+系，當用戶數量一多，查找效率就急劇下降。而數據庫的形式更適合這些經常發生的查找任務，因為數據庫將自動維護數據的
+索引，這些索引可以用來提高查找效率。FreeBSD中提供了一種簡單的的標準數據庫檔案格式，密碼檔案可以使用這種
+db數據格式來提高性能。因此密碼檔案有對應的數據庫形式：/etc/pwd.db和/etc/spwd.db，用來
+獲得用戶信息的系統調用事實上首先查詢這兩個數據庫檔案，而由系統來自動維護這兩個數據庫檔案與前兩個passwd文
+件同步。系統管理者可以使用pwd_mkdb來從文本形式的密碼檔案來生成數據庫檔案。通常，普通文本形式的passwd
+檔案只適合於有幾百帳號的系統，而db數據庫形式適合一萬以上帳號的系統。</p>
+
+<p>　　在其他Unix系統中，第二個密碼檔案的名字與bsd系統使用的檔案名不同，大部分Unix System V
+系統使用/etc/shadow檔案。使用不同的名字只是習慣的問題，檔案格式都是passwd檔案格式。因此如果
+要求兼容，可以為/etc/master.passwd建立一個叫shadow的符號連接。</p>
+
+<p>　　組能幫助權限的分配，與管理用戶類似，管理組也可以通過sysinstall來完成，或直接改動/etc/group
+檔案。用戶除了屬於passwd檔案中定義的組之外，還可以被邀請進入其他組中。adduser添加用戶時會
+詢問是否將用戶加入其他組，如果在用戶生成之後在將用戶加入其他組，就需要直接改動/etc/group檔案。例如
+group檔案中有這樣一行：</p>
+
+<p>　　wheel:*:0:root,admin</p>
+
+<p>　　admin:*:100:admin</p>
+
+<p>　　這表示用戶admin不但屬於自己在passwd中規定的組，還屬於wheel和admin組。可以使用groups
+命令來獲得用戶的屬組列表。
+</p>
+
+
+
+<BR>
+
+</TD>
+</TR></TABLE>
+
+
+</BODY>
+</HTML>

@@ -1,0 +1,164 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>Init: Process Control Initialization</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.79" />
+<link rel="HOME" title="FreeBSD 使用手冊" href="index.html" />
+<link rel="UP" title="FreeBSD 開機流程篇" href="boot.html" />
+<link rel="PREVIOUS" title="Device Hints" href="device-hints.html" />
+<link rel="NEXT" title="Shutdown Sequence" href="boot-shutdown.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD 使用手冊</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="device-hints.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 12 FreeBSD 開機流程篇</td>
+<td width="10%" align="right" valign="bottom"><a href="boot-shutdown.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="BOOT-INIT" name="BOOT-INIT">12.6 Init: Process Control
+Initialization</a></h1>
+
+<p>Once the kernel has finished booting, it passes control to the user process <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=init&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">init</span>(8)</span></a>, which is
+located at <tt class="FILENAME">/sbin/init</tt>, or the program path specified in the <tt
+class="ENVAR">init_path</tt> variable in <tt class="COMMAND">loader</tt>.</p>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="BOOT-AUTOREBOOT" name="BOOT-AUTOREBOOT">12.6.1 Automatic Reboot
+Sequence</a></h2>
+
+<p>The automatic reboot sequence makes sure that the file systems available on the system
+are consistent. If they are not, and <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=fsck&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">fsck</span>(8)</span></a> cannot fix the
+inconsistencies, <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=init&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">init</span>(8)</span></a> drops the
+system into <a href="boot-init.html#BOOT-SINGLEUSER">single-user mode</a> for the system
+administrator to take care of the problems directly.</p>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="BOOT-SINGLEUSER" name="BOOT-SINGLEUSER">12.6.2 Single-User
+Mode</a></h2>
+
+<p>This mode can be reached through the <a
+href="boot-init.html#BOOT-AUTOREBOOT">automatic reboot sequence</a>, or by the user
+booting with the <code class="OPTION">-s</code> option or setting the <tt
+class="ENVAR">boot_single</tt> variable in <tt class="COMMAND">loader</tt>.</p>
+
+<p>It can also be reached by calling <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=shutdown&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">shutdown</span>(8)</span></a> without
+the reboot (<code class="OPTION">-r</code>) or halt (<code class="OPTION">-h</code>)
+options, from <a href="boot-init.html#BOOT-MULTIUSER">multi-user mode</a>.</p>
+
+<p>If the system <tt class="LITERAL">console</tt> is set to <tt
+class="LITERAL">insecure</tt> in <tt class="FILENAME">/etc/ttys</tt>, then the system
+prompts for the <tt class="USERNAME">root</tt> password before initiating single-user
+mode.</p>
+
+<div class="EXAMPLE"><a id="BOOT-INSECURE-CONSOLE" name="BOOT-INSECURE-CONSOLE"></a>
+<p><b>Example 12-3. An Insecure Console in <tt class="FILENAME">/etc/ttys</tt></b></p>
+
+<pre class="PROGRAMLISTING">
+# name  getty                           type    status          comments
+#
+# If console is marked "insecure", then init will ask for the root password
+# when going to single-user mode.
+console none                            unknown off insecure
+</pre>
+</div>
+
+<div class="NOTE">
+<blockquote class="NOTE">
+<p><b>Note:</b> An <tt class="LITERAL">insecure</tt> console means that you consider your
+physical security to the console to be insecure, and want to make sure only someone who
+knows the <tt class="USERNAME">root</tt> password may use single-user mode, and it does
+not mean that you want to run your console insecurely. Thus, if you want security, choose
+<tt class="LITERAL">insecure</tt>, not <tt class="LITERAL">secure</tt>.</p>
+</blockquote>
+</div>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="BOOT-MULTIUSER" name="BOOT-MULTIUSER">12.6.3 Multi-User
+Mode</a></h2>
+
+<p>If <a href="http://www.FreeBSD.org/cgi/man.cgi?query=init&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">init</span>(8)</span></a> finds your
+file systems to be in order, or once the user has finished in <a
+href="boot-init.html#BOOT-SINGLEUSER">single-user mode</a>, the system enters multi-user
+mode, in which it starts the resource configuration of the system.</p>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="BOOT-RC" name="BOOT-RC">12.6.3.1 Resource Configuration
+(rc)</a></h3>
+
+<p>The resource configuration system reads in configuration defaults from <tt
+class="FILENAME">/etc/defaults/rc.conf</tt>, and system-specific details from <tt
+class="FILENAME">/etc/rc.conf</tt>, and then proceeds to mount the system file systems
+mentioned in <tt class="FILENAME">/etc/fstab</tt>, start up networking services, start up
+miscellaneous system daemons, and finally runs the startup scripts of locally installed
+packages.</p>
+
+<p>The <a href="http://www.FreeBSD.org/cgi/man.cgi?query=rc&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">rc</span>(8)</span></a> manual page is a
+good reference to the resource configuration system, as is examining the scripts
+themselves.</p>
+</div>
+</div>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="device-hints.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="boot-shutdown.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">Device Hints</td>
+<td width="34%" align="center" valign="top"><a href="boot.html" accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">Shutdown Sequence</td>
+</tr>
+</table>
+</div>
+
+<p align="center"><small>本文及其他文件，可由此下載：<a
+href="ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/">ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/</a>。</small></p>
+
+<p align="center"><small>若有 FreeBSD 方面疑問，請先閱讀 <a
+href="http://www.FreeBSD.org/docs.html">FreeBSD 相關文件</a>，如不能解決的話，再洽詢
+&#60;<a href="mailto:questions@FreeBSD.org">questions@FreeBSD.org</a>&#62;。<br />
+關於本文件的問題，請洽詢 &#60;<a
+href="mailto:doc@FreeBSD.org">doc@FreeBSD.org</a>&#62;。</small></p>
+</body>
+</html>
+

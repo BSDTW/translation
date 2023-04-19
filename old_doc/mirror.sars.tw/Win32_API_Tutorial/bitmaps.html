@@ -1,0 +1,270 @@
+<HTML>
+
+<LINK HREF="style.css" REL="STYLESHEET" TYPE="text/css">
+
+<HEAD>
+<TITLE>Bitmaps, Device Contexts and BitBlt</TITLE>
+</HEAD>
+
+<BODY>
+<FONT SIZE="-1">
+[ <A HREF="./index.html">contents</A>
+| <A HREF="http://www.winprog.org/">#winprog</A>
+]
+</FONT>
+<HR>
+
+
+<H1>Bitmaps, Device Contexts and BitBlt</H1>
+
+<P>Example: bmp_one</P>
+<IMG SRC="images/bmp_one.gif" ALT="[images/bmp_one.gif]" ALIGN="right">
+
+<H2>GDI</H2>
+
+The really great thing about MS Windows is that unlike DOS, you don't need to know anything
+about what video hardware you are using to display graphics.  Instead, windows provides
+an API called the Graphics Device Interface, or GDI.  The GDI uses a set of generic graphics 
+objects that can be used to draw to the screen, to memory, or even to printers.
+
+<H3>Device Contexts</H3>
+
+The GDI revolves around an object called the Device Context (DC), represented by the data type 
+<CODE>HDC</CODE> (Handle to Device Context).  An HDC is basically a handle to something you can
+draw on;  it can represent the entire screen, an entire window, the client area of a window,
+a bitmap stored in memory, or a printer.  The nice part is that you don't even need to know which one it
+refers to, you can use it basically the same way, which is especially handy for writing custom
+drawing functions which you can then use on any of these devices without changing it for each one.
+
+<P>
+An HDC like most GDI objects is opaque, meaning that
+you can't access it's data directly... but you can pass it to various GDI functions that will
+operate on it, either to draw something, get information about it, or change the object in
+some way.
+
+<P>
+For example, if you wanted to draw on a window, first you would retreive an <CODE>HDC</CODE> 
+representing the window with <CODE>GetDC()</CODE>, then you could use any of the GDI functions
+that take an <CODE>HDC</CODE> like <CODE>BitBlt()</CODE> for drawing images, 
+<CODE>TextOut()</CODE> for drawing text, <CODE>LineTo()</CODE> for lines and so on.
+
+<H3>Bitmaps</H3>
+
+Bitmaps can be loaded much like icons in earlier examples, there is <CODE>LoadBitmap()</CODE> for 
+the most basic functionality of simply loading a bitmap resource, and <CODE>LoadImage()</CODE> can 
+be used to load bitmaps from a <CODE>*.bmp</CODE> file just as it can for icons.
+
+<P>
+One of the quirks of GDI is that you can't draw to bitmap objects (<CODE>HBITMAP</CODE> type) directly.
+Remember that drawing operations are abstracted by Device Contexts, so in order to use these drawing 
+functions on a bitmap, you need to create a Memory DC, and then select the <CODE>HBITMAP</CODE> into
+it with <CODE>SelectObject()</CODE>.  The effect is that the "device" that the <CODE>HDC</CODE> refers to is the bitmap in memory, and when you operate
+on the <CODE>HDC</CODE>, the resulting graphic operations are applied to the bitmap.  As I mentioned, this is actually
+a very conveiniant way of doing things, as you can write code that draws to an <CODE>HDC</CODE> and you can use it
+on a Window DC or a Memory DC without any checks or changes.
+
+<P>
+You do have the option of manipulating the bitmap data in memory yourself.  You can
+do this with Device Independant Bitmaps (DIB), and you can even combine GDI and manual operations on the DIB.
+However for the time being, this is beyond the scope of the basic tutorial and for now we're just cover the
+simpler GDI operations on their own.
+
+<H3>GDI Leaks</H3>
+
+<P>
+Once you're finished with an <CODE>HDC</CODE>, it's very important to release it (just how you do that depends
+on how you got it, which we'll talk about in a bit).  GDI objects are limited in number.  In 
+versions of windows prior to Windows 95, they were not only incredably limited but also shared system
+wide, so that if one program used up too many, none of the rest would be able to draw anything!
+Fortunately this isn't the case any longer, and you could get away with using up quite a lot of
+resources in Windows 2000 or XP before anything too bad happened... but it's easy to forget to
+free GDI objects and they can quickly run your program out of GDI resources under Windows 9x.
+Theorehtically you shouldn't be able to drain the system of GDI resources in NT systems (NT/2K/XP)
+but it still happens in extreme cases, or if you hit the right bug on the nose.
+
+<P>
+If your program runs fine for a few minutes and then starts drawing strangely or not at all, it's a 
+good sign that you're leaking GDI resources.  HDCs aren't the only GDI objects you need to be careful
+about releasing, but generally it's ok to keep things like bitmaps and fonts around for the entire
+lifetime of your program, since it's much more efficiant than reloading them each time you need them.
+
+<P>
+Also, an HDC can only contain one of each type of object (bitmap, font, pen...) at a time, and when you
+select a new one in it will return the last one.  It's very important that you deal with this object
+properly.  If you ignore it completely, it will be lost and they will pile up in memory causing GDI
+leaks.  When an HDC is created, it's also created with some default objects selected
+into it... it's a good idea to store these when they are returned to you, and then when you are completed
+drawing with the <CODE>HDC</CODE> select them back into it.  This will not only remove any of your own 
+objects from the <CODE>HDC</CODE> (which is a good thing) but it will also cause the default objects to be properly
+disposed of when you release or destroy the <CODE>HDC</CODE> (a VERY good thing).
+
+<P>
+<B>Important Update:</B> 
+Not all objects have defaults selected into <CODE>HDC</CODE>s, and you can refer to MSDN for the few that don't.  Because
+of this I 
+was previously uncertain as to wether <CODE>HBITMAP</CODE>s were one of them, since there doesn't seem to be 
+any definitive documentation on it, and examples (even those by Microsoft) often ignored the default bitmap.
+Since the writing of the original tutorial several years ago, it was confirmed to me that there was in fact
+a default bitmap that needs releasing.  This information is courtesy of Shaun Ivory, a software engineer for
+MS and a friend of mine from #winprog.  
+
+<P>
+Apparently there was a bug in a screensaver written at MS, and it
+turns out it was because the default bitmap wasn't getting replaced or destroyed, and it eventually ran out
+of GDI resources.  Be warned!  It's an easy mistake to make.
+
+<H2>Displaying Bitmaps</H2>
+
+Ok, down to business.  The simplest drawing operations on a window occure by handling <CODE>WM_PAINT</CODE>.
+When your window is first displayed, restored from being minimised, or uncovered from having another window
+on top of it, Windows sends the <CODE>WM_PAINT</CODE> message to the window to let it know that it needs
+to redraw it's contents.  When you draw something on the screen it is NOT permanent, it's only there untill
+something else draws over it, and at that point you need to draw it again when the time comes.
+
+<PRE CLASS="SNIP">
+HBITMAP g_hbmBall = NULL;
+</PRE>
+
+<PRE CLASS="SNIP">
+    case WM_CREATE:
+        g_hbmBall = LoadBitmap(GetModuleHandle(NULL), MAKEINTRESOURCE(IDB_BALL));
+        if(g_hbmBall == NULL)
+            MessageBox(hwnd, "Could not load IDB_BALL!", "Error", MB_OK | MB_ICONEXCLAMATION);
+    break;
+</PRE>
+
+The first step is of course loading the bitmap, this is quite simple with a bitmap resource, there are
+no significant differences from loading other resource types.  Then we can get down to drawing...
+
+<PRE CLASS="SNIP">
+    case WM_PAINT:
+    {
+        BITMAP bm;
+        PAINTSTRUCT ps;
+
+        HDC hdc = BeginPaint(hwnd, &ps);
+
+        HDC hdcMem = CreateCompatibleDC(hdc);
+        HBITMAP hbmOld = SelectObject(hdcMem, g_hbmBall);
+
+        GetObject(g_hbmBall, sizeof(bm), &bm);
+
+        BitBlt(hdc, 0, 0, bm.bmWidth, bm.bmHeight, hdcMem, 0, 0, SRCCOPY);
+
+        SelectObject(hdcMem, hbmOld);
+        DeleteDC(hdcMem);
+
+        EndPaint(hwnd, &ps);
+    }
+    break;
+</PRE>
+
+<H3>Getting the Window DC</H3>
+
+<P>
+To start off we declare a couple of variables we need.  Notice that the first one is a <CODE>BITMAP</CODE>, 
+not an <CODE>HBITMAP</CODE>.  <CODE>BITMAP</CODE> is a struct that holds information about an <CODE>HBITMAP</CODE>
+which is the actual GDI object.  We need a way to get the height and width of the <CODE>HBITMAP</CODE> so we
+use <CODE>GetObject()</CODE> which contrary to it's name doesn't really get an object, but rather information
+about an existing one.  "GetObjectInfo" would have been a more appropriate label.  <CODE>GetObject()</CODE> works
+for various GDI object types which it can distinguish based on the value of the second parameter, the size of the
+structure.
+
+<P>
+The <CODE>PAINTSTRUCT</CODE> is a structure that contains information about the window being painted and what exactly is
+going on with the paint message.  For most simple tasks, you can simply ignore the information it contains, but it's
+required for the call to <CODE>BeginPaint()</CODE>.  <CODE>BeginPaint()</CODE> as it's name suggests is designed
+specifically for handling the <CODE>WM_PAINT</CODE> message.  When not handling a <CODE>WM_PAINT</CODE> message you would use 
+<CODE>GetDC()</CODE> which we will see in the timer animation examples in a while... but in <CODE>WM_PAINT</CODE>, it's important
+to use <CODE>BeginPaint()</CODE> and <CODE>EndPaint()</CODE>.
+
+<P>
+<CODE>BeginPaint()</CODE> returns us an <CODE>HDC</CODE> that represents the <CODE>HWND</CODE> that we pass to it, the
+one that <CODE>WM_PAINT</CODE> is being handled for.  Any drawing operation we perform on this <CODE>HDC</CODE> will immediately display
+on the screen.
+
+<H3>Setting up a Memory DC for the Bitmap</H3>
+<P>
+As I mention above, in order to draw on or with bitmaps, we need to create a DC in memory... the easiest way to do that
+here is to <CODE>CreateCompatibleDC()</CODE> with the one we already have.  This gives us a Memory DC that is
+compatible with the color depth and display properties of the <CODE>HDC</CODE> for the window.
+
+<P>
+Now we call <CODE>SelectObject()</CODE> to select the bitmap into the DC being careful to store the default
+bitmap so that we can replace it later on and not leak GDI objects.
+
+<H3>Drawing</H3>
+<P>
+Once we've gotten the dimentions of the bitmap filled into the <CODE>BITMAP</CODE> struct, we can call 
+<CODE>BitBlt()</CODE> to copy the image from our Memory DC to the Window DC, thus displaying on the screen.
+As always, you can look up each parameter in MSDN, but in short they are: The destination, the position
+and size, the source and source position, and finally the Raster Operation (ROP code), which specifies how 
+to do the copy.  In this case, we want a simple exact copy of the source made, no fancy stuff.
+
+<P>
+<CODE>BitBlt()</CODE> is probably the all time happiest function in all of the Win32 API and is the staple
+diet of anyone learning to write games or other graphics applications in windows.  It was probably the
+first API that I memorised all the parameters to.
+
+<H3>Cleanup</H3>
+<P>
+At this point the bitmap should be on the screen, and we need to clean up after ourselves.  The first thing
+to do is restore the Memory DC to the state it was when we got it, which means replacing our bitmap with the
+default one that we saved.  Next we can delete it altogether with <CODE>DeleteDC()</CODE>.
+
+<P>
+Finally we release the Window DC we got from <CODE>BeginPaint()</CODE> using <CODE>EndPaint()</CODE>.
+
+
+<P>
+Destroying an <CODE>HDC</CODE> is a little confusing sometimes because there are at least 3 ways to do it
+depending on how you got it in the first place.  Here's a list of the common methods of gaining an HDC,
+and how to release it when you're done.
+
+<UL>
+<LI>GetDC() - ReleaseDC()
+<LI>BeginPaint() - EndPaint()
+<LI>CreateCompatibleDC() - DeleteDC()
+</UL>
+
+<P>
+And finally, at the termination of our program, we want to free any resources that we allocated.  Technically
+speaking this isn't absolutely required, since modern Windows platforms are pretty good at freeing everything
+when your program exists, but it's always a good idea to keep track of your own objects because if get lazy
+and don't delete them they have a habit of getting loose.  And no doubt, there
+are still bugs in windows especially older versions that won't clean up all of your GDI objects if you don't 
+do a thorough job.
+
+<PRE CLASS="SNIP">
+    case WM_DESTROY:
+        DeleteObject(g_hbmBall);
+        PostQuitMessage(0);
+    break;
+</PRE>
+
+
+<HR>
+<FONT SIZE="-1">
+Copyright &copy; 1998-2003, Brook Miles (<A HREF="mailto:forger(nospam)winprog.org">theForger</A>).  All rights reserved.
+</FONT>
+
+<SCRIPT language="JavaScript">
+<!--
+   var re = /\(nospam\)/ig;
+   var str;
+
+   for(i = 0;i < document.links.length;i++) 
+   {
+      str = "" + document.links(i).href;
+      if(str.search(re) != -1)
+         document.links(i).href = str.replace(re, "@");
+
+      str = "" + document.links(i).innerHTML;
+      if(str.search(re) != -1)
+         document.links(i).innerHTML = str.replace(re, "@");
+   }
+-->
+</SCRIPT>
+
+</BODY>
+</HTML>

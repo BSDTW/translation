@@ -1,0 +1,2157 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN">
+
+<html>
+
+<head>
+
+<meta http-equiv="content-type" content="text/html; charset=big5">
+
+<title>Debian 參考手冊 - Debian技巧</title>
+
+</head>
+
+<body>
+
+<p><a name="ch-tips"></a></p>
+<hr>
+
+<p>
+[ <a href="ch-kernel.zh-tw.html">上一頁</a> ]
+[ <a href="index.zh-tw.html#contents">目錄</a> ]
+[ <a href="ch-preface.zh-tw.html">1</a> ]
+[ <a href="ch-system.zh-tw.html">2</a> ]
+[ <a href="ch-install.zh-tw.html">3</a> ]
+[ <a href="ch-tutorial.zh-tw.html">4</a> ]
+[ <a href="ch-woody.zh-tw.html">5</a> ]
+[ <a href="ch-package.zh-tw.html">6</a> ]
+[ <a href="ch-kernel.zh-tw.html">7</a> ]
+[ 8 ]
+[ <a href="ch-tune.zh-tw.html">9</a> ]
+[ <a href="ch-gateway.zh-tw.html">10</a> ]
+[ <a href="ch-edit.zh-tw.html">11</a> ]
+[ <a href="ch-vcs.zh-tw.html">12</a> ]
+[ <a href="ch-program.zh-tw.html">13</a> ]
+[ <a href="ch-gnupg.zh-tw.html">14</a> ]
+[ <a href="ch-support.zh-tw.html">15</a> ]
+[ <a href="ap-appendix.zh-tw.html">A</a> ]
+[ <a href="ch-tune.zh-tw.html">下一頁</a> ]
+</p>
+
+<hr>
+
+<h1>
+Debian 參考手冊
+<br>第 8 章 - Debian技巧
+</h1>
+
+<hr>
+
+<h2><a name="s-booting"></a>8.1 啟動系統</h2>
+
+<p>
+參閱 LDP <code><a
+href="http://www.tldp.org/HOWTO/BootPrompt-HOWTO.html">BootPrompt-HOWTO</a></code>獲得有關系統提示的詳細資訊。
+</p>
+
+<hr>
+
+<h3><a name="s-crackroot"></a>8.1.1 「我忘了root密碼！」(1)</h3>
+
+<p>
+只要能存取控制台 (console) 鍵盤，不需要 root 密碼就可以啟動系統登入到 root
+帳號。（假設 BIOS 或 <code>lilo</code> 之類的啟動引導器在啟動時不需要密碼。）
+</p>
+
+<p>
+整個過程不需要另外的開機軟碟或對 BIOS
+設定進行修改。在此，「Linux」只有是一個標簽，它代表啟動 Debian 預設值安裝的
+Linux 核心。
+</p>
+
+<p>
+在 <code>lilo</code>
+啟動螢幕中，一但出現<samp>boot:</samp>（對某些系統而言，必須按下shift鍵以阻止自動啟動以及當
+<code>lilo</code> 使用 framebuffer 時，您必須按下 &quot;TAB&quot;
+來查詢所輸入的參數），就輸入：
+</p>
+
+<pre>
+     boot: Linux init=/bin/sh
+</pre>
+
+<p>
+它會指示系統啟動核心後執行 <code>/bin/sh</code> 而不是
+<code>init</code>。現在你已獲得 root 特權和 root
+shell。由於目前的<code>/</code>是以唯讀方式掛載，而其它的硬碟分區均未掛載，故你必須完成下列步驟才能獲得一個有適當功\能的系統。
+</p>
+
+<pre>
+     init-2.03# mount -n -o remount,rw /
+     init-2.03# mount -avt nonfs,noproc,nosmbfs
+     init-2.03# cd /etc
+     init-2.03# vi passwd
+     init-2.03# vi shadow
+</pre>
+
+<p>
+（如果在 <code>/etc/passwd</code>
+檔案中所有使用者的第二個網域的資料為「x」，就表明系統使用了影子密碼，必隅虓編輯<code>/etc/shadow</code>。）要刪除root密碼，請編輯密碼檔案中第二個資料網域，將它設定為空白。重啟系統不用密碼就能登入到
+root。當系統啟動進入 runlevel 1
+時，Debian（至少是Potato以後的版本）需要密碼，一些較老的版本則不需要。
+</p>
+
+<p>
+在 <code>/bin/</code> 下裝一個小編輯器是個好習慣，因為有時 <code>/usr</code>
+是無法存取的（參閱<a href="ch-edit.zh-tw.html#s-bin-editor">應急的編輯器, 第
+11.2 節</a>）。
+</p>
+
+<p>
+如果安裝 <code>sash</code> 套服軟體，當系統無法啟動時，還可執行：
+</p>
+
+<pre>
+     boot: Linux init=/bin/sash
+</pre>
+
+<p>
+當 <code>/bin/sh</code> 無法使用時，<code>sash</code> 可作為 <code>sh</code>
+的交談式替代品，它是靜態連結，內建了許多標準工具（在系統提示符下輸入「help」可獲得參考清單）。
+</p>
+
+<hr>
+
+<h3><a name="s-crackroot2"></a>8.1.2 「我忘了root密碼！」(2)</h3>
+
+<p>
+從急救 boot/root 磁碟啟動系統。假設 <code><var>/dev/hda3</var></code> 是原始
+root 分區，可用下面的方法編輯密碼檔案，與上述方法一樣容易。
+</p>
+
+<pre>
+     # mkdir <var>fixit</var>
+     # mount <var>/dev/hda3</var> <var>fixit</var>
+     # cd <var>fixit</var>/etc
+     # vi shadow
+     # vi passwd
+</pre>
+
+<p>
+與上面的方法相比，該方法的好處在於不需要知道 <code>lilo</code>
+密碼（如果有的話）。但如果系統沒有預先設定為從軟式磁碟機或 CD 啟動，就需要存取
+BIOS 的權限。
+</p>
+
+<hr>
+
+<h3><a name="s-dead-lilo"></a>8.1.3 無法啟動系統</h3>
+
+<p>
+沒在安裝過程中製作開機軟碟？沒關係。如果 <code>lilo</code> 損壞了，從 Debian
+安裝套件中拿出開機軟碟，用它來啟動系統。假設你的 root 分割區在
+<code><var>/dev/hda12</var></code>，你想進入runlevel 3，在啟動提示符後輸入：
+</p>
+
+<pre>
+     boot: rescue root=<var>/dev/hda12</var> 3
+</pre>
+
+<p>
+接下來，系統使用軟式磁碟機上的核心啟動，你可登入到一個幾乎擁有全部功\能的系統了。
+（可能有少量特性或模組無法使用。）
+</p>
+
+<p>
+如果系統已經崩潰，亦可參閱<a
+href="ch-package.zh-tw.html#s-un-bootable">把套件安裝到一個無法開機的系統, 第
+6.3.6 節</a>。
+</p>
+
+<p>
+如果想做張自訂開機軟碟，參閱急救磁碟 (rescue disk) 中的 <code>readme.txt</code>
+文件。
+</p>
+
+<hr>
+
+<h3><a name="s-no-x-start"></a>8.1.4 「我不想直接啟動到 X！」</h3>
+
+<p>
+玩 <samp>unstable/sid</samp>
+很有趣，但在啟動進程中執行不穩定的<code>xdm</code>、
+<code>gdm</code>、<code>kdm</code>或<code>wdm</code>會讓你焦頭爛額。
+</p>
+
+<p>
+首先，在啟動提示符後輸入如下指令獲得 root shell：
+</p>
+
+<pre>
+     boot: <var>Linux</var> vga=normal s
+</pre>
+
+<p>
+其中，<var>Linux</var>代表你要啟動的核心對映，「vga=normal」告訴<code>lilo</code>在普通VGA螢幕下執行，「s」（或「S」）是傳給<code>init</code>的參數，告訴它進入單使用者模式。在提示符後輸入root密碼。
+</p>
+
+<p>
+有多種方法禁用X啟動deaemons：
+</p>
+<ul>
+<li>
+<p>
+run <samp>update-rc.d -f <var>?</var>dm remove</samp> ; <samp>update-rc.d
+<var>?</var>dm stop 99 1 2 3 4 5 6 .</samp>
+</p>
+</li>
+</ul>
+<ul>
+<li>
+<p>
+insert &quot;exit 0&quot; at the start of all
+<code>/etc/init.d/<var>?</var>dm</code> files.
+</p>
+</li>
+</ul>
+<ul>
+<li>
+<p>
+rename all <code>/etc/rc<var>2</var>.d/S99<var>?</var>dm</code> files to
+<code>/etc/rc2.d/K99<var>?</var>dm</code>.
+</p>
+</li>
+</ul>
+<ul>
+<li>
+<p>
+remove all <code>/etc/rc<var>2</var>.d/S99<var>?</var>dm</code> files.
+</p>
+</li>
+</ul>
+<ul>
+<li>
+<p>
+run <samp>:&gt;/etc/X11/default-display-manager</samp>
+</p>
+</li>
+</ul>
+
+<p>
+其中，<code>rc<var>2</var>.d</code>
+的檔案的編號必須與<code>/etc/inittab</code>中指定的runlevel一致。<code><var>?</var>dm</code>表示您需要多次執行這些命令來選擇<code>xdm</code>、<code>gdm</code>、<code>kdm</code>和<code>wdm</code>。
+</p>
+
+<p>
+在Debian下只有第一種方法「最正確」。最後一種方法比較簡單但只適用於Debian，而且還需要使用<code>dpkg-reconfigure</code>重新設定
+display manager。其它方法都是通用的中止daemons的方法。
+</p>
+
+<p>
+你仍可在任何控制台 (console) shell中輸入<code>startx</code>啟動 X。
+</p>
+
+<hr>
+
+<h3><a name="s-bootprompt"></a>8.1.5 其它用於啟動提示的技巧</h3>
+
+<p>
+使用 <code>lilo</code> 啟動提示，可指定系統啟動到特定的 runlevel 和組態。
+詳情參閱<code><a
+href="http://www.tldp.org/HOWTO/BootPrompt-HOWTO.html">BootPrompt-HOWTO</a></code>
+(LDP)。
+</p>
+
+<p>
+如果希望系統啟動到runlevel 4，可以<code>lilo</code>啟動提示後輸入：
+</p>
+
+<pre>
+     boot: Linux 4
+</pre>
+
+<p>
+如果希望系統啟動到正常功\能的單使用者模式，而且你知道 root 密碼，可在
+<code>lilo</code>啟動提示後輸入下列任一參數。
+</p>
+
+<pre>
+     boot: Linux S
+     boot: Linux 1
+     boot: Linux -s
+</pre>
+
+<p>
+如果希望系統以少於實際記憶體數的記憶體啟動（也就是說機器有 64MB 記憶體，只分配
+48MB 給系統使用），在<code>lilo</code>啟動提示符後輸入：
+</p>
+
+<pre>
+     boot: Linux mem=48M
+</pre>
+
+<p>
+注意，不要指定大於實際記憶體數的記憶體，否則核心會崩潰。如果你有多於 64MB
+的記憶體，如 128MB ，應在系統啟動時執行 <samp>mem=128M</samp> 或在
+<code>/etc/lilo.conf</code> 中添加類似的指令行，否則舊核心或使用舊 BIOS
+的主板將無法使用大於64MB的記憶體。
+</p>
+
+<hr>
+
+<h3><a name="s-bootgrub"></a>8.1.6 設定 GRUB 啟動參數</h3>
+
+<p>
+GRUB 是 Hurd 計畫開發的新型啟動管理器，比 Lilo
+更靈活，不過啟動參數也與之稍有不同。
+</p>
+
+<pre>
+     grub&gt; find /vmlinuz
+     grub&gt; root (hd0,0)
+     grub&gt; kernel /vmlinuz root=/dev/hda1
+     grub&gt; initrd /initrd
+     grub&gt; boot
+</pre>
+
+<p>
+請注意 Hurd 中的裝置名稱：
+</p>
+
+<pre>
+     HURD/GRUB           Linux               MS-DOS/Windows
+      (fd0)               /dev/fd0            A:
+      (hd0,0)             /dev/hda1           C: (usually)
+      (hd0,3)             /dev/hda4           F: (usually)
+      (hd1,3)             /dev/hdb4           ?
+</pre>
+
+<p>
+詳情參閱 <code>file:///usr/share/doc/grub/README.Debian.gz</code> 和
+<code>file:///usr/share/doc/grub-doc/html/</code>。
+</p>
+
+<hr>
+
+<h2><a name="s8.2"></a>8.2 活動記錄</h2>
+
+<hr>
+
+<h3><a name="s-script"></a>8.2.1 記錄shell活動</h3>
+
+<p>
+比起普通的個人電腦環境，Unix環境的系統管理包括了更多細致的工作。必須掌握所有基本的群組態方法以便進行系統故障恢復。基於X11的GUI群組態工具看上去又好又方便，但不適用於緊急狀況。
+</p>
+
+<p>
+記錄 shell 活動是個好習慣，特別是 root 使用者。
+</p>
+
+<p>
+Emacs：使用<samp>M-x shell</samp>在快取區中開始記錄，使用<samp>C-x
+C-w</samp>將快取區中的記錄寫入檔案。
+</p>
+
+<p>
+Shell：使用<code>screen</code>指令和「^A H」，參閱<a
+href="#s-screen">用<code>screen</code>來切換 console, 第 8.6.28
+節</a>或使用<code>script</code>指令：
+</p>
+
+<pre>
+     $ script
+     Script started, file is typescript
+      ... do whatever ...
+      Ctrl-D
+     $ col -bx &lt;typescript &gt;savefile
+     $ vi savefile
+</pre>
+
+<p>
+還可使用下面的方法：
+</p>
+
+<pre>
+     $ bash -i 2&gt;&amp;1 | tee typescript
+</pre>
+
+<hr>
+
+<h3><a name="s8.2.2"></a>8.2.2 記錄 X 操作</h3>
+
+<p>
+如果需要 X 套用程式的操作記錄圖，內含 <code>xterm</code>
+，可使用<code>gimp</code>（GUI）。它可以對每個視窗或整個螢幕拍攝快照。還可以使用
+<code>xwd</code>（<code>xbase-clients</code>）、<code>import</code>（<code>imagemagick</code>）和
+<code>scrot</code>（<code>scrot</code>）。
+</p>
+
+<hr>
+
+<h2><a name="s-archiving"></a>8.3 拷貝及建立子目錄</h2>
+
+<p>
+這些複製和存檔指令提供了備份整個系統和檔案的基礎。<code><a href="examples/">the
+example scripts</a></code> 的 <code>backup</code> 指令為一個簡單的備份 scripit
+範例。
+</p>
+
+<hr>
+
+<h3><a name="s8.3.1"></a>8.3.1 拷貝整個子目錄的基本指令</h3>
+
+<p>
+如果想重新整理檔案群組織結構，可使用下面的方法移動檔案及檔案連結：
+</p>
+
+<pre>
+     標準方法：
+     # cp -a /source/directory /dest/directory # requires GNU cp
+     # (cd /source/directory &amp;&amp; tar cf - . ) | \
+             (cd /dest/directory &amp;&amp; tar xvfp - )
+     如果包括硬連結，則需要更嚴謹的方法：
+     # cd /path/to/old/directory
+     # find . -depth -print0 | afio -p -xv -0a /mount/point/of/new/directory
+     如果是遠端操作：
+     # (cd /source/directory &amp;&amp; tar cf - . ) | \
+             ssh user@host.dom (cd /dest/directory &amp;&amp; tar xvfp - )
+     如果沒有連結檔案：
+     # scp -pr user1@host1.dom:/source/directory \
+               user2@host2.dom:/dest/directory
+</pre>
+
+<p>
+下面的有關拷貝整個子目錄的訊息由 Manoj Srivastava<code><a
+href="mailto:srivasta@debian.org">srivasta@debian.org</a></code>
+&lt;srivasta@debian.org&gt;發表於debian-user@lists.debian.org。
+</p>
+
+<hr>
+
+<h3><a name="s8.3.2"></a>8.3.2 <code>cp</code></h3>
+
+<p>
+傳統上，<code>cp</code>並不能真正完成這個工作，因為它既沒對符號連結進行區別對待，又不能儲存硬連結。另一件需要注意的事就是稀疏檔案（有洞的檔案）。
+</p>
+
+<p>
+GNU <code>cp</code>克服了這缺陷，然而對於非 GNU
+系統，<code>cp</code>仍存在問題。而且使用<code>cp</code>無法生成小巧輕便的文文件案包。
+</p>
+
+<pre>
+     % cp -a . newdir
+</pre>
+
+<hr>
+
+<h3><a name="s8.3.3"></a>8.3.3 <code>tar</code></h3>
+
+<p>
+Tar
+克服了<code>cp</code>在處理符號連結時出現的問題，然而，<code>cpio</code>可以處理特殊檔案，傳統的<code>tar</code>卻不行。
+</p>
+
+<p>
+對於某個有多重硬連結的檔案，<code>tar</code>的處理方法是只將其中一個連結拷貝到磁帶上，所以日後你只能找回拷貝中所保留那個的連結所指的檔案；<code>cpio</code>會為每個連結做一個拷貝，日後你可以找回任意一個連結所指的檔案。
+</p>
+
+<p>
+在 Potato 和 Woody
+中，操作<code>.bz2</code>檔案的<code>tar</code>指令參數有所變化，所以請在script中使用<samp>--bzip2</samp>而不要簡寫為<samp>-I</samp>（Potato）或<samp>-j</samp>（Woody）。
+</p>
+
+<hr>
+
+<h3><a name="s8.3.4"></a>8.3.4 <code>pax</code></h3>
+
+<p>
+全新的，符合POSIX（IEEE Std 1003.2-1992, pages 380&ndash;388 (section 4.48) and
+pages 936&ndash;940 (section
+E.4.48)）標準的，眾望所歸的，輕便的文文件案包交互工具。<code>pax</code>可以讀、寫以及列出文文件案包的成員，並能拷貝檔案目錄層次。<code>pax</code>的操作獨立於特定的文文件案包格式，支援各種各樣不同的文文件案包格式。
+</p>
+
+<p>
+<code>pax</code>工具剛剛成形，還很新。
+</p>
+
+<pre>
+     # apt-get install pax
+     $ pax -rw -p e . newdir
+      or
+     $ find . -depth  | pax -rw -p e  newdir
+</pre>
+
+<hr>
+
+<h3><a name="s8.3.5"></a>8.3.5 <code>cpio</code></h3>
+
+<p>
+<code>cpio</code>從<code>cpio</code>或<code>tar</code>文文件案包提取/放入檔案。該文文件案包可以是硬碟上的另一個檔案，也可以是磁帶或管道。
+</p>
+
+<pre>
+     $ find . -depth -print0 | cpio --null --sparse -pvd new-dir
+</pre>
+
+<hr>
+
+<h3><a name="s8.3.6"></a>8.3.6 <code>afio</code></h3>
+
+<p>
+<code>afio</code>更善於處理<code>cpio</code>格式的文文件案包。通常它比<code>cpio</code>要快，且提供了更多磁帶選項，並且能更友好的處理有訛誤的輸入資料。它支援交談式處理多卷文文件案包。用<code>afio</code>製作壓縮文文件案包比壓縮<code>tar</code>或<code>cpio</code>文文件案包更安全。在備份處理script中<code>afio</code>是更佳的「文文件案處理引擎」。
+</p>
+
+<pre>
+     $ find . -depth -print0 | afio -px -0a new-dir
+</pre>
+
+<p>
+對所有的磁帶備份我都使用<code>afio</code>。
+</p>
+
+<hr>
+
+<h2><a name="s-diff-backup"></a>8.4 差異備份與資料同步</h2>
+
+<p>
+要進行差異備份和資料同步可使用下列幾種方法：
+</p>
+<ul>
+<li>
+<p>
+<code>rcs</code>：備份並進行歷史記錄，只支援文本。
+</p>
+</li>
+</ul>
+<ul>
+<li>
+<p>
+<code>rdiff-backup</code>：備份並進行歷史記錄。支援連結。
+</p>
+</li>
+</ul>
+<ul>
+<li>
+<p>
+<code>pdumpfs</code>：對檔案系統進行備份和歷史記錄。支援連結。
+</p>
+</li>
+</ul>
+<ul>
+<li>
+<p>
+<code>rsync</code>：單路同步。
+</p>
+</li>
+</ul>
+<ul>
+<li>
+<p>
+<code>unison</code>：雙路同步。
+</p>
+</li>
+</ul>
+<ul>
+<li>
+<p>
+<code>cvs</code>：多路同步伺服器備份並進行歷史記錄，只支援文本，技術成熟。參閱<a
+href="ch-vcs.zh-tw.html#s-cvs">Concurrent Versions System (CVS), 第 12.1
+節</a>。
+</p>
+</li>
+</ul>
+<ul>
+<li>
+<p>
+<code>arch</code>：多路同步伺服器備份並進行歷史記錄，但內含「處於工作中的目錄」。
+</p>
+</li>
+</ul>
+<ul>
+<li>
+<p>
+<code>subversion</code>：多路同步伺服器備份並進行歷史記錄，專用於Apache。
+</p>
+</li>
+</ul>
+
+<p>
+有關將這些方法與文文件案包操作結合套用的討論參閱<a
+href="#s-archiving">拷貝及建立子目錄, 第 8.3
+節</a>，有關自動進行備份的討論參閱<a
+href="#s-cronjob">日程安排（<code>cron</code>，<code>at</code>）, 第 8.6.27
+節</a>。
+</p>
+
+<p>
+我只講解三個較容易使用的工具。
+</p>
+
+<hr>
+
+<h3><a name="s-rdiff-backup"></a>8.4.1 使用rdiff進行差異備份</h3>
+
+<p>
+<code>rdiff-backup</code>提供了簡單好用的方法對任何檔案內含連結進行歷史差異備份。例如要對<code>~/</code>目錄下的所有檔案備份到<code>/mnt/backup</code>：
+</p>
+
+<pre>
+     $ rdiff-backup --include ~/tmp/keep --exclude ~/tmp  ~/ /mnt/backup
+</pre>
+
+<p>
+從該文文件案包中取出三天前的舊資料恢復到<code>~/old</code>目錄：
+</p>
+
+<pre>
+     $ rdiff-backup -r 3D /mnt/backup ~/old
+</pre>
+
+<p>
+參閱<code>rdiff-backup(1)</code>。
+</p>
+
+<hr>
+
+<h3><a name="s-pdumpfs-backup"></a>8.4.2 使用<code>pdumpfs</code>進行每日備份</h3>
+
+<p>
+<code>pdumpfs</code>是一種簡單的每日備份系統，與Plan9的<code>dumpfs</code>一樣，它每天都儲存系統快照。任何時候都可以用它來恢復到某天的系統狀態。請使用<code>pdumpfs</code>和<code>cron</code>來備份你的home目錄。
+</p>
+
+<p>
+在目的地目錄中，<code>pdumpfs</code>以<samp>YYYY/MM/DD</samp>的方式建立系統快照。第一次執行時，它將所有來來源檔案拷貝到快照目錄。從每二次執行起，<code>pdumpfs</code>只有拷貝更新的或開新檔案的檔案，對於沒有改變的檔案用硬連結方式指向前一天的系統快照，以此來節省硬碟空間。
+</p>
+
+<pre>
+     $ pdumpfs <var>src-dir</var> <var>dest-dir</var> [<var>dest-basename</var>]
+</pre>
+
+<p>
+See <code>pdumpfs(8)</code>.
+</p>
+
+<hr>
+
+<h3><a name="s-backup"></a>8.4.3 使用 RCS 進行定期差異備份</h3>
+
+<p>
+<code>Changetrack</code>會定期對 RCS
+文文件案包中基於文本格式的群組態檔案的變化進行記錄。參閱<code>changetrack(1)</code>。
+</p>
+
+<pre>
+     # apt-get install changetrack
+     # vi changetrack.conf
+</pre>
+
+<hr>
+
+<h2><a name="s8.5"></a>8.5 系統凍結恢復</h2>
+
+<hr>
+
+<h3><a name="s-kill"></a>8.5.1 中止一個進程</h3>
+
+<p>
+執行<code>top</code>看看什麼進程的活動有異常。按「P」以CPU使用率排序，「M」以記憶體使用率排序，「k」可以中止一個進程。還有一種方法，使用
+BSD 風格的<samp>ps aux | less</samp>或 System-V 風格的<samp>ps -efH |
+less</samp>。System V 風格的排列會顯示父進程 ID
+<samp>PPID</samp>，這對中止發生錯誤的（死掉的）子進程十分有用。
+</p>
+
+<p>
+知道了進程的 ID
+，就可使用<code>kill</code>中止（或發信號給）某個進程，<code>killall</code>的作用正如其名一樣。經常使用的信號有：
+</p>
+
+<pre>
+      1: HUP，重啟daemon
+     15: TERM，普通中止
+      9: KILL，強令中止
+</pre>
+
+<hr>
+
+<h3><a name="s8.5.2"></a>8.5.2 Alt-SysRq</h3>
+
+<p>
+核心編譯選項「Magic SysRq key」提供系統強心針。在i386機器上按下 Alt-SysRq
+群組合鍵後，試試按下列各鍵<samp>r 0 k e i s u b</samp>，奇跡產生了：
+</p>
+
+<p>
+Un'r'aw讓鍵盤從 X 崩潰中重生。將控制台 (console)
+loglevel改為'0'以減少錯誤訊息。sa'k'（system attention
+key）中止目前的虛擬控制台 (console)
+的所有進程。t'e'rminate中止目前的終端設備除<code>init</code>外的所有進程。k'i'll中止除
+<code>init</code> 外的所有進程。
+</p>
+
+<p>
+'S'ync，'u'mount和re'b'oot幫你逃離真正的險境。
+</p>
+
+<p>
+詳情參閱<code>/usr/share/doc/kernel-doc-<var>version</var>/Documentation/sysrq.txt.gz</code>或<code>/usr/src/<var>kernel-version</var>/Documentation/sysrq.txt.gz</code>。
+</p>
+
+<hr>
+
+<h2><a name="s-nifty"></a>8.6 記住這些可愛的小指令</h2>
+
+<hr>
+
+<h3><a name="s8.6.1"></a>8.6.1 Pager</h3>
+
+<p>
+<code>less</code>就是預設的
+pager（檔案內容瀏覽器）。按「h」可獲得幫助。它比<code>more</code>更有用。在shell啟動script中執行<samp>eval
+$(lesspipe)</samp>或<samp>eval
+$(lessfile)</samp>可以讓<code>less</code>活力四射。詳情參閱<code>file:///usr/share/doc/less/LESSOPEN</code>。使用<samp>-R</samp>選項可輸出生癖字元and
+enables ANSI color escape sequences.參閱<code>less(1)</code>。
+</p>
+
+<p>
+對於某些編碼系統（EUC）<code>w3m</code>可能是更好的選擇。
+</p>
+
+<hr>
+
+<h3><a name="s8.6.2"></a>8.6.2 釋放記憶體</h3>
+
+<p>
+<code>free</code>和<code>top</code>能讓你了解記憶體資來源的許多有用訊息。別擔心「Mem:」行中「used」的大小，看看它下面的數字（本例的數字是38792）。
+</p>
+
+<pre>
+     $ free -k # for 256MB machine
+                  total       used       free     shared    buffers cached
+     Mem:        257136     230456      26680      45736     116136 75528
+     -/+ buffers/cache:      38792     218344
+     Swap:       264996          0     264996
+</pre>
+
+<p>
+實體記憶體的準確大小可通過<samp>grep '^Memory'
+/var/log/dmesg</samp>得到，本例將顯示「Memory: 256984k/262144k available (1652k
+kernel code, 412k reserved, 2944k data, 152k init)」。
+</p>
+
+<pre>
+     Total         = 262144k = 256M (1k=1024, 1M=1024k)
+     Free to dmesg = 256984k = Total - kernel - reserved - data - init
+     Free to shell = 257136k = Total - kernel - reserved - data
+</pre>
+
+<p>
+約有5MB記憶體系統不能使用，因為核心需要它。
+</p>
+
+<hr>
+
+<h3><a name="s8.6.3"></a>8.6.3 設定時間（BIOS）</h3>
+
+<pre>
+     # date MMDDhhmmCCYY
+     # hwclock --utc --systohc
+     # hwclock --show
+</pre>
+
+<p>
+設定系統時間和硬體時間為MM/DD hh:mm,
+CCYY。顯示時間為本地端時間而硬體時間使用的格式為 UTC。
+</p>
+
+<p>
+如果硬體(BIOS)時間設定程 GMT，請修改 <code>/etc/default/rcS</code>
+中的設定成<samp>UTC=yes</samp>。
+</p>
+
+<hr>
+
+<h3><a name="s8.6.4"></a>8.6.4 設定時間（NTP）</h3>
+
+<p>
+參考：<code><a
+href="http://www.tldp.org/HOWTO/TimePrecision-HOWTO/index.html">Managing
+Accurate Date and Time HOWTO</a></code>。
+</p>
+
+<hr>
+
+<h4><a name="s8.6.4.1"></a>8.6.4.1 擁有永久Internet連接的系統設定時間</h4>
+
+<p>
+設定系統小時鐘通過遠端伺服器自動對時：
+</p>
+
+<pre>
+     # ntpdate <var>server</var>
+</pre>
+
+<p>
+如果你的系統擁有永久的 Internet
+連接，應該將該指令加入<code>/etc/cron.daily/</code>。
+</p>
+
+<hr>
+
+<h4><a name="s8.6.4.2"></a>8.6.4.2 偶爾進行 Internet 連接的系統設定時間</h4>
+
+<p>
+使用 <code>chrony</code> 套件軟體。
+</p>
+
+<hr>
+
+<h3><a name="s-setterm"></a>8.6.5 如何控制 console 的特色，例如螢幕保護程式</h3>
+
+<p>
+執行下列指令來取消螢幕保護程式：
+</p>
+
+<p>
+對於 Linux console：
+</p>
+
+<pre>
+     # setterm -powersave off
+</pre>
+
+<p>
+啟動 kon2（kanji）console 執行：
+</p>
+
+<pre>
+     # kon -SaveTime 0
+</pre>
+
+<p>
+執行 X 可執行：
+</p>
+
+<pre>
+     # xset s off
+      或
+     # xset -dpms
+      或
+     # xscreensaver-command -prefs
+</pre>
+
+<p>
+參閱相關的幫助頁面來管理其餘的 console 功能。請參閱 <code>stty(1)</code>
+來改變終端機顯示的行數。
+</p>
+
+<hr>
+
+<h3><a name="s-getent"></a>8.6.6 查詢系統管理資料程式庫</h3>
+
+<p>
+Glibc提供了<code>getent(1)</code>查詢管理資料程式庫的各類項目。例如passwd、group、hosts、services、protocols、networks。
+</p>
+<pre>
+     getent database [key ...]
+</pre>
+
+<hr>
+
+<h3><a name="s8.6.7"></a>8.6.7 禁用聲音（響鈴）</h3>
+
+<p>
+最直接的方法是拔掉 PC 喇叭 ;-)，對於Bash shell可執行：
+</p>
+
+<pre>
+     echo &quot;set bell-style none&quot;&gt;&gt; ~/.inputrc
+</pre>
+
+<hr>
+
+<h3><a name="s8.6.8"></a>8.6.8 控制台 (console) 上的錯誤訊息</h3>
+
+<p>
+不想看螢幕顯示的錯誤訊息，喜好設定的方法是檢查<code>/etc/init.d/klogd</code>，在該script中設定<samp>KLOGD=&quot;-c
+<var>3</var>&quot;</samp>然後執行<samp>/etc/init.d/klogd
+restart</samp>。另一種方法是執行<samp>dmesg -n<var>3</var></samp>。
+</p>
+
+<p>
+這兒是各種錯誤層級的含義：
+</p>
+<ul>
+<li>
+<p>
+0: KERN_EMERG, 系統無法使用
+</p>
+</li>
+<li>
+<p>
+1: KERN_ALERT, 必須立即執行
+</p>
+</li>
+<li>
+<p>
+2: KERN_CRIT, 緊急狀態
+</p>
+</li>
+<li>
+<p>
+3: KERN_ERR, 錯誤狀態
+</p>
+</li>
+<li>
+<p>
+4: KERN_WARNING, 警告狀態
+</p>
+</li>
+<li>
+<p>
+5: KERN_NOTICE, 正常狀態且十分重要
+</p>
+</li>
+<li>
+<p>
+6: KERN_INFO, 報告
+</p>
+</li>
+<li>
+<p>
+7: KERN_DEBUG, debug-level訊息
+</p>
+</li>
+</ul>
+
+<p>
+如果你很厭惡詳細而無用的錯誤訊息，可以試試這個小補丁<code>shutup-abit-bp6</code>（位元於<code><a
+href="examples/">樣例script子目錄</a></code>）。
+</p>
+
+<p>
+另一個該看看的地方是<code>/etc/syslog.conf</code>;，檢查一下是否有訊息記錄被送出到了控制台
+(console) 設備。
+</p>
+
+<hr>
+
+<h3><a name="s8.6.9"></a>8.6.9 正確設定控制台 (console) 檔案類型</h3>
+
+<p>
+在類Unix系統中，console
+螢幕通常要呼叫程式庫例程，這就為使用者提供了一種獨立於終端設備的方式來更新螢幕上的文字，這是合理化的最佳選擇。參閱<code>ncurses(3X)</code>和<code>terminfo(5)</code>。
+</p>
+
+<p>
+在Debian系統中，有大量預定義項目：
+</p>
+
+<pre>
+     $ toe | less                  # 所有項目
+     $ toe /etc/terminfo/ | less   # 使用者可再群組態的項目
+</pre>
+
+<p>
+選擇好之後請設定 <samp>TERM</samp> 這個環境變數。
+</p>
+
+<p>
+當登入到遠端 Debian 系統時，如果 <code>xterm</code> 的 terminfo 項目在非 Debian
+的 <code>xterm</code>
+中失效，請將終端設備檔案類型改為支援較少特性的版本如「xterm-r6」。
+參閱<code>file:///usr/share/doc/libncurses5/FAQ</code>。「dumb」是terminfo的最小公分母。
+</p>
+
+<hr>
+
+<h3><a name="s8.6.10"></a>8.6.10 恢復 console 到穩定狀態</h3>
+
+<p>
+如果執行<samp>cat
+<var>some-binary-file</var></samp>後螢幕一片混亂（指令的返回值與你的輸入大相徑庭）：
+</p>
+
+<pre>
+     $ reset
+</pre>
+
+<hr>
+
+<h3><a name="s-dos2unix"></a>8.6.11 將 DOS 下的文字檔案轉換為Unix檔案類型</h3>
+
+<p>
+將 DOS 文字檔案（行尾=^M^J）轉換成Unix文字檔案（行尾=^J）。
+</p>
+
+<pre>
+     # apt-get install sysutils
+     $ dos2unix <var>dosfile</var>
+</pre>
+
+<hr>
+
+<h3><a name="s-recode"></a>8.6.12 利用 <code>recode</code> 來轉換文字檔</h3>
+
+<p>
+底下示範轉換文字檔在 DOS，Mac和Unix底下斷行的方法：
+</p>
+
+<pre>
+     $ recode /cl../cr &lt;<var>dos.txt</var> &gt;<var>mac.txt</var>
+     $ recode /cr.. &lt;<var>mac.txt</var> &gt;<var>unix.txt</var>
+     $ recode ../cl &lt;<var>unix.txt</var> &gt;<var>dos.txt</var>
+</pre>
+
+<p>
+<code>recode</code>依據不同字元集和介面來轉換檔案：
+</p>
+
+<pre>
+     $ recode <var>charset1</var>/<var>surface1</var>..<var>charset2</var>/<var>surface2</var> \
+       &lt;<var>input.txt</var> &gt;<var>output.txt</var>
+</pre>
+
+<p>
+一般常使用的字元集轉換(請參閱<a href="ch-tune.zh-tw.html#s-base-locale">locales
+簡介, 第 9.7.3 節</a>) [<a href="footnotes.zh-tw.html#f37" name="fr37">37</a>]
+:
+</p>
+<ul>
+<li>
+<p>
+<samp>us</samp> &mdash; ASCII (7 bits)
+</p>
+</li>
+<li>
+<p>
+<samp>l1</samp> &mdash; ISO Latin-1 (ISO-8859-1, Western Europe, 8 bits)
+</p>
+</li>
+<li>
+<p>
+<samp>EUCJP</samp> &mdash; EUC-JP for Japanese (Unix)
+</p>
+</li>
+<li>
+<p>
+<samp>SJIS</samp> &mdash; Shift-JIS for Japanese (Microsoft)
+</p>
+</li>
+<li>
+<p>
+<samp>ISO2022JP</samp> &mdash; Mail encoding for Japanese (7 bits)
+</p>
+</li>
+<li>
+<p>
+<samp>u2</samp> &mdash; UCS-2 (Universal Character Set, 2 bytes)
+</p>
+</li>
+<li>
+<p>
+<samp>u8</samp> &mdash; UTF-8 (Universal Transformation Format, 8 bits)
+</p>
+</li>
+</ul>
+
+<p>
+一般常用的介面為 [<a href="footnotes.zh-tw.html#f38" name="fr38">38</a>] ：
+</p>
+<ul>
+<li>
+<p>
+<samp>/cr</samp> &mdash; Carriage return as end of line (Mac text)
+</p>
+</li>
+<li>
+<p>
+<samp>/cl</samp> &mdash; Carriage return line feed as end of line (DOS text)
+</p>
+</li>
+<li>
+<p>
+<samp>/</samp> &mdash; Line feed as end of line (Unix text)
+</p>
+</li>
+<li>
+<p>
+<samp>/d1</samp> &mdash; Human readable bytewise decimal dump
+</p>
+</li>
+<li>
+<p>
+<samp>/x1</samp> &mdash; Human readable bytewise hexidecimal dump
+</p>
+</li>
+<li>
+<p>
+<samp>/64</samp> &mdash; Base64 encoded text
+</p>
+</li>
+<li>
+<p>
+<samp>/QP</samp> &mdash; Quoted-Printable encoded text
+</p>
+</li>
+</ul>
+
+<p>
+相關的資訊請參閱<samp>info recode</samp>。
+</p>
+
+<p>
+也有一些特別的轉換工具：
+</p>
+<ul>
+<li>
+<p>
+字元集轉換：
+</p>
+<ul>
+<li>
+<p>
+<code>iconv</code> &mdash; locale encoding conversions
+</p>
+</li>
+<li>
+<p>
+<code>konwert</code> &mdash; fancy encoding conversions
+</p>
+</li>
+</ul>
+</li>
+<li>
+<p>
+二進制檔案轉換：
+</p>
+<ul>
+<li>
+<p>
+<code>uuencode</code> 和 <code>uudecode</code> &mdash; Unix 上有的。
+</p>
+</li>
+<li>
+<p>
+<code>mimencode</code> &mdash; 使用在 Mail。
+</p>
+</li>
+</ul>
+</li>
+</ul>
+
+<hr>
+
+<h3><a name="s-perl-i"></a>8.6.13 Regular-expression substitution</h3>
+
+<p>
+將所有檔案<var>FILES</var>
+...中的所有<var>FROM_REGEX</var>字段取代成<var>TO_TEXT</var>字段。
+</p>
+
+<pre>
+     $ perl -i -p -e 's/<var>FROM_REGEX</var>/<var>TO_TEXT</var>/g;' <var>FILES</var> ...
+</pre>
+
+<p>
+<samp>-i</samp>表示「就地編輯」，<samp>-p</samp>表示「在<var>FILES</var>...各檔案中循環」。如果置換很復雜，應使用參數<samp>-i.bak</samp>而非<samp>-i</samp>，這有助於發生錯誤恢復；它會將每個原始檔案儲存為以<samp>.bak</samp>為後綴的備份檔案。
+</p>
+
+<hr>
+
+<h3><a name="s8.6.14"></a>8.6.14 使用 script 來編輯檔案</h3>
+
+<p>
+下面的script將刪除 5&ndash;10 行以及 16&ndash;20 行。
+</p>
+
+<pre>
+     #!/bin/bash
+     ed $1 &lt;&lt;EOF
+     16,20d
+     5,10d
+     w
+     q
+     EOF
+</pre>
+
+<p>
+在此，<code>ed</code>指令與<code>vi</code>指令模式下的是一樣的，從外部編輯檔案的方式使它易於script化。
+</p>
+
+<hr>
+
+<h3><a name="s8.6.15"></a>8.6.15 提取來源檔案修改部分合併到更新包</h3>
+
+<p>
+下面的操作將根據檔案位元置，提取來源檔案的修改部分並建立統一的 diff 檔案
+<var>file.patch0</var> 或 <var>file.patch1</var>：
+</p>
+
+<pre>
+     $ diff -u <var>file.old</var> <var>file.new</var> &gt; <var>file.patch0</var>
+     $ diff -u <var>old/file</var> <var>new/file</var> &gt; <var>file.patch1</var>
+</pre>
+
+<p>
+diff
+檔案（也稱修正檔案）通常用於送出程式更新。收到的修正檔案可使用下面的方法更新另一個<var>檔案</var>：
+</p>
+
+<pre>
+     $ patch -p0 <var>file</var> &lt; <var>file.patch0</var>
+     $ patch -p1 <var>file</var> &lt; <var>file.patch1</var>
+</pre>
+
+<p>
+如果有三個版本的來源代碼，使用<code>diff3</code>來合併效率更高：
+</p>
+
+<pre>
+     $ diff3 -m <var>file.mine</var> <var>file.old</var> <var>file.yours</var> &gt; <var>file</var>
+</pre>
+
+<hr>
+
+<h3><a name="s8.6.16"></a>8.6.16 分割大檔案</h3>
+
+<pre>
+     $ split -b 650m <var>file</var>   # 將大檔案分塊成多個650MB的小檔案
+     $ cat x* &gt;<var>largefile</var>    # 將所有小檔案合併成一個大檔案
+</pre>
+
+<hr>
+
+<h3><a name="s8.6.17"></a>8.6.17 從文字檔格式的表格中抽取資料</h3>
+
+<p>
+假設有一個文字檔案名為<code>DPL</code>，其中存放著所有前 Debian
+計畫領導人的名字和他們的上臺日期，表格格式是以空格做為分隔的。
+</p>
+
+<pre>
+     Ian     Murdock   August  1993
+     Bruce   Perens    April   1996
+     Ian     Jackson   January 1998
+     Wichert Akkerman  January 1999
+     Ben     Collins   April   2001
+     Bdale   Garbee    April   2002
+     Martin  Michlmayr March   2003
+</pre>
+
+<p>
+AWK經常用於從這類檔案中提取資料。
+</p>
+
+<pre>
+     $ awk '{ print $3 }' &lt;DPL                   # month started
+     August
+     April
+     January
+     January
+     April
+     April
+     March
+     $ awk '($1==&quot;Ian&quot;) { print }' &lt;DPL          # DPL called Ian
+     Ian     Murdock   August  1993
+     Ian     Jackson   January 1998
+     $ awk '($2==&quot;Perens&quot;) { print $3,$4 }' &lt;DPL # When Perens started
+     April 1996
+</pre>
+
+<p>
+Shells 像是 Bash 也可以用來分析這類型的檔案：
+</p>
+
+<pre>
+     $ while read first last month year; do 
+         echo $month
+       done &lt;DPL
+     ... same output as the first Awk example
+</pre>
+
+<p>
+這裡， <code>read</code> 內建的指令使用 $IFS (internal field separators)
+裡的字元來將行拆成多個文字。
+</p>
+
+<p>
+如果你改變 IFS 成 &quot;:&quot;，你就能使用 shell 來分析
+<code>/etc/passwd</code> ：
+</p>
+
+<pre>
+     $ oldIFS=&quot;$IFS&quot;   # save old value
+     $ IFS=&quot;:&quot;
+     $ while read user password uid gid rest_of_line; do
+         if [ &quot;$user&quot; = &quot;osamu&quot; ]; then 
+           echo &quot;$user's ID is $uid&quot;
+         fi
+       done &lt; /etc/passwd
+     osamu's ID is 1001
+     $ IFS=&quot;$oldIFS&quot;   # restore old value
+</pre>
+
+<p>
+(在 Awk 中，使用 <samp>FS=&quot;:&quot;</samp>就能達成相同的功能。)
+</p>
+
+<p>
+IFS也能用來拆解參數的展開、指令交換、算數運算。這些功能如果夾在單引號或雙引號之內的話，將會失效。預設的
+IFS 是 &lt;space&gt;, &lt;tab&gt;, and &lt;newline&gt; 的組合。
+</p>
+
+<p>
+請小心這個 IFS 陷阱。尤其當 shell
+轉譯<strong>讀入</strong>的script時，可能會出現奇怪的問題。
+</p>
+
+<pre>
+     $ IFS=&quot;:,&quot;                        # use &quot;:&quot; and &quot;,&quot; as IFS
+     $ echo IFS=$IFS,   IFS=&quot;$IFS&quot;     # echo is a Bash built-in
+     IFS=  , IFS=:,
+     $ date -R                         # just a command output
+     Sat, 23 Aug 2003 08:30:15 +0200
+     $ echo $(date -R)                 # sub shell --&gt; input to main shell
+     Sat  23 Aug 2003 08 30 36 +0200
+     $ unset IFS                       # reset IFS to the default
+     $ echo $(date -R)
+     Sat, 23 Aug 2003 08:30:50 +0200
+</pre>
+
+<hr>
+
+<h3><a name="s-scrp-snip"></a>8.6.18 精巧的管道指令輔助script</h3>
+
+<p>
+下列script做為管道的一部分十分有用。
+</p>
+
+<pre>
+     find /usr | egrep -v &quot;/usr/var|/usr/tmp|/usr/local&quot;
+                          # find all files in /usr excluding some files
+     xargs -n 1 <var>command</var>   # run command for all items from stdin
+     xargs -n 1 echo |    # split white-space-separated items into lines
+     xargs echo      |    # merge all lines into a line
+     grep -e <var>pattern</var>|     # extract lines containing <var>pattern</var>
+     cut -d: -f3 -|
+             # extract third field separated by : (passwd file etc.)
+     awk '{ print $3 }' | # extract third field separated by whitespaces
+     awk -F'\t' '{ print $3 }' |
+             # extract third field separated by tab
+     col -bx |            # remove backspace and expand tabs to spaces
+     expand -|            # expand tabs
+     sort -u|             # sort and remove duplicates
+     
+     tr '\n' ' '|         # concatenate lines into one line
+     tr '\r' ''|          # remove CR
+     tr 'A-Z' 'a-z'|      # convert uppercase to lowercase
+     sed 's/^/# /'|       # make each line a comment
+     sed 's/\<var>.ext</var>//g'|    # remove <var>.ext</var>
+     sed  -n -e 2p|       # print the second line 
+     head -n 2 -|         # print the first 2 lines
+     tail -n 2 -|         # print the last 2 lines
+</pre>
+
+<hr>
+
+<h3><a name="s8.6.19"></a>8.6.19 查看每個檔案的輕巧 script</h3>
+
+<p>
+The following ways of looping over each file matching
+<samp>*.<var>ext</var></samp> ensures proper handling of funny file names such
+as ones with spaces and performs equivalent process:
+</p>
+<ul>
+<li>
+<p>
+Shell loop (這個範例是<samp>PS2=&quot;
+&quot;</samp>的多行風格。要打成一行的話，您必須在每一行末加入分號。)
+</p>
+
+<pre>
+     for <var>x</var> in *.<var>ext</var>; do
+       if test -f &quot;$<var>x</var>&quot;; then
+         <var>command</var> &quot;$<var>x</var>&quot;
+       fi
+     done
+</pre>
+</li>
+</ul>
+<ul>
+<li>
+<p>
+<code>find</code> and <code>xargs</code> combination:
+</p>
+
+<pre>
+     find . -type f -maxdepth 1 -name '*.<var>ext</var>' -print0 | \
+      xargs -0 -n 1 <var>command</var>
+</pre>
+</li>
+</ul>
+<ul>
+<li>
+<p>
+<code>find</code> with <samp>-exec</samp> option with a command:
+</p>
+
+<pre>
+     find . -type f -maxdepth 1 -name '*.<var>ext</var>' \
+      -exec <var>command</var> '{}' \;
+</pre>
+</li>
+</ul>
+<ul>
+<li>
+<p>
+<code>find</code> with <samp>-exec</samp> option with a short shell script:
+</p>
+
+<pre>
+     find . -type f -maxdepth 1 -name '*.<var>ext</var>' \
+      -exec sh -c &quot;<var>command</var> '{}' &amp;&amp; echo 'successful'&quot; \;
+</pre>
+</li>
+</ul>
+
+<hr>
+
+<h3><a name="s-perl-mad"></a>8.6.20 輕巧的 Perl Script</h3>
+
+<p>
+雖然 Awk scripts 透過<code>a2p(1)</code>就能自動轉換成 Perl，對於只有一行的 Awk
+Script 到 Perl Script，直接手動修改是最方便的了。例如：
+</p>
+
+<pre>
+     awk '($2==&quot;1957&quot;) { print $3 }' |
+</pre>
+
+<p>
+同等於下列任意一行：
+</p>
+
+<pre>
+     perl -ne '@f=split; if ($f[1] eq &quot;1957&quot;) { print &quot;$f[2]\n&quot;}' |
+     perl -ne 'if ((@f=split)[1] eq &quot;1957&quot;) { print &quot;$f[2]\n&quot;}' |
+     perl -ne '@f=split; print $f[2] if ( $f[1]==1957 )' |
+     perl -lane 'print $F[2] if $F[1] eq &quot;1957&quot;' |
+</pre>
+
+<p>
+其實上面各行中所有<code>perl</code>參數中的空格均可去掉，這得益於Perl的數字字串自動轉換功能。
+</p>
+
+<pre>
+     perl -lane 'print$F[2]if$F[1]eq+1957' |
+</pre>
+
+<p>
+有關指令行參數的訊息可參閱<code>perlrun(1)</code>，在<code><a
+href="http://perlgolf.sourceforge.net">http://perlgolf.sourceforge.net</a></code>有更多令人著魔的Perl
+script，你會感興趣的。
+</p>
+
+<hr>
+
+<h3><a name="s8.6.21"></a>8.6.21 從網頁上取得文件或通信清單(mailing list)</h3>
+
+<p>
+下面的操作將網頁轉化為文字檔案。從網上拷貝設定檔案時十分有用。
+</p>
+
+<pre>
+     $ lynx -dump http://<var>www.remote-site.com/help-info.html</var> &gt;<var>textfile</var>
+</pre>
+
+<p>
+<code>links</code>和<code>w3m</code>也可以這麼用，只是生成的文本樣式可能略有不同。
+</p>
+
+<p>
+如果是信件清單文文件案，可使用<code>munpack</code>從文本獲得mime內容。
+</p>
+
+<hr>
+
+<h3><a name="s8.6.22"></a>8.6.22 列印網頁</h3>
+
+<p>
+下面的操作將網頁內容列印成PostScript檔案或送出到印表機。
+</p>
+
+<pre>
+     $ apt-get install html2ps
+     $ html2ps <var>URL</var> | lpr
+</pre>
+
+<p>
+參閱<a href="ch-install.zh-tw.html#s-lprlpd"><code>lpr</code>/<code>lpd</code>,
+第 3.6.1
+節</a>。還可使用<code>a2ps</code>和<code>mpage</code>套服軟體生成PostScript檔案。
+</p>
+
+<hr>
+
+<h3><a name="s8.6.23"></a>8.6.23 列印幫助頁面</h3>
+
+<p>
+下面的操作將幫助頁面列印成PostScript檔案或送出到印表機。
+</p>
+
+<pre>
+     $ man -Tps <var>some-manpage</var> | lpr
+     $ man -Tps <var>some-manpage</var> | mpage -2 | lpr
+</pre>
+
+<hr>
+
+<h3><a name="s8.6.24"></a>8.6.24 合併兩個Postscript或PDF檔案</h3>
+
+<p>
+可以將兩個Postscript檔案或PDF檔案合併。
+</p>
+
+<pre>
+     $ gs -q -dNOPAUSE -dBATCH -sDEVICE=pswrite \
+       -sOutputFile=<var>bla.ps</var> -f <var>foo1.ps</var> <var>foo2.ps</var>
+     $ gs -q -dNOPAUSE -dBATCH -sDEVICE=pdfwrite \
+       -sOutputFile=<var>bla.pdf</var> -f <var>foo1.pdf</var> <var>foo2.pdf</var>
+</pre>
+
+<hr>
+
+<h3><a name="s8.6.25"></a>8.6.25 指令耗時</h3>
+
+<p>
+顯示某進程的耗時
+</p>
+
+<pre>
+     # time <var>some-command</var> &gt;/dev/null
+     real    0m0.035s       # time on wall clock (elapsed real time)
+     user    0m0.000s       # time in user mode
+     sys     0m0.020s       # time in kernel mode
+</pre>
+
+<hr>
+
+<h3><a name="s8.6.26"></a>8.6.26 <code>nice</code>指令</h3>
+
+<p>
+使用<code>nice</code>（來自GNU
+<code>shellutils</code>套服軟體）可設定指令啟動時的nice值。<code>renice</code>（<code>bsdutils</code>）和<code>top</code>可以重設進程的nice值。nice值為19代表最慢的（優先等級最低的）進程；負值就「not-nice」，如-20代表非常快的（優先等級高的）進程。只有Supervisor可以設定負nice值。
+</p>
+
+<pre>
+     # nice  -19 <var>top</var>                                         # very nice
+     # nice --20 <var>cdrecord -v -eject speed=2 dev=0,0 disk.img</var> # very fast
+</pre>
+
+<p>
+有時過度的nice值對系統弊大於利，所以使用該指令要小心。
+</p>
+
+<hr>
+
+<h3><a name="s-cronjob"></a>8.6.27 日程安排（<code>cron</code>，<code>at</code>）</h3>
+
+<p>
+在Linux下使用<code>cron</code>和<code>at</code>進行工作日程安排。參閱<code>at(1)</code>、<code>crontab(5)</code>、<code>crontab(8)</code>。
+</p>
+
+<p>
+執行指令<samp>crontab
+-e</samp>建立或編輯crontab檔案，為規律事務（按周期循環的事務）安排日程。下面的一個crontab檔案樣例：
+</p>
+
+<pre>
+     # use /bin/sh to run commands, no matter what /etc/passwd says
+     SHELL=/bin/sh
+     # mail any output to `paul', no matter whose crontab this is
+     MAILTO=paul
+     # Min Hour DayOfMonth Month DayOfWeek command (Day... are OR'ed)
+     # run at 00:05, every day
+     5  0  *  * *   $HOME/bin/daily.job &gt;&gt; $HOME/tmp/out 2&gt;&amp;1
+     # run at 14:15 on the first of every month -- output mailed to paul
+     15 14 1  * *   $HOME/bin/monthly
+     # run at 22:00 on weekdays(1-5), annoy Joe. % for newline, last % for cc:
+     0 22 *   * 1-5 mail -s &quot;It's 10pm&quot; joe%Joe,%%Where are your kids?%.%%
+     23 */2 1 2 *   echo &quot;run 23 minutes after 0am, 2am, 4am ..., on Feb 1&quot;
+     5  4 *   * sun echo &quot;run at 04:05 every sunday&quot;
+     # run at 03:40 on the first Monday of each month
+     40 3 1-7 * *   [ &quot;$(date +%a)&quot; == &quot;Mon&quot; ] &amp;&amp; command -args
+</pre>
+
+<p>
+執行<code>at</code>指令為偶然工作（只執行一次的工作）安排日程：
+</p>
+
+<pre>
+     $ echo '<var>command -args</var>'| at 3:40 monday
+</pre>
+
+<hr>
+
+<h3><a name="s-screen"></a>8.6.28 用<code>screen</code>來切換 console</h3>
+
+<p>
+The
+<code>screen</code>程式容許在單一的物理終端設備或終端設備類比視窗執行多個偽終端設備，每個偽終端設備都擁有自己的交談式shell。即便可以使用Linux偽終端設備或多個<code>xterm</code>視窗，研究一下如何設定<code>screen</code>豐富的特性仍很有益，這些特性內含：
+</p>
+<ul>
+<li>
+<p>
+回溯歷史顯示，
+</p>
+</li>
+<li>
+<p>
+拷貝和貼上，
+</p>
+</li>
+<li>
+<p>
+輸出到日誌，
+</p>
+</li>
+<li>
+<p>
+圖形入口，
+</p>
+</li>
+<li>
+<p>
+將終端設備與整個<code>screen</code>階段作業<strong>分離</strong>，稍後再連接。
+</p>
+</li>
+</ul>
+
+<hr>
+
+<h4><a name="s8.6.28.1"></a>8.6.28.1 遠端存取作業方式</h4>
+
+<p>
+If you frequently log on to a Linux machine
+如果你經常從遠端終端設備登入到Linux機器或使用VT100終端設備程式，<code>screen</code>的<strong>detach</strong>（分離）特性將簡化你的生活。
+</p>
+
+<!-- ol type="1" start="1"  -->
+<li>
+<p>
+通過拔號連接登入，執行了一個非常復雜的<code>screen</code>會談，開啟舊檔了好幾個視窗，有編輯器和其它一些程式。
+</p>
+</li>
+<li>
+<p>
+突然你需要離開終端設備一下，但你並不想掛斷連線中止工作。
+</p>
+</li>
+<li>
+<p>
+輸入<samp>^A
+d</samp><strong>離開</strong>階段作業，然後登出系統。（或是更簡單些，輸入<samp>^A
+DD</samp>離開階段作業並自動登出系統）
+</p>
+</li>
+<li>
+<p>
+當你回來時，需要再次登入，可輸入指令<samp>screen
+-r</samp>，<code>screen</code>會如魔法般地重新連線上所有開啟舊檔的視窗。
+</p>
+</li>
+</ol>
+
+<hr>
+
+<h4><a name="s8.6.28.2"></a>8.6.28.2 典型的<code>screen</code>指令</h4>
+
+<p>
+一但開啟舊檔了<code>screen</code>程式，除了指令按鍵（預設值為<samp>^A</samp>）所有的鍵盤輸入都被送到目前的視窗，所有的<code>screen</code>指令均按特定方式輸入：<samp>^A</samp>加一個單鍵指令[加一些參數]的。常用的指令有：
+</p>
+
+<pre>
+     ^A ?     顯示說明螢幕（顯示指令集）
+     ^A c     建立並切換到新增視窗
+     ^A n     跳到下一個視窗
+     ^A p     跳到上一個視窗
+     ^A <var>0</var>     跳到<var>0</var>號視窗
+     ^A w     顯示視窗清單
+     ^A a     將Ctrl-A做為鍵盤輸入送出到目前的視窗
+     ^A h     對目前的視窗做硬拷貝寫入到檔案
+     ^A H     開始/中止將目前的視窗vぁ饇O錄到檔案
+     ^A ^X    鎖定終端設備（密碼保護）
+     ^A d     從終端設備分離螢幕階段作業
+     ^A DD    分離螢幕階段作業並結束登入
+</pre>
+
+<p>
+以上只是<code>screen</code>指令的一個很小的子集。只要是你認為<code>screen</code>能幹的事，沒準它真就可以！詳情參閱<code>screen(1)</code>。
+</p>
+
+<hr>
+
+<h4><a name="s8.6.28.3"></a>8.6.28.3 <code>screen</code>階段作業中的退格鍵和Ctrl-H</h4>
+
+<p>
+在執行<code>screen</code>時，如果發現退格鍵和/或Ctrl-H無法正常工作，可編輯<code>/etc/screenrc</code>，找到這行：
+</p>
+<pre>
+     bindkey -k kb stuff &quot;\177&quot;
+</pre>
+
+<p>
+將這注釋掉（例如在句首添加「#」）。
+</p>
+
+<hr>
+
+<h4><a name="s8.6.28.4"></a>8.6.28.4 X下與<code>screen</code>等價的程式</h4>
+
+<p>
+找找<code>xmove</code>。參閱<code>xmove(1)</code>。
+</p>
+
+<hr>
+
+<h3><a name="s-net-test"></a>8.6.29 網路測試基礎</h3>
+
+<p>
+安裝<code>netkit-ping</code>、<code>traceroute</code>、<code>dnsutils</code>、<code>ipchains</code>（適用於2.2版核心）、<code>iptables</code>（適用於2.4版核心）和<code>net-tools</code>套服軟體，然後執行：
+</p>
+
+<pre>
+     $ ping <var>yahoo.com</var>            # 檢查Internet連接
+     $ traceroute <var>yahoo.com</var>      # 追蹤IP封包
+     $ ifconfig                  # 檢查主電腦設定
+     $ route -n                  # 檢查路由設定
+     $ dig <var>[@dns-server.com] host.dom [{a|mx|any}]</var> |less
+           # 檢查<var>dns-server.com</var>的<var>host.dom</var> DNS記錄
+           # 尋找<var>{a|mx|any}</var>記錄
+     $ ipchains -L -n |less     # 檢查包過濾(2.2 kernel)
+     $ iptables -L -n |less      # 檢查包過濾(2.4 kernel)
+     $ netstat -a                # 尋找系統上所有開啟舊檔的連接埠
+     $ netstat -l --inet         # 尋找系統監聽的連接埠
+     $ netstat -ln --tcp         # 尋找系統監聽的TCP連接埠（連接埠數字）
+</pre>
+
+<hr>
+
+<h3><a name="s-flush-mail"></a>8.6.30 清理（flush）本地端的 Mail 佇列</h3>
+
+<p>
+想要：清理（flush）本地端的 Mail 佇列
+</p>
+
+<pre>
+     # exim4 -q    # 清理待讀信件
+     # exim4 -qf   # 清理所有信件
+     # exim4 -qff  # 清理凍結信件
+</pre>
+
+<p>
+<samp>-qff</samp>選項用在<code>/etc/ppp/ip-up.d/exim</code>script中效果更好。在
+Woody 和更舊的版本中，改用<code>exim</code>來取代<code>exim4</code>。
+</p>
+
+<hr>
+
+<h3><a name="s-remove-mail"></a>8.6.31 刪除已凍結的信件</h3>
+
+<p>
+刪除本地端凍結信件並返回發生錯誤訊息：
+</p>
+
+<pre>
+     # exim4 -Mg `mailq | grep frozen | awk '{ print $3 }'`
+</pre>
+
+<p>
+在 Woody 和更舊的版本中，改用<code>exim</code>來取代<code>exim4</code>。
+</p>
+
+<hr>
+
+<h3><a name="s8.6.32"></a>8.6.32 重新寄送<code>mbox</code>中的信件</h3>
+
+<p>
+如果home目錄沒有空間造成<code>procmail</code>不能處理信件，就需要對磁碟空間進行擴容，擴容完成後需要手動分發<code>/var/mail/<var>username</var></code>目錄中的信件到home目錄中的分類信箱，執行：
+</p>
+
+<pre>
+     # /etc/init.d/exim4 stop
+     # formail -s procmail &lt;/var/mail/<var>username</var>
+     # /etc/init.d/exim4 start
+</pre>
+
+<p>
+在 Woody 和更舊的版本中，改用<code>exim</code>來取代<code>exim4</code>。
+</p>
+
+<hr>
+
+<h3><a name="s8.6.33"></a>8.6.33 清理檔案內容</h3>
+
+<p>
+要清理某些檔案如日誌檔案的內容，千萬不要使用<samp>rm</samp>刪除檔案然後再建立一個新的空檔案，因為在兩次操作的間隔，系統可能需要存取該檔案。下面是清理檔案內容的安全方法：
+</p>
+
+<pre>
+     $ :&gt;<var>file-to-be-cleared</var>
+</pre>
+
+<hr>
+
+<h3><a name="s-dummyfile"></a>8.6.34 空檔案</h3>
+
+<p>
+下面的指令可以建立空檔案：
+</p>
+
+<pre>
+     $ dd if=/dev/zero    of=<var>filename</var> bs=1k count=5 # 5KB of zero content
+     $ dd if=/dev/urandom of=<var>filename</var> bs=1M count=7 # 7MB of random content
+     $ touch <var>filename</var> #  create 0B file (if file exists, updates mtime)
+</pre>
+
+<p>
+例如，最實用的使用方式是從Debian啟動軟式磁碟機的shell中執行下列指令將硬碟<code>/dev/hda</code>的內容完全清理。
+</p>
+
+<pre>
+     # dd if=/dev/urandom of=/dev/hda; dd if=/dev/zero of=/dev/hda
+</pre>
+
+<hr>
+
+<h3><a name="s-chroot"></a>8.6.35 <code>chroot</code></h3>
+
+<p>
+<code>chroot</code>程式，<code>chroot(8)</code>，不需要重啟系統，就可以在單獨的系統上同時執行多個不同的GNU/Linux環境。
+</p>
+
+<p>
+還可以在較快主電腦的chroot下執行某些需耗大量系統資來源記憶體的程式如<code>apt-get</code>或<code>dselect</code>，並將較慢子機的硬碟通過NFS方式掛載到主電腦，開放讀/寫權限，在主電腦上以chroot方式操作子機。
+</p>
+
+<hr>
+
+<h4><a name="s-chroot-debian"></a>8.6.35.1 用<code>chroot</code>來執行不同版本的Debian</h4>
+
+<p>
+在Sarge中使用<code>debootstrap</code>指令很容易建構chroot
+Debian環境。在Sarge後續版本，你可改用<code>cdebootstrap</code>和適當參數來替代。例如，在一臺擁有快速Internet連接的機器的<var>/sid-root</var>下建立一個Sid
+chroot：
+</p>
+
+<pre>
+     main # cd /; mkdir <var>/sid-root</var>
+     main # debootstrap sid <var>/sid-root</var> <var>http://ftp.debian.org/debian/</var>
+     ... watch it download the whole system
+     main # echo &quot;proc <var>/sid-root</var>/proc proc none 0 0&quot; &gt;&gt; /etc/fstab
+     main # mount <var>/sid-root</var>/proc
+     main # mount /dev/ <var>/sid-root</var>/dev -o bind
+     main # cp /etc/hosts <var>/sid-root</var>/etc/hosts
+     main # chroot <var>/sid-root</var> /bin/bash
+     chroot # cd /dev; /sbin/MAKEDEV generic; cd -
+     chroot # apt-setup # set-up /etc/apt/sources.list
+     chroot # vi /etc/apt/sources.list # point the source to unstable
+     chroot # dselect  # you may use aptitude, install mc and vim :-)
+</pre>
+
+<p>
+現在你就擁有了一個全功能Debian子系統，可以盡情測試而不必擔心主Debian受到不利影響。
+</p>
+
+<p>
+該<code>debootstrap</code>套用技巧還可以實現在沒有Debian安裝盤的情況下，從另一個GNU/Linux發行版下安裝Debian。參閱<code><a
+href="http://www.debian.org/releases/stable/i386/apcs04">http://www.debian.org/releases/stable/i386/apcs04</a></code>。
+</p>
+
+<hr>
+
+<h4><a name="s-chroot-console"></a>8.6.35.2 設定<code>chroot</code>登入</h4>
+
+<p>
+輸入<samp>chroot <var>/sid-root</var>
+/bin/bash</samp>非常簡單，但這將沿用目前的的所有環境變量，你可能並不希望這樣並且有時還會出問題。更好的方法是，在別的虛擬終端設備上執行另一個登入進程，登入到chroot目錄。
+</p>
+
+<p>
+在Debian系統中預設值從<samp>tty1</samp>到<samp>tty6</samp>執行Linux
+console，<samp>tty7</samp>執行 X
+Window系統，在本例中，我們將<samp>tty8</samp>設定成chroot console。按照<a
+href="#s-chroot-debian">用<code>chroot</code>來執行不同版本的Debian, 第
+8.6.35.1 節</a>中的描述建立好chroot系統後，就可以在主系統的root shell中輸入：
+</p>
+
+<pre>
+     main # echo &quot;8:23:respawn:/usr/sbin/chroot <var>/sid-root</var> &quot;\
+            &quot;/sbin/getty 38400 tty8&quot; &gt;&gt; /etc/inittab
+     main # init q    # reload init
+</pre>
+
+<hr>
+
+<h4><a name="s-chroot-x"></a>8.6.35.3 群組態<code>chroot</code>下的X</h4>
+
+<p>
+想在 chroot 下安全地執行最新版的 X 和 GNOME
+嗎？完全可以！下面的例子將實現在虛擬終端設備<samp>vt9</samp>下執行 GDM。
+</p>
+
+<p>
+首先，按照<a
+href="#s-chroot-debian">用<code>chroot</code>來執行不同版本的Debian, 第
+8.6.35.1
+節</a>中描述的方法安裝好chroot系統，從主系統的root下拷貝關鍵群組態檔案到chroot系統。
+</p>
+
+<pre>
+     main # cp /etc/X11/XF86Config-4 <var>/sid-root</var>/etc/X11/XF86Config-4
+     main # chroot <var>/sid-root</var> # or use chroot console
+     chroot # cd /dev; /sbin/MAKEDEV generic; cd -
+     chroot # apt-get install gdm gnome x-window-system
+     chroot # vi /etc/gdm/gdm.conf # do s/vt7/vt9/ in [servers] section
+     chroot # /etc/init.d/gdm start
+</pre>
+
+<p>
+在此，編輯<code>/etc/gdm/gdm.conf</code>來改變第一個虛擬終端裝置，使其在<samp>vt7</samp>到<samp>vt9</samp>上建立虛擬終端設備。
+</p>
+
+<p>
+現在可以很容易地能過切換Linux虛擬終端設備來實現在主系統的X環境和chroot系統的X環境之間轉換，例如使用Ctrl-Alt-F7和Ctrl-Alt-F9。酷吧！
+</p>
+
+<p>
+[FIXME] 在chroot系統下<code>gdm</code>的initscript中添加一條注釋和一條連結。
+</p>
+
+<hr>
+
+<h4><a name="s-chroot-dist"></a>8.6.35.4 使用<code>chroot</code>來執行其它發行版</h4>
+
+<p>
+很容易建立一個其它發行版的 chroot
+環境。使用其它發行版的安裝程式將它們安裝到單獨的硬碟分區中。例如root分區位元於<code><var>/dev/hda9</var></code>：
+</p>
+
+<pre>
+     main # cd /; mkdir <var>/other-dist</var>
+     main # mount -t ext3 <var>/dev/hda9</var> <var>/other-dist</var>
+     main # chroot <var>/other-dist</var> /bin/bash
+</pre>
+
+<p>
+然後，執行<a
+href="#s-chroot-debian">用<code>chroot</code>來執行不同版本的Debian, 第
+8.6.35.1 節</a>、<a href="#s-chroot-console">設定<code>chroot</code>登入, 第
+8.6.35.2 節</a>和<a href="#s-chroot-x">群組態<code>chroot</code>下的X, 第
+8.6.35.3 節</a>中描述的內容。
+</p>
+
+<hr>
+
+<h4><a name="s-chroot-build"></a>8.6.35.5 使用<code>chroot</code>來編譯軟體</h4>
+
+<p>
+這兒有一個很特殊的chroot套服軟體<code>pbuilder</code>，它構造一個chroot系統並在其中編譯套服軟體。該體系可用於檢查套服軟體編譯時關聯關係是否正確，並確保編譯生成的套服軟體中沒有不必要的或錯誤的關聯關係。
+</p>
+
+<hr>
+
+<h3><a name="s8.6.36"></a>8.6.36 怎樣檢查 hard links</h3>
+
+<p>
+檢查兩個檔案是否是指向同一個檔案的兩個硬連結：
+</p>
+
+<pre>
+      
+     $ ls -li <var>file1</var> <var>file2</var>
+</pre>
+
+<hr>
+
+<h3><a name="s8.6.37"></a>8.6.37 <code>mount</code>硬碟上的映象檔案</h3>
+
+<p>
+如果 <code><var>file.img</var></code>
+檔案是硬碟內容的對映檔案，而且原始硬碟的群組態參數為 <var>xxxx</var> =
+(bytes/sector) *
+(sectors/cylinder)，那麼，下面的指令將其掛載到<code>/mnt</code>：
+</p>
+
+<pre>
+     # mount -o loop,offset=<var>xxxx</var> <var>file.img</var> /mnt
+</pre>
+
+<p>
+注意絕大部分的硬碟都是 512 bytes/sector。
+</p>
+
+<hr>
+
+<h3><a name="s-smbmount"></a>8.6.38 Samba</h3>
+
+<p>
+取得 Windows 檔案的基本方法：
+</p>
+
+<pre>
+     # mount -t smbfs -o <var>username=myname,uid=my_uid,gid=my_gid</var> \
+             <var>//server/share /mnt/smb</var>  # mount Windows files to Linux
+     # smbmount <var>//server/share /mnt/smb</var> \
+             -o &quot;<var>username=myname,uid=my_uid,gid=my_gid</var>&quot;
+     # smbclient -L <var>192.168.1.2</var> # list the shares on a computer
+</pre>
+
+<p>
+可從 Linux 檢查 Samba 網路上的芳鄰：
+</p>
+
+<pre>
+     # smbclient -N -L <var>ip_address_of_your_PC</var> | less
+     # nmblookup -T &quot;*&quot;
+</pre>
+
+<hr>
+
+<h3><a name="s8.6.39"></a>8.6.39 外來檔案系統的操作工具</h3>
+
+<p>
+Linux
+核心支援多種外來檔案系統，想存取它們只需將其掛載到合適的檔案系統下就行了。
+對某些檔案系統，還提供專門工具不需要掛載，只依靠使用者空間的程式，不需要核心提供檔案系統支援，就能完整存取。
+</p>
+<ul>
+<li>
+<p>
+<code>mtools</code>: for MSDOS filesystem (MS-DOS, Windows)
+</p>
+</li>
+<li>
+<p>
+<code>cpmtools</code>: for CP/M filesystem
+</p>
+</li>
+<li>
+<p>
+<code>hfsutils</code>: for HFS filesystem (native Macintosh)
+</p>
+</li>
+<li>
+<p>
+<code>hfsplus</code>: for HFS+ filesystem (modern Macintosh)
+</p>
+</li>
+</ul>
+
+<p>
+對於建立和檢查 MS-DOS FAT 檔案系統 <code>dosfstools</code> 非常有用。
+</p>
+
+<hr>
+
+<h2><a name="s-oops"></a>8.7 打錯字的情況</h2>
+
+<p>
+這裡示範幾個危險的動作。當使用特權帳號：<samp>root</samp>時，負面影響的程度是相當嚴重。
+</p>
+
+<hr>
+
+<h3><a name="s-rm-rf-star"></a>8.7.1 <samp>rm -rf .*</samp></h3>
+
+<p>
+在命令列操作萬用檔名(*號)如&quot;<samp>rm -rf
+.*</samp>&quot;可能會造成嚴重的錯誤，因為&quot;<samp>.*</samp>&quot;會參考到&quot;<samp>.</samp>&quot;
+和
+&quot;<samp>..</samp>&quot;。幸運地，在Debian上的&quot;<samp>rm</samp>&quot;版本會很聰明地檢查檔名並取消移除&quot;<samp>.</samp>&quot;
+and
+&quot;<samp>..</samp>&quot;。但這並非永遠如此。試試看底下的例子來了解萬用檔名的用法。
+</p>
+
+<ul>
+<li>
+<p>
+&quot;<samp>echo *</samp>&quot;:列出現在目錄下所有非 .  開頭的目錄與檔案。
+</p>
+</li>
+<li>
+<p>
+&quot;<samp>echo .[^.]*</samp>&quot;:列出該目錄下所有 .  開頭的檔案和目錄
+</p>
+</li>
+<li>
+<p>
+&quot;<samp>echo .*</samp>&quot;:列出上層所有的檔案和目錄以及該上層目錄。
+</p>
+</li>
+</ul>
+
+<hr>
+
+<h3><a name="s-rm-passwd"></a>8.7.2 <samp>rm /etc/passwd</samp></h3>
+
+<p>
+由於您愚蠢地移除掉 <code>/etc/passwd</code>
+是會造成相當嚴重的損失。Debian系統會慣例性地備份重要檔案到<code>/var/backups/</code>。當你回存這些檔案時，請記得更改適當的權限。
+</p>
+
+<pre>
+     # cp /var/backups/passwd /etc/passwd
+     # chmod 644 /etc/passwd
+</pre>
+
+<p>
+請參閱 <a
+href="ch-package.zh-tw.html#s-recover-status">回復套件的選取狀態的資料, 第
+6.3.4 節</a>。
+</p>
+
+<hr>
+
+<p>
+[ <a href="ch-kernel.zh-tw.html">上一頁</a> ]
+[ <a href="index.zh-tw.html#contents">目錄</a> ]
+[ <a href="ch-preface.zh-tw.html">1</a> ]
+[ <a href="ch-system.zh-tw.html">2</a> ]
+[ <a href="ch-install.zh-tw.html">3</a> ]
+[ <a href="ch-tutorial.zh-tw.html">4</a> ]
+[ <a href="ch-woody.zh-tw.html">5</a> ]
+[ <a href="ch-package.zh-tw.html">6</a> ]
+[ <a href="ch-kernel.zh-tw.html">7</a> ]
+[ 8 ]
+[ <a href="ch-tune.zh-tw.html">9</a> ]
+[ <a href="ch-gateway.zh-tw.html">10</a> ]
+[ <a href="ch-edit.zh-tw.html">11</a> ]
+[ <a href="ch-vcs.zh-tw.html">12</a> ]
+[ <a href="ch-program.zh-tw.html">13</a> ]
+[ <a href="ch-gnupg.zh-tw.html">14</a> ]
+[ <a href="ch-support.zh-tw.html">15</a> ]
+[ <a href="ap-appendix.zh-tw.html">A</a> ]
+[ <a href="ch-tune.zh-tw.html">下一頁</a> ]
+</p>
+
+<hr>
+
+<p>
+Debian 參考手冊
+</p>
+
+<address>
+CVS, 週一 六月 16 21:20:48 UTC 2008<br>
+<br>
+Osamu Aoki <code><a href="mailto:osamu#at#debian.org">osamu#at#debian.org</a></code><br>
+Asho Yeh <code><a href="mailto:asho#at#debian.org.tw">asho#at#debian.org.tw</a></code><br>
+<a href="ap-appendix.zh-tw.html#s-authors">作者, 第 A.1 節</a><br>
+<br>
+</address>
+<hr>
+
+</body>
+
+</html>
+

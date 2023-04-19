@@ -1,0 +1,339 @@
+<HTML>
+
+<LINK HREF="style.css" REL="STYLESHEET" TYPE="text/css">
+
+<HEAD>
+<TITLE>Standard Controls: Button, Edit, List Box, Static</TITLE>
+</HEAD>
+
+<BODY>
+<FONT SIZE="-1">
+[ <A HREF="./index.html">contents</A>
+| <A HREF="http://www.winprog.org/">#winprog</A>
+]
+</FONT>
+<HR>
+
+
+<H1>Standard Controls: Button, Edit, List Box</H1>
+
+<P>Example: ctl_one</P>
+<IMG SRC="images/ctl_one.gif" ALT="[images/ctl_one.gif]" ALIGN="right">
+
+<P>
+I realize I've already used buttons in previous examples, so you should already be more or
+less familiar with them, however I figured that since I was using them in this example I 
+might as well add it to the title for the sake of being complete.
+
+<H3>Controls</H3>
+
+<P>
+One thing to remember about controls is that <B>they are just windows</B>.  Like any other 
+window they have a window procedure, a window class etc... that is registered by the system.
+Anything you can do with a normal window you can do with a control.
+
+<H3>Messages</H3>
+
+<P>
+As you may remember from our earlier discussion of the message loop, windows communicate using messages, 
+you send them to get a control to do something, and when an event occurs on the control it 
+will send you a notification message back.
+For the standard controls this notification will be a <CODE>WM_COMMAND</CODE> message as we've
+already seen with buttons and menus.  For the <I>Common Controls</I> which I may get to later,
+it will be <CODE>WM_NOTIFY</CODE>.  
+
+<P>
+The messages you send are widely varied between each control, and each control has it's own set
+of messages.  Once in a while the same message will be used for more than one kind of control,
+but in general they will only work on the control they are intended for.  This is especially
+annoying with the listbox and combobox messages (<CODE>LB_*</CODE> and <CODE>CB_*</CODE>) which although
+they perform nearly identical tasks, are NOT interchangeable,
+and I accidently get them mixed up more than I'd like to admit :)
+
+<P>
+On the other hand, generic messages like <CODE>WM_SETTEXT</CODE> are supported by almost all 
+controls.  A control is just a window after all.
+
+<P>
+You can send messages using the <CODE>SendMessage()</CODE> API, and use <CODE>GetDlgItem()</CODE>
+to retreive the handle to the control, or you can use <CODE>SendDlgItemMessage()</CODE> which
+does both steps for you, the results of both methods are identical.
+
+<H2>Edits</H2>
+
+<P>
+One of the most commonly used controls in the windows environment, the EDIT control,
+is used to allow the user to enter, modify, copy, etc... text.  Windows Notepad is little
+more than a plain old window with a big edit control inside it.
+
+<P>
+Here is the code used to interface with the edit control in this example:
+
+<PRE CLASS="SNIP">
+    SetDlgItemText(hwnd, IDC_TEXT, "This is a string");
+</PRE>
+
+That's all it takes to change the text contained in the control (this can be used for pretty
+much any control that has a text value associated with it, STATICs, BUTTONs and so on).
+
+<P>
+Retreiving the text <I>from</I> the control is easy as well, although slightly more work than
+setting it...
+
+<PRE CLASS="SNIP">
+    int len = GetWindowTextLength(GetDlgItem(hwnd, IDC_TEXT));
+    if(len > 0)
+    {
+        int i;
+        char* buf;
+
+        buf = (char*)GlobalAlloc(GPTR, len + 1);
+        GetDlgItemText(hwnd, IDC_TEXT, buf, len + 1);
+
+        //... do stuff with text ...
+
+        GlobalFree((HANDLE)buf);
+    }
+</PRE>
+
+<P>
+First of all, we need to allocate some memory to store the string in, it won't just return us
+a pointer to the string already in memory.  In order to do this, we first need to know how 
+much memory to allocate.  There isn't a <CODE>GetDlgItemTextLength()</CODE>, but there is a
+<CODE>GetWindowTextLength()</CODE>, so all we need to do it get the handle to the control
+yourself using <CODE>GetDlgItem()</CODE>.  
+
+<P>
+Now that we have the length, we can allocate some
+memory.  Here I've added a check to see if there is any text to begin with, since most likely
+you don't want to be working with an empty string... sometimes you might, but that's up to you.
+Assuming that there <I>is</I> something there to work with, we call <CODE>GlobalAlloc()</CODE>
+to allocate some memory.  <CODE>GlobalAlloc()</CODE> <B>as I've used it here</B> is equivalent to
+<CODE>calloc()</CODE>, if you're used to DOS/UNIX coding.  It allocates some memory, initializes
+it's contents to <CODE>0</CODE> and returns a pointer to that memory.  There are different
+flags you can pass as the first paramter to make it behave differently for different purposes,
+but this is the only way I will be using it in this tutorial.
+
+<P>
+Note that I added <CODE>1</CODE> to the length in two places, what's up with that?  Well, 
+<CODE>GetWindowTextLength()</CODE> returns the number of characters of text the control contains
+NOT INCLUDING the null terminator.  This means that if we were to allocate a string without
+adding <CODE>1</CODE>, the text would fit, but the null terminator would overflow the memory
+block, possibly corrupting other data, causing an access violation, or any number of other 
+bad things.  You must be careful when dealing with string sizes in windows, some APIs and 
+messages expect text lengths to include the null and others don't, always read the docs 
+thoroughly.
+
+<P>
+<I>If I lost you talking about null terminators, please refer to a basic C book or tutorial 
+which discusses strings.
+</I>
+
+<P>
+Finally we can call <CODE>GetDlgItemText()</CODE> to retrieve the contents of the control 
+into the memory buffer that we've just allocated.  This call expects the size of the buffer
+INCLUDING the null terminator.  The return value, which we ignored here, is the number of 
+characters copied, NOT including the null terminator.... fun eh? :)
+
+<P>
+After we're all done using the text (which we'll get to in a moment), we need to free up 
+the memory that we allocated so that it doesn't leak out and drip down onto the CPU and 
+short circuit your computer.  To accomplish this, we simply call <CODE>GlobalFree()</CODE>
+and pass in our pointer.
+
+<P>
+You may be or become aware of a second set of APIs named <CODE>LocalAlloc()</CODE>, 
+<CODE>LocalFree()</CODE>, etc... which are legacy APIs from 16-bit windows.  In Win32,
+the <CODE>Local*</CODE> and <CODE>Global*</CODE> memory functions are identical.
+
+<H3>Edits with Numbers</H3>
+
+<P>
+Entering text is all well and fine, but what if you want the user to enter in a number?
+This is a pretty common task, and fortunately there is an API to make this simpler, which
+takes care of all the memory allocation, as well as converting the string to an integer 
+value.
+
+<PRE CLASS="SNIP">
+    BOOL bSuccess;
+    int nTimes = GetDlgItemInt(hwnd, IDC_NUMBER, &bSuccess, FALSE);
+</PRE>
+
+<P>
+<CODE>GetDlgItemInt()</CODE> works much like <CODE>GetDlgItemText()</CODE>, except that 
+instead of copying the string to a buffer, it converts it internally into an integer and 
+returns the value to you.  The third parameter is optional, and takes a pointer to a <CODE>BOOL</CODE>.
+Since the function returns <CODE>0</CODE> on failure, there is no way to tell just from that whether
+or not the function failed or the user just entered <CODE>0</CODE>.  If you are fine with a 
+value of <CODE>0</CODE> in the event of an error, then feel free to ignore this parameter.
+
+<P>
+Another useful feature is the <CODE>ES_NUMBER</CODE> style for edit controls, which allows 
+only the characters 0 through 9 to be entered.  This is very handy if you only want positive
+integers, otherwise it's not much good, since you can't enter any other characters, including
+- (minus) . (decimel) or , (comma).
+
+<H2>List Boxes</H2>
+
+<P>
+Another handy control is the list box.  This is the last standard control that I'm going 
+to cover for now, cause frankly they aren't that interesting, and if you aren't bored yet well, 
+I am :)
+
+<H3>Adding Items</H3>
+
+<P>
+The first thing you'll want to do with a listbox is add items to it.
+
+<PRE CLASS="SNIP">
+    int index = SendDlgItemMessage(hwnd, IDC_LIST, LB_ADDSTRING, 0, (LPARAM)"Hi there!");
+</PRE>
+
+As you can see, this is a pretty simple task.  If the listbox has the <CODE>LBS_SORT</CODE> style, the new
+item will be added in alphabetical order, otherwise it will just be added to the end of the 
+list.  
+
+<P>
+This message returns the index of the new item either way, and we can use this to 
+perform other tasks on the item, such as associating some data with it.  Usually this will
+be things like a pointer to a struct containing more information, or maybe an ID that you will
+use to identify the item, it's up to you.
+
+<PRE CLASS="SNIP">
+    SendDlgItemMessage(hwnd, IDC_LIST, LB_SETITEMDATA, (WPARAM)index, (LPARAM)nTimes);
+</PRE>
+
+<H3>Notifications</H3>
+
+<P>
+The whole purpose of listboxes is to allow the user to select things from a list.  Now 
+sometimes we don't care when exactly they do this, for example with our Remove button,
+we don't need to know when the selection changes right away, we just check when the user
+activates the button.  
+
+<P>
+However, sometimes you want to be able to do something right away, perhaps 
+display different or updated information based on what items are selected.  In order to do 
+this we need to handle the notification messages that the listbox passes to us.  In this
+case, we are interested in <CODE>LBN_SELCHANGE</CODE>, which tells us that the selection 
+has been modified by the user.  <CODE>LBN_SELCHANGE</CODE> is sent via <CODE>WM_COMMAND</CODE>
+but unlike handling the <CODE>WM_COMMAND</CODE> from buttons or menu's, which are usually only 
+in response to a click, a list box sends <CODE>WM_COMMAND</CODE> for various reasons, and we 
+need a second check to find out what it's telling us.  The <I>Notification Code</I> is passed
+as the <CODE>HIWORD</CODE> of <CODE>wParam</CODE>, the other half of the parameter that
+gave us the control ID in the first place.
+
+<PRE CLASS="SNIP">
+    case WM_COMMAND:
+        switch(LOWORD(wParam))
+        {
+            case IDC_LIST:
+                // It's our listbox, check the notification code
+                switch(HIWORD(wParam))
+                {
+                    case LBN_SELCHANGE:
+                        // Selection changed, do stuff here.
+                    break;
+                }
+            break;
+            // ... other controls
+        }
+    break;
+</PRE>
+
+<H3>Getting Data from the ListBox</H3>
+
+Now that we know the selection has changed, or at the request of the user, we need to get
+the selection from the listbox and do something useful with it.
+
+<P>
+In this example I've used a multiselection list box, so getting the list of selected items
+is a little trickier.  If it were a single selection listbox, than you could simply send
+<CODE>LB_GETCURSEL</CODE> to retrieve the item index.
+
+<P>
+First we need to get the number of selected items, so that we can allocate a buffer to save 
+the indexes in.
+
+<PRE CLASS="SNIP">
+    HWND hList = GetDlgItem(hwnd, IDC_LIST);
+    int count = SendMessage(hList, LB_GETSELCOUNT, 0, 0);
+</PRE>
+
+<P>
+Then we allocate a buffer based on the number of items, and send <CODE>LB_GETSELITEMS</CODE> 
+to fill in the array.
+
+<PRE CLASS="SNIP">
+    int *buf = GlobalAlloc(GPTR, sizeof(int) * count);
+    SendMessage(hList, LB_GETSELITEMS, (WPARAM)count, (LPARAM)buf);
+
+    // ... Do stuff with indexes
+
+    GlobalFree(buf);
+</PRE>
+
+<P>
+In this example, <CODE>buf[0]</CODE> is the first index, and so on up to 
+<CODE>buf[count - 1]</CODE>.
+
+<P>
+One of the things you would likely want to do with this list of indexes, is retreive the
+data associated with each item, and do some processing with it.  This is just as simple
+as setting the data was originally, we just send another message.
+
+<PRE CLASS="SNIP">
+    int data = SendMessage(hList, LB_GETITEMDATA, (WPARAM)index, 0);
+</PRE>
+
+<P>
+If the data was some other type of value (anything that is 32-bits) you could simply cast
+to the appropriate type.  
+For example if you stored <CODE>HBITMAP</CODE>s instead of <CODE>int</CODE>s...
+
+<PRE CLASS="SNIP">
+    HBITMAP hData = (HBITMAP)SendMessage(hList, LB_GETITEMDATA, (WPARAM)index, 0);
+</PRE>
+
+<H2>Statics</H2>
+
+Like buttons, static controls are largely trivial, but for the sake or being complete I 
+include them here.  Static controls are usually just that, static, meaning they don't change
+or really do anything else very special, they're largely for displaying text to the user.
+However you can make them slightly more useful by assigning them a unique ID (VC++ assigns
+a default ID of <CODE>IDC_STATIC</CODE>, which is <CODE>-1</CODE> and effectively means "No ID")
+and then setting the text at runtime to present dynamic data to the user.
+
+<P>
+In the example code, I use one to display the data of the item selected in the list box,
+assuming one and only one is selected.
+
+<PRE CLASS="SNIP">
+    SetDlgItemInt(hwnd, IDC_SHOWCOUNT, data, FALSE);
+</PRE>
+
+<HR>
+<FONT SIZE="-1">
+Copyright &copy; 1998-2003, Brook Miles (<A HREF="mailto:forger(nospam)winprog.org">theForger</A>).  All rights reserved.
+</FONT>
+
+<SCRIPT language="JavaScript">
+<!--
+   var re = /\(nospam\)/ig;
+   var str;
+
+   for(i = 0;i < document.links.length;i++) 
+   {
+      str = "" + document.links(i).href;
+      if(str.search(re) != -1)
+         document.links(i).href = str.replace(re, "@");
+
+      str = "" + document.links(i).innerHTML;
+      if(str.search(re) != -1)
+         document.links(i).innerHTML = str.replace(re, "@");
+   }
+-->
+</SCRIPT>
+
+</BODY>
+</HTML>

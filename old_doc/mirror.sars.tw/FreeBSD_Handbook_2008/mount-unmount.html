@@ -1,0 +1,294 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>掛載與卸載檔案系統</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.79" />
+<link rel="HOME" title="FreeBSD 使用手冊" href="index.html" />
+<link rel="UP" title="UNIX 基礎概念" href="basics.html" />
+<link rel="PREVIOUS" title="磁碟組織" href="disk-organization.html" />
+<link rel="NEXT" title="程序" href="basics-processes.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD 使用手冊</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="disk-organization.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 3 UNIX 基礎概念</td>
+<td width="10%" align="right" valign="bottom"><a href="basics-processes.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="MOUNT-UNMOUNT" name="MOUNT-UNMOUNT">3.6
+掛載與卸載檔案系統</a></h1>
+
+<p>檔案系統就像一顆樹。<tt class="FILENAME">/</tt> 就像是樹根，而 <tt
+class="FILENAME">/dev</tt>，<tt class="FILENAME">/usr</tt>
+以及其他在根目錄下的目錄就像是樹枝，而這些樹枝上面又還有分支，像是 <tt
+class="FILENAME">/usr/local</tt> 等。</p>
+
+<p>因為某些原因，我們會將一些目錄分別放在不同的檔案系統上。 如 <tt
+class="FILENAME">/var</tt> 包含了可能會滿出來的 <tt class="FILENAME">log/</tt>，<tt
+class="FILENAME">spool/</tt> 等目錄以及各式各樣的暫存檔。
+把根檔案系統塞到滿出來顯然不是個好主意，所以我們往往會比較傾向把 <tt
+class="FILENAME">/var</tt> 從 <tt class="FILENAME">/</tt> 中拉出來。</p>
+
+<p>另一個常見到把某些目錄放在不同檔案系統上的理由是：
+這些檔案在不同的實體或虛擬磁碟機上。 像是<a href="network-nfs.html">網路檔案系統</a>
+(Network File System) 或是光碟機。</p>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="DISKS-FSTAB" name="DISKS-FSTAB">3.6.1 <tt
+class="FILENAME">fstab</tt> 檔</a></h2>
+
+<p>在 <tt class="FILENAME">/etc/fstab</tt> 裡面有設定的檔案系統會在<a
+href="boot.html">開機</a> 的過程中自動地被掛載 (除非該檔案系統有被加上 <code
+class="OPTION">noauto</code> 參數)。</p>
+
+<p><tt class="FILENAME">/etc/fstab</tt> 檔案內容的格式如下：</p>
+
+<pre class="PROGRAMLISTING">
+<tt class="REPLACEABLE"><i>device</i></tt>       <tt
+class="REPLACEABLE"><i>/mount-point</i></tt> <tt
+class="REPLACEABLE"><i>fstype</i></tt>     <tt
+class="REPLACEABLE"><i>options</i></tt>      <tt
+class="REPLACEABLE"><i>dumpfreq</i></tt>     <tt class="REPLACEABLE"><i>passno</i></tt>
+</pre>
+
+<div class="VARIABLELIST">
+<dl>
+<dt><tt class="LITERAL">device</tt></dt>
+
+<dd>
+<p>裝置名稱 (該裝置必須真的存在)。 詳情請參閱 <a href="disks-naming.html">Section
+18.2</a>.</p>
+</dd>
+
+<dt><tt class="LITERAL">mount-point</tt></dt>
+
+<dd>
+<p>檔案系統要掛載到的目錄 (該目錄必須真的存在)。</p>
+</dd>
+
+<dt><tt class="LITERAL">fstype</tt></dt>
+
+<dd>
+<p>檔案系統類型，這是要傳給 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=mount&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">mount</span>(8)</span></a> 的參數。
+FreeBSD 預設的檔案系統是 <tt class="LITERAL">ufs</tt>。</p>
+</dd>
+
+<dt><tt class="LITERAL">options</tt></dt>
+
+<dd>
+<p>可讀可寫的檔案系統用 <code class="OPTION">rw</code>，而唯讀的檔案系統則是用 <code
+class="OPTION">ro</code>，後面視需要還可以加其他選項。 常見的選項如 <code
+class="OPTION">noauto</code> 是用在不要於開機過程中自動的掛載的檔案系統。 其他選項可參閱
+<a href="http://www.FreeBSD.org/cgi/man.cgi?query=mount&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">mount</span>(8)</span></a> 說明。</p>
+</dd>
+
+<dt><tt class="LITERAL">dumpfreq</tt></dt>
+
+<dd>
+<p><a href="http://www.FreeBSD.org/cgi/man.cgi?query=dump&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">dump</span>(8)</span></a>
+由此項目決定那些檔案系統需要傾印。 如果這格空白則以零為預設值。</p>
+</dd>
+
+<dt><tt class="LITERAL">passno</tt></dt>
+
+<dd>
+<p>這個項目決定檔案系統檢查的順序。 對於要跳過檢查的檔案系統，它們的 <tt
+class="LITERAL">passno</tt> 值要設為零。 根檔案系統的 <tt class="LITERAL">passno</tt>
+值應設為一 (因為需要比所有其他的還要先檢查)，而其他的檔案系統的 <tt
+class="LITERAL">passno</tt> 值應該要設得比一大。 若有多個檔案系統具有相同的 <tt
+class="LITERAL">passno</tt> 值，則 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=fsck&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">fsck</span>(8)</span></a>
+會試著平行地(如果可能的話)檢查這些檔案系統。</p>
+</dd>
+</dl>
+</div>
+
+<p>更多關於 <tt class="FILENAME">/etc/fstab</tt> 檔案格式及選項的資訊請參閱 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=fstab&amp;sektion=5"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">fstab</span>(5)</span></a>
+說明文件。</p>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="DISKS-MOUNT" name="DISKS-MOUNT">3.6.2 <tt
+class="COMMAND">mount</tt> 指令</a></h2>
+
+<p><a href="http://www.FreeBSD.org/cgi/man.cgi?query=mount&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">mount</span>(8)</span></a>
+指令是拿來掛載檔案系統用的。</p>
+
+<p>基本的操作指令格式如下:</p>
+
+<div class="INFORMALEXAMPLE"><a id="AEN4371" name="AEN4371"></a>
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">mount <tt
+class="REPLACEABLE"><i>device</i></tt> <tt
+class="REPLACEABLE"><i>mountpoint</i></tt></kbd>
+</pre>
+</div>
+
+<p>在 <a href="http://www.FreeBSD.org/cgi/man.cgi?query=mount&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">mount</span>(8)</span></a>
+裡面有提到一大堆的選項，不過最常用的就是這些：</p>
+
+<div class="VARIABLELIST">
+<p><b>掛載選項</b></p>
+
+<dl>
+<dt><code class="OPTION">-a</code></dt>
+
+<dd>
+<p>把 <tt class="FILENAME">/etc/fstab</tt> 裡面所有還沒有被掛載、沒有被標記成 “noauto”
+而且沒有用 <code class="OPTION">-t</code> 排除的檔案系統掛載起來。</p>
+</dd>
+
+<dt><code class="OPTION">-d</code></dt>
+
+<dd>
+<p>執行所有的動作，但是不真的去呼叫掛載的 system call。 這個選項和 <code
+class="OPTION">-v</code> 搭配拿來推測 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=mount&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">mount</span>(8)</span></a>
+將要做什麼動作時很好用。</p>
+</dd>
+
+<dt><code class="OPTION">-f</code></dt>
+
+<dd>
+<p>強迫掛載不乾淨的檔案系統 (危險)，或是用來強制取消寫入權限
+(把檔案系統的掛載狀態從可存取變成唯讀)。</p>
+</dd>
+
+<dt><code class="OPTION">-r</code></dt>
+
+<dd>
+<p>用唯讀的方式掛載檔案系統。 這個選項和在 <code class="OPTION">-o</code> 選項中指定
+<code class="OPTION">ro</code> (在 FreeBSD 5.2之前的版本是用 <code
+class="OPTION">rdonly</code>) 參數是一樣的。</p>
+</dd>
+
+<dt><code class="OPTION">-t</code> <tt class="REPLACEABLE"><i>fstype</i></tt></dt>
+
+<dd>
+<p>用指定的檔案系統型態 (fstype) 來掛載指定的檔案系統，或是在有 <code
+class="OPTION">-a</code> 選項時只掛載指定型態的檔案系統。</p>
+
+<p>預設的檔案系統是 “ufs”。</p>
+</dd>
+
+<dt><code class="OPTION">-u</code></dt>
+
+<dd>
+<p>更新檔案系統的掛載選項。</p>
+</dd>
+
+<dt><code class="OPTION">-v</code></dt>
+
+<dd>
+<p>顯示較詳細資訊。</p>
+</dd>
+
+<dt><code class="OPTION">-w</code></dt>
+
+<dd>
+<p>以可存取的模式掛載檔案系統。</p>
+</dd>
+</dl>
+</div>
+
+<p><code class="OPTION">-o</code> 選項後面會接著以逗號分隔的參數，例如：</p>
+
+<div class="VARIABLELIST">
+<dl>
+<dt>noexec</dt>
+
+<dd>
+<p>不允許在這個檔案系統上執行二進位程式碼， 這也是一個蠻有用的安全選項。</p>
+</dd>
+
+<dt>nosuid</dt>
+
+<dd>
+<p>不解析檔案系統上的 setuid 或 setgid 旗標， 這也是一個蠻有用的安全選項。</p>
+</dd>
+</dl>
+</div>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="DISKS-UMOUNT" name="DISKS-UMOUNT">3.6.3 <tt
+class="COMMAND">umount</tt> 指令</a></h2>
+
+<p><a href="http://www.FreeBSD.org/cgi/man.cgi?query=umount&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">umount</span>(8)</span></a>
+指令的參數可以是掛載點 (mountpoint)，裝置名稱，以及 <code class="OPTION">-a</code> 或是
+<code class="OPTION">-A</code> 等選項。</p>
+
+<p>加上 <code class="OPTION">-f</code> 可以強制卸載，加上 <code class="OPTION">-v</code>
+則是會顯示詳細資訊。 要注意的是一般來說用 <code class="OPTION">-f</code>
+並不是個好主意，強制卸載檔案系統有可能會造成電腦當機， 或者損壞檔案系統內的資料。</p>
+
+<p><code class="OPTION">-a</code> 和 <code class="OPTION">-A</code>
+是用來卸載所有已掛載的檔案系統，另外還可以用 <code class="OPTION">-t</code>
+來指定要卸載的是哪些種類的檔案系統。 要注意的是 <code class="OPTION">-A</code>
+並不會試圖卸載根檔案系統。</p>
+</div>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="disk-organization.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="basics-processes.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">磁碟組織</td>
+<td width="34%" align="center" valign="top"><a href="basics.html"
+accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">程序</td>
+</tr>
+</table>
+</div>
+
+<p align="center"><small>本文及其他文件，可由此下載：<a
+href="ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/">ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/</a>。</small></p>
+
+<p align="center"><small>若有 FreeBSD 方面疑問，請先閱讀 <a
+href="http://www.FreeBSD.org/docs.html">FreeBSD 相關文件</a>，如不能解決的話，再洽詢
+&#60;<a href="mailto:questions@FreeBSD.org">questions@FreeBSD.org</a>&#62;。<br />
+關於本文件的問題，請洽詢 &#60;<a
+href="mailto:doc@FreeBSD.org">doc@FreeBSD.org</a>&#62;。</small></p>
+</body>
+</html>
+

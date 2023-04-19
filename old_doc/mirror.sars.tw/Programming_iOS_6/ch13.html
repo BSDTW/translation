@@ -1,0 +1,406 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>Chapter 13. Data Communication</title>
+    <link rel="stylesheet" type="text/css" href="docbook-xsl-mymods.css" />
+    <meta name="generator" content="DocBook XSL Stylesheets V1.76.0" />
+    <link rel="home" href="index.html" />
+    <link rel="up" href="pt03.html" />
+    <link rel="prev" href="ch12.html" />
+    <link rel="next" href="pt04.html" />
+  </head>
+  <body>
+    <div class="mattnotice">
+      <p>As a courtesy, this is a <b>full free</b> rendering of my book, <i>Programming iOS 6</i>, by Matt Neuburg. Copyright 2013 Matt Neuburg. Please note that this book has now been completely superseded by two more recent books, <a href="http://shop.oreilly.com/product/0636920032465.do">iOS 7 Fundamentals</a> and <a href="http://shop.oreilly.com/product/0636920031017.do">Programming iOS 7</a>. If my work has been of help to you, please <b>consider purchasing</b> one or both of them. Thank you!
+	</p>
+    </div>
+    <div class="navfooter">
+      <table width="100%" summary="Navigation footer">
+        <tr>
+          <td width="40%" align="left"><a accesskey="p" href="ch12.html">Prev</a> </td>
+          <td width="20%" align="center">
+            <a accesskey="u" href="pt03.html">Up</a>
+          </td>
+          <td width="40%" align="right"> <a accesskey="n" href="pt04.html">Next</a></td>
+        </tr>
+        <tr>
+          <td width="40%" align="left" valign="top">Chapter 12. Accessors and Memory Management </td>
+          <td width="20%" align="center">
+            <a accesskey="h" href="index.html">Table of Contents</a>
+          </td>
+          <td width="40%" align="right" valign="top"> Part IV. Views</td>
+        </tr>
+      </table>
+    </div>
+    <div class="chapter">
+      <div class="titlepage">
+        <div>
+          <div>
+            <h2 class="title"><a id="chap_id13"></a>Chapter 13. Data Communication</h2>
+          </div>
+        </div>
+      </div>
+      <p>As soon as an app grows to more than a few objects, puzzling questions can arise about how to send a message or communicate data between one object and another. The problem is essentially one of architecture. Constructing your code so that all the pieces fit together and key information can be shared is something of an art. But it isn’t difficult. This chapter presents some general considerations that may provide the needed clue.</p>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_model_view_controller"></a>Model–View–Controller</h2>
+            </div>
+          </div>
+        </div>
+        <p>In Apple’s documentation and elsewhere, you’ll find references to the term <span class="emphasis"><em>model–view–controller</em></span>, or <span class="emphasis"><em>MVC</em></span>.<a id="idm441652231360" class="indexterm"></a><a id="idm441652230416" class="indexterm"></a> This refers to an architectural goal of maintaining a distinction between three functional aspects of a program that displays information to the user and permits the user to alter that information. The notion goes back to the days of Smalltalk, and much has been written about it since then, but informally, here’s what the terms mean:</p>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+Model
+</span>
+            </dt>
+            <dd>
+The data and its management, often referred to as the program’s “business logic,” the hard-core stuff that the program is really all about.
+</dd>
+            <dt>
+              <span class="term">
+View
+</span>
+            </dt>
+            <dd>
+What the user sees and interacts with.
+</dd>
+            <dt>
+              <span class="term">
+Controller
+</span>
+            </dt>
+            <dd>
+The mediation between the model and the view.
+</dd>
+          </dl>
+        </div>
+        <p>Consider, for example, a game where the current score is displayed to the user:</p>
+        <div class="itemizedlist">
+          <ul class="itemizedlist" type="disc">
+            <li class="listitem">
+A UILabel that shows the user the current score for the game in progress is <span class="emphasis"><em>view</em></span>; it is effectively nothing but a pixel-maker, and its business is to know how to draw itself. The knowledge of <span class="emphasis"><em>what</em></span> it should draw — the score, and the fact that this <span class="emphasis"><em>is</em></span> a score — lies elsewhere. A rookie programmer might try to use the score displayed by the UILabel as the actual score: to increment the score, read the UILabel’s string, turn that string into a number, increment the number, turn the number back into a string, and present that string in place of the previous string. That is a gross violation of the MVC philosophy. The view presented to the user should <span class="emphasis"><em>reflect</em></span> the score; it should not <span class="emphasis"><em>store</em></span> the score.
+</li>
+            <li class="listitem">
+The score is data being maintained internally; it is <span class="emphasis"><em>model</em></span>. It could be as simple as an instance variable along with a public <code class="literal">increment</code> method or as complicated as a Score object with a raft of methods. The score is numeric, whereas a UILabel displays a string; this alone is enough to show that the view and the model are naturally different.
+</li>
+            <li class="listitem">
+Telling the score when to change, and seeing that this fact is reflected in the user interface, is the work of the <span class="emphasis"><em>controller</em></span>. This will be particularly clear if we imagine that the model’s numeric score needs to be transformed in some way for presentation to the user. For example, suppose the UILabel that presents the score reads: “Your current score is 20”. The model is presumably storing and providing the number 20, so what’s the source of the phrase “Your current score is…”? Whoever is deciding that this phrase should precede the score in the presentation of the score to the user, and is making it so, is a controller.
+</li>
+          </ul>
+        </div>
+        <div class="figure">
+          <a id="FIGmvc"></a>
+          <div class="figure-contents">
+            <div class="mediaobject">
+              <img src="figs/pios_1301.png" alt="figs/pios_1301.png" />
+            </div>
+          </div>
+          <p class="title">Figure 13.1. Model–view–controller</p>
+        </div>
+        <br class="figure-break" />
+        <p>Even this simplistic example (<a class="xref" href="ch13.html#FIGmvc">Figure 13.1</a>) illustrates very well the advantages of MVC. By separating powers in this way, we allow the aspects of the program to evolve with a great degree of independence. Do you want a different font and size in the presentation of the score? Change the view; the model and controller need know nothing about it, but will just go on working exactly as they did before. Do you want to change the phrase that precedes the score? Change the controller; the model and view are unchanged.</p>
+        <p>Adherence to MVC is particularly appropriate in a Cocoa app, because Cocoa itself adheres to it. The very names of Cocoa classes reveal the MVC philosophy that underlies them. A UIView is a view. A UIViewController is a controller; its purpose is to embody the logic that tells the view what to display. In <a class="xref" href="ch11.html">Chapter 11</a> we saw that a UIPickerView does not hold the data it displays; it gets that data from a data source. So the UIPickerView is a view; the data source is model.</p>
+        <p>A further distinction, found in Apple’s documentation, is this: true model material and true view material should be quite reusable, in the sense that they can be transferred wholesale into some other app; controller material is generally not reusable, because it is concerned with how <span class="emphasis"><em>this</em></span> app mediates between the model and the view.</p>
+        <p>In one of my own apps, for example, we download an XML (RSS) news feed and present the article titles to the user as a table. The storage and parsing of the XML are pure model material, and are so reusable that I didn’t even write this part of the code (I used some code called FeedParser, by Kevin Ballard). The table is a UITableView, which is obviously reusable, seeing as I obtained it directly from Cocoa. But when the UITableView turns to me and asks what I’d like to display in this cell, and I turn to the XML and ask for the title of the article corresponding to this row of the table, that’s controller logic.</p>
+        <p>By keeping the MVC architectural philosophy in mind as you develop your app, you’ll implicitly solve one data communication problem. The data will live in the model, the view will be purely presentational in nature, and the communication between them will be handled by your own deliberately written controller code. You’ll be communicating between the view and the model because controller code is <span class="emphasis"><em>about</em></span> communicating between the view and model.</p>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_instance_visibility"></a>Instance Visibility</h2>
+            </div>
+          </div>
+        </div>
+        <p>The problem of communication often comes down to one object being able to see another: object Manny needs to be able to find object Jack repeatedly and reliably over the long term so as to be able to send Jack messages. (This is the same problem I spoke of in <a class="xref" href="ch02.html">Chapter 2</a> as getting a <span class="emphasis"><em>reference</em></span> to an object.)<a id="idm441652201856" class="indexterm"></a><a id="idm441652200944" class="indexterm"></a>
+<a id="idm441652199616" class="indexterm"></a></p>
+        <p>An obvious solution is an instance variable of Manny whose value is Jack. This is appropriate particularly when Manny and Jack share certain responsibilities or supplement one another’s functionality, and when they will both persist, especially when they will both persist together. The application object and its delegate, a table view and its data source, a view controller and the view that it controls — these are cases where the former must have an instance variable pointing at the latter.</p>
+        <p>With instance variables comes the question of memory management policy (<a class="xref" href="ch12.html">Chapter 12</a>). Should Manny, which has an instance variable pointing to Jack, also retain Jack? Basically, it depends on how closely allied the objects are. An object does not typically retain its delegate or its data source; it can exist without a delegate or a data source, and the delegate and data source have lives of their own — it is none of this object’s business to say whether its delegate or data source should be allowed to go out of existence. This object is therefore always prepared for the possibility that its delegate or data source may be nil. Similarly, an object that implements the target–action pattern, such as a UIControl, does not retain its target. On the other hand, a view controller is useless without a view to control; its very job is to be coterminous with its view, and to release its view when it itself goes out of existence. Similarly, an object that owns a nib as the nib loads rules the lifetimes of that nib’s top-level objects.</p>
+        <p>Even when two objects go together closely, it will not necessarily be the case that each holds an instance variable pointing at the other. When each <span class="emphasis"><em>does</em></span> point to the other, you must of course be careful not to let each <span class="emphasis"><em>retain</em></span> the other; that’s a retain cycle, and will cause both objects to leak. But if one object is the instigator of communication between the two, it can simply pass along a reference to itself as a method argument, if it thinks the second object might need this in order to send back a message later on.</p>
+        <p>This behavior is conventional in a delegate message, for example. The parameter of the delegate message <code class="literal">textFieldShouldBeginEditing:</code> is a reference to the UITextField that sent the message. The same policy is followed by target–action messages in their fuller forms; the first parameter is a reference to the sender. You can follow a similar policy.</p>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_visibility_by_instantiation"></a>Visibility by Instantiation</h3>
+              </div>
+            </div>
+          </div>
+          <p>The real question is how one object is to be introduced to the other in the first place. Much of the art of Cocoa programming (and of object-oriented programming generally) lies in getting a reference to a desired object. Every case is different and must be solved separately, but a major clue comes from the fact that every instance comes from somewhere. This means that some object commanded this instance to come into existence in the first place. That object therefore has a reference to the instance at that moment. That fact is always the starting point for establishment of future communication.</p>
+          <p>When Manny instantiates Jack, Manny has a reference to Jack, and can keep that reference if it will be needed later. Moreover, if Manny knows that Jack is going to need a reference to itself (Manny) or to some piece of data, Manny can hand Jack that reference early in Jack’s lifetime. Indeed, you might write Jack with an initializer that will take this reference as a parameter, so that Jack will possess it from the moment it comes into existence. (Compare the approach taken, for example, by UIActionSheet and UIAlertView, where the delegate is one of the initializer’s parameters, or by UIBarButtonItem, where the target is one of the initializer’s parameters.)</p>
+          <p>This example, from one of my apps, is from a table view controller. The user has tapped a row of the table. We create a secondary table view controller, a TrackViewController instance, handing it the data it will need, and display the secondary table view. I deliberately devised TrackViewController to have a designated initializer <code class="literal">initWithMediaItemCollection:</code> to make it virtually obligatory for a TrackViewController to have access to the data it needs:</p>
+          <pre class="screen">- (void)showItemsForRow: (NSIndexPath*) indexPath {
+    // create subtable of tracks and go there
+    TrackViewController *t =
+        [[TrackViewController alloc] initWithMediaItemCollection:
+            (self.albums)[indexPath.row]];
+    [self.navigationController pushViewController:t animated:YES];
+}</pre>
+          <p>The loading of a nib is also a case of visibility by instantiation. As I explained at length in <a class="xref" href="ch07.html">Chapter 7</a>, you will want to prepare your nib objects, including some proxy object such as the File’s Owner, with outlets corresponding to instance variables or accessors in that object’s class; as the nib loads, the object pointed to by each outlet will be handed to the corresponding instance variable as its value, or the setter as its argument, so that each instance that will need a reference to an object instantiated from the nib will in fact now have it and will be able to communicate as needed with the nib-instantiated object (<a class="xref" href="ch07.html#FIGoutlet">Figure 7.5</a>).</p>
+          <p>But what if two objects are conceptually distant from each other? A common case in point is when objects are going to be instantiated from <span class="emphasis"><em>different</em></span> nibs. How can an instance from one nib get a reference to an instance from another nib? True, you can’t draw a connection between an object in nib A and an object in nib B (see <a class="xref" href="ch07.html#SECconnectionBetweenNibs">Connections Between Nibs</a>). But someone (Manny) is going to be the file’s owner when nib A loads, and someone (Jack) is going to be the file’s owner when nib B loads. Those two file’s owners might be able to see each other; if so, the problem is solved. Perhaps they are the same object. Perhaps Manny instantiated Jack in the first place. Perhaps they are both instantiated by some third object, which provides a communication path for them.</p>
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_visibility_by_relationship"></a>Visibility by Relationship</h3>
+              </div>
+            </div>
+          </div>
+          <p>Objects may acquire the ability to see one another automatically by virtue of their position in a containing structure. Before worrying about how to supply one object with a reference to another, consider whether there may <span class="emphasis"><em>already</em></span> be a chain of references leading from one to another.<a id="idm441652166496" class="indexterm"></a>
+<a id="idm441652165200" class="indexterm"></a></p>
+          <p>For example, a subview can see its superview, through its <code class="literal">superview</code> property. A superview can see all its subviews, through its <code class="literal">subviews</code> property, and can pick out a specific subview through that subview’s <code class="literal">tag</code> property, by calling <code class="literal">viewWithTag:</code>. A subview in a window can see its window, through its <code class="literal">window</code> property. (There will be more about all that in <a class="xref" href="ch14.html">Chapter 14</a>.) A responder (<a class="xref" href="ch11.html">Chapter 11</a>) can see the next responder in the responder chain, through the <code class="literal">nextResponder</code> method — which also means, because of the structure of the responder chain, that a view can see the view controller that manages it.</p>
+          <p>Similarly, view controllers are part of a containment hierarchy (<a class="xref" href="ch19.html">Chapter 19</a>) and therefore can see one another. If a view controller is currently presenting a view through a second view controller, the latter is the former’s <code class="literal">presentedViewController</code>, and the former is the latter’s <code class="literal">presentingViewController</code>. If a view controller is contained by a UINavigationController, the latter is its <code class="literal">navigationController</code>. A UINavigationController’s visible view is controlled by its <code class="literal">visibleViewController</code>. And from any of these, you can reach the view controller’s view through its <code class="literal">view</code> property, and so forth.</p>
+          <p>All of these relationships are public. So if you can get a reference to just one object within any of these structures or a similar structure, you can effectively navigate the whole structure through a chain of references and lay your hands on any other object within the structure.</p>
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_global_visibility"></a>Global Visibility</h3>
+              </div>
+            </div>
+          </div>
+          <p>Some objects are globally visible (that is, visible to all other objects). In general, these are singletons vended by a class method. Some of these objects have properties pointing to other objects, making those other objects likewise globally visible.<a id="idm441652150288" class="indexterm"></a>
+<a id="idm441652149040" class="indexterm"></a></p>
+          <p>For example, any object can see the singleton UIApplication instance by calling <code class="literal">[UIApplication sharedApplication]</code>. So any object can also see the app’s primary window, because that is its <code class="literal">keyWindow</code> property, and any object can see the app delegate, because that is its <code class="literal">delegate</code> property. And the chain continues: any object can see the app’s root view controller, because that is the primary window’s <code class="literal">rootViewController</code> — and from there, as I said in the previous section, we can navigate the view controller hierarchy and the view hierarchy. You can take advantage of this to make objects globally visible by attaching them to a globally visible object. A public property of the app delegate, which you are free to create, is globally visible by virtue of the app delegate being globally visible (by virtue of the shared application being globally visible).</p>
+          <p>Another globally visible object is the shared defaults object obtained by calling <code class="literal">[NSUserDefaults standardUserDefaults]</code>.<a id="idm441652142960" class="indexterm"></a> This object is the gateway to storage and retrieval of user defaults, which is similar to a dictionary (a collection of values named by keys). The user defaults are automatically saved when your application quits and are automatically available when your application is launched again later, so they are one of the ways in which your app maintains state between launches. But, being globally visible, they are also a conduit for communicating values within your app.</p>
+          <p>For example, in one of my apps there’s a setting I call <code class="literal">@"hazyStripy"</code>. This determines whether a certain visible interface object is drawn with a hazy fill or a stripy fill. This is a setting that the user can change, so there is a preferences interface allowing the user to make this change. When the user displays this preferences interface, I examine the <code class="literal">@"hazyStripy"</code> setting in the user defaults to configure the interface to reflect it; if the user interacts with the preferences interface to change the <code class="literal">@"hazyStripy"</code> setting, I respond by changing the actual <code class="literal">@"hazyStripy"</code> setting in the user defaults.</p>
+          <p>But the preferences interface is not the only object that uses the <code class="literal">@"hazyStripy"</code> setting in the user defaults; the drawing code that actually draws the hazy-or-stripy-filled object also uses it, so as to know which way to draw itself. Thus there is no need for the object that draws the hazy-or-stripy-filled object and the object that manages the preferences interface to be able to see one another! They can both see this common object, the <code class="literal">@"hazyStripy"</code> user default (<a class="xref" href="ch13.html#FIGudvis">Figure 13.2</a>). Indeed, it is not uncommon to “misuse” the user defaults storage to hold information that is <span class="emphasis"><em>not</em></span> used to maintain state between runs of the app, but is placed there just because this is a location globally visible to all objects.</p>
+          <div class="figure">
+            <a id="FIGudvis"></a>
+            <div class="figure-contents">
+              <div class="mediaobject">
+                <img src="figs/pios_1302.png" alt="figs/pios_1302.png" />
+              </div>
+            </div>
+            <p class="title">Figure 13.2. The global visibility of user defaults</p>
+          </div>
+          <br class="figure-break" />
+        </div>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_notifications_2"></a>Notifications</h2>
+            </div>
+          </div>
+        </div>
+        <p>Notifications (<a class="xref" href="ch11.html">Chapter 11</a>) can be a way to communicate between objects that are conceptually distant from one another without bothering to provide <span class="emphasis"><em>any</em></span> way for one to see the other. All they really need to have in common is a knowledge of the name of the notification. Using a notification in this way may seem lazy, an evasion of your responsibility to architect your objects sensibly. But sometimes one object doesn’t need to know, and indeed shouldn’t know, what object (or objects) it is sending a message to.<a id="idm441652128480" class="indexterm"></a></p>
+        <p>For example, in one of my apps, the app delegate may detect a need to tear down the interface and built it back up again from scratch. If this is to happen without causing memory leaks (and all sorts of other havoc), every view controller that is currently running a repeating NSTimer needs to invalidate that timer (<a class="xref" href="ch12.html">Chapter 12</a>). Rather than my having to work out what view controllers those might be, and endowing every view controller with a method that can be called, I simply have the app delegate shout “Everybody stop timers!” — by posting a notification. My view controllers that run timers have all registered for this notification, and they know what to do when they receive it.</p>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_key_value_observing"></a>Key–Value Observing</h2>
+            </div>
+          </div>
+        </div>
+        <p>Key–value observing, or <span class="emphasis"><em>KVO</em></span>, is a mechanism somewhat similar to the target–action mechanism, except that it is not limited to controls.<a id="idm441652123008" class="indexterm"></a><a id="idm441652122144" class="indexterm"></a> (The KVO mechanism is provided through an informal protocol, NSKeyValueObserving, which is actually a set of categories on NSObject and other classes.) The similarity is that objects register with a particular object to be notified when something happens. The “something” is that a certain value in that object is changed.</p>
+        <div class="note" style="margin-left: 0; margin-right: 10%;">
+          <h3 class="title">Mac OS X Programmer Alert</h3>
+          <p>Mac OS X bindings don’t exist on iOS, but you can sometimes use KVO to achieve similar aims.</p>
+        </div>
+        <p>KVO can be broken down into three stages:</p>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+Registration
+</span>
+            </dt>
+            <dd>
+To hear about a change in a value belonging to object A, object B must be registered with object A.
+</dd>
+            <dt>
+              <span class="term">
+Change
+</span>
+            </dt>
+            <dd>
+The change takes place in the value belonging to object A, and it must take place in a special way — a KVO compliant way.
+</dd>
+            <dt>
+              <span class="term">
+Notification
+</span>
+            </dt>
+            <dd>
+Object B is automatically notified that the value in object A has changed and can respond as desired.
+</dd>
+          </dl>
+        </div>
+        <p>Here’s a simple complete example — a rather silly example, but sufficient to demonstrate the KVO mechanism in action. We have a class MyClass1; this will be the class of object A. We also have a class MyClass2; this will be the class of object B. Finally, we have code that creates a MyClass1 instance called <code class="literal">objectA</code> and a MyClass2 instance called <code class="literal">objectB</code>; this code registers <code class="literal">objectB</code> to hear about changes in an instance variable of <code class="literal">objectA</code> called <code class="literal">value</code>, and then changes <code class="literal">value</code>, and sure enough, <code class="literal">objectB</code> is automatically notified of the change:</p>
+        <pre class="screen">// MyClass1.h:
+@interface MyClass1 : NSObject
+@property (nonatomic, copy) NSString* value;
+@end
+
+// MyClass2.m:
+- (void) observeValueForKeyPath:(NSString *)keyPath
+                       ofObject:(id)object
+                         change:(NSDictionary *)change
+                        context:(void *)context {
+    NSLog(@"I heard about the change!");
+}
+
+// Somewhere else entirely:
+MyClass1* objectA = [MyClass1 new];
+MyClass2* objectB = [MyClass2 new];
+// register for KVO
+[objectA addObserver:objectB forKeyPath:@"value" options:0 context:nil]; <a id="CO5-1"></a>❶
+// change the value in a KVO compliant way
+objectA.value = @"Hello, world!"; <a id="CO5-2"></a>❷
+// result: objectB's observeValueForKeyPath:... is called <a id="CO5-3"></a>❸</pre>
+        <div class="calloutlist">
+          <table border="0" summary="Callout list">
+            <tr>
+              <td width="5%" valign="top" align="left">
+                <p><a href="#CO5-1">❶</a> </p>
+              </td>
+              <td valign="top" align="left">
+                <p>
+We call <code class="literal">addObserver:forKeyPath:options:context:</code> to register <code class="literal">objectB</code> to hear about changes in <code class="literal">objectA</code>’s <code class="literal">value</code>. We didn’t use the <code class="literal">options:</code> or <code class="literal">context:</code> parameters for anything; I’ll talk about the <code class="literal">options:</code> parameter in a moment. (The <code class="literal">context:</code> parameter is for handing in a value to be provided as part of the notification; see <a class="xref" href="ch12.html">Chapter 12</a>.)
+</p>
+              </td>
+            </tr>
+            <tr>
+              <td width="5%" valign="top" align="left">
+                <p><a href="#CO5-2">❷</a> </p>
+              </td>
+              <td valign="top" align="left">
+                <p>
+We change <code class="literal">objectA</code>’s <code class="literal">value</code>, and we do it in a KVO compliant way, namely, by passing through the setter (because setting a property is equivalent to passing through the setter). This is another reason why, as I said in <a class="xref" href="ch12.html">Chapter 12</a>, accessors (and properties) are a good thing: they help you guarantee KVO compliance when changing a value.
+</p>
+              </td>
+            </tr>
+            <tr>
+              <td width="5%" valign="top" align="left">
+                <p><a href="#CO5-3">❸</a> </p>
+              </td>
+              <td valign="top" align="left">
+                <p>
+When we change <code class="literal">objectA</code>’s <code class="literal">value</code>, the third stage takes place automatically: a call is made to <code class="literal">objectB</code>’s <code class="literal">observeValueForKeyPath:...</code>. We have implemented this method in MyClass2 in order to receive the notification. In this simple example, we expect to receive only one notification, so we just log to indicate that we did indeed receive it. In real life, where a single object might be registered to receive more than one KVO notification, you’d use the incoming parameters to distinguish between different notifications and decide what to do.
+</p>
+              </td>
+            </tr>
+          </table>
+        </div>
+        <p>At the very least, you’ll probably want to know, when <code class="literal">observeValueForKeyPath:...</code> is called, what the new value is. We can find that out easily, because we are handed a reference to the object that changed, along with the key path for the value within that object. Thus we can use KVC to query the changed object in the most general way:</p>
+        <pre class="screen">- (void) observeValueForKeyPath:(NSString *)keyPath
+                       ofObject:(id)object
+                         change:(NSDictionary *)change
+                        context:(void *)context {
+    id newValue = [object valueForKeyPath:keyPath];
+    NSLog(@"The key path %@ changed to %@", keyPath, newValue);
+}</pre>
+        <p>It is also possible to request that the new value be included as part of the notification. This depends upon the <code class="literal">options</code> passed with the original registration. Here, we’ll request that both the old and new values be included with the notification:</p>
+        <pre class="screen">objectA.value = @"Hello";
+[objectA addObserver:objectB forKeyPath:@"value"
+    options: NSKeyValueObservingOptionNew | NSKeyValueObservingOptionOld
+    context: nil];
+objectA.value = @"Goodbye"; // notification is triggered</pre>
+        <p>When we receive the notification, we fetch the old and new values out of the <code class="literal">change</code> dictionary:</p>
+        <pre class="screen">- (void) observeValueForKeyPath:(NSString *)keyPath
+                       ofObject:(id)object
+                         change:(NSDictionary *)change
+                        context:(void *)context {
+    id newValue = change[NSKeyValueChangeNewKey];
+    id oldValue = change[NSKeyValueChangeOldKey];
+    NSLog(@"The key path %@ changed from %@ to %@",
+          keyPath, oldValue, newValue);
+}</pre>
+        <p>No memory management happens as part of the registration process, so it is incumbent upon you to unregister object B before it is destroyed. Otherwise, object A may later attempt to send a notification to a dangling pointer (see <a class="xref" href="ch12.html">Chapter 12</a>). This is done by sending object A the <code class="literal">removeObserver:forKeyPath:</code> message; you must explicitly unregister the observer for every key path for which it is registered; you can’t use nil as the second argument to mean “all key paths”.</p>
+        <div class="warning" style="margin-left: 0; margin-right: 10%;">
+          <h3 class="title">Warning</h3>
+          <p>The runtime will send you a nice warning in the log if an object <span class="emphasis"><em>being observed</em></span> under KVO goes out of existence. But you get no warning if an <span class="emphasis"><em>observer</em></span> object goes out of existence. It is crucial that the observer should be unregistered with the observed as the observer goes out of existence, to prevent the observed from trying to send it any notifications later. In real life, where an object will typically register itself as an observer, it will usually unregister itself in its <code class="literal">dealloc</code> implementation (and this could be yet another reason to implement <code class="literal">dealloc</code> under ARC).</p>
+        </div>
+        <p>Beginners are often confused about how to use KVO to observe changes to a mutable array, to be notified when an object is added to, removed from, or replaced within the array.<a id="idm441652074448" class="indexterm"></a> You can’t add an observer to an array itself; you have to observe through an object that has a key path to the array (through accessors, for example). The simple-minded solution is then to access the array using <code class="literal">mutableArrayValueForKey:</code>, which provides an observable proxy object.</p>
+        <p>For example, as in <a class="xref" href="ch12.html">Chapter 12</a>, let’s posit an object with a property <code class="literal">theData</code> which is an array of dictionaries:</p>
+        <pre class="screen">(
+    {
+        description = "The one with glasses.";
+        name = Manny;
+    },
+    {
+        description = "Looks a little like Governor Dewey.";
+        name = Moe;
+    },
+    {
+        description = "The one without a mustache.";
+        name = Jack;
+    }
+)</pre>
+        <p>Suppose this is an NSMutableArray. Then we can register with our object to observe the key path <code class="literal">@"theData"</code>:</p>
+        <pre class="screen">[objectA addObserver:objectB forKeyPath:@"theData" options:0 context:nil];</pre>
+        <p>Now object B will be notified of changes to this mutable array, but only if those changes are performed through the <code class="literal">mutableArrayValueForKey:</code> proxy object:</p>
+        <pre class="screen">[[objectA mutableArrayValueForKeyPath:@"theData"] removeObjectAtIndex:0];
+// notification is triggered</pre>
+        <p>But it seems onerous to require clients to know that they must call <code class="literal">mutableArrayValueForKey:</code>. The simple solution is for our object A itself to provide a getter that calls <code class="literal">mutableArrayValueForKey:</code>. Here’s a possible implementation:</p>
+        <pre class="screen">// MyClass1.h:
+@interface MyClass1 : NSObject
+@property (nonatomic, strong, getter=theDataGetter) NSMutableArray* theData;
+@end
+
+// MyClass1.m:
+- (NSMutableArray*) theDataGetter {
+    return [self mutableArrayValueForKey:@"theData"];
+}</pre>
+        <p>The result is that, as far as any client knows, this object has a key <code class="literal">@"theData"</code> and a property <code class="literal">theData</code>, and we can register to observe with the key and then access the mutable array through the property:</p>
+        <pre class="screen">[objectA addObserver:objectB forKeyPath:@"theData"
+    options: NSKeyValueObservingOptionNew | NSKeyValueObservingOptionOld
+    context:nil];
+[objectA.theData removeObjectAtIndex:0]; // notification is triggered</pre>
+        <p>If you’re going to take this approach, you should really also implement (in MyClass1) the four KVC compliance methods for a mutable array façade (see <a class="xref" href="ch12.html">Chapter 12</a>). Although things will appear to work just fine without them, and although they appear trivial (they are merely delegating to <code class="literal">self-&gt;_theData</code> the equivalent calls), they will be called by the vended proxy object, which increases its efficiency (and, some would argue, its safety). Without these methods, the proxy object resorts to setting the instance variable directly, replacing the entire mutable array, every time a client changes the mutable array:</p>
+        <pre class="screen">- (NSUInteger) countOfTheData {
+    return [self-&gt;_theData count];
+}
+
+- (id) objectInTheDataAtIndex: (NSUInteger) ix {
+    return self-&gt;_theData[ix];
+}
+
+- (void) insertObject: (id) val inTheDataAtIndex: (NSUInteger) ix {
+    [self-&gt;_theData insertObject:val atIndex:ix];
+}
+
+- (void) removeObjectFromTheDataAtIndex: (NSUInteger) ix {
+    [self-&gt;_theData removeObjectAtIndex: ix];
+}</pre>
+        <p>If what you want to observe are mutations within an individual element of an array, things are more complicated. Suppose our array of dictionaries is an array of mutable dictionaries. To observe changes to the value of the <code class="literal">@"description"</code> key of any dictionary in the array, you’d need to register for that key with <span class="emphasis"><em>each</em></span> dictionary in the array, separately. You can do that efficiently with NSArray’s instance method <code class="literal">addObserver:toObjectsAtIndexes:forKeyPath:options:context:</code>, but if the array <span class="emphasis"><em>itself</em></span> is mutable then you’re also going to have to register for that key with any <span class="emphasis"><em>new</em></span> dictionaries that are subsequently added to the array (and unregister when a dictionary is removed from the array). This is doable but daunting, and I’m not going to go into the details here.</p>
+        <p>Key–value observing is a deep mechanism; consult Apple’s <span class="emphasis"><em>Key-Value Observing Guide</em></span> for full information. It does have some unfortunate shortcomings — for one thing, it’s a pity that all notifications arrive by calling the same bottleneck method, <code class="literal">observeValueForKeyPath:...</code> — but in general, KVO is useful for keeping values coordinated in different objects.
+<a id="idm441652050096" class="indexterm"></a></p>
+        <div class="warning" style="margin-left: 0; margin-right: 10%;">
+          <h3 class="title">Warning</h3>
+          <p>The properties of Apple’s built-in classes are typically KVO compliant. Indeed, so are many classes that don’t use properties per se; for example, NSUserDefaults is KVO compliant. Unfortunately, Apple warns that undocumented KVO compliance can’t necessarily be counted on.</p>
+        </div>
+      </div>
+    </div>
+    <div class="navfooter">
+      <table width="100%" summary="Navigation footer">
+        <tr>
+          <td width="40%" align="left"><a accesskey="p" href="ch12.html">Prev</a> </td>
+          <td width="20%" align="center">
+            <a accesskey="u" href="pt03.html">Up</a>
+          </td>
+          <td width="40%" align="right"> <a accesskey="n" href="pt04.html">Next</a></td>
+        </tr>
+        <tr>
+          <td width="40%" align="left" valign="top">Chapter 12. Accessors and Memory Management </td>
+          <td width="20%" align="center">
+            <a accesskey="h" href="index.html">Table of Contents</a>
+          </td>
+          <td width="40%" align="right" valign="top"> Part IV. Views</td>
+        </tr>
+      </table>
+    </div>
+  </body>
+</html>

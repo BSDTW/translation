@@ -1,0 +1,180 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>MAC Policies with Labeling Features</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.79" />
+<link rel="HOME" title="FreeBSD 使用手冊" href="index.html" />
+<link rel="UP" title="Mandatory Access Control" href="mac.html" />
+<link rel="PREVIOUS" title="The MAC portacl Module" href="mac-portacl.html" />
+<link rel="NEXT" title="The MAC partition Module" href="mac-partition.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD 使用手冊</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="mac-portacl.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 16 Mandatory Access Control</td>
+<td width="10%" align="right" valign="bottom"><a href="mac-partition.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="MAC-LABELINGPOLICIES" name="MAC-LABELINGPOLICIES">16.9 MAC
+Policies with Labeling Features</a></h1>
+
+<p>The next few sections will discuss <acronym class="ACRONYM">MAC</acronym> policies
+which use labels.</p>
+
+<p>From here on this chapter will focus on the features of <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=mac_biba&amp;sektion=4"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">mac_biba</span>(4)</span></a>, <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=mac_lomac&amp;sektion=4"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">mac_lomac</span>(4)</span></a>, <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=mac_partition&amp;sektion=4"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">mac_partition</span>(4)</span></a>, and
+<a href="http://www.FreeBSD.org/cgi/man.cgi?query=mac_mls&amp;sektion=4"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">mac_mls</span>(4)</span></a>.</p>
+
+<div class="NOTE">
+<blockquote class="NOTE">
+<p><b>Note:</b> This is an example configuration only and should not be considered for a
+production implementation. The goal is to document and show the syntax as well as
+examples for implementation and testing.</p>
+</blockquote>
+</div>
+
+<p>For these policies to work correctly several preparations must be made.</p>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="MAC-PREP" name="MAC-PREP">16.9.1 Preparation for Labeling
+Policies</a></h2>
+
+<p>The following changes are required in the <tt class="FILENAME">login.conf</tt>
+file:</p>
+
+<ul>
+<li>
+<p>An <tt class="LITERAL">insecure</tt> class, or another class of similar type, must be
+added. The login class of <tt class="LITERAL">insecure</tt> is not required and just used
+as an example here; different configurations may use another class name.</p>
+</li>
+
+<li>
+<p>The <tt class="LITERAL">insecure</tt> class should have the following settings and
+definitions. Several of these can be altered but the line which defines the default label
+is a requirement and must remain.</p>
+
+<pre class="PROGRAMLISTING">
+insecure:\
+    :copyright=/etc/COPYRIGHT:\
+    :welcome=/etc/motd:\
+    :setenv=MAIL=/var/mail/$,BLOCKSIZE=K:\
+    :path=~/bin:/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin:\
+    :manpath=/usr/share/man /usr/local/man:\
+    :nologin=/usr/sbin/nologin:\
+    :cputime=1h30m:\
+    :datasize=8M:\
+    :vmemoryuse=100M:\
+    :stacksize=2M:\
+    :memorylocked=4M:\
+    :memoryuse=8M:\
+    :filesize=8M:\
+    :coredumpsize=8M:\
+    :openfiles=24:\
+    :maxproc=32:\
+    :priority=0:\
+    :requirehome:\
+    :passwordtime=91d:\
+    :umask=022:\
+    :ignoretime@:\
+    :label=partition/13,mls/5,biba/low:
+</pre>
+
+<p>The <a href="http://www.FreeBSD.org/cgi/man.cgi?query=cap_mkdb&amp;sektion=1"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">cap_mkdb</span>(1)</span></a> command
+needs to be ran on <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=login.conf&amp;sektion=5"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">login.conf</span>(5)</span></a> before
+any of the users can be switched over to the new class.</p>
+
+<p>The <tt class="USERNAME">root</tt> username should also be placed into a login class;
+otherwise, almost every command executed by <tt class="USERNAME">root</tt> will require
+the use of <tt class="COMMAND">setpmac</tt>.</p>
+
+<div class="WARNING">
+<blockquote class="WARNING">
+<p><b>Warning:</b> Rebuilding the <tt class="FILENAME">login.conf</tt> database may cause
+some errors later with the daemon class. Simply uncommenting the daemon account and
+rebuilding the database should alleviate these issues.</p>
+</blockquote>
+</div>
+</li>
+
+<li>
+<p>Ensure that all partitions on which <acronym class="ACRONYM">MAC</acronym> labeling
+will be implemented support the <code class="OPTION">multilabel</code>. We must do this
+because many of the examples here contain different labels for testing purposes. Review
+the output from the <tt class="COMMAND">mount</tt> command as a precautionary
+measure.</p>
+</li>
+
+<li>
+<p>Switch any users who will have the higher security mechanisms enforced over to the new
+user class. A quick run of <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=pw&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">pw</span>(8)</span></a> or <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=vipw&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">vipw</span>(8)</span></a> should do the
+trick.</p>
+</li>
+</ul>
+</div>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="mac-portacl.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="mac-partition.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">The MAC portacl Module</td>
+<td width="34%" align="center" valign="top"><a href="mac.html" accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">The MAC partition Module</td>
+</tr>
+</table>
+</div>
+
+<p align="center"><small>本文及其他文件，可由此下載：<a
+href="ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/">ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/</a>。</small></p>
+
+<p align="center"><small>若有 FreeBSD 方面疑問，請先閱讀 <a
+href="http://www.FreeBSD.org/docs.html">FreeBSD 相關文件</a>，如不能解決的話，再洽詢
+&#60;<a href="mailto:questions@FreeBSD.org">questions@FreeBSD.org</a>&#62;。<br />
+關於本文件的問題，請洽詢 &#60;<a
+href="mailto:doc@FreeBSD.org">doc@FreeBSD.org</a>&#62;。</small></p>
+</body>
+</html>
+

@@ -1,0 +1,462 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>The inetd Super-Server</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.79" />
+<link rel="HOME" title="FreeBSD 使用手冊" href="index.html" />
+<link rel="UP" title="Network Servers" href="network-servers.html" />
+<link rel="PREVIOUS" title="Network Servers" href="network-servers.html" />
+<link rel="NEXT" title="Network File System (NFS)" href="network-nfs.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD 使用手冊</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="network-servers.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 25 Network Servers</td>
+<td width="10%" align="right" valign="bottom"><a href="network-nfs.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="NETWORK-INETD" name="NETWORK-INETD">25.2 The <b
+class="APPLICATION">inetd</b> “Super-Server”</a></h1>
+
+<i class="AUTHORGROUP"><span class="CONTRIB">Contributed by</span> Chern Lee.</i> 
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="NETWORK-INETD-OVERVIEW" name="NETWORK-INETD-OVERVIEW">25.2.1
+Overview</a></h2>
+
+<p><a href="http://www.FreeBSD.org/cgi/man.cgi?query=inetd&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">inetd</span>(8)</span></a> is referred
+to as the “Internet Super-Server” because it manages connections for several services.
+When a connection is received by <b class="APPLICATION">inetd</b>, it determines which
+program the connection is destined for, spawns the particular process and delegates the
+socket to it (the program is invoked with the service socket as its standard input,
+output and error descriptors). Running one instance of <b class="APPLICATION">inetd</b>
+reduces the overall system load as compared to running each daemon individually in
+stand-alone mode.</p>
+
+<p>Primarily, <b class="APPLICATION">inetd</b> is used to spawn other daemons, but
+several trivial protocols are handled directly, such as <b
+class="APPLICATION">chargen</b>, <b class="APPLICATION">auth</b>, and <b
+class="APPLICATION">daytime</b>.</p>
+
+<p>This section will cover the basics in configuring <b class="APPLICATION">inetd</b>
+through its command-line options and its configuration file, <tt
+class="FILENAME">/etc/inetd.conf</tt>.</p>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="NETWORK-INETD-SETTINGS" name="NETWORK-INETD-SETTINGS">25.2.2
+Settings</a></h2>
+
+<p><b class="APPLICATION">inetd</b> is initialized through the <tt
+class="FILENAME">/etc/rc.conf</tt> system. The <tt class="LITERAL">inetd_enable</tt>
+option is set to <tt class="LITERAL">NO</tt> by default, but is often times turned on by
+<b class="APPLICATION">sysinstall</b> with the medium security profile. Placing:</p>
+
+<pre class="PROGRAMLISTING">
+inetd_enable="YES"
+</pre>
+
+or 
+
+<pre class="PROGRAMLISTING">
+inetd_enable="NO"
+</pre>
+
+into <tt class="FILENAME">/etc/rc.conf</tt> can enable or disable <b
+class="APPLICATION">inetd</b> starting at boot time.<br />
+<br />
+<p>Additionally, different command-line options can be passed to <b
+class="APPLICATION">inetd</b> via the <tt class="LITERAL">inetd_flags</tt> option.</p>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="NETWORK-INETD-CMDLINE" name="NETWORK-INETD-CMDLINE">25.2.3
+Command-Line Options</a></h2>
+
+<p><b class="APPLICATION">inetd</b> synopsis:</p>
+
+<p><code class="OPTION">inetd [-d] [-l] [-w] [-W] [-c maximum] [-C rate] [-a address |
+hostname] [-p filename] [-R rate] [configuration file]</code></p>
+
+<div class="VARIABLELIST">
+<dl>
+<dt>-d</dt>
+
+<dd>
+<p>Turn on debugging.</p>
+</dd>
+
+<dt>-l</dt>
+
+<dd>
+<p>Turn on logging of successful connections.</p>
+</dd>
+
+<dt>-w</dt>
+
+<dd>
+<p>Turn on TCP Wrapping for external services (on by default).</p>
+</dd>
+
+<dt>-W</dt>
+
+<dd>
+<p>Turn on TCP Wrapping for internal services which are built into <b
+class="APPLICATION">inetd</b> (on by default).</p>
+</dd>
+
+<dt>-c maximum</dt>
+
+<dd>
+<p>Specify the default maximum number of simultaneous invocations of each service; the
+default is unlimited. May be overridden on a per-service basis with the <code
+class="OPTION">max-child</code> parameter.</p>
+</dd>
+
+<dt>-C rate</dt>
+
+<dd>
+<p>Specify the default maximum number of times a service can be invoked from a single IP
+address in one minute; the default is unlimited. May be overridden on a per-service basis
+with the <code class="OPTION">max-connections-per-ip-per-minute</code> parameter.</p>
+</dd>
+
+<dt>-R rate</dt>
+
+<dd>
+<p>Specify the maximum number of times a service can be invoked in one minute; the
+default is 256. A rate of 0 allows an unlimited number of invocations.</p>
+</dd>
+
+<dt>-a</dt>
+
+<dd>
+<p>Specify one specific IP address to bind to. Alternatively, a hostname can be
+specified, in which case the IPv4 or IPv6 address which corresponds to that hostname is
+used. Usually a hostname is specified when <b class="APPLICATION">inetd</b> is run inside
+a <a href="http://www.FreeBSD.org/cgi/man.cgi?query=jail&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">jail</span>(8)</span></a>, in which case
+the hostname corresponds to the <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=jail&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">jail</span>(8)</span></a>
+environment.</p>
+
+<p>When hostname specification is used and both IPv4 and IPv6 bindings are desired, one
+entry with the appropriate protocol type for each binding is required for each service in
+<tt class="FILENAME">/etc/inetd.conf</tt>. For example, a TCP-based service would need
+two entries, one using <tt class="LITERAL">tcp4</tt> for the protocol and the other using
+<tt class="LITERAL">tcp6</tt>.</p>
+</dd>
+
+<dt>-p</dt>
+
+<dd>
+<p>Specify an alternate file in which to store the process ID.</p>
+</dd>
+</dl>
+</div>
+
+<p>These options can be passed to <b class="APPLICATION">inetd</b> using the <tt
+class="LITERAL">inetd_flags</tt> option in <tt class="FILENAME">/etc/rc.conf</tt>. By
+default, <tt class="LITERAL">inetd_flags</tt> is set to <tt class="LITERAL">-wW</tt>,
+which turns on TCP wrapping for <b class="APPLICATION">inetd</b>'s internal and external
+services. For novice users, these parameters usually do not need to be modified or even
+entered in <tt class="FILENAME">/etc/rc.conf</tt>.</p>
+
+<div class="NOTE">
+<blockquote class="NOTE">
+<p><b>Note:</b> An external service is a daemon outside of <b
+class="APPLICATION">inetd</b>, which is invoked when a connection is received for it. On
+the other hand, an internal service is one that <b class="APPLICATION">inetd</b> has the
+facility of offering within itself.</p>
+</blockquote>
+</div>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="NETWORK-INETD-CONF" name="NETWORK-INETD-CONF">25.2.4 <tt
+class="FILENAME">inetd.conf</tt></a></h2>
+
+<p>Configuration of <b class="APPLICATION">inetd</b> is controlled through the <tt
+class="FILENAME">/etc/inetd.conf</tt> file.</p>
+
+<p>When a modification is made to <tt class="FILENAME">/etc/inetd.conf</tt>, <b
+class="APPLICATION">inetd</b> can be forced to re-read its configuration file by sending
+a HangUP signal to the <b class="APPLICATION">inetd</b> process as shown:</p>
+
+<div class="EXAMPLE"><a id="NETWORK-INETD-HANGUP" name="NETWORK-INETD-HANGUP"></a>
+<p><b>Example 25-1. Sending inetd a HangUP Signal</b></p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">kill -HUP `cat /var/run/inetd.pid`</kbd>
+</pre>
+</div>
+
+<p>Each line of the configuration file specifies an individual daemon. Comments in the
+file are preceded by a “#”. The format of <tt class="FILENAME">/etc/inetd.conf</tt> is
+as follows:</p>
+
+<pre class="PROGRAMLISTING">
+service-name
+socket-type
+protocol
+{wait|nowait}[/max-child[/max-connections-per-ip-per-minute]]
+user[:group][/login-class]
+server-program
+server-program-arguments
+</pre>
+
+<p>An example entry for the <b class="APPLICATION">ftpd</b> daemon using IPv4:</p>
+
+<pre class="PROGRAMLISTING">
+ftp     stream  tcp     nowait  root    /usr/libexec/ftpd       ftpd -l
+</pre>
+
+<div class="VARIABLELIST">
+<dl>
+<dt>service-name</dt>
+
+<dd>
+<p>This is the service name of the particular daemon. It must correspond to a service
+listed in <tt class="FILENAME">/etc/services</tt>. This determines which port <b
+class="APPLICATION">inetd</b> must listen to. If a new service is being created, it must
+be placed in <tt class="FILENAME">/etc/services</tt> first.</p>
+</dd>
+
+<dt>socket-type</dt>
+
+<dd>
+<p>Either <tt class="LITERAL">stream</tt>, <tt class="LITERAL">dgram</tt>, <tt
+class="LITERAL">raw</tt>, or <tt class="LITERAL">seqpacket</tt>. <tt
+class="LITERAL">stream</tt> must be used for connection-based, TCP daemons, while <tt
+class="LITERAL">dgram</tt> is used for daemons utilizing the <acronym
+class="ACRONYM">UDP</acronym> transport protocol.</p>
+</dd>
+
+<dt>protocol</dt>
+
+<dd>
+<p>One of the following:</p>
+
+<div class="INFORMALTABLE"><a id="AEN34444" name="AEN34444"></a>
+<table border="0" frame="void" width="90%" class="CALSTABLE">
+<col />
+<col />
+<thead>
+<tr>
+<th>Protocol</th>
+<th>Explanation</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>tcp, tcp4</td>
+<td>TCP IPv4</td>
+</tr>
+
+<tr>
+<td>udp, udp4</td>
+<td>UDP IPv4</td>
+</tr>
+
+<tr>
+<td>tcp6</td>
+<td>TCP IPv6</td>
+</tr>
+
+<tr>
+<td>udp6</td>
+<td>UDP IPv6</td>
+</tr>
+
+<tr>
+<td>tcp46</td>
+<td>Both TCP IPv4 and v6</td>
+</tr>
+
+<tr>
+<td>udp46</td>
+<td>Both UDP IPv4 and v6</td>
+</tr>
+</tbody>
+</table>
+</div>
+</dd>
+
+<dt>{wait|nowait}[/max-child[/max-connections-per-ip-per-minute]]</dt>
+
+<dd>
+<p><code class="OPTION">wait|nowait</code> indicates whether the daemon invoked from <b
+class="APPLICATION">inetd</b> is able to handle its own socket or not. <code
+class="OPTION">dgram</code> socket types must use the <code class="OPTION">wait</code>
+option, while stream socket daemons, which are usually multi-threaded, should use <code
+class="OPTION">nowait</code>. <code class="OPTION">wait</code> usually hands off multiple
+sockets to a single daemon, while <code class="OPTION">nowait</code> spawns a child
+daemon for each new socket.</p>
+
+<p>The maximum number of child daemons <b class="APPLICATION">inetd</b> may spawn can be
+set using the <code class="OPTION">max-child</code> option. If a limit of ten instances
+of a particular daemon is needed, a <tt class="LITERAL">/10</tt> would be placed after
+<code class="OPTION">nowait</code>.</p>
+
+<p>In addition to <code class="OPTION">max-child</code>, another option limiting the
+maximum connections from a single place to a particular daemon can be enabled. <code
+class="OPTION">max-connections-per-ip-per-minute</code> does just this. A value of ten
+here would limit any particular IP address connecting to a particular service to ten
+attempts per minute. This is useful to prevent intentional or unintentional resource
+consumption and Denial of Service (DoS) attacks to a machine.</p>
+
+<p>In this field, <code class="OPTION">wait</code> or <code class="OPTION">nowait</code>
+is mandatory. <code class="OPTION">max-child</code> and <code
+class="OPTION">max-connections-per-ip-per-minute</code> are optional.</p>
+
+<p>A stream-type multi-threaded daemon without any <code class="OPTION">max-child</code>
+or <code class="OPTION">max-connections-per-ip-per-minute</code> limits would simply be:
+<tt class="LITERAL">nowait</tt>.</p>
+
+<p>The same daemon with a maximum limit of ten daemons would read: <tt
+class="LITERAL">nowait/10</tt>.</p>
+
+<p>Additionally, the same setup with a limit of twenty connections per IP address per
+minute and a maximum total limit of ten child daemons would read: <tt
+class="LITERAL">nowait/10/20</tt>.</p>
+
+<p>These options are all utilized by the default settings of the <b
+class="APPLICATION">fingerd</b> daemon, as seen here:</p>
+
+<pre class="PROGRAMLISTING">
+finger stream  tcp     nowait/3/10 nobody /usr/libexec/fingerd fingerd -s
+</pre>
+</dd>
+
+<dt>user</dt>
+
+<dd>
+<p>This is the username that the particular daemon should run as. Most commonly, daemons
+run as the <tt class="USERNAME">root</tt> user. For security purposes, it is common to
+find some servers running as the <tt class="USERNAME">daemon</tt> user, or the least
+privileged <tt class="USERNAME">nobody</tt> user.</p>
+</dd>
+
+<dt>server-program</dt>
+
+<dd>
+<p>The full path of the daemon to be executed when a connection is received. If the
+daemon is a service provided by <b class="APPLICATION">inetd</b> internally, then <code
+class="OPTION">internal</code> should be used.</p>
+</dd>
+
+<dt>server-program-arguments</dt>
+
+<dd>
+<p>This works in conjunction with <code class="OPTION">server-program</code> by
+specifying the arguments, starting with <tt class="LITERAL">argv[0]</tt>, passed to the
+daemon on invocation. If <tt class="COMMAND">mydaemon -d</tt> is the command line, <tt
+class="LITERAL">mydaemon -d</tt> would be the value of <code
+class="OPTION">server-program-arguments</code>. Again, if the daemon is an internal
+service, use <code class="OPTION">internal</code> here.</p>
+</dd>
+</dl>
+</div>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="NETWORK-INETD-SECURITY" name="NETWORK-INETD-SECURITY">25.2.5
+Security</a></h2>
+
+<p>Depending on the security profile chosen at install, many of <b
+class="APPLICATION">inetd</b>'s daemons may be enabled by default. If there is no
+apparent need for a particular daemon, disable it! Place a “#” in front of the daemon
+in question in <tt class="FILENAME">/etc/inetd.conf</tt>, and then send a <a
+href="network-inetd.html#NETWORK-INETD-HANGUP">hangup signal to inetd</a>. Some daemons,
+such as <b class="APPLICATION">fingerd</b>, may not be desired at all because they
+provide an attacker with too much information.</p>
+
+<p>Some daemons are not security-conscious and have long, or non-existent timeouts for
+connection attempts. This allows an attacker to slowly send connections to a particular
+daemon, thus saturating available resources. It may be a good idea to place <code
+class="OPTION">max-connections-per-ip-per-minute</code> and <code
+class="OPTION">max-child</code> limitations on certain daemons.</p>
+
+<p>By default, TCP wrapping is turned on. Consult the <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=hosts_access&amp;sektion=5"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">hosts_access</span>(5)</span></a> manual
+page for more information on placing TCP restrictions on various <b
+class="APPLICATION">inetd</b> invoked daemons.</p>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="NETWORK-INETD-MISC" name="NETWORK-INETD-MISC">25.2.6
+Miscellaneous</a></h2>
+
+<p><b class="APPLICATION">daytime</b>, <b class="APPLICATION">time</b>, <b
+class="APPLICATION">echo</b>, <b class="APPLICATION">discard</b>, <b
+class="APPLICATION">chargen</b>, and <b class="APPLICATION">auth</b> are all internally
+provided services of <b class="APPLICATION">inetd</b>.</p>
+
+<p>The <b class="APPLICATION">auth</b> service provides identity (<b
+class="APPLICATION">ident</b>, <b class="APPLICATION">identd</b>) network services, and
+is configurable to a certain degree.</p>
+
+<p>Consult the <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=inetd&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">inetd</span>(8)</span></a> manual page
+for more in-depth information.</p>
+</div>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="network-servers.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="network-nfs.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">Network Servers</td>
+<td width="34%" align="center" valign="top"><a href="network-servers.html"
+accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">Network File System (NFS)</td>
+</tr>
+</table>
+</div>
+
+<p align="center"><small>This, and other documents, can be downloaded from <a
+href="ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/">ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/</a>.</small></p>
+
+<p align="center"><small>For questions about FreeBSD, read the <a
+href="http://www.FreeBSD.org/docs.html">documentation</a> before contacting &#60;<a
+href="mailto:questions@FreeBSD.org">questions@FreeBSD.org</a>&#62;.<br />
+For questions about this documentation, e-mail &#60;<a
+href="mailto:doc@FreeBSD.org">doc@FreeBSD.org</a>&#62;.</small></p>
+</body>
+</html>
+

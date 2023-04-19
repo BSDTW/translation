@@ -1,0 +1,239 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN">
+
+<html>
+
+<head>
+
+<meta http-equiv="content-type" content="text/html; charset=iso-8859-1">
+
+<title>Debian Reference - GnuPG</title>
+
+</head>
+
+<body>
+
+<p><a name="ch-gnupg"></a></p>
+<hr>
+
+<p>
+[ <a href="ch-program.en.html">previous</a> ]
+[ <a href="index.en.html#contents">Contents</a> ]
+[ <a href="ch-preface.en.html">1</a> ]
+[ <a href="ch-system.en.html">2</a> ]
+[ <a href="ch-install.en.html">3</a> ]
+[ <a href="ch-tutorial.en.html">4</a> ]
+[ <a href="ch-woody.en.html">5</a> ]
+[ <a href="ch-package.en.html">6</a> ]
+[ <a href="ch-kernel.en.html">7</a> ]
+[ <a href="ch-tips.en.html">8</a> ]
+[ <a href="ch-tune.en.html">9</a> ]
+[ <a href="ch-gateway.en.html">10</a> ]
+[ <a href="ch-edit.en.html">11</a> ]
+[ <a href="ch-vcs.en.html">12</a> ]
+[ <a href="ch-program.en.html">13</a> ]
+[ 14 ]
+[ <a href="ch-support.en.html">15</a> ]
+[ <a href="ap-appendix.en.html">A</a> ]
+[ <a href="ch-support.en.html">next</a> ]
+</p>
+
+<hr>
+
+<h1>
+Debian Reference
+<br>Chapter 14 - GnuPG
+</h1>
+
+<hr>
+
+<p>
+References:
+</p>
+<ul>
+<li>
+<p>
+<code>gpg(1)</code>.
+</p>
+</li>
+<li>
+<p>
+<code>file:///usr/share/doc/gnupg/README.gz</code>
+</p>
+</li>
+<li>
+<p>
+<em>GNU privacy handbook</em> in
+<code>file:///usr/share/doc/gnupg-doc/GNU_Privacy_Handbook/</code> (install
+<code>gnupg-doc</code> package)
+</p>
+</li>
+</ul>
+
+<hr>
+
+<h2><a name="s14.1"></a>14.1 Installing GnuPG</h2>
+
+<pre>
+     # gpg --gen-key                   # generate a new key
+     # gpg --gen-revoke <var>my_user_ID</var>     # generate revoke key for <var>my_user_ID</var>
+     # host -l pgp.net | grep www|less # figure out pgp keyservers
+</pre>
+
+<p>
+A good default keyserver set up in <code>$HOME/.gnupg/gpg.conf</code> (or old
+location <code>$HOME/.gnupg/options</code>) contains:
+</p>
+
+<pre>
+     keyserver hkp://subkeys.pgp.net
+</pre>
+
+<p>
+Here one must be careful <strong>not</strong> to create more than 2 sub-keys.
+If you do, keyservers on pgp.net will <strong>corrupt</strong> your key.  Use
+the newer <code>gnupg</code> (&gt;1.2.1-2) to handle these corrupted subkeys.
+See <code><a
+href="http://fortytwo.ch/gpg/subkeys">http://fortytwo.ch/gpg/subkeys</a></code>.
+</p>
+
+<hr>
+
+<h2><a name="s14.2"></a>14.2 Using GnuPG</h2>
+
+<p>
+File handling:
+</p>
+
+<pre>
+     $ gpg  [options]  <var>command  [args]</var>
+     $ gpg {--armor|-a} {--sign|-s} <var>file</var> # sign file into a text <var>file</var>.asc
+     $ gpg --clearsign <var>file</var>              # clear-sign message
+     $ gpg --clearsign --not-dash-escaped <var>patchfile</var>  # clear-sign patchfile
+     $ gpg --verify <var>file</var>                 # verify clear-signed <var>file</var>
+     $ gpg -o <var>file.sig</var> {-b|--detach-sig} <var>file</var> # create detached signature
+     $ gpg --verify <var>file.sig</var> <var>file</var>        # verify <var>file</var> with <var>file.sig</var>
+     $ gpg -o <var>crypt_file</var> {--recipient|-r} <var>name</var> {--encrypt|-e} <var>file</var> 
+             # public-key encryption intended for name
+     $ gpg -o <var>crypt_file</var> {--symmetric|-c} <var>file</var> # symmetric encryption
+     $ gpg -o <var>file</var> --decrypt crypt_file  # decryption
+</pre>
+
+<hr>
+
+<h2><a name="s14.3"></a>14.3 Managing GnuPG</h2>
+
+<p>
+Key management:
+</p>
+
+<pre>
+     $ gpg --edit-key <var>user_ID</var>               # &quot;help&quot; for help, interactive
+     $ gpg -o <var>file</var> --exports                # export all keys to <var>file</var> 
+     $ gpg --imports <var>file</var>                   # import all keys from <var>file</var>
+     $ gpg --send-keys <var>user_ID</var>              # send key of <var>user_ID</var> to keyserver
+     $ gpg --recv-keys <var>user_ID</var>              # recv. key of <var>user_ID</var> from keyserver
+     $ gpg --list-keys <var>user_ID</var>              # list keys of <var>user_ID</var>
+     $ gpg --list-sigs <var>user_ID</var>              # list sig. of <var>user_ID</var>
+     $ gpg --check-sigs <var>user_ID</var>             # check sig. of <var>user_ID</var>
+     $ gpg --fingerprint <var>user_ID</var>            # check fingerprint of <var>user_ID</var>
+     $ gpg --list-sigs | grep '^sig' | grep '[User id not found]' \
+       | awk '{print $2}' | sort -u | xargs gpg --recv-keys # get unknown keys
+       # update keys for all unknown sigs.
+     $ gpg --refresh-keys                   # update local keyring
+</pre>
+
+<p>
+Trust code:
+</p>
+
+<pre>
+     -         No ownertrust assigned / not yet calculated.
+     e         Trust calculation has failed.
+     q         Not enough information for calculation.
+     n         Never trust this key.
+     m         Marginally trusted.
+     f         Fully trusted.
+     u         Ultimately trusted.
+</pre>
+
+<p>
+The following will upload my key &quot;<var>A8061F32</var>&quot; to the popular
+keyserver <samp>hkp://subkeys.pgp.net</samp>:
+</p>
+
+<pre>
+     $ gpg --keyserver hkp://subkeys.pgp.net --send-keys <var>A8061F32</var>
+</pre>
+
+<hr>
+
+<h2><a name="s14.4"></a>14.4 Using GnuPG with applications</h2>
+
+<hr>
+
+<h3><a name="s14.4.1"></a>14.4.1 Using GnuPG with Mutt</h3>
+
+<p>
+Add the following to <code>~/.muttrc</code> to keep a slow GnuPG from
+automatically starting, while allowing it to be used by typing `<samp>S</samp>'
+at the index menu.
+</p>
+
+<pre>
+     macro index S &quot;:toggle pgp_verify_sig\n&quot;
+     set pgp_verify_sig=no
+</pre>
+
+<hr>
+
+<h3><a name="s-vimgpg"></a>14.4.2 Using GnuPG with Vim</h3>
+
+<p>
+Add the contents of <code>_vimrc</code> obtained from the <code><a
+href="examples/">examples subdirectory</a></code> into <code>~/.vimrc</code> to
+run GnuPG transparently.
+</p>
+
+<hr>
+
+<p>
+[ <a href="ch-program.en.html">previous</a> ]
+[ <a href="index.en.html#contents">Contents</a> ]
+[ <a href="ch-preface.en.html">1</a> ]
+[ <a href="ch-system.en.html">2</a> ]
+[ <a href="ch-install.en.html">3</a> ]
+[ <a href="ch-tutorial.en.html">4</a> ]
+[ <a href="ch-woody.en.html">5</a> ]
+[ <a href="ch-package.en.html">6</a> ]
+[ <a href="ch-kernel.en.html">7</a> ]
+[ <a href="ch-tips.en.html">8</a> ]
+[ <a href="ch-tune.en.html">9</a> ]
+[ <a href="ch-gateway.en.html">10</a> ]
+[ <a href="ch-edit.en.html">11</a> ]
+[ <a href="ch-vcs.en.html">12</a> ]
+[ <a href="ch-program.en.html">13</a> ]
+[ 14 ]
+[ <a href="ch-support.en.html">15</a> ]
+[ <a href="ap-appendix.en.html">A</a> ]
+[ <a href="ch-support.en.html">next</a> ]
+</p>
+
+<hr>
+
+<p>
+Debian Reference
+</p>
+
+<address>
+CVS, Mon Jun 16 21:20:26 UTC 2008<br>
+<br>
+Osamu Aoki <code><a href="mailto:osamu#at#debian.org">osamu#at#debian.org</a></code><br>
+<a href="ap-appendix.en.html#s-authors">Authors, Section A.1</a><br>
+<br>
+</address>
+<hr>
+
+</body>
+
+</html>
+

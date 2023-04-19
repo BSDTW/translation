@@ -1,0 +1,179 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>RAID0 - 分散連結(striping)</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.79" />
+<link rel="HOME" title="FreeBSD 使用手冊" href="index.html" />
+<link rel="UP" title="GEOM: Modular Disk Transformation Framework" href="geom.html" />
+<link rel="PREVIOUS" title="GEOM 導論" href="geom-intro.html" />
+<link rel="NEXT" title="RAID1 - 鏡射(Mirroring)" href="geom-mirror.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD 使用手冊</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="geom-intro.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 19 GEOM: Modular Disk
+Transformation Framework</td>
+<td width="10%" align="right" valign="bottom"><a href="geom-mirror.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="GEOM-STRIPING" name="GEOM-STRIPING">19.3 RAID0 -
+分散連結(striping)</a></h1>
+
+<i class="AUTHORGROUP"><span class="CONTRIB">Written by</span> Tom Rhodes and Murray
+Stokely.</i> 
+
+<p>分散連結(striping) 可用來連結多個磁碟成為一大塊空間。
+很多時候硬體控制器可以完成這件事，不過 GEOM 也提供了軟體版本的 <acronym
+class="ACRONYM">RAID</acronym>0，也就是分散連結(striping)。</p>
+
+<p>在 <acronym class="ACRONYM">RAID</acronym>0 裡，資料會被切分成很多塊，
+再分散寫入全部的磁碟。例如要寫入 256k 的資料到單一磁碟，在 四個磁碟的 <acronym
+class="ACRONYM">RAID</acronym>0 中可同時寫入 64k 到四個磁碟裡， 因此可大幅提升 I/O
+效能。如果使用更多的磁碟控制器， I/O 效能可再提升。</p>
+
+<p>由於讀或寫時會同步交錯對許多磁碟進行 I/O 處理，因此 <acronym
+class="ACRONYM">RAID</acronym>0 的每個磁碟必須大小一樣。</p>
+
+<p><img src="geom/striping.png" align="CENTER" /></p>
+
+<br />
+<br />
+<div class="PROCEDURE">
+<p><b>用未格式化的 ATA 磁碟來建立分散連結(striping)</b></p>
+
+<ol type="1">
+<li class="STEP">
+<p>載入 <tt class="FILENAME">geom_stripe</tt> kernel module：</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">kldload geom_stripe.ko</kbd>
+</pre>
+</li>
+
+<li class="STEP">
+<p>確定掛載點(mount point)存在。 如果想用分散連結(striping)的空間做為根目錄(root
+partition，即 <tt class="FILENAME">/</tt> )， 則先用個暫時的掛載點，如 <tt
+class="FILENAME">/mnt</tt>：</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">mkdir /mnt</kbd>
+</pre>
+</li>
+
+<li class="STEP">
+<p>確認要用來分散連結(striping)的裝置名稱，接著建立新的分散連結(striping)。
+例如下面的指令會分散連結(striping)兩個未使用、尚未分割區的 <acronym
+class="ACRONYM">ATA</acronym> 磁碟(<tt class="FILENAME">/dev/ad2</tt> 和 <tt
+class="FILENAME">/dev/ad3</tt>) ：</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">gstripe label -v st0 /dev/ad2 /dev/ad3</kbd>
+</pre>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">gstripe label -v st0 /dev/ad2 /dev/ad3</kbd>
+</pre>
+</li>
+
+<li class="STEP">
+<p>用下面的指令來建立分割區表(partition table)：</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">bsdlabel -wB /dev/stripe/st0</kbd>
+</pre>
+</li>
+
+<li class="STEP">
+<p>除了先前建立的 <tt class="DEVICENAME">st0</tt> ，這個步驟還會在 <tt
+class="FILENAME">/dev/stripe</tt> 下新增兩個裝置： <tt class="DEVICENAME">st0a</tt> 和
+<tt class="DEVICENAME">st0c</tt>。 利用 <tt class="COMMAND">newfs</tt> 指令可以在 <tt
+class="DEVICENAME">st0a</tt> 建立檔案系統：</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">newfs -U /dev/stripe/st0a</kbd>
+</pre>
+
+<br />
+<br />
+<p>螢幕上會有一堆數字傾瀉而過，幾秒鐘後就會完成。此時空間已建立， 可用來掛載使用了。</p>
+</li>
+</ol>
+</div>
+
+<p>下面指令可用來手動掛載分散連結(striping)空間：</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">mount /dev/stripe/st0a /mnt</kbd>
+</pre>
+
+<p>如果要在開機時自動掛載，在 <tt class="FILENAME">/etc/fstab</tt>
+加入這塊空間的資訊：</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">echo "/dev/stripe/st0a /mnt ufs rw 2 2" \</kbd>
+    <kbd class="USERINPUT">&gt;&gt; /etc/fstab</kbd>
+</pre>
+
+<p>而 <tt class="FILENAME">geom</tt> kernel module 必須在系統初始化時自動載入， 因此在
+<tt class="FILENAME">/boot/lodaer.conf</tt> 加入一行：</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">echo 'geom_stripe_load="YES"' &gt;&gt; /boot/loader.conf</kbd>
+</pre>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="geom-intro.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="geom-mirror.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">GEOM 導論</td>
+<td width="34%" align="center" valign="top"><a href="geom.html" accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">RAID1 - 鏡射(Mirroring)</td>
+</tr>
+</table>
+</div>
+
+<p align="center"><small>本文及其他文件，可由此下載：<a
+href="ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/">ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/</a>。</small></p>
+
+<p align="center"><small>若有 FreeBSD 方面疑問，請先閱讀 <a
+href="http://www.FreeBSD.org/docs.html">FreeBSD 相關文件</a>，如不能解決的話，再洽詢
+&#60;<a href="mailto:questions@FreeBSD.org">questions@FreeBSD.org</a>&#62;。<br />
+關於本文件的問題，請洽詢 &#60;<a
+href="mailto:doc@FreeBSD.org">doc@FreeBSD.org</a>&#62;。</small></p>
+</body>
+</html>
+

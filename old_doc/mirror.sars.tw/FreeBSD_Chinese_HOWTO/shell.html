@@ -1,0 +1,157 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>在 Bash/Tcsh Shell 底下的中文輸入</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.7" />
+<link rel="HOME" title="FreeBSD Chinese HOWTO" href="index.html" />
+<link rel="UP" title="中文的顯示及輸入" href="view.html" />
+<link rel="PREVIOUS" title="新增輸入法 - 嘸蝦米輸入法為例" href="newinputmethod.html" />
+<link rel="NEXT" title="big5fs - Joliet, VFAT 和 NTFS 檔案系統的中文顯示"
+href="big5fs.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD Chinese HOWTO</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="newinputmethod.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 7. 中文的顯示及輸入</td>
+<td width="10%" align="right" valign="bottom"><a href="big5fs.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="SHELL" name="SHELL">7.22. 在 Bash/Tcsh Shell
+底下的中文輸入</a></h1>
+
+<p>在完成中文系統建立的工作，您已經可以在您的 FreeBSD 機器上面顯示中文了。但如果您使用
+Shell，您會發現， 您的 FreeBSD 只能顯示中文，卻無法接受中文的輸入工作。
+如果您想要改進這個問題，您必須自己修改一些設定，使 FreeBSD
+系統可以接受中文的輸出與輸入工作。</p>
+
+<p>您必須要在您使用的 Shell 起始檔增加 locale 的設定。
+(如果您的家目錄中並未有這樣的檔案，請自行建立)</p>
+
+<p>Bash Shell：</p>
+
+<p>在 <tt class="FILENAME">~/.profile</tt> 或 <tt class="FILENAME">~/.bashrc</tt>
+增加下面的內容：</p>
+
+<pre class="PROGRAMLISTING">
+#stty cs8 -istrip
+#stty pass8
+export LANG=zh_TW.Big5
+export LC_CTYPE=zh_TW.Big5
+</pre>
+
+<p>另外在 <tt class="FILENAME">~/.inputrc</tt> 檔增加設定如下：</p>
+
+<pre class="PROGRAMLISTING">
+# inputrc - global inputrc for libreadline
+# See readline(3readline) and `info rluserman' for more information.
+
+# Be 8 bit clean.
+set meta-flag on
+set input-meta on
+set output-meta on
+
+# To allow the use of 8bit-characters like the german umlauts, comment out
+# the line below. However this makes the meta key not work as a meta key,
+# which is annoying to those which don't need to type in 8-bit characters.
+set convert-meta off
+</pre>
+
+<p>Tcsh Shell：</p>
+
+<p>在 <tt class="FILENAME">~/.login</tt> 或 <tt class="FILENAME">~/.cshrc</tt>
+增加設定如下：</p>
+
+<pre class="PROGRAMLISTING">
+#stty cs8 -istrip
+#stty pass8
+setenv LANG zh_TW.Big5
+setenv LC_CTYPE zh_TW.Big5
+set dspmbyte="
+0000000000000000000000000000000000000000000000000000000000000000
+2222222222222222222222222222222222222222222222222222222222222220
+2333333333333333333333333333333333333333333333333333333333333333
+3333333333333333333333333333333333333333333333333333333333333330"
+</pre>
+
+<p>請將 dspmbyte 在 "" 中的字串接起來。</p>
+
+<p>關於 <var class="OPTION">dspmtype</var> 設定的原因是因為在 <b
+class="APPLICATION">tcsh</b> 的 man page 中，對照 Big5 的使用字碼表
+[\x81-\xFE][\x40-\x7E\x80-\xFE] 而設定的。</p>
+
+<p>tcsh-6.11 內建了中文 big5 支援</p>
+
+<pre class="PROGRAMLISTING">
+       dspmbyte (+)
+               If set to `euc', it enables  display  and  editing
+               EUC-kanji(Japanese)  code.   If  set to `sjis', it
+               enables display  and  editing  Shift-JIS(Japanese)
+               code.   If  set  to `big5', it enables display and
+               editing Big5(Chinese) code.  If set to the follow
+               ing  format,  it  enables  display  and editing of
+               original multi-byte code format:
+</pre>
+
+<p>所以以後 dspmbyte 設定成 big5，不用設定一大串； 或者乾脆不要設定 dspmbyte，只要 LANG
+為 zh_TW.Big5 就可以了 :)</p>
+
+<pre class="PROGRAMLISTING">
+2001/09/05 -CURRENT 匯入 tcsh-6.11
+2001/10/08 -STABLE  匯入 tcsh-6.11
+http://www.freebsd.org/cgi/cvsweb.cgi/src/contrib/tcsh/Fixes
+</pre>
+
+<p>如果是簡體環境，由於 csh/tcsh 並沒有包含自動偵測簡體環境的部分， 可以參考 big5
+的做法修改 <tt class="FILENAME">tc.const.c</tt>， 或是設定 <tt class="COMMAND">set
+dspmbyte=euc</tt> 就可以了。</p>
+
+<div class="FIGURE"><a id="AEN2725" name="AEN2725"></a>
+<p><b>Figure 7-10. tcsh snapshot</b></p>
+
+<p><img src="images/tcsh.png" /></p>
+</div>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="newinputmethod.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="big5fs.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">新增輸入法 - 嘸蝦米輸入法為例</td>
+<td width="34%" align="center" valign="top"><a href="view.html" accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">big5fs - Joliet, VFAT 和 NTFS
+檔案系統的中文顯示</td>
+</tr>
+</table>
+</div>
+</body>
+</html>
+

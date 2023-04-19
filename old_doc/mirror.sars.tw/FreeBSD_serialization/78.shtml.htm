@@ -1,0 +1,108 @@
+
+
+<!-- Vignette StoryServer 4 Sat Mar 11 15:43:24 2000 --> 
+<style type=text/css>
+<!--
+p,div {font-size:12pt; line-height:14pt; font-family:宋體;}
+.p1{font-size:12pt;font-family:宋體;}
+.p2{font-size:12pt;font-family:宋體;line-height:14pt;}
+.p3{font-size:14.8px;font-family:宋體;}
+.p4{font-size:14.8px;font-family:宋體;line-height:14pt;}
+.p5{font-size:1pt}
+a:hover{color:red;}
+a.t1:visited{color:red;}
+-->
+</style>
+<title>FreeBSD使用大全</title></head>
+
+<body bgcolor="#FFFFFF" text="#000000" link="#383098" vlink="#336699" alink="#FF0000" topmargin="0">
+<!-- Vignette StoryServer 4 Thu Mar 23 10:01:54 2000 --> <!-- Vignette StoryServer 4 Thu Mar 23 15:34:35 2000 --> 
+
+<!--開始：新聞內容-->
+<TABLE WIDTH=750 BORDER=0 CELLSPACING=0 CELLPADDING=0>
+
+<tr valign=top>
+
+
+
+<TD  valign=top>
+<CENTER><FONT COLOR=#000066 size=5><B>FreeBSD連載(10)：系統啟動腳本</B><br></FONT></CENTER>
+
+<HR  ALIGN="center" SIZE=1>
+<CENTER><FONT FACE="Arial" SIZE=2> 1999年11月12日 13:20 </FONT><FONT COLOR="#990000" SIZE=2>王波</FONT></CENTER><p>
+
+<h1 align=center>系統啟動腳本</h1>
+
+<p>　　核心探測過系統硬體之後，就啟動進程0和進程1，進程0用於清除內存，將所有的內存單元置零，進程1為init
+進程，將負責啟動系統和各種守護進程。init將系統帶入多用戶狀態，並按照/etc/rc啟動腳本啟動服務程序。
+</p>
+<p>　　/etc/rc啟動腳本將完成很多非常重要的工作，包括設置磁碟交換、檢查磁碟錯誤、設置網路界面，啟動網路
+服務程序等非常重要的工作。/etc/rc檔案將也將執行另外的rc檔案，如執行rc.conf用於大部分系統參數的
+設置，rc.network用於網路設置，rc.firewall用於設置防火牆，以及rc.local，用於管理員
+對本機特定的啟動設置等。其中rc.conf檔案中包含了用戶能夠更改的很多設置參數，這些設置參數在其他rc檔案中
+使用，用於配置系統的參數，因此對系統管理來講最為重要。</p>
+
+<p>　　由於大部分伺服器程序都是網路程序，因此如果系統的網路設置不正確，這些服務程序將不能正常執行（例如
+sendmail）。而且有些程序的超時設置的很長，因此出現錯誤時會出現系統停留在某個程序上不再繼續執行。一般可以不必
+理會，等待程序超時退出即可，或者可以嘗試使用Ctrl-C中斷該程序。如果啟動腳本真的出現無法繼續執行的錯誤，如
+果能夠通過網路登錄，可以先登錄進系統再更改啟動腳本,而大部分正在執行啟動腳本的情況下，網路服務並沒有啟動，那麼
+就必須重新啟動系統進入單用戶狀態，再修改啟動腳本來糾正錯誤。</p>
+
+<p>　　#! /bin/sh</p>
+
+<p>　　swapfile="NO"&#9;&#9;# Set to name of swapfile if aux swapfile desired.</p>
+
+<p>　　apm_enable="NO"&#9;&#9;# Set to YES if you want APMenabled.</p>
+
+<p>　　pccard_enable="NO"&#9;# Set to YES if you want to configure PCCARD devices.</p>
+
+<p>　　pccard_mem="DEFAULT"&#9;# If pccard_enable=YES, this is card memory address.</p>
+
+<p>　　pccard_ifconfig="NO"&#9;# Specialized pccard ethernet configuration (or NO).</p>
+
+<p>　　local_startup="/usr/local/etc/rc.d /usr/X11R6/etc/rc.d"&#9; # startup script dirs.</p>
+
+<p>　　上面是/etc/rc.conf的部分內容，可以看出參數的設置形式，相應的設置值都給出了提示，使得更改這
+些參數設置非常容易。rc.onf中的大部分設置可以通過/stand/sysinstall系統安裝程序來進行設置
+，但也有部分參數不能通過sysinstall進行設置，必須通過手工修改這個檔案來完成。按照FreeBSD的習慣
+，這些rc檔案，rc.conf用於參數配置，可以由sysinstall安裝程序和管理員更改，rc.local中
+定義這台電腦特定的啟動命令，可以由管理員重新設置，而其他rc檔案應該保留不變。這只是一種習慣做法，而非硬性規
+定，然而遵從習慣的好處是系統設置比較清晰，便於系統維護和管理，並且當管理員進入一個新系統中，能立即找到需要的配
+置檔案。</p>
+
+<p>　　在版本3.1-release之前，/etc/rc.conf中包括了所有參數設定，這樣在系統長期運行之後
+，就無法區分哪個參數為預設值，哪個參數為管理員更改過的值。在3.1-release中，rc.conf劃分為兩個
+檔案，/etc/default/rc.conf和/etc/rc.conf，其中/etc/default/rc.
+conf是設置各個參數的系統預設值，而/etc/rc.conf僅僅設置本地系統在安裝和運行過程中更改的參數，例
+如hostname等，因此3.1-release之後的/etc/rc.conf檔案中的內容較少。事實上
+/etc/default/rc.conf中不但設置了讀取/etc/rc.conf檔案中的設置，還包括讀取
+/etc/rc.conf.local檔案的設置，以適應更複雜的電腦設置情況。對於一般的情況，用不到那麼複雜的設置檔案，僅僅
+注意/etc/rc.conf中的設置就滿足設置要求了。</p>
+
+<p>　　BSD Unix傳統上只使用rc.local來維護本機特定的啟動命令，這樣如果系統在啟動時需要配置的內
+容過多，這個檔案就會變得相當龐大，不利於系統維護。Unix System V風格的系統使用啟動目錄而非檔案來維
+護啟動命令，每個啟動一個特定功能的設置被放入一個單獨腳本中，然後將所有的腳本都放入啟動目錄中，系統啟動時逐項檢
+查這個目錄中的執行腳本，自動執行這些命令。</p>
+
+<p>　　System V和BSD的啟動管理有很大不同，System V引入了啟動級別的概念，可以有6種不同的啟
+動級別，而BSD只簡單的分為多用戶狀態、單用戶狀態和停機狀態3種。在啟動的管理方面，System V比BSD更
+友好一些。</p>
+
+<p>　　因此FreeBSD吸取System V中的啟動目錄的思想，在rc.conf中定義了本電腦的系統啟動文
+件存放的目錄local_startup參數，預設使用/usr/local/etc/rc.d目錄存放伺服器程序的
+啟動腳本，使用/usr/X11R6/etc/rc.d目錄存放本地X Window相關的程序啟動腳本。這些目錄中
+的以sh結尾並具備執行屬性的shell腳本程序將在啟動時被自動執行。這兩個目錄中的腳本程序也是由系統管理員設置
+和修改的，必須以 “.sh” 結尾，其他後綴的檔案將被忽略。習慣上這兩個目錄裡的腳本程序負責啟動伺服器程序，而
+rc.local主要用於調整系統的一些非標準參數設置（rc.conf中沒有涉及的設置）。
+</p>
+
+
+
+<BR>
+
+</TD>
+</TR></TABLE>
+
+
+</BODY>
+</HTML>

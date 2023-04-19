@@ -1,0 +1,148 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>用 php 製作中文 PDF 檔</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.7" />
+<link rel="HOME" title="FreeBSD Chinese HOWTO" href="index.html" />
+<link rel="UP" title="中文程式設計" href="devel.html" />
+<link rel="PREVIOUS" title="php 上傳中文檔名的檔案" href="php-upload.html" />
+<link rel="NEXT" title="Tcl/Tk - 廣為運用的一種高階電腦語言與 GUI 發展工具"
+href="tcltk.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD Chinese HOWTO</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="php-upload.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 14. 中文程式設計</td>
+<td width="10%" align="right" valign="bottom"><a href="tcltk.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="PHP-PDF" name="PHP-PDF">14.7. 用 php 製作中文 PDF 檔</a></h1>
+
+<p>Contributed by Tim (tim@dnes.mlc.edu.tw)</p>
+
+<p>Last Update: 2003年 4月20日 周日 15時59分41秒 CST</p>
+
+<p>php 目前可以使用 PDFlib 來建立不內嵌字型的 PDF 檔， 在 pdf_findfont
+的部分要給對字型就可以了。</p>
+
+<pre class="PROGRAMLISTING">
+$font = pdf_findfont($pdf, 'MSung-Light', 'ETen-B5-H', 0);
+</pre>
+
+<p>以下是完整範例，記得要先在該目錄底下建立 hello.pdf 並且將權限改成 666。</p>
+
+<pre class="PROGRAMLISTING">
+&lt;?php
+  echo '&lt;meta http-equiv="Content-Type" content="text/html; charset=big5"&gt;';
+  //create file
+  $fp = fopen('hello.pdf', 'w');
+  if(!$fp)
+  {
+    echo "Error: could not create the PDF file";
+    exit;
+  }
+
+  // start the pdf document
+  $pdf = pdf_open($fp);
+  pdf_set_info($pdf, "Creator", "pdftest.php");
+  pdf_set_info($pdf, "Author", "Shen Chun-Hsing");
+  pdf_set_info($pdf, "Title", "Hello World (PHP)");
+
+  // US letter is 11" x 8.5" and there are approximately 72 points per inch
+  pdf_begin_page($pdf, 8.5*72, 11*72/2);
+  pdf_add_outline($pdf, 'Page 1');
+
+  // 取得字型
+  $Efont = pdf_findfont($pdf, 'Times-Roman', 'host', 0);
+  $Cfont = pdf_findfont($pdf, 'MSung-Light', 'ETen-B5-H', 0);
+
+  // write text
+  pdf_setfont($pdf, $Efont, 24);
+  pdf_set_text_pos($pdf, 50, 700/2);
+  pdf_show($pdf,'Hello world!');
+  pdf_continue_text($pdf,'(says PHP)');
+  pdf_setfont($pdf, $Cfont, 24);
+  pdf_continue_text($pdf,'細明體中文字測試');
+
+  // end the document
+  pdf_end_page($pdf);
+  pdf_close($pdf);
+  fclose($fp);
+
+  // display a link to download
+  echo "&lt;a href = 'hello.pdf' target='_blank'&gt;測試檔PDF&lt;/a&gt;";
+  echo "&lt;hr&gt;";
+  show_source( basename( getenv("SCRIPT_FILENAME") ) );
+?&gt;
+</pre>
+
+<p>在 pdf_findfont 的部分選擇 ('MSung-Light', 'ETen-B5-H') 這樣子的 CID-Keyed font
+就可以使用明體了， 第一個欄位還可以換成 MHei-Medium 來使用楷體，
+不過在目前的支援度下，所能看到的不管設定明體或是楷體， 都只會有明體而以， 這必須是 PDF
+瀏覽器支援設定的字體有其相對應的字體才行， 而第二個欄位 CMap 基本上建議使用 ETen-B5-H
+才能使用倚天外字。</p>
+
+<p>可以用的英文字型如下： Courier Courier-Bold Courier-Oblique Courier-BoldOblique
+Helvetica Helvetica-Bold Helvetica-Oblique Helvetica-BoldOblique Symbol Times-Roman
+Times-Bold Times-Italic Times-BoldItalic ZapfDingbats。</p>
+
+<p>可以用的中文 CMap 如下： B5pc-H B5pc-V HKscs-B5-H HKscs-B5-V ETen-B5-H ETen-B5-V
+ETenms-B5-H ETenms-B5-V CNS-EUC-H CNS-EUC-V UniCNS-UCS2-H UniCNS-UCS2-V。</p>
+
+<div class="FIGURE"><a id="AEN4985" name="AEN4985"></a>
+<p><b>Figure 14-2. php-pdf snapshot</b></p>
+
+<p><img src="images/php-pdf.png" /></p>
+</div>
+
+<p>而 pdf_add_bookmark 有人說有中文的問題，可是在筆者的測試之下， Big5 編碼的 bookmark 在
+Acroread 5 可以正常看到，或是利用 iconv 轉成 UTF-16 也是正常的，所以如果您看到的 bookmark
+有中文問題， 可以利用 iconv("Big5", "UTF-16", "中文字") 來試試看。</p>
+
+<p>WWW: <a href="http://www.PDFlib.com/" target="_top">http://www.PDFlib.com/</a></p>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="php-upload.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="tcltk.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">php 上傳中文檔名的檔案</td>
+<td width="34%" align="center" valign="top"><a href="devel.html"
+accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">Tcl/Tk - 廣為運用的一種高階電腦語言與 GUI
+發展工具</td>
+</tr>
+</table>
+</div>
+</body>
+</html>
+

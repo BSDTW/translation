@@ -1,0 +1,165 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>File Transfer Protocol (FTP)</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.79" />
+<link rel="HOME" title="FreeBSD 使用手冊" href="index.html" />
+<link rel="UP" title="Network Servers" href="network-servers.html" />
+<link rel="PREVIOUS" title="Apache HTTP Server" href="network-apache.html" />
+<link rel="NEXT" title="File and Print Services for Microsoft�Windows clients (Samba)"
+href="network-samba.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD 使用手冊</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="network-apache.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 27 Network Servers</td>
+<td width="10%" align="right" valign="bottom"><a href="network-samba.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="NETWORK-FTP" name="NETWORK-FTP">27.8 File Transfer Protocol
+(FTP)</a></h1>
+
+<i class="AUTHORGROUP"><span class="CONTRIB">Contributed by</span> Murray Stokely.</i> 
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN36899" name="AEN36899">27.8.1 Overview</a></h2>
+
+<p>The File Transfer Protocol (FTP) provides users with a simple way to transfer files to
+and from an <acronym title="File Transfer Protocol" class="ACRONYM">FTP</acronym> server.
+FreeBSD includes <acronym title="File Transfer Protocol" class="ACRONYM">FTP</acronym>
+server software, <b class="APPLICATION">ftpd</b>, in the base system. This makes setting
+up and administering an <acronym title="File Transfer Protocol"
+class="ACRONYM">FTP</acronym> server on FreeBSD very straightforward.</p>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN36906" name="AEN36906">27.8.2 Configuration</a></h2>
+
+<p>The most important configuration step is deciding which accounts will be allowed
+access to the FTP server. A normal FreeBSD system has a number of system accounts used
+for various daemons, but unknown users should not be allowed to log in with these
+accounts. The <tt class="FILENAME">/etc/ftpusers</tt> file is a list of users disallowed
+any FTP access. By default, it includes the aforementioned system accounts, but it is
+possible to add specific users here that should not be allowed access to FTP.</p>
+
+<p>You may want to restrict the access of some users without preventing them completely
+from using FTP. This can be accomplished with the <tt
+class="FILENAME">/etc/ftpchroot</tt> file. This file lists users and groups subject to
+FTP access restrictions. The <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=ftpchroot&amp;sektion=5"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">ftpchroot</span>(5)</span></a> manual
+page has all of the details so it will not be described in detail here.</p>
+
+<p>If you would like to enable anonymous FTP access to your server, then you must create
+a user named <tt class="USERNAME">ftp</tt> on your FreeBSD system. Users will then be
+able to log on to your FTP server with a username of <tt class="USERNAME">ftp</tt> or <tt
+class="USERNAME">anonymous</tt> and with any password (by convention an email address for
+the user should be used as the password). The FTP server will call <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=chroot&amp;sektion=2"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">chroot</span>(2)</span></a> when an
+anonymous user logs in, to restrict access to only the home directory of the <tt
+class="USERNAME">ftp</tt> user.</p>
+
+<p>There are two text files that specify welcome messages to be displayed to FTP clients.
+The contents of the file <tt class="FILENAME">/etc/ftpwelcome</tt> will be displayed to
+users before they reach the login prompt. After a successful login, the contents of the
+file <tt class="FILENAME">/etc/ftpmotd</tt> will be displayed. Note that the path to this
+file is relative to the login environment, so the file <tt
+class="FILENAME">~ftp/etc/ftpmotd</tt> would be displayed for anonymous users.</p>
+
+<p>Once the FTP server has been configured properly, it must be enabled in <tt
+class="FILENAME">/etc/inetd.conf</tt>. All that is required here is to remove the comment
+symbol “#” from in front of the existing <b class="APPLICATION">ftpd</b> line :</p>
+
+<pre class="PROGRAMLISTING">
+ftp    stream  tcp nowait  root    /usr/libexec/ftpd   ftpd -l
+</pre>
+
+<p>As explained in <a href="network-inetd.html#NETWORK-INETD-REREAD">Example 27-1</a>,
+the <b class="APPLICATION">inetd</b> configuration must be reloaded after this
+configuration file is changed.</p>
+
+<p>You can now log on to your FTP server by typing:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">%</samp> <kbd class="USERINPUT">ftp localhost</kbd>
+</pre>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN36942" name="AEN36942">27.8.3 Maintaining</a></h2>
+
+<p>The <b class="APPLICATION">ftpd</b> daemon uses <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=syslog&amp;sektion=3"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">syslog</span>(3)</span></a> to log
+messages. By default, the system log daemon will put messages related to FTP in the <tt
+class="FILENAME">/var/log/xferlog</tt> file. The location of the FTP log can be modified
+by changing the following line in <tt class="FILENAME">/etc/syslog.conf</tt>:</p>
+
+<pre class="PROGRAMLISTING">
+ftp.info      /var/log/xferlog
+</pre>
+
+<p>Be aware of the potential problems involved with running an anonymous FTP server. In
+particular, you should think twice about allowing anonymous users to upload files. You
+may find that your FTP site becomes a forum for the trade of unlicensed commercial
+software or worse. If you do need to allow anonymous FTP uploads, then you should set up
+the permissions so that these files can not be read by other anonymous users until they
+have been reviewed.</p>
+</div>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="network-apache.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="network-samba.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">Apache HTTP Server</td>
+<td width="34%" align="center" valign="top"><a href="network-servers.html"
+accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">File and Print Services for <span
+class="TRADEMARK">Microsoft</span>&reg;&nbsp;<span class="TRADEMARK">Windows</span>&reg;
+clients (Samba)</td>
+</tr>
+</table>
+</div>
+
+<p align="center"><small>本文及其他文件，可由此下載：<a
+href="ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/">ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/</a>。</small></p>
+
+<p align="center"><small>若有 FreeBSD 方面疑問，請先閱讀 <a
+href="http://www.FreeBSD.org/docs.html">FreeBSD 相關文件</a>，如不能解決的話，再洽詢
+&#60;<a href="mailto:questions@FreeBSD.org">questions@FreeBSD.org</a>&#62;。<br />
+關於本文件的問題，請洽詢 &#60;<a
+href="mailto:doc@FreeBSD.org">doc@FreeBSD.org</a>&#62;。</small></p>
+</body>
+</html>
+

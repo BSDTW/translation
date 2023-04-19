@@ -1,0 +1,95 @@
+
+
+<!-- Vignette StoryServer 4 Sat Mar 11 15:43:24 2000 --> 
+<style type=text/css>
+<!--
+p,div {font-size:12pt; line-height:14pt; font-family:宋體;}
+.p1{font-size:12pt;font-family:宋體;}
+.p2{font-size:12pt;font-family:宋體;line-height:14pt;}
+.p3{font-size:14.8px;font-family:宋體;}
+.p4{font-size:14.8px;font-family:宋體;line-height:14pt;}
+.p5{font-size:1pt}
+a:hover{color:red;}
+a.t1:visited{color:red;}
+-->
+</style>
+<title>FreeBSD使用大全</title></head>
+
+<body bgcolor="#FFFFFF" text="#000000" link="#383098" vlink="#336699" alink="#FF0000" topmargin="0">
+<!-- Vignette StoryServer 4 Thu Mar 23 10:01:54 2000 --> <!-- Vignette StoryServer 4 Thu Mar 23 15:34:35 2000 --> 
+
+<!--開始：新聞內容-->
+<TABLE WIDTH=750 BORDER=0 CELLSPACING=0 CELLPADDING=0>
+
+<tr valign=top>
+
+
+
+<TD  valign=top>
+<CENTER><FONT COLOR=#000066 size=5><B>FreeBSD連載(71)：DHCP的工作過程</B><br></FONT></CENTER>
+
+<HR  ALIGN="center" SIZE=1>
+<CENTER><FONT FACE="Arial" SIZE=2> 2000年1月12日 14:45 </FONT><FONT COLOR="#990000" SIZE=2>王波</FONT></CENTER><p>
+
+<h1 align=center>設置DHCP</h1>
+
+<p>　　動態主機配置協議（Dynamic Host Configuration Protocol，DHCP）是
+用於對多個客戶電腦集中分配IP地址以及IP地址相關的信息的協議，這樣就能將IP地址和TCP/IP的設置統一管
+理起來，而避免不必要的地址衝突的問題，因此常常用在網路中對眾多DOS/Windows電腦的管理方面，節省了網
+絡管理員手工設置和分配地址的麻煩。</p>
+
+<p>　　除了能夠方便管理之外，DHCP還能略微達到節省IP地址的目的。假設網路中有50個電腦，但只有40個
+IP地址，但是這50台電腦不會同時啟動，IP地址應該滿足要求。如果使用靜態IP地址的設置方式，還是會遇到分配地
+址的困難，因為電腦的使用是隨機的，無論怎樣分配地址都無法避免出現衝突現象，而使用DHCP就能避免這個問題。
+DHCP也能用於統一設置其他的一些IP設置，如預設路由、DNS伺服器等等，使用它能減少一個大型網路的管理任務。</p>
+
+<p>　　DHCP是從原有的BootP協議發展起來的，原來的目的是為無碟工作站分配IP地址的協議，目前更多的用於
+集中管理IP地址。然而DHCP協議也有其缺點，例如一台DHCP客戶電腦沒有一個固定的IP地址，而對於提供網路
+服務的伺服器來講，經常變化的IP地址並不適合。並且目前的DNS協議並不能和DHCP協作，為DHCP客戶直接提供
+主機名解析任務。</p>
+
+
+
+<ul><P><LI><h2>DHCP的工作過程</h2></LI></P></ul>
+
+<p>　　DHCP工作時要求客戶機和伺服器進行交互，由客戶機通過廣播向伺服器發起申請IP地址的請求，然後由伺服器
+分配一個IP地址以及其他的TCP/IP設置信息。整個過程可以分為以下步驟：</p>
+
+<p>　　IP地址租用申請：DHCP客戶機的TCP/IP首次啟動時，就要執行DHCP客戶程序，以進行TCP/IP
+的設置。由於此時客戶機的TCP/IP還沒有設置完畢，就只能使用廣播的方式發送DHCP請求信息包，廣播包使用
+UDP端口67和68進行發送，廣播信息中包括了客戶機的網路界面的硬體地址和電腦名字，以提供DHCP伺服器進行分配。</p>
+
+<p>　　IP地址租用提供：當接收到DHCP客戶機的廣播信息之後，所有的DHCP伺服器均為這個客戶機分配一個合適
+的IP地址，將這些IP地址、網路掩碼、租用時間等信息，按照DHCP客戶提供的硬體地址發送回DHCP客戶機。這個
+過程中對DHCP伺服器沒有對客戶電腦進行限制，因此客戶機能收到多個IP地址提供信息。</p>
+
+<p>　　IP地址租用選擇：由於客戶機接收到多個伺服器發送的多個IP地址提供信息，客戶機將選擇一個IP地址，拒絕
+其他提供的IP地址，以便這些地址能分配給其他客戶。客戶機將向它選擇的伺服器發送選擇租用信息。</p>
+
+<p>　　IP地址租用確認：伺服器將收到客戶的選擇信息，如果也沒有例外發生，將回應一個確認信息，將這個IP地址真
+正分配給這個客戶機。客戶機就能使用這個IP地址及相關的TCP/IP數據，來設置自己的TCP/IP堆棧。</p>
+
+<p>　　更新租用：DHCP中，每個IP地址是有一定租期的，若租期已到，DHCP伺服器就能夠將這個IP地址重新分
+配給其他電腦。因此每個客戶電腦應該提前不斷續租它已經租用的IP地址，伺服器將回應客戶機的請求並更新該客戶機
+的租期設置。一旦伺服器返回不能續租的信息，那麼DHCP客戶機只能在租期到達時放棄原有的IP地址，重新申請一個新
+IP地址。為了避免發生問題，續租在租期達到50%時就將啟動，如果沒有成功將不斷啟動續租請求過程。</p>
+
+<p>　　釋放IP地址租用：客戶機可以主動釋放自己的IP地址請求，也可以不釋放，但也不續租，等待租期過期而釋放占
+用的IP地址資源。</p>
+
+<p>　　由於DHCP依賴於廣播信息，因此一般的情況下，客戶機和伺服器應該位於同一個網路之內。然而可以設置網路中
+的路由器為可以轉發BootP廣播包，使得伺服器和客戶機可以位於兩個不同的網路中。然而配置轉發廣播信息，不是一個
+很好的解決辦法，更好的辦法為使用DHCP中轉電腦，DHCP中轉電腦和DHCP客戶機位於同一個網路中，來回應
+客戶機的租用請求，然而它不維護DHCP數據和擁有IP地址資源，它只是將請求通過TCP/IP轉發給位於另一個網路
+上的DHCP伺服器，進行實際的IP地址分配和確認。</p>
+
+
+<BR>
+
+</TD>
+</TR></TABLE>
+
+
+
+</BODY>
+</HTML>

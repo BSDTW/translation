@@ -1,0 +1,204 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>在 FreeBSD 使用 rc</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.79" />
+<link rel="HOME" title="FreeBSD 使用手冊" href="index.html" />
+<link rel="UP" title="設定與效能調校(Tuning)" href="config-tuning.html" />
+<link rel="PREVIOUS" title="設定 cron" href="configtuning-cron.html" />
+<link rel="NEXT" title="設定網路卡" href="config-network-setup.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD 使用手冊</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="configtuning-cron.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 11 設定與效能調校(Tuning)</td>
+<td width="10%" align="right" valign="bottom"><a href="config-network-setup.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="CONFIGTUNING-RCD" name="CONFIGTUNING-RCD">11.7 在 FreeBSD 使用
+rc</a></h1>
+
+<i class="AUTHORGROUP"><span class="CONTRIB">Contributed by</span> Tom Rhodes.</i> 
+
+<p>從 2002 年起，FreeBSD 整合了 NetBSD 的 <tt class="FILENAME">rc.d</tt>
+機制來作為系統服務啟動機制。 可以到 <tt class="FILENAME">/etc/rc.d</tt>
+目錄下去看，很多檔案都是基本服務，可以用 <code class="OPTION">start</code>, <code
+class="OPTION">stop</code> 及 <code class="OPTION">restart</code> 作為使用時的選項。
+舉個例子，可以用下列指令來重新啟動 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=sshd&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">sshd</span>(8)</span></a>：</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">/etc/rc.d/sshd restart</kbd>
+</pre>
+
+<p>其他服務也是類似作法。當然， 服務通常只要在 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=rc.conf&amp;sektion=5"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">rc.conf</span>(5)</span></a>
+內有指定的話，都會在開機時就自動啟動。舉例來說，若要開機時啟動 NAT(Network Address
+Translation) daemon 的話，只要在 <tt class="FILENAME">/etc/rc.conf</tt>
+內加上下列這行即可：</p>
+
+<pre class="PROGRAMLISTING">
+natd_enable="YES"
+</pre>
+
+<p>若原本寫的是 <code class="OPTION">natd_enable="NO"</code> 那麼只要把 <code
+class="OPTION">NO</code> 改為 <code class="OPTION">YES</code> 就好了。rc scripts
+會在下次重開機時，自動載入相關(有相依)的服務，以下我們會講到這部分。</p>
+
+<p>Since the <tt class="FILENAME">rc.d</tt> system is primarily intended to start/stop
+services at system startup/shutdown time, the standard <code class="OPTION">start</code>,
+<code class="OPTION">stop</code> and <code class="OPTION">restart</code> options will
+only perform their action if the appropriate <tt class="FILENAME">/etc/rc.conf</tt>
+variables are set. For instance the above <tt class="COMMAND">sshd restart</tt> command
+will only work if <code class="VARNAME">sshd_enable</code> is set to <code
+class="OPTION">YES</code> in <tt class="FILENAME">/etc/rc.conf</tt>. To <code
+class="OPTION">start</code>, <code class="OPTION">stop</code> or <code
+class="OPTION">restart</code> a service regardless of the settings in <tt
+class="FILENAME">/etc/rc.conf</tt>, the commands should be prefixed with “force”. For
+instance to restart <tt class="COMMAND">sshd</tt> regardless of the current <tt
+class="FILENAME">/etc/rc.conf</tt> setting, execute the following command:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">/etc/rc.d/sshd forcerestart</kbd>
+</pre>
+
+<p>It is easy to check if a service is enabled in <tt class="FILENAME">/etc/rc.conf</tt>
+by running the appropriate <tt class="FILENAME">rc.d</tt> script with the option <code
+class="OPTION">rcvar</code>. Thus, an administrator can check that <tt
+class="COMMAND">sshd</tt> is in fact enabled in <tt class="FILENAME">/etc/rc.conf</tt> by
+running:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">/etc/rc.d/sshd rcvar</kbd>
+# sshd
+$sshd_enable=YES
+</pre>
+
+<div class="NOTE">
+<blockquote class="NOTE">
+<p><b>Note:</b> The second line (<tt class="LITERAL"># sshd</tt>) is the output from the
+<tt class="COMMAND">sshd</tt> command, not a <tt class="USERNAME">root</tt> console.</p>
+</blockquote>
+</div>
+
+<p>若要檢查服務是否有在運作，可以用 <code class="OPTION">status</code>
+選項來查詢。比如：若要確認 <tt class="COMMAND">sshd</tt> 是否真的有啟動的話，那麼打：</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">/etc/rc.d/sshd status</kbd>
+sshd is running as pid 433.
+</pre>
+
+<p>In some cases it is also possible to <code class="OPTION">reload</code> a service.
+This will attempt to send a signal to an individual service, forcing the service to
+reload its configuration files. In most cases this means sending the service a <tt
+class="LITERAL">SIGHUP</tt> signal. Support for this feature is not included for every
+service.</p>
+
+<p>The <tt class="FILENAME">rc.d</tt> system is not only used for network services, it
+also contributes to most of the system initialization. For instance, consider the <tt
+class="FILENAME">bgfsck</tt> file. When this script is executed, it will print out the
+following message:</p>
+
+<pre class="SCREEN">
+Starting background file system checks in 60 seconds.
+</pre>
+
+<p>Therefore this file is used for background file system checks, which are done only
+during system initialization.</p>
+
+<p>Many system services depend on other services to function properly. For example, NIS
+and other RPC-based services may fail to start until after the <tt
+class="COMMAND">rpcbind</tt> (portmapper) service has started. To resolve this issue,
+information about dependencies and other meta-data is included in the comments at the top
+of each startup script. The <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=rcorder&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">rcorder</span>(8)</span></a> program is
+then used to parse these comments during system initialization to determine the order in
+which system services should be invoked to satisfy the dependencies. The following words
+may be included at the top of each startup file:</p>
+
+<ul>
+<li>
+<p><tt class="LITERAL">PROVIDE</tt>: Specifies the services this file provides.</p>
+</li>
+
+<li>
+<p><tt class="LITERAL">REQUIRE</tt>: Lists services which are required for this service.
+This file will run <span class="emphasis"><b class="EMPHASIS">after</b></span> the
+specified services.</p>
+</li>
+
+<li>
+<p><tt class="LITERAL">BEFORE</tt>: Lists services which depend on this service. This
+file will run <span class="emphasis"><b class="EMPHASIS">before</b></span> the specified
+services.</p>
+</li>
+</ul>
+
+<p>By using this method, an administrator can easily control system services without the
+hassle of “runlevels” like some other <span class="TRADEMARK">UNIX</span>&reg;
+operating systems.</p>
+
+<p>Additional information about the <tt class="FILENAME">rc.d</tt> system can be found in
+the <a href="http://www.FreeBSD.org/cgi/man.cgi?query=rc&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">rc</span>(8)</span></a> and <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=rc.subr&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">rc.subr</span>(8)</span></a> manual
+pages.</p>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="configtuning-cron.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="config-network-setup.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">設定 <tt class="COMMAND">cron</tt></td>
+<td width="34%" align="center" valign="top"><a href="config-tuning.html"
+accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">設定網路卡</td>
+</tr>
+</table>
+</div>
+
+<p align="center"><small>本文及其他文件，可由此下載：<a
+href="ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/">ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/</a>。</small></p>
+
+<p align="center"><small>若有 FreeBSD 方面疑問，請先閱讀 <a
+href="http://www.FreeBSD.org/docs.html">FreeBSD 相關文件</a>，如不能解決的話，再洽詢
+&#60;<a href="mailto:questions@FreeBSD.org">questions@FreeBSD.org</a>&#62;。<br />
+關於本文件的問題，請洽詢 &#60;<a
+href="mailto:doc@FreeBSD.org">doc@FreeBSD.org</a>&#62;。</small></p>
+</body>
+</html>
+

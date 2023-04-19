@@ -1,0 +1,350 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<HTML
+><HEAD
+><TITLE
+>18. 網虫偵測</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="網路管理語言 Perl 入門與實作"
+HREF="book1.html"><LINK
+REL="PREVIOUS"
+TITLE="17. 網域名稱系統"
+HREF="c1199.html"><LINK
+REL="NEXT"
+TITLE="19. 套件自動更新"
+HREF="c1215.html"></HEAD
+><BODY
+CLASS="CHAPTER"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>網路管理語言 Perl 入門與實作: </TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="c1199.html"
+ACCESSKEY="P"
+>&#60;&#60;&#60; Previous</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="c1215.html"
+ACCESSKEY="N"
+>Next &#62;&#62;&#62;</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="CHAPTER"
+><H1
+><A
+NAME="CHI"
+></A
+>18. 網虫偵測</H1
+><P
+>偵測 W2K Nimda 網虫</P
+><P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+>package Apache::Detect_worms;
+#----------------------------------------------------------------#
+# $Id: chapI.sgml,v 1.1.1.1 2003/08/14 00:26:12 ols3 Exp $
+# $Log: chapI.sgml,v $
+# Revision 1.1.1.1  2003/08/14 00:26:12  ols3
+# perl_intro
+#
+# Revision 1.3  2002/02/15 01:36:32  OLS3
+# *** empty log message ***
+#
+# Revision 1.2  2002/01/06 17:01:47  OLS3
+# 網虫偵測模組
+#
+#----------------------------------------------------------------#
+
+use strict;
+use vars qw($VERSION);
+use Apache::Constants qw(OK DECLINED FORBIDDEN);
+use Cache::FileCache;
+use Symbol 'gensym';
+
+$VERSION = 1.00;
+
+my %cache_options = ('default_expires_in' =&#62; 86400 );
+
+sub handler
+{
+    my $r = shift;
+
+    my $file_cache = new Cache::FileCache(\%cache_options);
+
+    unless ($file_cache) {
+	return DECLINED;
+    }
+
+    my $remote_ip_address = $r-&#62;get_remote_host();
+
+    my $visited = $file_cache-&#62;get($remote_ip_address);
+
+    unless($visited) {
+      my $fh = Apache-&#62;gensym;
+      my $log_file="/home/apache2/lib/perl/Apache/worm_list." . get_date();
+      open($fh, "&#62;&#62; $log_file");
+      print $fh "$remote_ip_address\n";
+      close($fh);
+      $file_cache-&#62;set($remote_ip_address, 1);
+    }
+
+    return FORBIDDEN;
+
+}
+
+sub get_date {
+
+  my ($sec,$min,$hour,$day,$mon,$year)=localtime(time);
+
+  $mon++;
+  if (length ($mon) == 1) {$mon = '0'.$mon;}
+  if (length ($day) == 1) {$day = '0'.$day;}
+  $year+=1900;
+  my $date="$year$mon$day";
+  return $date;
+}
+
+1;
+
+__END__&#13;</PRE
+></TD
+></TR
+></TABLE
+></P
+><P
+>wormlist.cgi</P
+><P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+>#! /usr/bin/perl
+# $Id: chapI.sgml,v 1.1.1.1 2003/08/14 00:26:12 ols3 Exp $
+# 
+# $Log: chapI.sgml,v $
+# Revision 1.1.1.1  2003/08/14 00:26:12  ols3
+# perl_intro
+#
+# Revision 1.1  2002/01/06 17:03:06  OLS3
+# Initial revision
+#
+use strict;
+
+my $h = parse_input();
+
+my $d=$h-&#62;{d}; 
+if ($d) { unless ($d =~ /^200\d{5}$/) {no_this_day();}};
+my $log_file;
+
+unless ($d) { $d = get_date(); }
+
+$log_file="/home/apache2/lib/perl/Apache/worm_list.$d";
+
+print &#60;&#60;HTML_HERE;
+    &#60;html&#62;
+    &#60;head&#62;
+    &#60;meta HTTP-EQUIV="Content-Type" CONTENT="text/html;CHARSET=big5"&#62;
+    &#60;title&#62;網虫偵測程式&#60;/title&#62;
+    &#60;/head&#62;
+    &#60;body bgcolor="white"&#62;
+    &#60;H3&#62;以下Win2000主機感染 Nimda/CodeRed 網虫，請儘速修補主機漏洞!&#60;/H3&#62;
+網虫偵測程式 Apache::Detect_worms v1.0.1 (c) 2001 written by OLS3
+&#60;br&#62;&#60;a href="http://www.tnc.edu.tw"&#62;回教網中心&#60;/a&#62; &#60;a href="javascript:history.back()"&#62;回上一頁&#60;/a&#62;
+&#60;br&#62;
+&#60;font color="red"&#62;修補資訊&#60;/font&#62;: &#60;a href="http://www.cc.ncku.edu.tw/virus/Nimda/index.htm"&#62;W32/Nimda&#60;/a&#62;
+ &#60;a href="http://www.cc.ncku.edu.tw/virus/CodeRed/"&#62;CodeRed&#60;/a&#62; (成大區網提供)
+    &#60;hr&#62;
+日期: $d (觀看時, 建議: 先拿掉您的瀏覽器中的 PROXY 設定.)
+HTML_HERE
+
+if (-f $log_file) {
+    open(FHD, "$log_file");
+    my @all=&#60;FHD&#62;;
+    close(FHD);
+    foreach (@all) {
+	if (is_net_TNC($_)) {
+	    print "&#60;br&#62;&#60;b&#62;&#60;font color=red&#62;縣內主機&#60;/font&#62;&#60;/b&#62; --------&#62; $_";
+	} else {
+	    print "&#60;br&#62;縣外主機 --------&#62; $_";
+	}
+    }
+} else {
+    print "&#60;br&#62;本日尚未有資料\n";
+}
+
+print &#60;&#60;HTML_END;
+&#60;br&#62;&#60;br&#62;
+&#60;hr&#62;
+這是一個 Nimda /CodeRed 網虫偵測公告的 Apache 模組, 可和 Apache 結合在一起, 並可防止 Linux 主機被咬.
+Linux 主機被咬並無大礙, 只是記錄檔中常常會有一堆訊息, 本模組可拒絕 Nimda/CodeRed 攻擊!
+&#60;br&#62;請各校經常觀看此一公告程式, 若貴校 W2000 主機名列其中, 請儘速修補漏洞.
+&#60;p&#62;記錄檔&#60;br&#62;
+HTML_END
+
+history_list();
+
+
+print &#60;&#60;HTML_END2;
+&#60;/body&#62;
+&#60;/html&#62;
+
+HTML_END2
+
+
+sub get_date {
+  my ($sec,$min,$hour,$day,$mon,$year)=localtime(time);
+  $mon++;
+  if (length ($mon) == 1) {$mon = '0'.$mon;}
+  if (length ($day) == 1) {$day = '0'.$day;}
+  $year+=1900;
+  my $date="$year$mon$day";
+  return $date;
+}
+
+sub is_net_TNC {
+    my $ip=shift;
+    if ($ip =~ /^163\.26\.(\d+)/) {
+	($1 &#62;= 80 &#38;&#38; $1&#60;=206) ? return 1 : return 0;
+    } else {
+	return 0;
+    }
+}
+
+# 列出過去的記錄
+sub history_list {
+    my @history_list=glob("/home/apache2/lib/perl/Apache/worm_list.*");
+    foreach (@history_list) {
+	my ($n, $d)=split(/\./);
+	print qq(&#60;a href="/perl/worm_list.cgi?d=$d"&#62;$d&#60;/a&#62;&#60;br&#62;\n);
+    }
+}
+
+sub parse_input {
+	my $temp=$ENV{'QUERY_STRING'};
+	my @pairs=split(/&#38;/,$temp);
+	my %OLS3;
+	foreach my $item(@pairs) {
+		my ($key,$content)=split (/=/,$item,2);
+		$content=~tr/+/ /;
+		$content=~ s/%(..)/pack("c",hex($1))/ge;
+		$OLS3{$key}=$content;
+	}
+	return \%OLS3;
+}
+
+sub no_this_day {
+    print "沒有這一天的記錄!\n"; exit;
+}&#13;</PRE
+></TD
+></TR
+></TABLE
+></P
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="c1199.html"
+ACCESSKEY="P"
+>&#60;&#60;&#60; Previous</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="book1.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="c1215.html"
+ACCESSKEY="N"
+>Next &#62;&#62;&#62;</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>17. 網域名稱系統</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>19. 套件自動更新</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

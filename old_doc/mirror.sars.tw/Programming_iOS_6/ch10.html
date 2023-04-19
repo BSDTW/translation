@@ -1,0 +1,872 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>Chapter 10. Cocoa Classes</title>
+    <link rel="stylesheet" type="text/css" href="docbook-xsl-mymods.css" />
+    <meta name="generator" content="DocBook XSL Stylesheets V1.76.0" />
+    <link rel="home" href="index.html" />
+    <link rel="up" href="pt03.html" />
+    <link rel="prev" href="pt03.html" />
+    <link rel="next" href="ch11.html" />
+  </head>
+  <body>
+    <div class="mattnotice">
+      <p>As a courtesy, this is a <b>full free</b> rendering of my book, <i>Programming iOS 6</i>, by Matt Neuburg. Copyright 2013 Matt Neuburg. Please note that this book has now been completely superseded by two more recent books, <a href="http://shop.oreilly.com/product/0636920032465.do">iOS 7 Fundamentals</a> and <a href="http://shop.oreilly.com/product/0636920031017.do">Programming iOS 7</a>. If my work has been of help to you, please <b>consider purchasing</b> one or both of them. Thank you!
+	</p>
+    </div>
+    <div class="navfooter">
+      <table width="100%" summary="Navigation footer">
+        <tr>
+          <td width="40%" align="left"><a accesskey="p" href="pt03.html">Prev</a> </td>
+          <td width="20%" align="center">
+            <a accesskey="u" href="pt03.html">Up</a>
+          </td>
+          <td width="40%" align="right"> <a accesskey="n" href="ch11.html">Next</a></td>
+        </tr>
+        <tr>
+          <td width="40%" align="left" valign="top">Part III. Cocoa </td>
+          <td width="20%" align="center">
+            <a accesskey="h" href="index.html">Table of Contents</a>
+          </td>
+          <td width="40%" align="right" valign="top"> Chapter 11. Cocoa Events</td>
+        </tr>
+      </table>
+    </div>
+    <div class="chapter">
+      <div class="titlepage">
+        <div>
+          <div>
+            <h2 class="title"><a id="chap_id10"></a>Chapter 10. Cocoa Classes</h2>
+          </div>
+        </div>
+      </div>
+      <p>Using the Cocoa frameworks requires an understanding of how those frameworks organize their classes. Cocoa class organization depends upon certain Objective-C <span class="keep-together">language</span> features that are introduced in this chapter. The chapter also surveys some commonly used Cocoa utility classes, along with a discussion of the Cocoa root class.
+<a id="idxcocoa" class="indexterm"></a></p>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_subclassing"></a>Subclassing</h2>
+            </div>
+          </div>
+        </div>
+        <p>Cocoa effectively hands you a large repertory of objects that already know how to behave in certain desirable ways. A UIButton, for example, knows how to draw itself and how to respond when the user taps it; a UITextField knows how to display editable text, how to summon the keyboard when the user taps in it, and how to accept keyboard input.<a id="idm441653825568" class="indexterm"></a></p>
+        <p>Often, the default behavior or appearance of an object supplied by Cocoa won’t be quite what you’re after, and you’ll want to customize it. Cocoa classes are heavily endowed with methods that you can call and properties that you can set for precisely this purpose, and these will be your first resort. Always study the documentation for a Cocoa class to see whether instances can already be made to do what you want. For example, the class documentation for UILabel (<a class="xref" href="ch27.html">Chapter 27</a>) shows that you can set the font, size, color, line-breaking behavior, and horizontal alignment of its text, among other things.</p>
+        <p>Nevertheless, sometimes setting properties and calling methods won’t suffice to customize an instance the way you want to. In such cases, Cocoa may provide methods that are called internally as an instance does its thing, and whose behavior you can customize by subclassing and overriding (<a class="xref" href="ch04.html">Chapter 4</a>). You don’t have the code to any of Cocoa’s built-in classes, but you can still subclass them, creating a new class that acts just like a built-in class except for the modifications you provide.</p>
+        <p>Oddly enough, however (and you might be particularly surprised by this if you’ve used another object-oriented application framework), subclassing is probably one of the less important ways in which your code will relate to Cocoa. Knowing or deciding when to subclass can be somewhat tricky, but the general rule is that you probably shouldn’t subclass unless you’re invited to.</p>
+        <p>A common case is a UIView that is to be drawn in some custom manner.<a id="idm441653819248" class="indexterm"></a><a id="idm441653818384" class="indexterm"></a> You don’t actually draw a UIView; rather, when a UIView needs drawing, its <code class="literal">drawRect:</code> method is called so that the view can draw itself. So the way to draw a UIView in some completely custom manner is to subclass UIView and implement <code class="literal">drawRect:</code> in the subclass. As the documentation says, “Subclasses override this method if they actually draw their views.” That’s a pretty strong hint that you <span class="emphasis"><em>need</em></span> to subclass UIView in this situation.</p>
+        <p>For example, suppose we want our window to contain a horizontal line. There is no horizontal line interface widget built into Cocoa, so we’ll just have to roll our own — a UIView that draws itself as a horizontal line. Let’s try it:</p>
+        <div class="orderedlist">
+          <ol class="orderedlist" type="1">
+            <li class="listitem">
+In our Empty Window example project,<a id="idm441653812672" class="indexterm"></a> choose File → New → File and specify a Cocoa Touch Objective-C class, and in particular a subclass of UIView. Call it <span class="emphasis"><em>MyHorizLine</em></span>. Xcode creates <span class="emphasis"><em>MyHorizLine.m</em></span> and <span class="emphasis"><em>MyHorizLine.h</em></span>.
+</li>
+            <li class="listitem">
+              <p class="simpara">
+In <span class="emphasis"><em>MyHorizLine.m</em></span>, replace the contents of the implementation section with this (without further explanation; you’ll know all about this after you read <a class="xref" href="ch15.html">Chapter 15</a>):
+</p>
+              <pre class="screen">- (id)initWithCoder:(NSCoder *)decoder {
+    self = [super initWithCoder:decoder];
+    if (self) {
+        self.backgroundColor = [UIColor clearColor];
+    }
+    return self;
+}
+
+- (void)drawRect:(CGRect)rect {
+    CGContextRef c = UIGraphicsGetCurrentContext();
+    CGContextMoveToPoint(c, 0, 0);
+    CGContextAddLineToPoint(c, self.bounds.size.width, 0);
+    CGContextStrokePath(c);
+}</pre>
+            </li>
+            <li class="listitem">
+Edit <span class="emphasis"><em>ViewController.xib</em></span>. Find UIView in the Object library, and drag it into the View object in the canvas. You may resize it to be less tall.
+</li>
+            <li class="listitem">
+With the UIView that you just dragged into the canvas still selected, use the Identity inspector to change its class to MyHorizLine.
+</li>
+          </ol>
+        </div>
+        <p>Build and run the app in the Simulator. You’ll see a horizontal line corresponding to the location of the top of the MyHorizLine instance in the window. Our view has drawn itself as a horizontal line, because we subclassed it to do so.</p>
+        <p>In that example, we started with a bare UIView that had no drawing functionality of its own. That’s why there was no need to call <code class="literal">super</code>; the default implementation of UIView’s <code class="literal">drawRect:</code> does nothing. But you might also be able to subclass a built-in UIView subclass to modify the way it already draws itself. Again using UILabel as an example, the documentation shows that two methods are present for exactly this purpose. Both <code class="literal">drawTextInRect:</code> and <code class="literal">textRectForBounds:limitedToNumberOfLines:</code> explicitly tell us: “You should not call this method directly. This method should only be overridden by subclasses.” The implication is that these are methods that will be called for us, automatically, by Cocoa, as a label draws itself; thus, we can subclass UILabel and implement them in our subclass to modify how a particular type of label draws itself.</p>
+        <p>Here’s an example from one of my own apps, in which I subclass UILabel to make a label that draws its own rectangular border and has its content inset somewhat from that border, by overriding <code class="literal">drawTextInRect:</code>. As the documentation tells us: “In your overridden method, you can configure the current [graphics] context further and then invoke <code class="literal">super</code> to do the actual drawing [of the text].” Let’s try it:<a id="idm441653797680" class="indexterm"></a></p>
+        <div class="orderedlist">
+          <ol class="orderedlist" type="1">
+            <li class="listitem">
+In the Empty Window project,<a id="idm441653795232" class="indexterm"></a> make a new class file, a UILabel subclass this time; call it <span class="emphasis"><em>MyBoundedLabel</em></span>.
+</li>
+            <li class="listitem">
+              <p class="simpara">
+In <span class="emphasis"><em>MyBoundedLabel.m</em></span>, insert this code into the implementation section:
+</p>
+              <pre class="screen">- (void)drawTextInRect:(CGRect)rect {
+    CGContextRef context = UIGraphicsGetCurrentContext();
+    CGContextStrokeRect(context, CGRectInset(self.bounds, 1.0, 1.0));
+    [super drawTextInRect:CGRectInset(rect, 5.0, 5.0)];
+}</pre>
+            </li>
+            <li class="listitem">
+In <span class="emphasis"><em>MyNib.xib</em></span>, select the UILabel and change its class in the Identity inspector to MyBoundedLabel.
+</li>
+          </ol>
+        </div>
+        <p>Build and run the app, and you’ll see how the rectangle is drawn and the label’s text is inset within it.</p>
+        <p>Similarly, in a table view (a UITableView) you might very well be able to avoid subclassing the table view cell (UITableViewCell), because it provides so many properties through which you can customize its appearance. If you want text to appear in the cell using a certain font, the built-in cell styles and the ability to access and modify the cell’s labels might be quite sufficient. You can directly replace a cell’s background or put a checkmark at the right end of the cell. All of that is simply a matter of setting the cell’s built-in properties. But if you want a table view cell that doesn’t look or behave like any of the built-in cell styles, then you’ll probably subclass UITableViewCell. (We’ll go deeply into this in <a class="xref" href="ch21.html">Chapter 21</a>.)</p>
+        <p>You wouldn’t subclass UIApplication (the class of the singleton shared application instance) just in order to respond when the application has finished launching, because the delegate mechanism (<a class="xref" href="ch11.html">Chapter 11</a>) provides a way to do that (<code class="literal">application:didFinishLaunchingWithOptions:</code>). On the other hand, if you need to perform certain tricky customizations of your app’s fundamental event messaging behavior, you might subclass UIApplication in order to override <code class="literal">sendEvent:</code>. The documentation does tell you this, and it also tells you, rightly, that needing to do this would be fairly rare (though I have had occasion to do it).<a id="idm441653784448" class="indexterm"></a>
+<a id="idm441653783136" class="indexterm"></a></p>
+        <div class="note" style="margin-left: 0; margin-right: 10%;">
+          <h3 class="title">Note</h3>
+          <p>If you do subclass UIApplication, you’ll need to change the third argument in the call to <code class="literal">UIApplicationMain</code> in <span class="emphasis"><em>main.m</em></span> from nil to the NSString name of your subclass. Otherwise your UIApplication subclass won’t be instantiated as the shared application instance.</p>
+        </div>
+        <p>Another class that’s commonly subclassed is UIViewController (<a class="xref" href="ch19.html">Chapter 19</a>). And any class you write will naturally need to be a subclass of NSObject, if nothing else. You definitely want your class to inherit all of NSObject’s yummy goodness, including <code class="literal">alloc</code> and <code class="literal">init</code>, which make it possible to instantiate your class in the first place (see <a class="xref" href="ch10.html#SECSecretLife">The Secret Life of NSObject</a>).</p>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_categories"></a>Categories</h2>
+            </div>
+          </div>
+        </div>
+        <p>A <span class="emphasis"><em>category</em></span> is an Objective-C language feature that allows you to reach right into an existing class and define additional methods.<a id="idm441653774704" class="indexterm"></a> You can do this even if you don’t have the code for the class, as with Cocoa’s classes. Your instance methods can refer to <code class="literal">self</code>, and this will mean the instance to which the message was originally sent, as usual. A category, unlike a subclass, cannot define additional instance variables; it can override methods, but you should probably not take advantage of this ability.
+<a id="idxobjcagain" class="indexterm"></a></p>
+        <p>Defining a category is just like defining the class on which the category is being defined: you need an interface section and an implementation section, and you’ll typically distribute them into the standard <span class="emphasis"><em>.h</em></span> and <span class="emphasis"><em>.m</em></span> class file pair.<a id="idm441653769328" class="indexterm"></a> At the start of both the interface section and the implementation section, where you give the class’s name, you add a category name in parentheses. The <span class="emphasis"><em>.h</em></span> file will probably need to import the header for the original class (or the header of the framework that defines it), and the <span class="emphasis"><em>.m</em></span> file will, as usual, import the <span class="emphasis"><em>.h</em></span> file, as will any <span class="emphasis"><em>.m</em></span> file that wants to call one of your additional methods.</p>
+        <p>The easiest way to set up your <span class="emphasis"><em>.h</em></span> and <span class="emphasis"><em>.m</em></span> class file pair as a category is to ask Xcode to do it for you. Choose File → New → File, and in the “Choose a template” dialog, among the iOS Cocoa Touch file types, pick “Objective-C category”. You’ll be asked to give a name for the category and the class on which you’re defining this category.</p>
+        <p>For example, in one of my apps I found myself performing a bunch of string transformations in order to derive the path to various resource files inside the app bundle based on the resource’s name and purpose. I ended up with half a dozen utility methods. Given that these methods all operated on an NSString, it was appropriate to implement them as a category of NSString, thus allowing <span class="emphasis"><em>any</em></span> NSString, anywhere in my code, to respond to them.</p>
+        <p>The code was structured like this (I’ll show just one of the methods):</p>
+        <pre class="screen">// StringCategories.h:
+#import &lt;Foundation/Foundation.h&gt;
+
+@interface NSString (MyStringCategories)
+- (NSString*) basePictureName;
+@end
+
+// StringCategories.m:
+#import "StringCategories.h"
+
+@implementation NSString (MyStringCategories)
+- (NSString*) basePictureName {
+    return [self stringByAppendingString:@"IO"];
+}
+@end</pre>
+        <p>If <code class="literal">basePictureName</code> had been implemented as a utility method within some other class, it would need to take a parameter — we’d have to pass an NSString to it — and, it were an instance method, we’d need to go to the extra trouble of obtaining a reference to an instance of that class. A category is neater and more compact. We’ve extended NSString <span class="emphasis"><em>itself</em></span> to have <code class="literal">basePictureName</code> as an instance method, so, in any <span class="emphasis"><em>.m</em></span> file that imports <span class="emphasis"><em>StringCategories.h</em></span>, we can send the <code class="literal">basePictureName</code> message directly <span class="emphasis"><em>to</em></span> any NSString we want to transform:</p>
+        <pre class="screen">NSString* aName = [someString basePictureName];</pre>
+        <p>A category is particularly appropriate in the case of a class like NSString, because the documentation warns us that subclassing NSString is a bad idea. That’s because NSString is part of a complex of classes called a <span class="emphasis"><em>class cluster</em></span>, which means that an NSString object’s real class might actually be some other class. A category is a much better way to modify a class within a class cluster than subclassing.</p>
+        <p>A method defined through a category can equally be a class method. Thus you can inject utility methods into any appropriate class and call those methods without the overhead of instantiating anything at all. Classes are globally available, so your method becomes, in effect, a global method (see <a class="xref" href="ch13.html">Chapter 13</a>).</p>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_splitting_a_class"></a>Splitting a Class</h3>
+              </div>
+            </div>
+          </div>
+          <p>A category can be used to split a class over multiple <span class="emphasis"><em>.h</em></span>/<span class="emphasis"><em>.m</em></span> file pairs. If a class threatens to become long and unwieldy, yet it clearly needs to be a single class, you can define the basic part of it (including instance variables) in one file pair, and then add another file pair defining a category on your own class to contain further methods.<a id="idm441653751296" class="indexterm"></a>
+<a id="idm441653750016" class="indexterm"></a></p>
+          <p>Cocoa itself does this. A good example is NSString. NSString is defined as part of the Foundation framework, and its basic methods are declared in <span class="emphasis"><em>NSString.h</em></span>. Here we find that NSString itself, with no category, has just two methods, <code class="literal">length</code> and <code class="literal">characterAtIndex:</code>, because these are regarded as the minimum that a string needs to do in order to be a string. Additional methods (those that create a string, deal with a string’s encoding, split a string, search in a string, and so on) are clumped into categories. The interface for many of these categories appears in this same file, <span class="emphasis"><em>NSString.h</em></span>. But a string may serve as a file pathname, so we also find a category on NSString in <span class="emphasis"><em>NSPathUtilities.h</em></span>, where methods are declared for splitting a pathname string into its constituents and the like. Then, in <span class="emphasis"><em>NSURL.h</em></span>, there’s another NSString category, declaring a couple of methods for dealing with percent-escaping in a URL string. Finally, off in a completely different framework (UIKit), <span class="emphasis"><em>UIStringDrawing.h</em></span> adds yet another NSString category, with methods for drawing a string in a graphics context.</p>
+          <p>This organization won’t matter to you as a programmer, because an NSString is an NSString, no matter how it acquires its methods, but it can matter when you consult the documentation. The NSString methods declared in <span class="emphasis"><em>NSString.h</em></span>, <span class="emphasis"><em>NSPathUtilities.h</em></span>, and <span class="emphasis"><em>NSURL.h</em></span> are documented in the NSString class documentation page, but the NSString methods declared in <span class="emphasis"><em>UIStringDrawing.h</em></span> are not, presumably because they originate in a different framework.<a id="idm441653741344" class="indexterm"></a>
+<a id="idm441653740016" class="indexterm"></a> Instead, they appear in a separate document, <span class="emphasis"><em>NSString UIKit Additions Reference</em></span>. As a result, the string drawing methods can be difficult to discover, especially as the NSString class documentation doesn’t link to the other document. I regard this as a major flaw in the structure of the Cocoa documentation. A third-party utility such as AppKiDo can be helpful here.<a id="idm441653738480" class="indexterm"></a></p>
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_class_extensions"></a>Class Extensions</h3>
+              </div>
+            </div>
+          </div>
+          <p>A <span class="emphasis"><em>class extension</em></span> is a nameless category that exists solely as an interface section, like this:<a id="idm441653734768" class="indexterm"></a></p>
+          <pre class="screen">@interface MyClass ()
+// stuff goes here
+@end</pre>
+          <p>Typically, the only classes that will be permitted to “see” a class extension will be the class that’s being extended or a subclass of that class. If only the former is the case, the class extension will usually appear directly in the class’s <span class="emphasis"><em>implementation file</em></span>, like this:</p>
+          <pre class="screen">// MyClass.m:
+
+@interface MyClass ()
+// stuff goes here
+@end
+
+@implementation MyClass {
+    // ivars
+}
+// methods
+@end</pre>
+          <p>That’s such a common arrangement that Xcode’s project template files actually give you a class extension in certain classes. For example, our Empty Window project comes with a class extension at the start of <span class="emphasis"><em>ViewController.m</em></span> — take a look and see!</p>
+          <p>I’m sure you’re leaping out of your chair with eagerness to know what on earth sort of “stuff” could possibly go into a class extension to make it so useful that it appears in a template file. Unfortunately, in modern Objective-C the answer has mostly to do with property declarations, which I don’t discuss until <a class="xref" href="ch12.html">Chapter 12</a>. So your curiosity will have to remain unsatisfied until then.</p>
+          <p>A class extension <span class="emphasis"><em>used</em></span> to be the standard solution to the problem of method definition order. One method in an implementation section couldn’t call another method in that same implementation section unless either the definition or a method declaration for that other method preceded it. It’s finicky work trying to arrange all the method definitions in the right order, so the obvious solution is a method declaration. A method declaration can go only into an interface section. But to put a method declaration into the interface section in this class’s header file is annoying — it means we must switch to another file — and, even worse, it makes that method public; any class that imports that header file can now see and call this method. That’s fine if this method is supposed to be public; but what if we wanted to keep it private? The solution: a class extension at the start of this class’s implementation file. Put the method declarations into that class extension; all the methods in the implementation section can now see those method declarations and can call one another, but no other class can see them.<a id="idm441653726816" class="indexterm"></a>
+<a id="idm441653725520" class="indexterm"></a><a id="idm441653724608" class="indexterm"></a></p>
+          <p>However, since LLVM compiler version 3.1 (Xcode 4.3) that trick has been unnecessary: methods (and functions) in a class implementation can see and call one another regardless of order.<a id="idm441653723136" class="indexterm"></a>
+<a id="idm441653721824" class="indexterm"></a></p>
+        </div>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_protocols"></a>Protocols</h2>
+            </div>
+          </div>
+        </div>
+        <p>Every reasonably sophisticated object-oriented language must face the fact that the hierarchy of subclasses and superclasses is insufficient to express the desired relationships between classes. For example, a Bee object and a Bird object might need to have certain features in common by virtue of the fact that both a bee and a bird can fly. But Bee might inherit from Insect, and not every insect can fly, so how can Bee acquire the aspects of a Flier in a way that isn’t completely independent of how Bird acquires them?</p>
+        <p>Some object-oriented languages solve this problem through <span class="emphasis"><em>mixin</em></span> classes.<a id="idm441653717456" class="indexterm"></a> For example, in Ruby you could define a Flier module, complete with method definitions, and incorporate it into both Bee and Bird. Objective-C uses a simpler, lighter-weight approach — the <span class="emphasis"><em>protocol</em></span>. Cocoa makes heavy use of protocols.<a id="idm441653715392" class="indexterm"></a></p>
+        <p>A protocol is just a named list of method declarations, with no implementation. A class may formally declare that it <span class="emphasis"><em>conforms</em></span> to (or <span class="emphasis"><em>adopts</em></span>) a protocol; such conformance is inherited by subclasses. This declaration satisfies the compiler when you try to send a corresponding message.<a id="idm441653713008" class="indexterm"></a><a id="idm441653712096" class="indexterm"></a> If a protocol declares an instance method <code class="literal">myCoolMethod</code>, and if MyClass declares conformance to that protocol, then you can send the <code class="literal">myCoolMethod</code> message to a MyClass instance and the compiler won’t complain.</p>
+        <p>Actually implementing the methods declared in a protocol is up to the class that conforms to it. A protocol method may be required or optional. If a protocol method is required, then if a class conforms to that protocol, the compiler will warn if that class fails to implement that method. Implementing optional methods, on the other hand, is optional. (Of course, that’s just the compiler’s point of view; at runtime, if a message is sent to an object with no implementation for the corresponding method, a crash can result; see <a class="xref" href="ch03.html">Chapter 3</a>.)</p>
+        <p>Here’s an example of how Cocoa uses a protocol. Some objects can be copied; some can’t. This has nothing to do with an object’s class heritage. Yet we would like a uniform method to which any object that <span class="emphasis"><em>can</em></span> be copied will respond. So Cocoa defines a protocol named NSCopying, which declares just one method, <code class="literal">copyWithZone:</code> (required).<a id="idm441653705696" class="indexterm"></a> A class that explicitly conforms to NSCopying is promising that it implements <code class="literal">copyWithZone:</code>.</p>
+        <p>Here’s how the NSCopying protocol is defined (in <span class="emphasis"><em>NSObject.h</em></span>, where your code can see it):</p>
+        <pre class="screen">@protocol NSCopying
+- (id)copyWithZone:(NSZone *)zone;
+@end</pre>
+        <p>That’s all there is to defining a protocol.<a id="idm441653701952" class="indexterm"></a><a id="idm441653701088" class="indexterm"></a>
+<a id="idm441653699776" class="indexterm"></a><a id="idm441653698864" class="indexterm"></a>
+<a id="idm441653697552" class="indexterm"></a> The definition uses the <code class="literal">@protocol</code> compiler directive; it states the name of the protocol; it consists entirely of method declarations; and it is terminated by the <code class="literal">@end</code> compiler directive. A protocol definition will typically appear in a header file, so that classes that need to know about it, in order to adopt it or call its methods, can import it. A protocol section of a header file is not inside any other section (such as an interface section). Any optional methods must be preceded by the <code class="literal">@optional</code> directive. A protocol definition may state that the protocol incorporates other protocols; these constitute a comma-separated list in angle brackets after the protocol’s name, like this example from Apple’s own code (<span class="emphasis"><em>UIAlertView.h</em></span>):</p>
+        <pre class="screen">@protocol UIAlertViewDelegate &lt;NSObject&gt;
+@optional
+- (void)alertView:(UIAlertView *)alertView
+    clickedButtonAtIndex:(NSInteger)buttonIndex;
+// ... more optional method declarations ...
+@end</pre>
+        <p>The NSCopying protocol definition in <span class="emphasis"><em>NSObject.h</em></span> is just a definition; it is not a statement that NSObject conforms to NSCopying. Indeed, NSObject does <span class="emphasis"><em>not</em></span> conform to NSCopying. To see this, try sending the <code class="literal">copyWithZone:</code> method to your own subclass of NSObject:</p>
+        <pre class="screen">MyClass* mc = [MyClass new];
+MyClass* mc2 = [mc copyWithZone: [mc zone]];</pre>
+        <p>The compiler warns that a MyClass instance may not respond to <code class="literal">copyWithZone:</code>; under ARC, this code won’t compile at all.</p>
+        <p>To conform formally to a protocol, a class’s interface section appends the name of the protocol, in angle brackets, after the name of the superclass (or, if this is a category declaration, after the parentheses). This will necessitate importing the header file that declares the protocol (or some header file that imports that header file). To state that a class conforms to multiple protocols, put multiple protocol names in the angle brackets, separated by comma.</p>
+        <p>Let’s see what happens if you conform formally to the NSCopying protocol. Modify the first line of the interface section of your class as follows:</p>
+        <pre class="screen">@interface MyClass : NSObject &lt;NSCopying&gt;</pre>
+        <p>Now the compiler warns that MyClass fails to implement <code class="literal">copyWithZone:</code> and thus does not fully implement the NSCopying protocol (because <code class="literal">copyWithZone:</code> is a required method of the NSCopying protocol).<a id="idm441653684784" class="indexterm"></a>
+<a id="idm441653683504" class="indexterm"></a></p>
+        <p>The name of a protocol may also be used when specifying an object type. Most often, the object will be typed as an <code class="literal">id</code>, but with the accompanying proviso that it conforms to a protocol, whose name appears in angle brackets.</p>
+        <p>To illustrate, let’s look at another typical example of how Cocoa uses protocols, namely in connection with a table (UITableView). A UITableView has a <code class="literal">dataSource</code> property, declared like this:</p>
+        <pre class="screen">@property (nonatomic, assign) id&lt;UITableViewDataSource&gt; dataSource</pre>
+        <p>This property represents an instance variable whose type is <code class="literal">id &lt;UITableViewDataSource&gt;</code>. This means “I don’t care what class my data source belongs to, but whatever it is, it should conform to the UITableViewDataSource protocol.” Such conformance constitutes a promise that the data source will implement at least the required instance methods <code class="literal">tableView:numberOfRowsInSection:</code> and <code class="literal">tableView:cellForRowAtIndexPath:</code>, which the table view will call when it needs to know what data to display.</p>
+        <p>If you attempt to set a table view’s <code class="literal">dataSource</code> property to an object that does <span class="emphasis"><em>not</em></span> conform to UITableViewDataSource, you’ll get a warning from the compiler. So, for example: <a id="idm441653674368" class="indexterm"></a>
+<a id="idm441653673168" class="indexterm"></a><a id="idm441653672256" class="indexterm"></a>
+<a id="idm441653670928" class="indexterm"></a></p>
+        <pre class="screen">MyClass* mc = [MyClass new];
+UITableView* tv = [UITableView new];
+tv.dataSource = mc; // compiler warns</pre>
+        <p>Under ARC, this warning is couched in rather confusing terms, along these lines: “Passing ‘MyClass *const __strong’ to parameter of incompatible type ‘id&lt;UITableViewDataSource&gt;’.”</p>
+        <p>To quiet the compiler, MyClass’s declaration should state that it conforms to UITableViewDataSource. Once it does so, MyClass <span class="emphasis"><em>is</em></span> an <code class="literal">id &lt;UITableViewDataSource&gt;</code>, and the third line no longer generates a warning. Of course, you must also supply implementations of <code class="literal">tableView:numberOfRowsInSection:</code> and <code class="literal">tableView:cellForRowAtIndexPath:</code> in MyClass to avoid the other warning, namely that you’re not fully implementing a protocol you’ve claimed to conform to.</p>
+        <p>In a very large percentage of cases, the object that you want to assign where conformity to a protocol is expected is <code class="literal">self</code>. In this situation, you can declare this class’s conformity to the protocol in the implementation file as part of a class extension, like this:</p>
+        <pre class="screen">// MyClass.m:
+@interface MyClass () &lt;UITableViewDataSource&gt;
+@end
+
+@implementation MyClass
+- (void) someMethod {
+    UITableView* tv = [UITableView new];
+    tv.dataSource = self;
+}
+@end</pre>
+        <p>I prefer this architecture, because it means that the declaration of conformity to the protocol is right there in the same implementation file that uses the protocol, and because the header defining the protocol can be imported in the implementation file, rather than in the class’s header file where it will be unnecessarily shared with any other classes that import the same header file.</p>
+        <p>A prevalent use of protocols in Cocoa is in connection with delegate objects. We’ll talk in detail about delegates in <a class="xref" href="ch11.html">Chapter 11</a>, but you can readily see that many classes have a <code class="literal">delegate</code> property and that the class of this property is often <code class="literal">id &lt;SomeProtocol&gt;</code>. For example, in our Empty Window project, the AppDelegate class provided by the project template is declared like this:</p>
+        <pre class="screen">@interface AppDelegate : UIResponder &lt;UIApplicationDelegate&gt;</pre>
+        <p>The reason is that AppDelegate’s purpose on earth is to serve as the shared application’s delegate. The shared application object is a UIApplication, and a UIApplication’s <code class="literal">delegate</code> property is typed as an <code class="literal">id &lt;UIApplicationDelegate&gt;</code>. So AppDelegate announces its role by explicitly conforming to UIApplicationDelegate.</p>
+        <p>As a programmer, Cocoa’s use of protocols will matter to you in two ways:</p>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+Conformity
+</span>
+            </dt>
+            <dd>
+As I’ve just been saying, if an object value that you wish to assign or pass as an argument is typed as <code class="literal">id &lt;SomeProtocol&gt;</code>, you must make sure that that object’s class does indeed conform to SomeProtocol (and implements any methods required by that protocol).
+</dd>
+            <dt>
+              <span class="term">
+Using the documentation
+</span>
+            </dt>
+            <dd>
+              <p class="simpara">
+A protocol has its own documentation page. When the UIApplication class documentation tells you that a UIApplication’s <code class="literal">delegate</code> property is typed as an <code class="literal">id &lt;UIApplicationDelegate&gt;</code>, it’s implicitly telling you that if you want to know what messages a UIApplication’s delegate might receive, you need to look in the UIApplicationDelegate protocol documentation.
+</p>
+              <p class="simpara">Similarly, when a class’s documentation mentions that the class conforms to a protocol, don’t forget to examine that protocol’s documentation, because the latter might contain important information about how the class behaves. To learn what messages can be sent to an object, you need to look upward through the superclass inheritance chain (<a class="xref" href="ch08.html">Chapter 8</a>); you also need to look at any protocols that this object’s class conforms to.<a id="idm441653646880" class="indexterm"></a>
+<a id="idm441653645584" class="indexterm"></a></p>
+            </dd>
+          </dl>
+        </div>
+        <p>You will probably not have frequent cause to define a protocol yourself. But protocols effectively allow one class to declare a method that another class is to implement, and there are certain situations where that’s exactly the problem you need to solve; so a protocol will be the solution.</p>
+        <p>For example, in one of my apps I present a view where the user can move three sliders to choose a color. Appropriately, its code is in a class called ColorPickerController. When the user taps Done or Cancel, the view should be dismissed; but first, the code that presented this view needs to hear about what color the user chose. So I need to send a message from the ColorPickerController instance back to the instance that presented it. Here is the declaration for that message:</p>
+        <pre class="screen">- (void) colorPicker:(ColorPickerController*)picker
+    didSetColorNamed:(NSString*)theName
+             toColor:(UIColor*)theColor;</pre>
+        <p>The question is: where should this declaration go?</p>
+        <p>Now, it happens that in my app I know the class of the instance that will present the ColorPickerController’s view: it is a SettingsController. So I could simply declare this method in the interface section of SettingsController’s header file. But this feels wrong:</p>
+        <div class="itemizedlist">
+          <ul class="itemizedlist" type="disc">
+            <li class="listitem">
+It should not be up to SettingsController to declare a method that it is implementing only in deference to ColorPickerController.
+</li>
+            <li class="listitem">
+If SettingsController declares this message in its header file, ColorPickerController will have to import that header file in order to send the message; but this means that ColorPickerController now knows all about SettingsController, whereas the <span class="emphasis"><em>only</em></span> thing it needs to know about SettingsController is that it implements this one method.
+</li>
+            <li class="listitem">
+It is merely a contingent fact that the instance being sent this message <span class="emphasis"><em>is</em></span> a SettingsController; it should be open to <span class="emphasis"><em>any</em></span> class to present and dismiss a ColorPickerController’s view, and thus to be eligible to receive this message.
+</li>
+          </ul>
+        </div>
+        <p>Therefore we want ColorPickerController <span class="emphasis"><em>itself</em></span> to declare the method that <span class="emphasis"><em>it itself is going to send</em></span>; and we want it to send the message blindly to some receiver, without regard to the class of that receiver. Thus there needs to be a linkage, as it were, between the declaration of this method in ColorPickerController and the implementation of this method in the receiver. That linkage is precisely what a protocol creates! The solution, then, is for ColorPickerController to define a protocol in its header file, with this method as part of that protocol, and for the class that presents a ColorPickerController’s view to conform to that protocol.</p>
+        <p>If you create a project from Xcode’s own Utility Application template, you will see that this is exactly the architecture it exemplifies.<a id="idm441653633232" class="indexterm"></a>
+<a id="idm441653631728" class="indexterm"></a>
+<a id="idm441653630448" class="indexterm"></a> We start with a MainViewController. It eventually creates a FlipsideViewController. When the FlipsideViewController is ready to go out of existence, it is going to want to send the <code class="literal">flipsideViewControllerDidFinish:</code> message back to whoever created it. So FlipsideViewController defines a FlipsideViewControllerDelegate protocol requiring the <code class="literal">flipsideViewControllerDidFinish:</code> method, along with a <code class="literal">delegate</code> property typed as <code class="literal">id &lt;FlipsideViewControllerDelegate&gt;</code>. When a MainViewController instance creates a FlipsideViewController instance, it specifies that it itself, the MainViewController instance, is the FlipsideViewController’s <code class="literal">delegate</code>; and it can do this, because MainViewController does in fact adopt the FlipsideViewControllerDelegate protocol! Problem solved, mission accomplished.</p>
+        <div class="sidebar">
+          <div class="titlepage">
+            <div>
+              <div>
+                <p class="title">Informal Protocols</p>
+              </div>
+            </div>
+          </div>
+          <p>You may occasionally see, online or in the documentation, a reference to an <span class="emphasis"><em>informal protocol</em></span>. An informal protocol isn’t really a protocol at all; it’s just a way of providing the compiler with a method signature so that it will allow a message to be sent without complaining.<a id="idm441653626400" class="indexterm"></a> There are two complementary ways to implement an informal protocol. One is to define a category on NSObject; this makes any object eligible to receive the messages listed in the category. The other is to define a protocol to which no class formally conforms; instead, send any message listed in the protocol only to objects typed as <code class="literal">id</code>, thus suppressing any possible objections from the compiler. These techniques were widespread before protocols could declare methods as optional; now they are largely unnecessary. (They are still used, but decreasingly so; in iOS 6 very few informal protocols remain.) They are also mildly dangerous, because you might accidentally define a method with the same name as an existing method but a different signature, with unpredictable results.</p>
+        </div>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_optional_methods"></a>Optional Methods</h2>
+            </div>
+          </div>
+        </div>
+        <p>A protocol can explicitly designate some or all of its methods as optional.<a id="idm441653618992" class="indexterm"></a>
+<a id="idm441653617680" class="indexterm"></a> The question thus arises: How, in practice, is such an optional method feasible? We know that if a message is sent to an object and the object can’t handle that message, an exception is raised (and your app will likely crash). But a method declaration is a contract suggesting that the object <span class="emphasis"><em>can</em></span> handle that message. If we subvert that contract by declaring a method that might or might not be implemented, aren’t we inviting crashes?</p>
+        <p>The answer is that Objective-C is not only dynamic but also <a id="idm441653615232" class="indexterm"></a>introspective.<a id="idm441653614224" class="indexterm"></a>
+<a id="idm441653612912" class="indexterm"></a> You can ask an object whether it can deal with a message without actually sending it that message. This makes optional methods quite safe, provided you know that a method is optional.</p>
+        <p>The key method here is NSObject’s <code class="literal">respondsToSelector:</code>, which takes a selector parameter and returns a BOOL. With it, you can send a message to an object only if it would be safe to do so:</p>
+        <pre class="screen">MyClass* mc = [MyClass new];
+if ([mc respondsToSelector:@selector(woohoo)]) {
+    [mc woohoo];
+}</pre>
+        <p>You wouldn’t want to do this before sending just any old message, because it isn’t necessary except for optional methods, and it slows things down a little. But Cocoa does in fact call <code class="literal">respondsToSelector:</code> on your objects as a matter of course. To see that this is true, implement <code class="literal">respondsToSelector:</code> on AppDelegate in our Empty Window project and instrument it with logging:</p>
+        <pre class="screen">- (BOOL) respondsToSelector: (SEL) sel {
+    NSLog(@"%@", NSStringFromSelector(sel));
+    return [super respondsToSelector:(sel)];
+}</pre>
+        <p>The output on my machine, as the Empty Window app launches, includes the following (I’m omitting private methods and multiple calls to the same method):</p>
+        <pre class="screen">application:handleOpenURL:
+application:openURL:sourceApplication:annotation:
+applicationDidReceiveMemoryWarning:
+applicationWillTerminate:
+applicationSignificantTimeChange:
+application:willChangeStatusBarOrientation:duration:
+application:didChangeStatusBarOrientation:
+application:willChangeStatusBarFrame:
+application:didChangeStatusBarFrame:
+application:deviceAccelerated:
+application:deviceChangedOrientation:
+applicationDidBecomeActive:
+applicationWillResignActive:
+applicationDidEnterBackground:
+applicationWillEnterForeground:
+applicationWillSuspend:
+application:didResumeWithOptions:
+application:shouldSaveApplicationState:
+application:supportedInterfaceOrientationsForWindow:
+application:willFinishLaunchingWithOptions:
+application:didFinishLaunchingWithOptions:</pre>
+        <p>That’s Cocoa, checking to see which of the optional UIApplicationDelegate protocol methods (including a couple of undocumented methods) are actually implemented by our AppDelegate instance — which, because it is the UIApplication object’s delegate and formally conforms to the UIApplicationDelegate protocol, has explicitly agreed that it <span class="emphasis"><em>might</em></span> be willing to respond to any of those messages. The entire delegate pattern (<a class="xref" href="ch11.html">Chapter 11</a>) depends upon this technique. Observe the policy followed here by Cocoa: it checks all the optional protocol methods once, when it first meets the object in question, and presumably stores the results; thus, the app is slowed a tiny bit by this one-time initial bombardment of <code class="literal">respondsToSelector:</code> calls, but now Cocoa knows all the answers and won’t have to perform any of these same checks on the same object later on.
+<a id="idm441653601392" class="indexterm"></a></p>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_some_foundation_classes"></a>Some Foundation Classes</h2>
+            </div>
+          </div>
+        </div>
+        <p>The Foundation classes of Cocoa provide basic data types and utilities that will form the basis of much that you do in Cocoa.<a id="idm441653598800" class="indexterm"></a>
+<a id="idm441653597504" class="indexterm"></a> Obviously I can’t list all of them, let alone describe them fully, but I can survey a few that I use frequently and that you’ll probably want to be aware of before writing even the simplest Cocoa program. For more information, start with Apple’s list of the Foundation classes in the <span class="emphasis"><em>Foundation Framework Reference</em></span>.</p>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_useful_structs_and_constants"></a>Useful Structs and Constants</h3>
+              </div>
+            </div>
+          </div>
+          <p>NSRange is a struct of importance in dealing with some of the classes I’m about to discuss.<a id="idm441653594064" class="indexterm"></a> Its components are integers (NSUInteger), <code class="literal">location</code> and <code class="literal">length</code>. For example, a range whose <code class="literal">location</code> is 1 starts at the second element of something (because element counting is always zero-based), and if its <code class="literal">length</code> is 2 it designates this element and the next. Cocoa also supplies various convenience methods for dealing with a range; you’ll use <code class="literal">NSMakeRange</code> frequently. (Note that the name, <code class="literal">NSMakeRange</code>, is backward compared to names like <code class="literal">CGPointMake</code> and <code class="literal">CGRectMake</code>.)</p>
+          <p><code class="literal">NSNotFound</code> is a constant integer indicating that some requested element was not found.<a id="idm441653586448" class="indexterm"></a> For example, if you ask for the index of a certain object in an NSArray and the object isn’t present in the array, the result is <code class="literal">NSNotFound</code>. The result could not be <code class="literal">0</code> to indicate the absence of the object, because <code class="literal">0</code> would indicate the first element of the array. Nor could it be nil, because nil is <code class="literal">0</code> (and in any case is not appropriate when an integer is expected). The true numeric value of <code class="literal">NSNotFound</code> is of no concern to you; always compare against <code class="literal">NSNotFound</code> itself, to learn whether a result is a meaningful index.</p>
+          <p>If a search returns a range and the thing sought is not present, the <code class="literal">location</code> component of the resulting NSRange will be <code class="literal">NSNotFound</code>.</p>
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_nsstring_and_friends"></a>NSString and Friends</h3>
+              </div>
+            </div>
+          </div>
+          <p><a id="idm441653577808" class="indexterm"></a>NSString, which has already been used rather liberally in examples earlier in this book, is the Cocoa object version of a string. You can create an NSString through a number of class methods and initializers, or by using the NSString literal notation <code class="literal">@"..."</code>, which is really a compiler directive. Particularly important is <code class="literal">stringWithFormat:</code>, which lets you convert numbers to strings and combine strings; see <a class="xref" href="ch09.html">Chapter 9</a>, where I discussed format strings in connection with NSLog. Here are some strings in action:</p>
+          <pre class="screen">int x = 5;
+NSString* s = @"widgets";
+NSString* s2 = [NSString stringWithFormat:@"You have %i %@.", x, s];</pre>
+          <p>NSString has a modern, Unicode-based idea of what a string can consist of. A string’s “elements” are its characters, whose count is its <code class="literal">length</code>. These are not bytes, because the numeric representation of a Unicode character could be multiple bytes, depending on the encoding. Nor are they glyphs, because a composed character sequence that prints as a single “letter” can consist of multiple characters. Thus the length of an NSRange indicating a single “character” might be greater than 1.</p>
+          <p>An NSString can be searched using various <code class="literal">rangeOf...</code> methods, which return an NSRange. In addition, <a id="idm441653570720" class="indexterm"></a>NSScanner lets you walk through a string looking for pieces that fit certain criteria; for example, with NSScanner (and NSCharacterSet) you can skip past everything in a string that precedes a number and then extract the number. The <code class="literal">rangeOfString:</code> family of search methods lets you look for a substring; it can specify an option <code class="literal">NSRegularExpressionSearch</code>, which lets you search using a regular expression,<a id="idm441653568256" class="indexterm"></a> and regular expressions are also supported as a separate class, <a id="idm441653567136" class="indexterm"></a>NSRegularExpression (which uses NSTextCheckingResult to describe match results).</p>
+          <p>In this example from one of my apps, the user has tapped a button whose title is something like “5 by 4” or “4 by 3”. I want to know both numbers; one tells me how many rows the layout is to have, the other how many columns. I use an NSScanner to locate the two numbers in the title:</p>
+          <pre class="screen">NSString* s = [as buttonTitleAtIndex:ix];
+NSScanner* sc = [NSScanner scannerWithString:s];
+int rows, cols;
+[sc scanInt:&amp;rows];
+[sc scanUpToCharactersFromSet:[NSCharacterSet decimalDigitCharacterSet]
+                   intoString:nil];
+[sc scanInt:&amp;cols];</pre>
+          <p>Here’s how I might do the same thing using a regular expression:</p>
+          <pre class="screen">NSString* s = [as buttonTitleAtIndex:ix];
+int rowcol[2]; int* prowcol = rowcol;
+NSError* err = nil;
+NSRegularExpression* r =
+    [NSRegularExpression regularExpressionWithPattern:@"\\d"
+                                              options:0
+                                                error:&amp;err];
+// error-checking omitted
+for (NSTextCheckingResult* match in
+    [r matchesInString:s options:0 range:NSMakeRange(0, [s length])])
+        *prowcol++ = [[s substringWithRange: [match range]] intValue];</pre>
+          <p>The syntax seems oddly tortured, though, because we must convert each match from an NSTextCheckingResult to a range, then to a substring of our original string, and finally to an integer.</p>
+          <p>More sophisticated automated textual analysis is supported by some additional classes, such as NSDataDetector, an NSRegularExpression subclass that efficiently finds certain types of string expression such as a URL or a phone number, and NSLinguisticTagger, which actually attempts to analyze text into its grammatical parts of speech.<a id="idm441653561440" class="indexterm"></a></p>
+          <p>An NSString object’s string is immutable. You can use a string to generate another string in various ways, such as by appending another string or by extracting a substring, but you can’t alter the string <span class="emphasis"><em>itself</em></span>. For that, you need NSString’s subclass, <a id="idm441653559424" class="indexterm"></a>NSMutableString.</p>
+          <p>NSString has convenience utilities for working with a file path string, and is often used in conjunction with NSURL, which is another Foundation class worth looking into. NSString and some other classes discussed in this section provide methods for writing out to a file’s contents or reading in a file’s contents; when they do, the file can be specified either as an NSString file path or as an NSURL (<a class="xref" href="ch36.html">Chapter 36</a>).</p>
+          <p>An NSString carries no font and size information. Interface objects that display strings (such as UILabel) have a <code class="literal">font</code> property that is a UIFont; but this determines the <span class="emphasis"><em>single</em></span> font and size in which the string will display. Before iOS 6, display of styled text — where different runs of text have different style attributes (size, font, color, and so forth) — was quite challenging. The NSAttributedString class, embodying a string along with style runs, required the use of Core Text (<a class="xref" href="ch23.html">Chapter 23</a>), and you had to lay out the styled text by drawing it yourself; you couldn’t display styled text in any standard interface object.</p>
+          <p>Starting in iOS 6, however, <a id="idm441653553696" class="indexterm"></a>NSAttributedString is a full-fledged Objective-C class, with methods and supporting classes that allow you to style text and paragraphs easily in sophisticated ways — and the built-in interface objects that display text can display styled text. This is a major improvement.<a id="idm441653552192" class="indexterm"></a>
+<a id="idm441653550944" class="indexterm"></a></p>
+          <p>String drawing in a graphics context can be performed with methods provided through the UIStringDrawing category on NSString (see the <span class="emphasis"><em>String UIKit Additions Reference</em></span>) and the NSStringDrawing category on NSAttributedString (see the <span class="emphasis"><em>NSAttributedString UIKit Additions Reference</em></span>, new in iOS 6).<a id="idm441653548560" class="indexterm"></a>
+<a id="idm441653547264" class="indexterm"></a></p>
+          <p>NSAttributedString, along with its supporting classes (NSMutableAttributedString, NSParagraphStyle, NSMutableParagraphStyle) and its drawing commands, is discussed in <a class="xref" href="ch23.html">Chapter 23</a>.</p>
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_nsdate_and_friends"></a>NSDate and Friends</h3>
+              </div>
+            </div>
+          </div>
+          <p>An <a id="idm441653543776" class="indexterm"></a>NSDate is a date and time, represented internally as a number of seconds (NSTimeInterval) since some reference date.<a id="idm441653542896" class="indexterm"></a><a id="idm441653542000" class="indexterm"></a> Calling <code class="literal">[NSDate date]</code> gives you a date object for the current date and time; other date operations may involve NSDateComponents and NSCalendar and can be a bit tricky because calendars are complicated (see the <span class="emphasis"><em>Date and Time Programming Guide</em></span>; NSDateComponents examples appear in <a class="xref" href="ch25.html">Chapter 25</a> and <a class="xref" href="ch32.html">Chapter 32</a>).</p>
+          <p>You will also likely be concerned with dates represented as strings. Creation and parsing of date strings involves <a id="idm441653537936" class="indexterm"></a>NSDateFormatter, which uses a format string similar to NSString’s <code class="literal">stringWithFormat</code>. A complication is added by the fact that the exact string representation of a date component or format can depend upon the user’s locale, consisting of language, region format, and calendar settings. (Actually, locale considerations can also play a role in NSString format strings.)</p>
+          <p>In this example from one of my apps, I prepare the content of a UILabel reporting the date and time when our data was last updated. The app is not localized — the word “at” appearing in the string is always going to be in English — so I want complete control of the presentation of the date and time components as well. To get it, I have to insist upon a particular locale:</p>
+          <pre class="screen">NSDateFormatter *df = [NSDateFormatter new];
+if ([[NSLocale availableLocaleIdentifiers] indexOfObject:@"en_US"]
+        != NSNotFound) {
+    NSLocale* loc = [[NSLocale alloc] initWithLocaleIdentifier:@"en_US"];
+    [df setLocale:loc]; // English month name and time zone name if possible
+}
+[df setDateFormat:@"'Updated' d MMMM yyyy 'at' h:mm a z"];
+[self setRefreshControlTitle:[df stringFromDate: [NSDate date]]]; // just now</pre>
+          <p>Locales are an interesting and complicated topic;<a id="idm441653532224" class="indexterm"></a><a id="idm441653531360" class="indexterm"></a> to learn more, consult in your browser the documentation for ICU (International Components for Unicode), from which the iOS support for creating and parsing date strings is derived. To study what locales exist, use the locale explorer at <a class="ulink" href="http://demo.icu-project.org/icu-bin/locexp" target="_top">http://demo.icu-project.org/icu-bin/locexp</a>.
+<a id="idm441653529376" class="indexterm"></a></p>
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_nsnumber"></a>NSNumber</h3>
+              </div>
+            </div>
+          </div>
+          <p>An <a id="idm441653527024" class="indexterm"></a>NSNumber is an object that wraps a numeric value (including BOOL).<a id="idm441653526272" class="indexterm"></a> Thus, you can use it to store and pass a number where an object is expected. An NSNumber is formed from an actual number with a method that specifies the numeric type; for example, you can call <code class="literal">numberWithInt:</code> to form a number from an int:</p>
+          <pre class="screen">[[NSUserDefaults standardUserDefaults] registerDefaults:
+    [NSDictionary dictionaryWithObjectsAndKeys:
+        [NSNumber numberWithInt: 4],
+        @"cardMatrixRows",
+        [NSNumber numberWithInt: 3],
+        @"cardMatrixColumns",
+        nil]];</pre>
+          <p>As I mentioned in <a class="xref" href="ch05.html">Chapter 5</a>, LLVM compiler version 4.0 (Xcode 4.4) brought with it a new syntax for forming a new NSNumber instance:<a id="idm441653522032" class="indexterm"></a>
+<a id="idm441653520832" class="indexterm"></a><a id="idm441653519920" class="indexterm"></a>
+<a id="idm441653518592" class="indexterm"></a></p>
+          <div class="itemizedlist">
+            <ul class="itemizedlist" type="disc">
+              <li class="listitem">
+Precede a literal number (or BOOL) with <code class="literal">@</code>. To specify further the numeric type, follow the literal number with <code class="literal">U</code> (unsigned integer), <code class="literal">L</code> (long integer), <code class="literal">LL</code> (long long integer), or <code class="literal">F</code> (float). (There is no NSNumber wrapper for an unsigned long.) For example, <code class="literal">@3.1415</code> is equivalent to <code class="literal">[NSNumber numberWithDouble:3.1415]</code>; <code class="literal">@YES</code> is equivalent to <code class="literal">[NSNumber numberWithBool:YES]</code>.
+</li>
+              <li class="listitem">
+If an expression yields a number, wrap it in parentheses and precede the left parenthesis with <code class="literal">@</code>. For example, if <code class="literal">height</code> and <code class="literal">width</code> are floats, <code class="literal">@(height/width)</code> is equivalent to <code class="literal">[NSNumber numberWithFloat: height/width]</code>.
+</li>
+            </ul>
+          </div>
+          <p>Thus, the preceding example can be rewritten like this:</p>
+          <pre class="screen">[[NSUserDefaults standardUserDefaults] registerDefaults:
+    [NSDictionary dictionaryWithObjectsAndKeys:
+        @4,
+        @"cardMatrixRows",
+        @3,
+        @"cardMatrixColumns",
+        nil]];</pre>
+          <p>(There is also a new NSDictionary literal syntax, so it will turn out, a few pages from now, that we can rewrite that code even more compactly.)</p>
+          <p>An NSNumber is not itself a number, however, so you still can’t use it in calculations or where an actual number is expected. Instead, you must explicitly extract the number from its NSNumber wrapper using the inverse of the method that wrapped the number to begin with. Knowing what that method was is up to you. So, for example, if an NSNumber wraps an int, you can call <code class="literal">intValue</code> to extract the int:</p>
+          <pre class="screen">NSUserDefaults* ud = [NSUserDefaults standardUserDefaults];
+int therows = [[ud objectForKey:@"cardMatrixRows"] intValue];
+int thecols = [[ud objectForKey:@"cardMatrixColumns"] intValue];</pre>
+          <p>Actually, this is such a common transformation when communicating with NSUserDefaults that it provides convenience methods. So I could have written the same thing this way:</p>
+          <pre class="screen">NSUserDefaults* ud = [NSUserDefaults standardUserDefaults];
+int therows = [ud integerForKey:@"cardMatrixRows"];
+int thecols = [ud integerForKey:@"cardMatrixColumns"];</pre>
+          <p>An NSNumber subclass, NSDecimalNumber, <span class="emphasis"><em>can</em></span> be used in calculations, thanks to a bunch of arithmetic methods (or their C equivalent functions, which are faster). This is useful particularly for rounding, because there’s a handy way to specify exactly the desired rounding behavior.</p>
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_nsvalue"></a>NSValue</h3>
+              </div>
+            </div>
+          </div>
+          <p><a id="idm441653497392" class="indexterm"></a>NSValue is NSNumber’s superclass. Use it for wrapping nonnumeric C values such as structs.<a id="idm441653496368" class="indexterm"></a> Convenience methods provided through the NSValueUIGeometryExtensions category on NSValue (see the <span class="emphasis"><em>NSValue UIKit Additions Reference</em></span>) allow easy wrapping and unwrapping of CGPoint, CGSize, CGRect, CGAffineTransform, UIEdgeInsets, and UIOffset; additional categories allow easy wrapping and unwrapping of CATransform3D, CMTime, CMTimeMapping, CMTimeRange, MKCoordinate, and MKCoordinateSpan.</p>
+          <p>You are unlikely to need to store any other kind of C value in an NSValue, but you can if you need to.</p>
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_nsdata"></a>NSData</h3>
+              </div>
+            </div>
+          </div>
+          <p><a id="idm441653492720" class="indexterm"></a>NSData is a general sequence of bytes; basically, it’s just a buffer, a chunk of memory. It is immutable; the mutable version is its subclass <a id="idm441653491360" class="indexterm"></a>NSMutableData.</p>
+          <p>In practice, NSData tends to arise in two main ways:</p>
+          <div class="itemizedlist">
+            <ul class="itemizedlist" type="disc">
+              <li class="listitem">
+When downloading data from the Internet. For example, the NSURLConnection class supplies whatever it retrieves from the Internet as NSData. Transforming it from there into (let’s say) a string, specifying the correct encoding, would then be up to you.
+</li>
+              <li class="listitem">
+                <p class="simpara">
+When storing an object as a file or in user preferences. For example, you can’t store a UIColor value directly into user preferences. So if the user has made a color choice and you need to save it, you transform the UIColor into an NSData (using NSKeyedArchiver) and save that:
+</p>
+                <pre class="screen">[[NSUserDefaults standardUserDefaults] registerDefaults:
+    [NSDictionary dictionaryWithObjectsAndKeys:
+        [NSKeyedArchiver archivedDataWithRootObject:[UIColor blueColor]],
+        @"myColor",
+        nil]];</pre>
+                <p class="simpara">The use of <a id="idm441653485792" class="indexterm"></a>NSKeyedArchiver, and its reversal with <a id="idm441653485008" class="indexterm"></a>NSKeyedUnarchiver, is discussed further in <a class="xref" href="ch19.html">Chapter 19</a> and <a class="xref" href="ch36.html">Chapter 36</a>.</p>
+              </li>
+            </ul>
+          </div>
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_equality_and_comparison"></a>Equality and Comparison</h3>
+              </div>
+            </div>
+          </div>
+          <p>The foregoing types will quickly come to seem to you like basic data types, but of course they are actually object types — which means that they are pointers (<a class="xref" href="ch03.html">Chapter 3</a>) Therefore you cannot compare them using the C operators for testing equality as you would with actual numbers.<a id="idm441653480272" class="indexterm"></a><a id="idm441653479376" class="indexterm"></a> That’s because, in the case of object types, the C operators compare the pointers, not the object content of the instances. For example:</p>
+          <pre class="screen">NSString* s1 = [NSString stringWithFormat:@"%@, %@", @"Hello", @"world"];
+NSString* s2 = [NSString stringWithFormat:@"%@, %@", @"Hello", @"world"];
+if (s1 == s2) // false
+    // ...</pre>
+          <p>The two strings are equivalent (<code class="literal">@"Hello, world"</code>) but are not the same object. (The example is deliberately elaborate because Cocoa’s efficient management of string literals sees to it that two strings initialized directly as <code class="literal">@"Hello, world"</code> <span class="emphasis"><em>are</em></span> the same object, which wouldn’t illustrate the point I’m making.) It is up to individual classes to implement a test for equality. The general test, <code class="literal">isEqual:</code>, is inherited from NSObject and overridden, but some classes also define more specific and efficient tests. Thus, the correct way to perform the above test is like this:</p>
+          <pre class="screen">if ([s1 isEqualToString: s2])</pre>
+          <p>Similarly, it is up to individual classes to supply ordered comparison methods. The standard method is called <code class="literal">compare:</code>, and returns one of three constants: <code class="literal">NSOrderedAscending</code> (the receiver is less than the argument), <code class="literal">NSOrderedSame</code> (the receiver is equal to the argument), or <code class="literal">NSOrderedDescending</code> (the receiver is greater than the argument); for an example, see <a class="xref" href="ch03.html#EXblock">Example 3.2</a>.</p>
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_nsindexset"></a>NSIndexSet</h3>
+              </div>
+            </div>
+          </div>
+          <p><a id="idm441653467360" class="indexterm"></a>NSIndexSet expresses a <a id="idm441653466560" class="indexterm"></a>collection of unique whole numbers; its purpose is to express element numbers of an ordered collection, such as an NSArray. Thus, for instance, to retrieve multiple objects simultaneously from an array, you specify the desired indexes as an NSIndexSet. It is also used with other things that are array-like; for example, you pass an NSIndexSet to a UITableView to indicate what sections to insert or delete.</p>
+          <p>To take a specific example, let’s say you want to speak of elements 1, 2, 3, 4, 8, 9, and 10 of an NSArray. NSIndexSet expresses this notion in some compact implementation that can be readily queried. The actual implementation is opaque, but you can imagine that in this case the set might consist of two NSRange structs, <code class="literal">{1,4}</code> and <code class="literal">{8,3}</code>, and NSIndexSet’s methods actually invite you to think of an NSIndexSet as composed of ranges.</p>
+          <p>An NSIndexSet is immutable; its mutable subclass is NSMutableIndexSet. You can form a simple NSIndexSet consisting of just one contiguous range directly, by passing an NSRange to <code class="literal">indexSetWithIndexesInRange:</code>; but to form a more complex index set you’ll need to use NSMutableIndexSet so that you can append additional ranges.</p>
+          <p>To walk through (enumerate) the index values or ranges specified by an NSIndexSet, call <code class="literal">enumerateIndexesUsingBlock:</code> or <code class="literal">enumerateRangesUsingBlock:</code> or their variants.<a id="idm441653459328" class="indexterm"></a></p>
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_nsarray_and_nsmutablearray"></a>NSArray and NSMutableArray</h3>
+              </div>
+            </div>
+          </div>
+          <p>An <a id="idm441653456880" class="indexterm"></a>NSArray is an ordered <a id="idm441653456080" class="indexterm"></a>collection of objects. Its length is its <code class="literal">count</code>, and a particular object can be obtained by index number using <code class="literal">objectAtIndex:</code>. The index of the first object is zero, so the index of the last object is <code class="literal">count</code> minus one.</p>
+          <p>Starting with LLVM compiler version 4.0 (Xcode 4.5), it is no longer necessary to call <code class="literal">objectAtIndex:</code>; instead, you can use a notation reminiscent of C and other languages that have arrays, namely, append square brackets containing the index number to the array reference (<span class="emphasis"><em>subscripting</em></span>).<a id="idm441653451472" class="indexterm"></a>
+<a id="idm441653450176" class="indexterm"></a><a id="idm441653449280" class="indexterm"></a>
+<a id="idm441653447968" class="indexterm"></a>
+<a id="idm441653446944" class="indexterm"></a></p>
+          <p>So, for example, if <code class="literal">pep</code> contains <code class="literal">@"Manny"</code>, <code class="literal">@"Moe"</code>, and <code class="literal">@"Jack"</code>, then <code class="literal">pep[2]</code> yields <code class="literal">@"Jack"</code>; it is equivalent to <code class="literal">[pep objectAtIndex:2]</code>. Okay, I lied; actually, <code class="literal">pep[2]</code> is equivalent to <code class="literal">[pep objectAtIndexedSubscript:2]</code>. That’s because the subscripting notation causes <span class="emphasis"><em>any</em></span> reference to which the subscript is appended to be sent <code class="literal">objectAtIndexedSubscript:</code>. This in turn means that <span class="emphasis"><em>any</em></span> class can implement <code class="literal">objectAtIndexedSubscript:</code> and become eligible for subscripting notation — including your classes. Note that this method must be publicly declared for the compiler to permit the subscripting notation.</p>
+          <p>You can form an NSArray in various ways, but typically you’ll start by supplying a list of the objects it is to contain. As I mentioned in <a class="xref" href="ch03.html">Chapter 3</a>, a new Objective-C literal syntax (starting with LLVM compiler version 4.0, Xcode 4.4 or later) lets you wrap this list in <code class="literal">@[...]</code> as a way of generating the NSArray:<a id="idm441653434752" class="indexterm"></a>
+<a id="idm441653433456" class="indexterm"></a><a id="idm441653432560" class="indexterm"></a>
+<a id="idm441653431248" class="indexterm"></a></p>
+          <pre class="screen">NSArray* pep = @[@"Manny", @"Moe", @"Jack"];</pre>
+          <p>An NSArray is immutable. This doesn’t mean you can’t mutate any of the objects it contains; it means that once the NSArray is formed you can’t remove an object from it, insert an object into it, or replace an object at a given index. To do those things, you can derive a new array consisting of the original array plus or minus some objects, or use NSArray’s subclass, <a id="idm441653429168" class="indexterm"></a>NSMutableArray.</p>
+          <p>NSMutableArray’s <code class="literal">addObject:</code> and <code class="literal">replaceObjectAtIndex:withObject:</code> are supplemented by the same subscripting notation that applies to NSArray. In this case, though, the subscripted reference is an lvalue — you’re assigning to it:<a id="idm441653426224" class="indexterm"></a>
+<a id="idm441653424976" class="indexterm"></a><a id="idm441653424112" class="indexterm"></a>
+<a id="idm441653422800" class="indexterm"></a></p>
+          <pre class="screen">pep[3] = @"Zelda";</pre>
+          <p>That causes the NSMutableArray to be sent <code class="literal">setObject:atIndexedSubscript:</code>. The way NSMutableArray implements this, if <code class="literal">pep</code> has three elements, <code class="literal">pep[3] = @"Zelda"</code> is equivalent to <code class="literal">addObject:</code> (you’re appending to the end of the array); if <code class="literal">pep</code> has more than three elements, it’s equivalent to <code class="literal">replaceObjectAtIndex:withObject:</code>. (If <code class="literal">pep</code> has fewer than three elements, an exception is thrown.)</p>
+          <p>You can walk through (enumerate) every object in an array with the <code class="literal">for...in</code> construct described in <a class="xref" href="ch01.html">Chapter 1</a>.<a id="idm441653414320" class="indexterm"></a><a id="idm441653413440" class="indexterm"></a> (You’ll get an exception if you try to mutate an array while enumerating it.)</p>
+          <p>You can seek an object within an array with <code class="literal">indexOfObject:</code> or <code class="literal">indexOfObjectIdenticalTo:</code>; the former’s idea of equality is to call <code class="literal">isEqual:</code>, whereas the latter uses pointer equality.</p>
+          <p>Those familiar with other languages may miss such utility array functions as <code class="literal">map</code>, which builds a new array of the results of calling a method on each object in the array.<a id="idm441653408448" class="indexterm"></a> (<code class="literal">makeObjectsPerformSelector:</code> requires a selector that returns no value, and <code class="literal">enumerateObjectsUsingBlock:</code> requires a block function that returns no value.) The usual workaround is to make an empty mutable array and then enumerate the original array, calling a method and appending each result to the mutable array (<a class="xref" href="ch10.html#EXbuildArray">Example 10.1</a>). It is also sometimes possible to use key–value coding as a <code class="literal">map</code> substitute (see <a class="xref" href="ch12.html">Chapter 12</a>).</p>
+          <div class="example">
+            <a id="EXbuildArray"></a>
+            <p class="title">Example 10.1. Building an array by enumerating another array</p>
+            <div class="example-contents">
+              <pre class="screen">NSMutableArray* marr = [NSMutableArray array];
+for (id obj in myArray) {
+    id result = [obj doSomething];
+    [marr addObject: result];
+}</pre>
+            </div>
+          </div>
+          <br class="example-break" />
+          <p>You can filter an array to produce a new array consisting of just those objects meeting a test that can be described as an <a id="idm441653401216" class="indexterm"></a>NSPredicate:</p>
+          <pre class="screen">NSArray* pep = @[@"Manny", @"Moe", @"Jack"];
+NSPredicate* p = [NSPredicate predicateWithFormat:@"self BEGINSWITH[cd] 'm'"];
+NSArray* ems = [pep filteredArrayUsingPredicate:p];</pre>
+          <p>To search or filter an array on a more customized test, you can walk through the array applying the test and adding those that meet it to an NSMutableArray (similar to <a class="xref" href="ch10.html#EXbuildArray">Example 10.1</a>). And there are many methods that give you the ability to search or filter an array using a block:</p>
+          <pre class="screen">NSArray* pep = @[@"Manny", @"Moe", @"Jack"];
+NSArray* ems =
+    [pep objectsAtIndexes: [pep indexesOfObjectsPassingTest:
+     ^BOOL(id obj, NSUInteger idx, BOOL *stop) {
+         return ([(NSString*)obj rangeOfString:@"m"
+             options:NSCaseInsensitiveSearch].location == 0);
+    }]];</pre>
+          <p>You can derive a sorted version of the array, supplying the sorting rules in various ways, or if it’s a mutable array, you can sort it directly; see <a class="xref" href="ch03.html#EXcallback">Example 3.1</a> and <a class="xref" href="ch03.html#EXblock">Example 3.2</a>.</p>
+          <div class="note" style="margin-left: 0; margin-right: 10%;">
+            <h3 class="title">Note</h3>
+            <p>Forming a new array from some or all of the elements of an existing array is <span class="emphasis"><em>not</em></span> an expensive operation. The objects constituting the elements of the first array are not copied; the new array consists merely of a new set of pointers to the already existing objects. The same is true for the other collection types I’m about to discuss.</p>
+          </div>
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_nsset_and_friends"></a>NSSet and Friends</h3>
+              </div>
+            </div>
+          </div>
+          <p>An <a id="idm441653392416" class="indexterm"></a>NSSet is an unordered <a id="idm441653391744" class="indexterm"></a>collection of distinct objects. “Distinct” means that no two objects in a set can return YES when they are compared using <code class="literal">isEqual:</code>. Learning whether an object is present in a set is much more efficient than seeking it in an array, and you can ask whether one set is a subset of, or intersects, another set. You can walk through (enumerate) a set with the <code class="literal">for...in</code> construct, though the order is of course undefined.<a id="idm441653389008" class="indexterm"></a><a id="idm441653388112" class="indexterm"></a> You can filter a set, as you can an array. Indeed, much of what you can do with a set is parallel to what you can do with an array, except that of course you can’t do anything with a set that involves the notion of ordering.<a id="idm441653386576" class="indexterm"></a></p>
+          <p>To escape even that restriction, you can use an ordered set.<a id="idm441653385328" class="indexterm"></a> An ordered set (NSOrderedSet) is <span class="emphasis"><em>very</em></span> like an array, and the methods for working with it are very similar to the methods for working with an array — NSOrderedSet even implements <code class="literal">objectAtIndexedSubscript:</code>, so you can fetch an element by subscripting.<a id="idm441653382928" class="indexterm"></a>
+<a id="idm441653381632" class="indexterm"></a><a id="idm441653380736" class="indexterm"></a>
+<a id="idm441653379424" class="indexterm"></a> But an ordered set’s elements must be distinct. Handing an array over to an ordered set <span class="emphasis"><em>uniques</em></span> the array<a id="idm441653377696" class="indexterm"></a>, meaning that order is maintained but only the first occurrence of an equal object is moved to the set. An ordered set provides many of the advantages of sets: for example, as with an NSSet, learning whether an object is present in an ordered set is much more efficient than for an array, and you can readily take the union, intersection, or difference with another set. Since the distinctness restriction will often prove no restriction at all (because the elements were going to be distinct anyway), it is likely that programmers will want to get into the habit of using NSOrderedSet instead of NSArray wherever possible.</p>
+          <p>An NSSet is immutable. You can derive one NSSet from another by adding or removing elements, or you can use its subclass, NSMutableSet. Similarly, NSOrderedSet has its mutable counterpart, NSMutableOrderedSet (which implements <code class="literal">setObject:atIndexedSubscript:</code>). There is no penalty for adding to, or inserting into, a mutable set an object that the set already contains; nothing is added (and so the distinctness rule is enforced), but there’s no error.</p>
+          <p>NSCountedSet, a subclass of NSMutableSet, is a mutable unordered collection of objects that are <span class="emphasis"><em>not</em></span> necessarily distinct (this concept is usually referred to as a <span class="emphasis"><em>bag</em></span>). It is implemented as a set plus a count of how many times each element has been added.</p>
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_nsdictionary_and_nsmutabledictionary"></a>NSDictionary and NSMutableDictionary</h3>
+              </div>
+            </div>
+          </div>
+          <p>An <a id="idm441653371376" class="indexterm"></a>NSDictionary is an unordered <a id="idm441653370640" class="indexterm"></a>collection of key–value pairs. The <a id="idm441653369776" class="indexterm"></a>key is usually an NSString, though it doesn’t have to be. The value can be any object. An NSDictionary is immutable; its mutable subclass is NSMutableDictionary.<a id="idm441653368448" class="indexterm"></a></p>
+          <p>The keys of a dictionary are distinct (using <code class="literal">isEqual:</code> for comparison). If you add a key–value pair to an NSMutableDictionary, then if that key is not already present, the pair is simply added, but if the key is already present, then the corresponding value is replaced.</p>
+          <p>The fundamental use of an NSDictionary is to request an entry’s value by key (using <code class="literal">objectForKey:</code>); if no such key exists, the result is nil, so this is also the way to find out whether a key is present. A dictionary is thus an easy, flexible data storage device, an object-based analogue to a struct. Cocoa often uses a dictionary to provide you with an extra packet of named values, as in the <code class="literal">userInfo</code> of an NSNotification, the <code class="literal">options</code> parameter of <code class="literal">application:didFinishLaunchingWithOptions:</code>, and so on.</p>
+          <p>The same Objective-C modernizations that brought us array literals and subscripting have brought us dictionary literals and subscripting. In addition to forming a dictionary from an array of objects and an array of keys (<code class="literal">dictionaryWithObjects:forKeys:</code>) or as a nil-terminated list of alternating objects and keys (<code class="literal">dictionaryWithObjectsAndKeys:</code>), a dictionary may be formed literally as a comma-separated list of key–value pairs, each key followed by a colon and the value, and wrapped in <code class="literal">@{...}</code>. Thus, recall our earlier NSUserDefaults example:<a id="idm441654938816" class="indexterm"></a>
+<a id="idm441654937568" class="indexterm"></a><a id="idm441654936704" class="indexterm"></a>
+<a id="idm441654935456" class="indexterm"></a><a id="idm441654934592" class="indexterm"></a>
+<a id="idm441654933344" class="indexterm"></a><a id="idm441654932480" class="indexterm"></a>
+<a id="idm441654931232" class="indexterm"></a></p>
+          <pre class="screen">[[NSUserDefaults standardUserDefaults] registerDefaults:
+    [NSDictionary dictionaryWithObjectsAndKeys:
+        @4,
+        @"cardMatrixRows",
+        @3,
+        @"cardMatrixColumns",
+        nil]];</pre>
+          <p>That can be rewritten like this:</p>
+          <pre class="screen">[[NSUserDefaults standardUserDefaults] registerDefaults:
+    @{@"cardMatrixRows":@4, @"cardMatrixColumns":@3}];</pre>
+          <p>To fetch a value from a dictionary by its key, instead of calling <code class="literal">objectForKey:</code>, you can now subscript the key in square brackets to the dictionary reference: <code class="literal">dict[key]</code>. Similarly, to add a key–value pair to an NSMutableDictionary, instead of calling <code class="literal">setObject:forKey:</code>, you can assign to the subscripted dictionary reference. Parallel to NSArray, this is accomplished behind the scenes by calling <code class="literal">objectForKeyedSubscript:</code> and <code class="literal">setObject:forKeyedSubscript:</code>, and your own classes can declare these methods and be eligible for keyed subscripting notation.<a id="idm441654924304" class="indexterm"></a>
+<a id="idm441654923056" class="indexterm"></a><a id="idm441654922192" class="indexterm"></a>
+<a id="idm441654920944" class="indexterm"></a></p>
+          <p>Data structures such as an array of dictionaries, a dictionary of dictionaries, and so forth, are extremely common, and will often lie at the heart of an app’s functionality. Here’s an example from one of my own apps. The app bundle contains a text file laid out like this:</p>
+          <pre class="screen">chapterNumber [tab] pictureName [return]
+chapterNumber [tab] pictureName [return]</pre>
+          <p>As the app launches, I load this text file and parse it into a dictionary, each entry of which has the following structure:</p>
+          <pre class="screen">key: (chapterNumber, as an NSNumber)
+value: [Mutable Array]
+    (pictureName)
+    (pictureName)
+    ...</pre>
+          <p>Thus, as we walk the text file, we end up with all pictures for a chapter collected under the number of that chapter. This makes it easy for me later to present all the pictures for a given chapter. For each line of the text file, if the dictionary entry for that chapter number doesn’t exist, we create it, with an empty mutable array as its value. Whether that dictionary entry existed or not, it does now, and its value is a mutable array, so we append the picture name to that mutable array. Observe how this single typical example (<a class="xref" href="ch10.html#EXparsefound">Example 10.2</a>) brings together many of the Foundation classes discussed in this section.</p>
+          <div class="example">
+            <a id="EXparsefound"></a>
+            <p class="title">Example 10.2. Parsing a file with Foundation classes</p>
+            <div class="example-contents">
+              <pre class="screen">NSString* f = [[NSBundle mainBundle] pathForResource:@"index" ofType:@"txt"];
+NSError* err = nil;
+NSString* s = [NSString stringWithContentsOfFile:f
+                                        encoding:NSUTF8StringEncoding
+                                           error:&amp;err];
+// error-checking omitted
+NSMutableDictionary* d = [NSMutableDictionary dictionary];
+for (NSString* line in [s componentsSeparatedByString:@"\n"]) {
+    NSArray* items = [line componentsSeparatedByString:@"\t"];
+    NSInteger chnum = [items[0] integerValue];
+    NSNumber* key = @(chnum);
+    NSMutableArray* marr = d[key];
+    if (!marr) { // no such key, create key–value pair
+        marr = [NSMutableArray array];
+        d[key] = marr;
+    }
+    // marr is now a mutable array, empty or otherwise
+    NSString* picname = items[1];
+    [marr addObject: picname];
+}</pre>
+            </div>
+          </div>
+          <br class="example-break" />
+          <p>You can get from an NSDictionary a list of keys, a sorted list of keys, or a list of values. You can walk through (enumerate) a dictionary by its keys with the <code class="literal">for...in</code> construct, though the order is of course undefined.<a id="idm441654912624" class="indexterm"></a><a id="idm441654911760" class="indexterm"></a> A dictionary also supplies an <code class="literal">objectEnumerator</code>, which you can use with the <code class="literal">for...in</code> construct to walk through just the values. You can also walk through the key–value pairs together using a block, and you can even filter an NSDictionary by some test against its values.</p>
+          <div class="note" style="margin-left: 0; margin-right: 10%;">
+            <h3 class="title">Migrating to Modern Objective-C</h3>
+            <p>If you have old code that you’d like to convert to use the modern NSNumber, NSArray, and NSDictionary literal Objective-C syntax, and to use array and dictionary subscripting, you can do so with no work whatever. Simply choose Edit → Refactor → Convert to Modern Objective-C Syntax.<a id="idm441654907728" class="indexterm"></a></p>
+          </div>
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_nsnull"></a>NSNull</h3>
+              </div>
+            </div>
+          </div>
+          <p><a id="idm441654905488" class="indexterm"></a>NSNull does nothing but supply a pointer to a singleton object, <code class="literal">[NSNull null]</code>. Use this singleton object to stand for nil in situations where an actual object is required and nil is not permitted. For example, you can’t use nil as the value of an element of a collection (such as NSArray, NSSet, or NSDictionary), so you’d use <code class="literal">[NSNull null]</code> instead.<a id="idm441654903104" class="indexterm"></a></p>
+          <p>Despite what I said earlier about equality, you can test an object against <code class="literal">[NSNull null]</code> using the C equality operator, because this is a singleton instance and therefore pointer comparison works.</p>
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_immutable_and_mutable"></a>Immutable and Mutable</h3>
+              </div>
+            </div>
+          </div>
+          <p>Beginners sometimes have difficulty with the Foundation’s immutable/mutable class pairs, so here are some hints.<a id="idm441654899760" class="indexterm"></a><a id="idm441654898896" class="indexterm"></a></p>
+          <p>The documentation may not make it completely obvious that the mutable classes obey and, if appropriate, override the methods of the immutable classes. Thus, for example, <code class="literal">[NSArray array]</code> generates an immutable array, but <code class="literal">[NSMutableArray array]</code> generates a mutable array. (You will look in vain for the expected <code class="literal">[NSMutableArray mutableArray]</code>.) The same is true of all the initializers and convenience class methods for instantiation: they may all have “array” in their name, but when sent to NSMutableArray, they yield a mutable array.</p>
+          <p>That fact also answers the question of how to make an immutable array mutable, and <span class="emphasis"><em>vice versa</em></span>. If <code class="literal">arrayWithArray:</code>, sent to the NSArray class, yields a new immutable array containing the same objects in the same order as the original array, then the same method, <code class="literal">arrayWithArray:</code>, sent to the NSMutableArray class, yields a <span class="emphasis"><em>mutable</em></span> array containing the same objects in the same order as the original. Thus this single method can transform an array between immutable and mutable in either direction. You can also use <code class="literal">copy</code> (produces an immutable copy) and <code class="literal">mutableCopy</code> (produces a mutable copy).</p>
+          <p>All of the above applies equally, of course, to the other immutable/mutable class pairs. You will often want to work internally and temporarily with a mutable instance but then store (and possibly vend, as an instance variable) an immutable instance, thus protecting the value from being changed accidentally or behind your own back. What matters is not a variable’s declared class but what class the instance really is (polymorphism; see <a class="xref" href="ch05.html">Chapter 5</a>), so it’s good that you can easily switch between an immutable and a mutable version of the same data.</p>
+          <p>To test whether an instance is mutable or immutable, do <span class="emphasis"><em>not</em></span> ask for its <code class="literal">class</code>. These immutable/mutable class pairs are all implemented as <span class="emphasis"><em>class clusters</em></span>, which means that Cocoa uses a secret class, different from the documented class you work with.<a id="idm441654887488" class="indexterm"></a> This secret class is subject to change without notice, because it’s none of your business and you should never have looked at it in the first place. Thus, code of this form is subject to breakage:</p>
+          <pre class="screen">if ([NSStringFromClass([n class]) isEqualToString: @"NSCFArray"]) // wrong!</pre>
+          <p>Instead, to learn whether an object is mutable, ask it whether it responds to a mutability method:</p>
+          <pre class="screen">if ([n respondsToSelector:@selector(addObject:)]) // right</pre>
+          <div class="note" style="margin-left: 0; margin-right: 10%;">
+            <h3 class="title">Note</h3>
+            <p>Here’s a reminder: just because a collection class is immutable doesn’t mean that the objects it collects are immutable. They are still objects and do not lose any of their normal behavior merely because they are pointed to by an immutable collection.</p>
+          </div>
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_property_lists"></a>Property Lists</h3>
+              </div>
+            </div>
+          </div>
+          <p>A <span class="emphasis"><em>property list</em></span> is a string (XML) representation of data.<a id="idm441654881088" class="indexterm"></a> The Foundation classes NSString, NSData, NSArray, and NSDictionary are the only classes that can be converted into a property list. Moreover, an NSArray or NSDictionary can be converted into a property list only if the only classes it collects are these classes, along with NSDate and NSNumber. (This is why, as mentioned earlier, you must convert a UIColor into an NSData in order to store it in user defaults; the user defaults is a property list.)</p>
+          <p>The primary use of a property list is to store data as a file. NSArray and NSDictionary provide convenience methods <code class="literal">writeToFile:atomically:</code> and <code class="literal">writeToURL:atomically:</code> that generate property list files given a pathname or file URL, respectively; they also provide inverse convenience methods that initialize an NSArray object or an NSDictionary object based on the property list contents of a given file. For this very reason, you are likely to start with one of these classes when you want to create a property list. (NSString and NSData, with their methods <code class="literal">writeToFile:...</code> and <code class="literal">writeToURL:...</code>, just write the data out as a file directly, not as a property list.)</p>
+          <p>When you initialize an NSArray or NSDictionary from a property list file in this way, the objects in the collection are all immutable. If you want them to be mutable, or if you want to convert an instance of one of the other property list classes to a property list, you’ll use the NSPropertyListSerialization class (see the <span class="emphasis"><em>Property List Programming Guide</em></span>).</p>
+        </div>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="SECSecretLife"></a>The Secret Life of NSObject</h2>
+            </div>
+          </div>
+        </div>
+        <p>Because every class inherits from NSObject, it’s worth taking some time to investigate and understand NSObject. NSObject is constructed in a rather elaborate way:
+<a id="idxnsobject" class="indexterm"></a></p>
+        <div class="itemizedlist">
+          <ul class="itemizedlist" type="disc">
+            <li class="listitem">
+It defines some native class methods and instance methods having mostly to do with the basics of instantiation and of method sending and resolution. (See the <span class="emphasis"><em>NSObject Class Reference</em></span>.)<a id="idm441654870416" class="indexterm"></a>
+</li>
+            <li class="listitem">
+It adopts the NSObject protocol. This protocol declares instance methods having mostly to do with memory management, the relationship between an instance and its class, and introspection. Because all the NSObject protocol methods are required, the NSObject class implements them all. (See the <span class="emphasis"><em>NSObject Protocol Reference</em></span>.) This architecture is what permits NSProxy to be a root class; it, too, adopts the NSObject protocol.
+</li>
+            <li class="listitem">
+It implements convenience methods related to the NSCopying, NSMutableCopying, and NSCoding protocols, without formally adopting those protocols. NSObject intentionally doesn’t adopt these protocols because this would cause all other classes to adopt them, which would be wrong. But thanks to this architecture, if a class does adopt one of these protocols, you can call the corresponding convenience method. For example, NSObject implements the <code class="literal">copy</code> instance method, so you can call <code class="literal">copy</code> on any instance, but you’ll crash unless the instance’s class adopts the NSCopying protocol and implements <code class="literal">copyWithZone:</code>.
+</li>
+            <li class="listitem">
+A large number of methods are injected into NSObject by more than two dozen categories on NSObject, scattered among various header files. For example, <code class="literal">awakeFromNib</code> (see <a class="xref" href="ch07.html">Chapter 7</a>) comes from the UINibLoadingAdditions category on NSObject, declared in <span class="emphasis"><em>UINibLoading.h</em></span>. And <code class="literal">performSelector:withObject:afterDelay:</code>, discussed in <a class="xref" href="ch11.html">Chapter 11</a>, comes from the NSDelayedPerforming category on NSObject, declared in <span class="emphasis"><em>NSRunLoop.h</em></span>.
+</li>
+            <li class="listitem">
+A class object, as explained in <a class="xref" href="ch04.html">Chapter 4</a>, is an object. Therefore all classes, which are objects of type Class, inherit from NSObject. Therefore, <span class="emphasis"><em>any method defined as an instance method by NSObject can be called on a class object as a class method!</em></span> For example, <code class="literal">respondsToSelector:</code> is defined as an instance method by NSObject, but it can (therefore) be treated also as a class method and sent to a class object.<a id="idm441654858144" class="indexterm"></a>
+</li>
+          </ul>
+        </div>
+        <p>The problem for the programmer is that Apple’s documentation is rather rigid about classification.<a id="idm441654856016" class="indexterm"></a>
+<a id="idm441654854816" class="indexterm"></a> When you’re trying to work out what you can say to an object, you don’t care where that object’s methods come from; you just care what you can say. But Apple differentiates methods by where they come from. Even though NSObject is the root class, the most important class, from which all other classes inherit, <span class="emphasis"><em>no single page of the documentation provides a conspectus of all its methods</em></span>. Instead, you have to look at both the <span class="emphasis"><em>NSObject Class Reference</em></span> and the <span class="emphasis"><em>NSObject Protocol Reference</em></span> simultaneously, plus the pages documenting the NSCopying, NSMutableCopying, and NSCoding protocols (in order to understand how they interact with methods defined by NSObject), plus you have to supply mentally a class method version of every NSObject instance method!</p>
+        <p>Of the methods injected into NSObject by categories, many are delegate methods used in restricted situations (so that these are really informal protocols), and do not need centralized documentation; for example, <code class="literal">animationDidStart:</code> is documented under the CAAnimation class, quite rightly, because you need to know about it only and exactly when you’re working with CAAnimation. Others that are general in nature are documented on the NSObject class documentation page itself; for example, <code class="literal">cancelPreviousPerformRequestsWithTarget:</code> comes from a category declared in <span class="emphasis"><em>NSRunLoop.h</em></span>, but it is documented under NSObject, quite rightly, since this is a class method, and therefore effectively a global method, that you might want to send at any time. However, every object responds to <code class="literal">awakeFromNib</code>, and it’s likely to be crucial to every app you write; yet you must learn about it outside of the NSObject documentation, sitting all by itself in the <span class="emphasis"><em>NSObject UIKit Additions Reference</em></span> page, where you’re extremely unlikely to discover it! The same goes, it might be argued, for all the key–value coding methods (<a class="xref" href="ch12.html">Chapter 12</a>) and key–value observing methods (<a class="xref" href="ch13.html">Chapter 13</a>).</p>
+        <p>Once you’ve collected, by hook or by crook, all the NSObject methods, you can see that they fall into a certain natural classification, much as outlined in Apple’s documentation (see also “The Root Class” in the “Cocoa Objects” section of the <span class="emphasis"><em>Cocoa Fundamentals Guide</em></span>):</p>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+Creation, destruction, and memory management
+</span>
+            </dt>
+            <dd>
+Methods for creating an instance, such as <code class="literal">alloc</code> and <code class="literal">copy</code>, along with methods that you might override in order to learn when something is happening in the lifetime of an object, such as <code class="literal">initialize</code> (see <a class="xref" href="ch11.html">Chapter 11</a>) and <code class="literal">dealloc</code> (see <a class="xref" href="ch12.html">Chapter 12</a>), plus methods that manage memory (see <a class="xref" href="ch12.html">Chapter 12</a>).
+</dd>
+            <dt>
+              <span class="term">
+Class relationships
+</span>
+            </dt>
+            <dd>
+              <p class="simpara">
+Methods for learning an object’s class and inheritance, such as <code class="literal">class</code>, <code class="literal">superclass</code>, <code class="literal">isKindOfClass:</code>, and <code class="literal">isMemberOfClass:</code>.
+</p>
+              <p class="simpara">To check the class of an instance (or class), use methods such as <code class="literal">isKindOfClass:</code> and <code class="literal">isMemberOfClass:</code>. Direct comparison of two class objects, as in <code class="literal">[someObject class] == [otherObject class]</code>, is rarely advisable, especially because a Cocoa instance’s class might be a private, undocumented subclass of the class you expect. I mentioned this already in connection with class clusters, and it can happen in other cases.</p>
+            </dd>
+            <dt>
+              <span class="term">
+Object introspection and comparison
+</span>
+            </dt>
+            <dd>
+Methods for asking what would happen if an object were sent a certain message, such as <code class="literal">respondsToSelector:</code>; for representing an object as a string (<code class="literal">description</code>, used in debugging; see <a class="xref" href="ch09.html">Chapter 9</a>); and for comparing objects (<code class="literal">isEqual:</code>).
+</dd>
+            <dt>
+              <span class="term">
+Message response
+</span>
+            </dt>
+            <dd>
+Methods for meddling with what does happen when an object is sent a certain message, such as <code class="literal">doesNotRecognizeSelector:</code>. If you’re curious, see the <span class="emphasis"><em>Objective-C Runtime Programming Guide</em></span>. An example appears in <a class="xref" href="ch25.html">Chapter 25</a>.
+</dd>
+            <dt>
+              <span class="term">
+Message sending
+</span>
+            </dt>
+            <dd>
+Methods for sending a message indirectly. For example, <code class="literal">performSelector:</code> takes a selector as parameter, and sending it to an object tells that object to perform that selector. This might seem identical to just sending that message to that object, but what if you don’t know what message to send until runtime? Moreover, variants on <code class="literal">performSelector:</code> allow you send a message on a specified thread (<a class="xref" href="ch38.html">Chapter 38</a>), or send a message after a certain amount of time has passed (<code class="literal">performSelector:withObject:afterDelay:</code> and similar).
+<a id="idm441654817568" class="indexterm"></a>
+</dd>
+          </dl>
+        </div>
+      </div>
+    </div>
+    <div class="navfooter">
+      <table width="100%" summary="Navigation footer">
+        <tr>
+          <td width="40%" align="left"><a accesskey="p" href="pt03.html">Prev</a> </td>
+          <td width="20%" align="center">
+            <a accesskey="u" href="pt03.html">Up</a>
+          </td>
+          <td width="40%" align="right"> <a accesskey="n" href="ch11.html">Next</a></td>
+        </tr>
+        <tr>
+          <td width="40%" align="left" valign="top">Part III. Cocoa </td>
+          <td width="20%" align="center">
+            <a accesskey="h" href="index.html">Table of Contents</a>
+          </td>
+          <td width="40%" align="right" valign="top"> Chapter 11. Cocoa Events</td>
+        </tr>
+      </table>
+    </div>
+  </body>
+</html>

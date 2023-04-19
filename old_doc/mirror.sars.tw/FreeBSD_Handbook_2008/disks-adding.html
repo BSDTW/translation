@@ -1,0 +1,303 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>新增磁碟</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.79" />
+<link rel="HOME" title="FreeBSD 使用手冊" href="index.html" />
+<link rel="UP" title="儲存設備篇" href="disks.html" />
+<link rel="PREVIOUS" title="裝置名稱" href="disks-naming.html" />
+<link rel="NEXT" title="RAID" href="raid.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD 使用手冊</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="disks-naming.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 18 儲存設備篇</td>
+<td width="10%" align="right" valign="bottom"><a href="raid.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="DISKS-ADDING" name="DISKS-ADDING">18.3 新增磁碟</a></h1>
+
+<i class="AUTHORGROUP"><span class="CONTRIB">Originally contributed by</span> David
+O'Brien.</i> 
+
+<p>假設我們想新增 SCSI 磁碟到一臺原先只有一顆磁碟的機器上，
+首先將電腦關機，依製造商的指示將磁碟裝上去， 詳細的操作方式請參考製造商的說明文件。</p>
+
+<p>安裝好磁碟後，用 <tt class="USERNAME">root</tt> 登入系統， 看一下 <tt
+class="FILENAME">/var/run/dmesg.boot</tt> 以確認系統是否抓到新磁碟。
+繼續剛才的範例，新增的磁碟會是 <tt class="DEVICENAME">da1</tt>， 假設我們想將它掛載到 <tt
+class="FILENAME">/1</tt> 這個位置 (如果您新增的是 IDE 磁碟的話，請用 <tt
+class="DEVICENAME">ad1</tt>)。</p>
+
+<p>FreeBSD 為了在 IBM-PC 相容電腦上執行， 必須配合 PC BIOS partition，因此和傳統的 BSD
+partition 有很大的不同。 在 PC 裡磁碟最多可以有四筆 BIOS partition
+資訊(亦即最多可分割成四個 partition)。如果這個磁碟打算全部讓 FreeBSD 使用，可選擇 <span
+class="emphasis"><b class="EMPHASIS">dedicated</b></span> 模式， 不然的話 FreeBSD
+必須置身於其中一個 PC BIOS partition 中。 在 FreeBSD 裡，PC BIOS partition 稱為 <span
+class="emphasis"><b class="EMPHASIS">slice</b></span>， 這是為了不要和傳統的 BSD
+partition 搞混了。 <a id="AEN23789" name="AEN23789" href="#FTN.AEN23789"><span
+class="footnote">[1]</span></a> 不論是完全由 FreeBSD
+使用的磁碟，還是安裝了其它作業系統的磁碟， 您都可以使用 slice。這樣的好處是，其它非
+FreeBSD 作業系統的 <tt class="COMMAND">fdisk</tt> 工具可以順利操作。</p>
+
+<p>如果使用 slice，這個新增的磁碟會是 <tt
+class="FILENAME">/dev/da1s1e</tt>。可以這樣來解讀它：SCSI 磁碟、 unit number 1(第二個
+SCSI 磁碟)、slice 1(第一個 PC BIOS partition)、 及 <tt class="FILENAME">e</tt> BSD
+partition。在 dedicated 模式的話， 新磁碟則是 <tt class="FILENAME">/dev/da1e</tt>。</p>
+
+<p>因為 <a href="http://www.FreeBSD.org/cgi/man.cgi?query=bsdlabel&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">bsdlabel</span>(8)</span></a> 是用
+32-bit 整數來儲存 sector(磁區) 數， 因此限制一個磁碟最大只能有 2^32-1 個 sector，亦即 2TB
+的空間。 而 <a href="http://www.FreeBSD.org/cgi/man.cgi?query=fdisk&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">fdisk</span>(8)</span></a>
+的格式容許起始 sector 編號不超過 2^32-1， 長度也不超過 2^32-1，因此 partition 最大空間是
+2TB，而磁碟最大是 4TB。 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=sunlabel&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">sunlabel</span>(8)</span></a> 則限制
+partition 最大是 2TB，磁碟最多可有 8 個 partition，因此最大是 16TB。
+如果要使用更大的磁碟，請使用 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=gpt&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">gpt</span>(8)</span></a>。</p>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN23809" name="AEN23809">18.3.1 使用 <span
+class="CITEREFENTRY">sysinstall(8)</span></a></h2>
+
+<div class="PROCEDURE">
+<ol type="1">
+<li class="STEP">
+<p><b>操作 Sysinstall</b></p>
+
+<p>透過 <tt class="COMMAND">sysinstall</tt> 的選單介面， 可以輕易為磁碟分割 BIOS
+partition(slice) 和 BSD patition。 必須以 root 身份使用 <tt
+class="COMMAND">sysinstall</tt>， 要嘛用 root 登入，要嘛用 <tt class="COMMAND">su</tt>
+切換到 root。 執行 <tt class="COMMAND">sysinstall</tt> 後，選 <tt
+class="LITERAL">Configure</tt>，在 <tt class="LITERAL">FreeBSD Configuration Menu</tt>
+裡移到 <tt class="LITERAL">Fdisk</tt> 選項。</p>
+</li>
+
+<li class="STEP">
+<p><b>fdisk Partition 編輯器</b></p>
+
+<p>在 <b class="APPLICATION">fdisk</b> 裡，按下 <kbd class="USERINPUT">A</kbd>
+表示整個磁碟都給 FreeBSD 使用。 接著會提示您『是否要相容其它的作業系統』，回答 <tt
+class="LITERAL">YES</tt>。 按 <kbd class="USERINPUT">W</kbd>
+會將這些改變立即寫入磁碟，再按 <kbd class="USERINPUT">q</kbd> 可以離開 FDISK 編輯器。
+接下來會問您要將 “Master Boot Record”
+安裝於何處，由於現在是新增磁碟，表示作業系統已經裝在別的磁碟上了， 所以可以選 <tt
+class="LITERAL">None</tt> 就行了。</p>
+</li>
+
+<li class="STEP">
+<p><b>Disk Label Editor(磁碟 Label 編輯器)</b></p>
+
+<p>接著請關閉 <b class="APPLICATION">sysinstall</b>，再重開一次。
+照著上一節的指示，不過這次改選 <tt class="LITERAL">Label</tt> 進入 <tt
+class="LITERAL">Disk Label Editor</tt>，在此您可以編輯傳統的 BSD partition。
+一個磁碟(或著一個 slice) 最多可切分成 8 個 BSD partition，依序用 <tt
+class="LITERAL">a-h</tt> 來表示。 有些字母有特別的意義，<tt class="LITERAL">a</tt>
+partition 表示這是 root partition(根分割區，<tt class="FILENAME">/</tt>)，
+因此只有安裝系統的磁碟(例如用來開機的磁碟) 有 <tt class="LITERAL">a</tt> partition。 <tt
+class="LITERAL">b</tt> partition 表示這是 swap partitions(交換分割區)，每個磁碟上都可以有
+swap。 <tt class="LITERAL">c</tt> partition 用來表示整個磁碟(如果使用 dedicated mode
+的話)或整個 slice。 其它的字母則用來表示普通的 BSD partition 。</p>
+
+<p><b class="APPLICATION">sysinstall</b> 的 Label editor(磁碟 Label 編輯器) 偏好用 <tt
+class="LITERAL">e</tt> 來表示非 root、也非 swap 的分割區 <a id="AEN23860" name="AEN23860"
+href="#FTN.AEN23860"><span class="footnote">[2]</span></a> 在 Label editor 裡，按 <kbd
+class="USERINPUT">C</kbd> 可以新增一個檔案系統(BSD label)，它會問您這是一個 FS(file
+system ，檔案系統) 或是 swap(交換分割區)，選擇 <tt class="LITERAL">FS</tt>
+接著輸入要掛載的位置(例如 <tt class="FILENAME">/mnt</tt>)。
+如果系統安裝完後才新增磁碟，<b class="APPLICATION">sysinstall</b>
+不會幫您把這筆掛載資料加入 <tt class="FILENAME">/etc/fstab</tt>，
+所以掛載的位置不太重要。</p>
+
+<p>當您準備好將新的 label 寫入磁碟、建立檔案系統，按 <kbd class="USERINPUT">W</kbd>
+即可。如果出現在什麼錯誤， <b class="APPLICATION">sysinstall</b>
+可能無法幫您掛載這個新分割區。 結束 Label Editor、結束 <b
+class="APPLICATION">sysinstall</b> 就行了。</p>
+</li>
+
+<li class="STEP">
+<p><b>完成</b></p>
+
+<p>最後要做的是編輯 <tt class="FILENAME">/etc/fstab</tt>， 加入您新增的分割區資訊。</p>
+</li>
+</ol>
+</div>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN23877" name="AEN23877">18.3.2 使用命令列工具</a></h2>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="AEN23879" name="AEN23879">18.3.2.1 使用 Slices(BIOS
+partitions)</a></h3>
+
+<p>這種模式能讓您的磁碟分割區與其它作業系統的 <tt class="COMMAND">fdisk</tt>
+工具和平共處，因此我們建議您使用 slice 模式。 如果您一定要使用 <tt
+class="LITERAL">dedicated</tt> 模式， 您得有個好理由！ <a id="AEN23884" name="AEN23884"
+href="#FTN.AEN23884"><span class="footnote">[3]</span></a></p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">dd if=/dev/zero of=/dev/da1 bs=1k count=1</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">fdisk -BI da1</kbd> # 初始您的磁碟。
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">bsdlabel -B -w -r da1s1 auto</kbd> # 建立 bsdlabel。
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">bsdlabel -e da1s1</kbd> # 編輯 bsdlabel 以新增 label。
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">mkdir -p /1</kbd>
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">newfs /dev/da1s1e</kbd> # 如果您新增了多個 label，對每個 label 重覆這個步驟。
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">mount /dev/da1s1e /1</kbd> # 掛載這些新 label。
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">vi /etc/fstab</kbd> # 在 <tt
+class="FILENAME">/etc/fstab</tt> 加入適當的資訊。
+</pre>
+
+<p>如果您新增的是 IDE 磁碟，將 <tt class="FILENAME">da</tt> 改成 <tt
+class="FILENAME">ad</tt> 即可 <a id="AEN23907" name="AEN23907" href="#FTN.AEN23907"><span
+class="footnote">[4]</span></a>。</p>
+</div>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="AEN23909" name="AEN23909">18.3.2.2 Dedicated</a></h3>
+
+<p>如果您不打算將新磁碟用於其它的作業系統， 您可以使用 <tt class="LITERAL">dedicated</tt>
+模式。注意： Microsoft 的作業系統認不得這個模式，不過也不會去破壞它； 然而 IBM 的 <span
+class="TRADEMARK">OS/2</span>&reg; 就沒那麼好心了，它會去調整所有它不認得的分割區 <a
+id="AEN23916" name="AEN23916" href="#FTN.AEN23916"><span
+class="footnote">[5]</span></a>。</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">dd if=/dev/zero of=/dev/da1 bs=1k count=1</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">bsdlabel -Brw da1 auto</kbd>
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">bsdlabel -e da1</kbd>               # 建立 `e' partition。
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">newfs -d0 /dev/da1e</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">mkdir -p /1</kbd>
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">vi /etc/fstab</kbd>               # 新增一筆 /dev/da1e 的資訊。
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">mount /1</kbd>
+</pre>
+
+<p>另一種方法：</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">dd if=/dev/zero of=/dev/da1 count=2</kbd>
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">bsdlabel /dev/da1 | bsdlabel -BrR da1 /dev/stdin</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">newfs /dev/da1e</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">mkdir -p /1</kbd>
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">vi /etc/fstab</kbd>                   # 新增一筆 /dev/da1e 的資訊。
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">mount /1</kbd>
+</pre>
+</div>
+</div>
+</div>
+
+<h3 class="FOOTNOTES">Notes</h3>
+
+<table border="0" class="FOOTNOTES" width="100%">
+<tr>
+<td align="LEFT" valign="TOP" width="5%"><a id="FTN.AEN23789" name="FTN.AEN23789"
+href="disks-adding.html#AEN23789"><span class="footnote">[1]</span></a></td>
+<td align="LEFT" valign="TOP" width="95%">
+<p>譯註：基於相同的理由， 現在 BSD partition 常稱為 BSD label，或簡稱 label。</p>
+</td>
+</tr>
+
+<tr>
+<td align="LEFT" valign="TOP" width="5%"><a id="FTN.AEN23860" name="FTN.AEN23860"
+href="disks-adding.html#AEN23860"><span class="footnote">[2]</span></a></td>
+<td align="LEFT" valign="TOP" width="95%">
+<p>譯註：老實說我看不懂這句指的是什麼？原文是 <b class="APPLICATION">sysinstall</b> Label
+editor favors the <tt class="LITERAL">e</tt> partition for non-root, non-swap
+partitions.</p>
+</td>
+</tr>
+
+<tr>
+<td align="LEFT" valign="TOP" width="5%"><a id="FTN.AEN23884" name="FTN.AEN23884"
+href="disks-adding.html#AEN23884"><span class="footnote">[3]</span></a></td>
+<td align="LEFT" valign="TOP" width="95%">
+<p>譯註：如果您自始至終都不打算將這個磁碟用於 FreeBSD
+之外的作業系統，那可以算是個好理由。不過就算如此， 用 slice
+模式也沒什麼壞處就是了:-)。</p>
+</td>
+</tr>
+
+<tr>
+<td align="LEFT" valign="TOP" width="5%"><a id="FTN.AEN23907" name="FTN.AEN23907"
+href="disks-adding.html#AEN23907"><span class="footnote">[4]</span></a></td>
+<td align="LEFT" valign="TOP" width="95%">
+<p>譯註：da 是 direct access (disk) 的縮寫； ad 是 ata disk 的縮寫。</p>
+</td>
+</tr>
+
+<tr>
+<td align="LEFT" valign="TOP" width="5%"><a id="FTN.AEN23916" name="FTN.AEN23916"
+href="disks-adding.html#AEN23916"><span class="footnote">[5]</span></a></td>
+<td align="LEFT" valign="TOP" width="95%">
+<p>譯註：我對這句的意思沒什麼信心，原文是 IBM's <span class="TRADEMARK">OS/2</span>
+however, will “appropriate” any partition it finds which it does not understand.</p>
+</td>
+</tr>
+</table>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="disks-naming.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="raid.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">裝置名稱</td>
+<td width="34%" align="center" valign="top"><a href="disks.html"
+accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">RAID</td>
+</tr>
+</table>
+</div>
+
+<p align="center"><small>本文及其他文件，可由此下載：<a
+href="ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/">ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/</a>。</small></p>
+
+<p align="center"><small>若有 FreeBSD 方面疑問，請先閱讀 <a
+href="http://www.FreeBSD.org/docs.html">FreeBSD 相關文件</a>，如不能解決的話，再洽詢
+&#60;<a href="mailto:questions@FreeBSD.org">questions@FreeBSD.org</a>&#62;。<br />
+關於本文件的問題，請洽詢 &#60;<a
+href="mailto:doc@FreeBSD.org">doc@FreeBSD.org</a>&#62;。</small></p>
+</body>
+</html>
+

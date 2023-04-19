@@ -1,0 +1,304 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>磁碟空間配額(Quota)</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.79" />
+<link rel="HOME" title="FreeBSD 使用手冊" href="index.html" />
+<link rel="UP" title="儲存設備篇" href="disks.html" />
+<link rel="PREVIOUS" title="File System Snapshots" href="snapshots.html" />
+<link rel="NEXT" title="Encrypting Disk Partitions" href="disks-encrypting.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD 使用手冊</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="snapshots.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 18 儲存設備篇</td>
+<td width="10%" align="right" valign="bottom"><a href="disks-encrypting.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="QUOTAS" name="QUOTAS">18.15 磁碟空間配額(Quota)</a></h1>
+
+<p>磁碟配額(Quota)屬於作業系統上的選用功能，
+可以用來限制使用者或群組的可用空間大小，或者檔案的總數多寡。
+這功能通常用在多人共用的系統環境上， 因為要限制各使用者或各群組所能運用的系統資源。
+如此一來，就可避免磁碟空間被某使用者或某群組全部耗盡。</p>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN25816" name="AEN25816">18.15.1 啟用磁碟配額</a></h2>
+
+<p>在用磁碟配額之前，請先確認 kernel 已經有作相關設定，也就是 kernel
+設定檔要有下面這行：</p>
+
+<pre class="PROGRAMLISTING">
+options QUOTA
+</pre>
+
+<p>預設的 <tt class="FILENAME">GENERIC</tt> kernel 並不會加上這項，
+所以若要啟用就必需加上，並重新編譯、安裝 kernel。 kernel 設定部分可參閱 <a
+href="kernelconfig.html">Chapter 8</a> 的說明。</p>
+
+<p>接著就是在 <tt class="FILENAME">/etc/rc.conf</tt> 設定啟動磁碟配額。
+請加上下列這行：</p>
+
+<pre class="PROGRAMLISTING">
+enable_quotas="YES"
+</pre>
+
+<p>為了能更完善的控管磁碟配額的啟動，還有一個設定可以用。 通常開機時， <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=quotacheck&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">quotacheck</span>(8)</span></a>
+程式會檢查各檔案系統上的配額。 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=quotacheck&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">quotacheck</span>(8)</span></a>
+可以確保配額資料庫的資料與實際檔案系統的資料有符合。
+但這功能也會在開機時，會對啟動時間造成相當明顯的影響。 若想跳過這步驟，則可以在 <tt
+class="FILENAME">/etc/rc.conf</tt> 加上：</p>
+
+<pre class="PROGRAMLISTING">
+check_quotas="NO"
+</pre>
+
+<p>最後，要記得改 <tt class="FILENAME">/etc/fstab</tt>
+來啟用以檔案系統為對象的磁碟配額功能。 也可以啟用針對使用者或群組，
+或者兩者皆有之的磁碟配額。</p>
+
+<p>若要啟用針對使用者的配額，可以在 <tt class="FILENAME">/etc/fstab</tt>
+內要設定的檔案系統加上 <code class="OPTION">userquota</code> 選項。 比如：</p>
+
+<pre class="PROGRAMLISTING">
+/dev/da1s2g   /home    ufs rw,userquota 1 2
+</pre>
+
+<p>同理若要啟用針對群組的配額，則把剛剛的 <code class="OPTION">userquota</code> 換成
+<code class="OPTION">groupquota</code> 即可。 而若要兩者同時啟用， 那麼則是：</p>
+
+<pre class="PROGRAMLISTING">
+/dev/da1s2g    /home    ufs rw,userquota,groupquota 1 2
+</pre>
+
+<p>針對使用者以及群組的磁碟配額設定檔，預設分別會放在該檔案系統根目錄的 <tt
+class="FILENAME">quota.user</tt> 以及 <tt class="FILENAME">quota.group</tt> 。
+細節部分請參閱 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=fstab&amp;sektion=5"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">fstab</span>(5)</span></a>。 雖然 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=fstab&amp;sektion=5"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">fstab</span>(5)</span></a>
+提到可以為配額設定檔指定其他地方，但並不建議如此作，
+因為各種磁碟配額管理工具並不見得對這些預設值能隨之彈性變化。</p>
+
+<p>接下來就可以用新 kernel 來重開機。 <tt class="FILENAME">/etc/rc</tt>
+會自動執行相關指令以對 <tt class="FILENAME">/etc/fstab</tt>
+有設定配額管理的部分，作初始設定。 所以並不需要逐一手動產生相關空的配額設定檔。</p>
+
+<p>正常操作過程中，並不需要手動執行 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=quotacheck&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">quotacheck</span>(8)</span></a>、<a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=quotaon&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">quotaon</span>(8)</span></a> 、<a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=quotaoff&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">quotaoff</span>(8)</span></a> 這些指令。
+不過，若要更熟悉相關操作方式的話， 或許可以閱讀相關的 manual 線上說明。</p>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN25870" name="AEN25870">18.15.2 設定配額限制</a></h2>
+
+<p>一旦開始啟用配額管理之後，請記得確認是否有真的啟用。 可以打下列指令來作簡單檢查：</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">quota -v</kbd>
+</pre>
+
+<p>應該可以看到有關各檔案系統的配額限量， 以及現在使用量的摘要訊息。</p>
+
+<p>現在可以開始用 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=edquota&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">edquota</span>(8)</span></a>
+來設定各磁碟配額的限制。</p>
+
+<p>有幾種選項可以用來限制使用者或群組所能運用的磁碟空間， 以及所能建立的檔案數量多寡。
+可以依磁碟空間(block 配額)或檔案數量 (inode 配額)，或者搭配兩者一起設定。
+而每種限制還可以細分為兩類： hard(硬性)上限、soft(彈性)上限。</p>
+
+<p>硬性上限是不能超過的。 一旦使用者達到硬性上限時，
+就無法在該檔案系統上繼續使用更多的使用空間了。 舉例來說，若有位使用者的硬性上限為 500
+KB，而目前用了 490 KB， 那麼他就只能再多用 10 KB 而已，若要新增的檔案有 11 KB
+就會失敗。</p>
+
+<p>然而，彈性上限則可允許一定時間內的超額使用，這段期間稱為 grace
+period(寬限期)，預設值是一週。 若使用者持續超額使用並超出 grace period
+而逾期，則彈性上限就會轉為硬性上限， 而不允許該使用者繼續新增空間。
+直到該使用者的空間已經清到低於彈性上限之後，才會重設 grace period。</p>
+
+<p>下面則是使用 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=edquota&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">edquota</span>(8)</span></a> 的例子。
+在執行 <a href="http://www.FreeBSD.org/cgi/man.cgi?query=edquota&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">edquota</span>(8)</span></a>
+時，會進入設定磁碟配額上限的編輯器內，至於是哪一種編輯器則視您的 <tt
+class="ENVAR">EDITOR</tt> 環境變數而定，若沒設定 <tt class="ENVAR">EDITOR</tt>
+的話，則會用 <b class="APPLICATION">vi</b> 編輯器。</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">edquota -u test</kbd>
+</pre>
+
+<pre class="PROGRAMLISTING">
+Quotas for user test:
+/usr: kbytes in use: 65, limits (soft = 50, hard = 75)
+        inodes in use: 7, limits (soft = 50, hard = 60)
+/usr/var: kbytes in use: 0, limits (soft = 50, hard = 75)
+        inodes in use: 0, limits (soft = 50, hard = 60)
+</pre>
+
+<p>一般來說，每個啟動了磁碟配額的檔案系統都會有兩行設定。 第一行是 block
+上限，而另一行則是 inode 上限。 若要更改磁碟配額上限，只需要修改後面的數值即可。
+舉例來說， 要增加這位使用者的 block 上限部分：把彈性上限 50 調為 500， 硬性上限則由 75
+調為 600 ，只需修改下面這行：</p>
+
+<pre class="PROGRAMLISTING">
+/usr: kbytes in use: 65, limits (soft = 50, hard = 75)
+</pre>
+
+<p>改為下列：</p>
+
+<pre class="PROGRAMLISTING">
+/usr: kbytes in use: 65, limits (soft = 500, hard = 600)
+</pre>
+
+<p>然後存檔離開後，新的配額設定就會立即生效。</p>
+
+<p>有時候會想一次改大範圍 UID 的帳號設定，這時可以用 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=edquota&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">edquota</span>(8)</span></a> 的 <code
+class="OPTION">-p</code> 參數功能來完成。 首先， 把某個帳號調為想要的相關配額，然後可以用
+<tt class="COMMAND">edquota -p protouser startuid-enduid</tt> 之類的方式來改。
+舉例來說，假設 <tt class="USERNAME">test</tt> 這帳號已經設定好相關配額， 然後要改的對象為
+UID 從 10,000 到 19,999 的帳號， 那麼就可以下列指令來設定同樣的配額：</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">edquota -p test 10000-19999</kbd>
+</pre>
+
+<p>細節說明請參閱 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=edquota&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">edquota</span>(8)</span></a>。</p>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN25924" name="AEN25924">18.15.3
+檢查磁碟配額設定、磁碟使用量</a></h2>
+
+<p>可以用 <a href="http://www.FreeBSD.org/cgi/man.cgi?query=quota&amp;sektion=1"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">quota</span>(1)</span></a> 或 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=repquota&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">repquota</span>(8)</span></a>
+來檢查磁碟配額設定， 以及磁碟使用量。 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=quota&amp;sektion=1"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">quota</span>(1)</span></a>
+可用來檢查單一使用者或群組的磁碟配額、 磁碟使用量。
+不過一般帳號只能查自己的以及自己群組的磁碟配額、
+磁碟使用量，只有系統管理者帳號才能察看所有使用者、 群組的配額設定與使用量。 而 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=repquota&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">repquota</span>(8)</span></a>
+則可以看到所有已啟動磁碟配額的檔案系統設定、磁碟使用量摘要。</p>
+
+<p>下面例子則是在兩個有配額設定的檔案系統上，打 <tt class="COMMAND">quota -v</tt>
+的顯示結果：</p>
+
+<pre class="PROGRAMLISTING">
+Disk quotas for user test (uid 1002):
+     Filesystem  usage    quota   limit   grace   files   quota   limit   grace
+           /usr      65*     50      75   5days       7      50      60
+       /usr/var       0      50      75               0      50      60
+</pre>
+
+<p>在上面這例中，該使用者在 <tt class="FILENAME">/usr</tt> 的彈性配額是 50
+KB，實際上已經超額多用 15 KB，而 grace period 還有 5 天就逾期。 請注意這個星號 <tt
+class="LITERAL">*</tt> 是表示目前該使用者已經超越其配額的彈性上限了。</p>
+
+<p>一般來說，若使用者並沒有用到某個檔案系統， 那麼就算該檔案有啟用磁碟配額，在 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=quota&amp;sektion=1"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">quota</span>(1)</span></a>
+也不會顯示出來。 而 <code class="OPTION">-v</code> 參數則可以把這些檔案系統都全部列出來，
+比如上例中的 <tt class="FILENAME">/usr/var</tt>。</p>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN25956" name="AEN25956">18.15.4 透過 NFS 使用磁碟配額</a></h2>
+
+<p>NFS server 端可以強制以 quota subsystem(配額子系統)來用磁碟配額。 而 NFS client
+端則可以透過 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=rpc.rquotad&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">rpc.rquotad</span>(8)</span></a> daemon
+來讓 <a href="http://www.FreeBSD.org/cgi/man.cgi?query=quota&amp;sektion=1"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">quota</span>(1)</span></a>
+指令抓到相關配額資料，也就可以讓 client 端的使用者察看其配額的統計資料。</p>
+
+<p>若要啟用 <tt class="COMMAND">rpc.rquotad</tt>，可以在 <tt
+class="FILENAME">/etc/inetd.conf</tt> 加上下列類似設定：</p>
+
+<pre class="PROGRAMLISTING">
+rquotad/1      dgram rpc/udp wait root /usr/libexec/rpc.rquotad rpc.rquotad
+</pre>
+
+<p>然後重啟 <tt class="COMMAND">inetd</tt> 即可：</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">kill -HUP `cat /var/run/inetd.pid`</kbd>
+</pre>
+</div>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="snapshots.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="disks-encrypting.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">File System Snapshots</td>
+<td width="34%" align="center" valign="top"><a href="disks.html"
+accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">Encrypting Disk Partitions</td>
+</tr>
+</table>
+</div>
+
+<p align="center"><small>本文及其他文件，可由此下載：<a
+href="ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/">ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/</a>。</small></p>
+
+<p align="center"><small>若有 FreeBSD 方面疑問，請先閱讀 <a
+href="http://www.FreeBSD.org/docs.html">FreeBSD 相關文件</a>，如不能解決的話，再洽詢
+&#60;<a href="mailto:questions@FreeBSD.org">questions@FreeBSD.org</a>&#62;。<br />
+關於本文件的問題，請洽詢 &#60;<a
+href="mailto:doc@FreeBSD.org">doc@FreeBSD.org</a>&#62;。</small></p>
+</body>
+</html>
+

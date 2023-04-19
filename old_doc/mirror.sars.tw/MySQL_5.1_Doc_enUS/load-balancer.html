@@ -1,0 +1,331 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><title>Chapter 18. MySQL Load Balancer</title><link rel="stylesheet" href="mysql-html.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.69.1"><link rel="start" href="index.html" title="MySQL 5.1 Reference Manual"><link rel="up" href="index.html" title="MySQL 5.1 Reference Manual"><link rel="prev" href="mysql-proxy.html" title="Chapter 17. MySQL Proxy"><link rel="next" href="replication.html" title="Chapter 19. Replication"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">Chapter 18. MySQL Load Balancer</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="mysql-proxy.html">Prev</a> </td><th width="60%" align="center"> </th><td width="20%" align="right"> <a accesskey="n" href="replication.html">Next</a></td></tr></table><hr></div><div class="chapter" lang="en"><div class="titlepage"><div><div><h2 class="title"><a name="load-balancer"></a>Chapter 18. MySQL Load Balancer</h2></div></div></div><div class="toc"><p><b>Table of Contents</b></p><dl><dt><span class="section"><a href="load-balancer.html#mysql-lb-installing">18.1. Installing MySQL Load Balancer</a></span></dt><dt><span class="section"><a href="load-balancer.html#mysql-lb-getting-started">18.2. Getting Started</a></span></dt><dt><span class="section"><a href="load-balancer.html#mysql-lb-using">18.3. Using MySQL Load Balancer</a></span></dt><dt><span class="section"><a href="load-balancer.html#mysql-lb-known-issues">18.4. Known Issues</a></span></dt><dt><span class="section"><a href="load-balancer.html#load-balancer-faq">18.5. MySQL Load Balancer FAQ</a></span></dt></dl></div><div class="important" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Important</h3><p>
+      For more information on MySQL Load Balancer, including how to be
+      included in the beta programme, contact
+      <code class="email">&lt;<a href="mailto:enterprise-beta@mysql.com">enterprise-beta@mysql.com</a>&gt;</code>.
+    </p></div><p>
+    The MySQL Load Balancer is an application that communicates with one
+    or more MySQL servers and provides connectivity to those servers for
+    multiple clients. The MySQL Load Balancer is logically placed
+    between the clients and the MySQL server; instead of clients
+    connecting directly to each MySQL server, all clients connect to the
+    MySQL Load Balancer, and the MySQL Load Balancer forwards the
+    connection on to one of the MySQL servers.
+  </p><p>
+    The initial release of the MySQL Load Balancer provides read-only
+    load balancing over a number of MySQL servers. Initially, you
+    populate the MySQL Load Balancer configuration with the list of
+    available MySQL servers to use when distributing work. The MySQL
+    Load Balancer automatically and evenly distributes connections from
+    clients to each server. Distribution is handled by a simple count
+    for the number connections distributed to each server - new
+    connections are automatically sent to the server with the lowest
+    count.
+  </p><p>
+    When used in combination with a replication setup, the MySQL Load
+    Balancer also monitors the replication status. The master and slaves
+    within the replication setup are monitored and additional decisions
+    about the routing of incoming connections to MySQL servers are made
+    based on the replication status:
+  </p><div class="itemizedlist"><ul type="disc"><li><p>
+        If MySQL Load Balancer identifies that the slave is lagging
+        behind the master for it's replication threads, then the slave
+        is automatically taken out of the list of available servers.
+        Work will therefore be distributed to other MySQL servers within
+        the slave replication group.
+      </p></li><li><p>
+        If the replication thread on a slave is identified as no longer
+        running, the slave is also automatically removed from the list
+        of available servers.
+      </p></li><li><p>
+        If either situation changes, such as the replication delay
+        decreases to an acceptable level, or the replication thread on
+        the failed slave is restarted and the replication process
+        catches up, then the slave will be brought back in to the list
+        of available MySQL servers.
+      </p></li></ul></div><p>
+    The MySQL Load Balancer is based on the MySQL Proxy, and consists of
+    two modules which work together to achieve its goal:
+  </p><div class="itemizedlist"><ul type="disc"><li><p>
+        The <span class="emphasis"><em>proxy</em></span>, which uses Lua scripts to
+        customize the handling of connections and query execution. The
+        `proxy` connects to several backend MySQL instances to which it
+        can send queries.
+      </p></li><li><p>
+        The <span class="emphasis"><em>monitor</em></span> plugin connects to each of the
+        backends the proxy knows about and executes queries on each one
+        in regular intervals. The results of those queries are used to
+        determine the state of each backend.
+      </p></li></ul></div><p>
+    For more information on MySQL Proxy, see
+    <a href="mysql-proxy.html" title="Chapter 17. MySQL Proxy">Chapter 17, <i>MySQL Proxy</i></a>.
+  </p><div class="section" lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="mysql-lb-installing"></a>18.1. Installing MySQL Load Balancer</h2></div></div></div><div class="important" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Important</h3><p>
+        For more information on MySQL Load Balancer, including how to be
+        included in the beta programme, contact
+        <code class="email">&lt;<a href="mailto:enterprise-beta@mysql.com">enterprise-beta@mysql.com</a>&gt;</code>.
+      </p></div><p>
+      MySQL Load Balancer is provided as a TAR/GZipped package. To
+      install, extract the package:
+    </p><pre class="programlisting">$ gzip -cd load-balancer mysql-load-balancer-0.7.0-438-linux-fc4-x86-32bit.tar.gz | tar xf -</pre><p>
+      The standard package contents are organized into four directories:
+    </p><pre class="programlisting">/bin
+/lib
+/sbin
+/share
+</pre><p>
+      The <code class="filename">bin</code> contains wrapper scripts around the
+      dynamically linked binaries in <code class="filename">sbin</code>. The
+      <code class="filename">lib</code> directory contains the required
+      libraries, and the <code class="filename">share</code> directory contains
+      the scripts and support files used by the MySQL Load Balancer
+      during execution.
+    </p><p>
+      You can run MySQL Load Balancer directly from this directory, or
+      you can copy the contents to a a global directory, such as
+      <code class="filename">/usr/local</code>:
+    </p><pre class="programlisting">$ cp -R * /usr/local/</pre></div><div class="section" lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="mysql-lb-getting-started"></a>18.2. Getting Started</h2></div></div></div><div class="important" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Important</h3><p>
+        For more information on MySQL Load Balancer, including how to be
+        included in the beta programme, contact
+        <code class="email">&lt;<a href="mailto:enterprise-beta@mysql.com">enterprise-beta@mysql.com</a>&gt;</code>.
+      </p></div><p>
+      The easiest way to understand MySQL Load Balancer is to look at a
+      typical example of how MySQL Load Balancer can be used to improve
+      the distribution of work to multiple MySQL servers.
+    </p><p>
+      Given an existing setup of several replicating MySQL servers, you
+      can set up the MySQL Load Balancer to provide you with
+      replication-aware load distribution.
+    </p><p>
+      Suppose you have three slaves replicating from one master, the
+      slaves running on the machines <span class="emphasis"><em>slave-1</em></span>,
+      <span class="emphasis"><em>slave-2</em></span>, and <span class="emphasis"><em>slave-3</em></span>,
+      the master being on <span class="emphasis"><em>master-1</em></span>. Each MySQL
+      server listens on the default port of 3306.
+    </p><p>
+      For client connectivity, typical configurations are in one of two
+      topologies. The first topology uses applications that are aware of
+      multiple clients and choose a MySQL server based either on a
+      random selection or by choosing a slave based on a known quantity,
+      such as user ID.
+    </p><div class="figure"><a name="mysql-lb-std1"></a><p class="title"><b>Figure 18.1. Replication architecture with clients using multiple MySQL slaves</b></p><div class="mediaobject"><img src="images/stdrepl-style1.png" alt="Replication architecture with clients using
+          multiple MySQL slaves"></div></div><p>
+      In this scenario, it is possible for a client application to
+      choose a slave that is unavailable, or in a replication situation,
+      a slave that is not up to date compared to the master, or lagging
+      behind the master in terms of processing replication data such
+      that queries accessing the information would fail to return data,
+      or return data that was out of date. In all these cases, the
+      client would be unable to determine the issue (without checking
+      the situation itself). In the event of a failed server, the
+      connection would timeout and another server could be chosen, but
+      the delay could cause problems in the application.
+    </p><p>
+      In this scenario, it is also possible for a single MySQL server to
+      become overloaded with requests. For example, if the application
+      was using an ID-based decision model to choose a MySQL server,
+      then a high number of requests for a given ID could produce a very
+      high load on the chosen server. This could affect the replication
+      thread and place the server further behind compared to the master.
+    </p><p>
+      The second topology uses a model where each client has a dedicated
+      MySQL server.
+    </p><div class="figure"><a name="mysql-lb-std2"></a><p class="title"><b>Figure 18.2. Replication architecture with clients using dedicated MySQL slaves</b></p><div class="mediaobject"><img src="images/stdrepl-style2.png" alt="Replication architecture with clients using
+          dedicated MySQL slaves"></div></div><p>
+      In this scenario, a problem with the MySQL server for an
+      individual client could render the client useless. If the MySQL
+      server is significantly behind the master, you would get out of
+      date or incorrect information. If the MySQL server has failed, the
+      client will be unable to access any information.
+    </p><p>
+      Using the MySQL Load Balancer, you can replace the individual
+      connections from the clients to the slaves and instead route the
+      connections through the MySQL Load Balancer. This will distribute
+      the requests over the individual slave servers, automatically
+      taking account of the load, and accounting for problems or delays
+      in the replication of the data from the master.
+    </p><div class="figure"><a name="mysql-lb-stdrepl"></a><p class="title"><b>Figure 18.3. Replication architecture with clients using MySQL Load Balancer</b></p><div class="mediaobject"><img src="images/stdlb.png" alt="Replication architecture with clients using
+          MySQL Load Balancer"></div></div><p>
+      In the scenario using MySQL Load Balancer, any failure of a single
+      MySQL server automatically removes it from the pool of available
+      servers and distributes the incoming client connection to one of
+      the other, available, servers. Problems with replication are
+      addressed in the same way, redirecting the connection to a server
+      that is up to date with the master. The possibility of overloading
+      a single MySQL server should also be reduced, since the
+      connections would be distributed evenly among each server.
+    </p><p>
+      To start the MySQL Load Balancer in this scenario you would
+      specify the configuration of the master and slave servers on the
+      command line when starting <span><strong class="command">mysql-lb</strong></span>:
+    </p><pre class="programlisting">$ bin/mysql-lb --proxy-backend-addresses=master-1 \
+  --proxy-read-only-backend-addresses=slave-1:3306 \
+  --proxy-read-only-backend-addresses=slave-2:3306 \
+  --proxy-read-only-backend-addresses=slave-3:3306 \
+  --proxy-lua-script=share/mysql-load-balancer/monitored-ro-balance.lua \
+  --monitor-lua-script=share/mysql-load-balancer/monitor-backends.lua
+</pre><p>
+      This will start the load balancer, which listens for incoming
+      client connections on port 4040. The monitor component will
+      connect to each backend MySQL server with the MySQL user
+      <code class="literal">monitor</code> and no password, to be able to execute
+      queries on them. If you do not have a MySQL user with that name or
+      have a password set for the user, you can specify those using the
+      options `--monitor-username` and `--monitor-password`.
+    </p><p>
+      The options in this example set the following options:
+    </p><div class="itemizedlist"><ul type="disc"><li><p>
+          <code class="option">--proxy-backend-addresses</code> – sets the
+          address and port number of the MySQL master server in the
+          replication structure. This is required so that MySQL Load
+          Balancer can monitor the status of the server and replication
+          and use this to compare against the status of the slave
+          servers. In the event of a problem, the information gained
+          will be used to prioritse connections to the slaves according
+          to which slave is the most up to date.
+        </p></li><li><p>
+          <code class="option">--proxy-read-only-backend-addresses</code> –
+          each one of these options sets the address and port number
+          (separated by a colon), of a backend MySQL server. You can
+          specify as many servers as you like on the command line simply
+          by adding further options.
+        </p></li><li><p>
+          <code class="option">--proxy-lua-script</code> – specifies the Lua
+          script that will be used to manage to the distribution of
+          requests.
+        </p></li><li><p>
+          <code class="option">--monitor-lua-script</code> – specifies the
+          Lua script that will be used to monitor the backends.
+        </p></li></ul></div><p>
+      To get a list of all the available options, run
+    </p><pre class="programlisting"> $ mysql-lb --help-all
+ </pre></div><div class="section" lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="mysql-lb-using"></a>18.3. Using MySQL Load Balancer</h2></div></div></div><div class="important" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Important</h3><p>
+        For more information on MySQL Load Balancer, including how to be
+        included in the beta programme, contact
+        <code class="email">&lt;<a href="mailto:enterprise-beta@mysql.com">enterprise-beta@mysql.com</a>&gt;</code>.
+      </p></div><p>
+      When using the MySQL Load Balancer, you must adapt your
+      application to work with the connections provided by the MySQL
+      Load Balancer interface, rather than directly to MySQL servers.
+      The MySQL Load Balancer supports the same MySQL network protocol -
+      you do not need to change the method that you use to communicate
+      with MySQL. You can continue to use the standard MySQL interface
+      appropriate for your application environment.
+    </p><p>
+      On each client, you should configure your application to connect
+      to port 4040 on the machine on which you started the MySQL Load
+      Balancer. All MySQL connections for <span class="emphasis"><em>read</em></span>
+      queries should be sent to the MySQL Load Balancer connection. When
+      a client connects, the connection is routed by MySQL Load Balancer
+      to an appropriate MySQL server. All subsequent queries on that
+      connection will run be executed on the same backed MySQL server.
+      The backend will not be changed after the connection has been
+      established.
+    </p><p>
+      If MySQL Load Balancer identifies an issue with the backend MySQL
+      server, then connections to the backend server are closed. Your
+      application should be adapted so that it can re-open a connection
+      if it closes during execution, re-executing the query again if
+      there is failure. MySQL Load Balancer will then choose a different
+      MySQL server for the new connection.
+    </p><p>
+      The thresholds with which the monitor considers a slave to be too
+      far behind are specified in the
+      <code class="filename">monitor-backends.lua</code> file. By default it
+      checks for information obtained by <code class="literal">SHOW SLAVE
+      STATUS</code>, namely <code class="literal">Seconds_Behind_Master</code>
+      and tries to calculate the amount of data (in bytes) the slave has
+      to read from the master. The default values for those metrics are
+      10 seconds and 10 kilobytes, respectively.
+    </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Note</h3><p>
+        You need to restart the MySQL Load Balancer if you change the
+        <code class="filename">monitor-backends.lua</code> script while it is
+        running. This is different from MySQL Proxy, which automatically
+        reloads a script if you modify the script during execution.
+      </p></div><p>
+      The load balancing algorithm is specified in the
+      <code class="filename">monitored-ro-balance.lua</code> script. For this
+      release, it keeps a counter of how many queries each backend has
+      executed and always picks the backend with the least number of
+      queries. Look at <code class="literal">connect_server()</code> and
+      <code class="literal">pick_ro_backend_least_queries()</code> for the code.
+    </p></div><div class="section" lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="mysql-lb-known-issues"></a>18.4. Known Issues</h2></div></div></div><div class="important" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Important</h3><p>
+        For more information on MySQL Load Balancer, including how to be
+        included in the beta programme, contact
+        <code class="email">&lt;<a href="mailto:enterprise-beta@mysql.com">enterprise-beta@mysql.com</a>&gt;</code>.
+      </p></div><p>
+      For this alpha release, there are the following known issues:
+    </p><div class="itemizedlist"><ul type="disc"><li><p>
+          Sometimes an assertion in <code class="literal">libevent</code> fails
+          when shutting down <span><strong class="command">mysql-lb</strong></span>. The assertion
+          failure occurs after all client and server connections have
+          been closed already, thus is does not affect the normal
+          operation of the program.
+        </p></li><li><p>
+          When using UNIX domain sockets to specify backends, it logs
+          errors like: <code class="literal">network-mysqld.c.1648: can't convert
+          addr-type 1 into a string</code> This is recorded as a
+          <a href="http://bugs.mysql.com/35216" target="_top">Bug#35216</a> and will be fixed in the next release. The
+          implication is that the backend address is not available in
+          the Lua scripts, it does not impair normal operations of the
+          program.
+        </p></li></ul></div></div><div class="section" lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="load-balancer-faq"></a>18.5. MySQL Load Balancer FAQ</h2></div></div></div><div class="important" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Important</h3><p>
+        For more information on MySQL Load Balancer, including how to be
+        included in the beta programme, contact
+        <code class="email">&lt;<a href="mailto:enterprise-beta@mysql.com">enterprise-beta@mysql.com</a>&gt;</code>.
+      </p></div><p>
+      The following section includes some common questions and answers
+      for MySQL Load Balancer:
+    </p><p><span class="bold"><strong>Questions</strong></span></p><div class="itemizedlist"><ul type="disc"><li><p><a href="load-balancer.html#qandaitem-19-5-1">19.5.1: </a>
+            The current description says that the load balancer is for
+            read-only operation. Does that mean that MySQL Load Balancer
+            will not accept update statements for the slaves?
+          </p></li><li><p><a href="load-balancer.html#qandaitem-19-5-2">19.5.2: </a>
+            The MSQL Load Balancer is listed as being 'slave state
+            aware'. Do you check the status of both threads in the
+            replication process.
+          </p></li><li><p><a href="load-balancer.html#qandaitem-19-5-3">19.5.3: </a>
+            Is it possible to set the amount of acceptable lag?
+          </p></li><li><p><a href="load-balancer.html#qandaitem-19-5-4">19.5.4: </a>
+            Does MySQL Load Balancer handle load balancing based on CPU
+            load, memory load or I/O load?
+          </p></li></ul></div><p><span class="bold"><strong>Questions and Answers</strong></span></p><p><a name="qandaitem-19-5-1"></a><span class="bold"><strong>19.5.1: </strong></span><span class="bold"><strong>
+            The current description says that the load balancer is for
+            read-only operation. Does that mean that MySQL Load Balancer
+            will not accept update statements for the slaves?
+          </strong></span></p><p>
+            No. Currently, the MySQL Load Balancer doesn't prevent you
+            from making modifications on the slaves. The read-only
+            description is being used to indicate that you should only
+            use this solution for sending quries to existing slave
+            hosts.
+          </p><p><a name="qandaitem-19-5-2"></a><span class="bold"><strong>19.5.2: </strong></span><span class="bold"><strong>
+            The MSQL Load Balancer is listed as being 'slave state
+            aware'. Do you check the status of both threads in the
+            replication process.
+          </strong></span></p><p>
+            Yes. the monitor module runs <code class="literal">SHOW SLAVE
+            STATUS</code> and checkes the status of the replication
+            process. If there is a problem, either because the slave has
+            lagged too far behind the master, or because the query
+            thread has stopped, then the slave will be taken out of the
+            list of available slaves for distributing queries.
+          </p><p><a name="qandaitem-19-5-3"></a><span class="bold"><strong>19.5.3: </strong></span><span class="bold"><strong>
+            Is it possible to set the amount of acceptable lag?
+          </strong></span></p><p>
+            Yes, you can set the lag time by editing the time within the
+            load balancer Lua script. Edit the file
+            <code class="filename">share/mysql-load-balancer/ro-balance.lua</code>
+            and change the line:
+          </p><pre class="programlisting">max_seconds_lag = 10,      -- 10 seconds</pre><p>
+            Altering the 10 seconds to the lag time that you want to
+            support.
+          </p><p><a name="qandaitem-19-5-4"></a><span class="bold"><strong>19.5.4: </strong></span><span class="bold"><strong>
+            Does MySQL Load Balancer handle load balancing based on CPU
+            load, memory load or I/O load?
+          </strong></span></p><p>
+            Currently we use indirect measurements and balance the
+            distribution of queries by looking at the replication status
+            of the slave nodes. Since the distribution of work is
+            written using Lua, it is possible to use a number of
+            different criteria. Using more complex criteria will be
+            possible in the future.
+          </p></div></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="mysql-proxy.html">Prev</a> </td><td width="20%" align="center"> </td><td width="40%" align="right"> <a accesskey="n" href="replication.html">Next</a></td></tr><tr><td width="40%" align="left" valign="top">Chapter 17. MySQL Proxy </td><td width="20%" align="center"><a accesskey="h" href="index.html">Home</a></td><td width="40%" align="right" valign="top"> Chapter 19. Replication</td></tr></table></div></body></html>

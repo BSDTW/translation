@@ -1,0 +1,303 @@
+<!-- SINA document id= -->
+<HTML>
+<HEAD>
+<TITLE>新浪網_科技時代_專欄文章_FreeBSD使用大全連載</TITLE>
+<meta http-equiv="Content-Type" content="text/html; charset=big5">
+<STYLE type="text/css"><!-- A:hover {color: #CC0000} --></STYLE>
+<link rel="stylesheet" href="/titlestyle.css">
+<script language="JavaScript">
+<!--
+function closeIt()
+{
+window.close()
+}
+//-->
+</script>
+</HEAD>
+<BODY BGCOLOR="#FFFFFF" TEXT="#000000" LINK="#0000FF" ALINK="#FF9933" TOPMARGIN="5" MARGINHEIGHT="5">
+<CENTER>
+<!--結束：table 1-->
+
+<!--開始：新聞內容-->
+<TABLE WIDTH=750 BORDER=0 CELLSPACING=0 CELLPADDING=0>
+<TR><TD colspan=5 height=25>&nbsp;</td></TR>
+<tr valign=top>
+<TD valign=top>
+<CENTER><FONT COLOR=#000066 size=5><B>FreeBSD連載(17)：安裝檔案系統</B><br></FONT></CENTER>
+
+<HR WIDTH=520 ALIGN="center" SIZE=1>
+<CENTER><FONT FACE="Arial" SIZE=2>http://www.sina.com.cn 1999年11月19日 16:00 </FONT><FONT COLOR="#990000" SIZE=2>王波</FONT></CENTER><p>
+
+
+<h1 align=center>安裝檔案系統</h1>
+
+<p>　　FreeBSD將檔案保存在磁碟等存儲設備上，由操作系統來具體處理訪問硬體設備的問題，用戶只需要面對操作
+系統，就能進行具體的檔案操作。操作系統首先將用於存儲的設備進行格式化之後，該設備才能用於存儲檔案，這個設備可以
+是軟碟，可以是一個硬碟分區，或者其他允許隨機存取的塊設備存儲介質。在Unix上將格式化後的存儲設備統稱為檔案系
+統，格式化的過程稱為創建檔案系統。（由於磁帶是一種順序存取的設備，因此在磁帶上不能創建檔案系統。）</p>
+
+<p>　　對於不同介質、不同的操作系統對磁碟進行格式化和管理的方式也不同，這樣就形成了不同類型的檔案系統。但操作
+系統給用戶提供了一種標準的通用存取方式，這樣在存取檔案時就不需要考慮是在對哪種檔案系統進行操作。但是不同的檔案
+系統仍然有一些差異，例如光碟檔案系統是唯讀介質，還有一些檔案系統并非為Unix系統而設計的，因此檔案名、檔案屬
+性等標準就與Unix不同，FreeBSD在訪問這些檔案系統時盡量轉換這些差別，補充這些檔案系統沒有、但Unix
+標準檔案系統需要的屬性。這樣這些檔案系統就與標準檔案系統看起來完全相同，只是某些操作受檔案系統本身的物理限制，
+例如企圖將光碟上檔案加上寫屬性，顯然無法完成。FreeBSD支持多種檔案系統，其中最常見的有：</p>
+
+<p>　　UFS檔案系統：是FreeBSD上的標準檔案系統，它實現了所有的標準檔案屬性，如檔案屬主和組、存取權限
+等屬性。</p>
+
+<p>　　cd9660檔案系統：支持ISO 9660格式的CD-Rom，這種格式只支持8位基本長度3位擴展長度、
+不區分大小寫的檔案名，但FreeBSD支持它的Rock Ridge擴展，使其能使用Unix風格的長檔案名。</p>
+
+<p>　　NFS檔案系統：網絡檔案系統，通過它Unix能在網絡上共享檔案系統。</p>
+
+<p>　　msdos檔案系統：DOS和Windows使用的FAT檔案系統，基本上是使用8.3的檔案名，Windows95
+之後擴展了檔案名的長度，但仍然不區分大小寫。FreeBSD支持Windows95的長檔案名擴展和FAT
+32格式的分區。</p>
+
+<p>　　ext2fs檔案系統：Linux使用的檔案系統，這個類型不是預設支持的檔案系統，需要重新配置內核。</p>
+
+<p>　　NTFS檔案系統：Windows NT使用的檔案系統，這個類型同樣需要重新配置內核。</p>
+
+<p>　　在個人電腦的硬碟管理方式中，檔案是直接放在硬碟的分區中，而FreeBSD使用的UFS檔案系統則又在基
+本分區中進行了劃分，檔案系統建立在BSD風格的子分區中。這樣每個UFS分區中能有多個檔案系統，每個檔案系統或交
+換空間各有一個標籤（DiskLabel），來標識其本身的起始和結束。當真正要使用檔案系統時，就需要獲得硬碟上文
+件系統（UFS分區和分區內部各個檔案系統的DiskLabel）的具體信息。這些硬碟上檔案系統的信息應該由管理員
+維護，同時也記錄在硬碟上，可以使用FreeBSD中的系統工具fdisk和disklabel，或者安裝程序Sysinstall
+，來獲得保存在硬碟本身中的信息。</p>
+
+<p>　　當使用Sysinstall中的Fdisk和Disklabel來分區和劃分磁碟空間時，當用戶完成操作之後
+，應該使用W命令將改變寫入磁碟之後再退出Fdisk或Disklabel。</p>
+
+<p>　　與Sysinstall不同，命令行的fdisk和disklabel為交互模式，而非sysinstall
+的全螢幕界面，因此較為難用一些。使用硬碟名稱作為fdisk的參數，fdisk將報告硬碟上所有四個分區的詳細信息
+：
+</p>
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># fdisk wd0
+<br>******Working on device /dev/rwd0 ******
+<br>parameters extracted from in-core disklabel are:
+<br>cylinders=525 heads=255 sectors/track=63 (16065 blks/cyl)
+<br>　
+<br>parameters to be used for BIOS calculations are:
+<br>cylinders=525 heads=255 sectors/track=63 (16065 blks/cyl)
+<br>　
+<br>Media sector size is 512
+<br>Warning: BIOS sector numbering starts with sector 1
+<br>Information from DOS bootblock is:
+<br>The data for partition 1 is:
+<br>sysid 6,(Primary ‘big’ DOS (>32MB))
+<br>   start 16065, size 2056320 (1004Meg), flag 80
+<br>      beg: cyl 1/ sector 1/ head 0;
+<br>      end: cyl 128/ sector 63/ head 254
+<br>The data for partition 2 is:
+<br>sysid 7,(OS/2 HPFS, QNX or Advanced UNIX)
+<br>   start 2072385, size 1044225 (509Meg), flag 0
+<br>      beg: cyl 1/ sector 1/ head 0;
+<br>      end: cyl 128/ sector 63/ head 254
+<br>The data for partition 3 is:
+<br>sysid 165,(FreeBSD/NetBSD/386BSD)
+<br>   start 3116610, size 2024190 (988Meg), flag 0
+<br>      beg: cyl 1/ sector 1/ head 0;
+<br>      end: cyl 128/ sector 63/ head 254
+<br>The data for partition 4 is:
+<br>sysid 5,(Extended DOS)
+<br>   start 5140800, size 3293325 (1608Meg), flag 0
+<br>      beg: cyl 1/ sector 1/ head 0;
+<br>      end: cyl 128/ sector 63/ head 254
+</pre></td></tr></table>
+
+<p>　　從這個fdisk的執行結果中可以看出這個硬碟的四個分區分別為不同的操作系統所占用，第一個分區為DOS基
+本分區，第二個標識為HPFS，事實上它是NTFS分區，第三個分區wd0s3為BSD分區，而第四個分區為擴展分區
+。因此就可以針對第三個FreeBSD系統分區，使用disklabel來檢查其上的BSD子分區信息。
+</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># disklabel  wd0s3
+<br># /dev/rwd0s3c:
+<br>type: ESDI
+<br>disk: wd0s3
+<br>label:
+<br>flags:
+<br>bytes/sector: 512
+<br>sectors/track: 63
+<br>tracks/cylinder: 255
+<br>sectors/cylinder: 16065
+<br>cylinders: 126
+<br>sectors/unit: 2024190
+<br>rpm: 3600
+<br>interleave: 1
+<br>trackskew: 0
+<br>cylinderskew: 0
+<br>headswith: 0           # milliseconds
+<br>track-to-track seek: 0     # milliseconds
+<br>drivedata: 0
+<br>　
+<br>8 partitions:
+<br>#     size   offset   fstype  [fsize bsize bps/cpg]
+<br>  a:  65536      0    4.2BSD    0  0  0  # (cyl.  0 - 4*)
+<br>  b: 151248  65536      swap             # (cyl.  4*- 13*)
+<br>  c:2024190      0    unused    0  0  0  # (cyl.  0 - 125)
+<br>  e:  61440 216784    4.2BSD    0  0  0  # (cyl.  13*- 17*)
+<br>  f:1745966 278224    4.2BSD    0  0  0  # (cyl.  17*- 125*)
+</pre></td></tr></table>
+
+<p>　　可以看出disklabel除了顯示各個子分區a-f之外，還顯示了硬碟的參數。事實上BSD的分區管理工具
+要早於個人電腦的分區概念，而disklabel是BSD的分區管理工具，并不需要fdisk的幫助就能完成所有的
+磁碟管理操作。fdisk是用於將FreeBSD與其他操作系統進行兼容的目的，它是使用個人電腦分區概念的系統工
+具。如果一個硬碟不被其他個人電腦操作系統訪問，完全可以拋棄fdisk，而僅僅使用disklabel和BSD傳
+統風格的設備檔案，來運行FreeBSD。
+</p>
+
+<ul><h2><P><LI>檔案系統的安裝</LI></P></h2></ul>
+
+<p>　　在存儲設備上建立的檔案系統必須安裝到Unix目錄樹上，用戶才能訪問上面的檔案。目錄樹只是一種邏輯概念，
+而具體的檔案都保存在安裝到目錄樹上的各個檔案系統中。由於每個檔案都保存的自己的目錄中，這樣目錄中保存的是相對位
+置，一旦將一個檔案系統安裝到一個目錄下，則這個檔案系統中的所有檔案和目錄，都位於目錄樹中的這個目錄的下方，可以
+選擇將這個檔案系統安裝到不同的目錄下。</p>
+
+<p>　　安裝檔案系統要使用命令mount，這個命令必須以root身份執行，例如安裝光碟檔案系統的命令（IDE光
+驅）使用：
+</p>
+
+<table bgcolor=cccccc width=100% cellpadding=3><tr><td>
+<pre># mount -t cd9660 /dev/wcd0c  /cdrom
+</td></pre></tr></table>
+
+<p>　　參數指明了不同的選項，-t後面跟檔案系統的類型，這個命令中使用cd9660，用於光碟使用的ISO 9660
+檔案系統，同樣也可以根據檔案系統的不同而選用ufs、nfs、msdos等，其中ufs類型是預設的檔案系統類
+型﹔根據檔案系統的類型不同，可使用的選項也不同。/dev/wcd0c是指定CD-Rom設備檔案，也可以使用/dev/wcd0
+來安裝光碟，BSD的習慣做法是除了raw方式訪問設備之外，最好使用子設備c來表示整個設備，主要原
+因是使用子設備c，那么就能通過訪問分區的disklabel，來獲得存儲設備的信息，雖然現代BSD下這個因素的影
+響已經很小，但使用子設備更符合BSD習慣。/cdrom指定了安裝目錄，此後光碟上的所有檔案都位於/cdrom目
+錄下，但是在執行這個命令前必須創建這個/cdrom目錄。</p>
+
+<p>　　Mount命令可以通過-o參數指定相關的安裝選項，例如-o ro指定了使用唯讀（Read Only）選
+項，由於CD-Rom是唯讀介質，即使不使用這個選項指明這個介質是唯讀類型的，系統也會將這個檔案系統設置為唯讀。
+對於以唯讀方式安裝的檔案系統，任何時候企圖寫這個目錄下的檔案都會得到錯誤信息。對於物理上可寫的檔案系統，可以使
+用ro選項將能保護數據不被改變，因而十分有用。</p>
+
+<p>　　同樣安裝一個DOS格式的軟碟應該使用：
+</p>
+
+<table bgcolor=cccccc width=100% cellpadding=3><tr><td>
+<pre># mount -t msdos /dev/fd0 /floopy
+</td></pre></tr></table>
+
+<P>如果安裝順利，則就可以訪問這個軟碟上的DOS檔案了。同樣也可以訪問硬碟上FAT格式的檔案系統，包括DOS基本分區和擴展分區上的邏輯碟（邏輯碟在FreeBSD下的設備檔案從5開始，例如wd1擴展分區上的第一個邏輯碟為wd1s5）。</P>
+
+<P>安裝一個其他電腦通過NFS共享出的檔案系統應該使用：</P>
+
+<table bgcolor=cccccc width=100% cellpadding=3><tr><td>
+<pre># mount -t nfs remote:/directory /mnt</td></pre></tr></table>
+
+<p>　　與安裝其他檔案系統的不同在於，本地硬碟上的檔案系統使用設備檔案，但NFS使用遠程主機的名字和目錄來確定
+檔案系統的位置，其格式為主機名與該主機上目錄名，中間使用 “：” 分隔開。</p>
+
+<p>　　將檔案系統安裝到目錄上之後，使用這個介質上的檔案就非常簡單了。FreeBSD將假定存儲設備將一直停留在
+這個安裝位置上由系統使用，因此FreeBSD使用內存來為這些檔案系統建立緩衝區，以最高效的使用檔案系統，這種方
+式為異步模式的檔案安裝方式（async）。這樣磁碟上的內容與內存中是非同步的，系統定期或在需要的時候，才去更新
+磁碟上的物理信息。（sync命令將強迫系統更新磁碟）這種非同步的方式就使得管理員要移去檔案系統必須通過系統來完
+成卸載，而不應該直接取出（如軟碟等可移動介質）。如果直接移去軟碟，或者因為系統突然掉電而造成沒有正確卸載檔案系
+統，就會直接造成磁碟上的數據不正確，從而不得不使用fsck來檢查和修復這些檔案系統。也可以在執行mount命令
+的時候使用sync的安裝選項，使硬碟數據和內存緩衝區保持同步，這樣雖然降低了存取效率，但更適合對數據的完整性提
+出較高要求的系統。</p>
+
+<p>　　即使對於一個唯讀類型的介質，FreeBSD仍然使用這種控制機制，直到卸載才釋放對檔案系統的控制權。因此
+在FreeBSD下使用mount命令安裝了光碟之後，光驅前面板上的eject鍵將不再起作用，直到將這個檔案系統
+卸載下來。</p>
+
+<p>　　使用命令umount可以卸載一個安裝到確定目錄下的檔案系統。
+</p>
+
+<table bgcolor=cccccc width=100% cellpadding=3><tr><td>
+<pre># umount /cdrom</td></pre></tr></table>
+
+<p>　　執行這個命令將檔案系統與其安裝到的目錄相脫離，對於異步模式安裝的檔案系統還將同步緩衝區和磁碟上的數據。
+以後該目錄就能用來安裝另一個檔案系統了。而直到此時才能使用eject鍵退出光碟，更換或拿開碟片。
+</p>
+
+<table bgcolor=cccccc width=100% cellpadding=3><tr><td>
+<pre># cd /cdrom
+<br># umount /cdrom
+<br>umount: /cdrom : Device busy
+<br># cd /
+<br># umount /cdrom
+</td></pre></tr></table>
+
+<p>　　在執行這個命令時如果系統報告 “Device busy” 錯誤信息，說明有其他程序仍然正在使用這個檔案
+系統中的檔案，很可能是某個shell的當前路徑仍然位於這個檔案系統的目錄中，造成這個檔案系統的目錄檔案沒有關閉
+。檢查所有的登錄界面，保証沒有shell的當前目錄在/cdrom的目錄下。
+</p>
+
+<ul><h2><P><LI>設置fstab檔案</LI></P></h2></ul>
+
+<p>　　在系統啟動時，系統將自動安裝上必需的檔案系統。而管理員所要做的是告訴FreeBSD應該安裝那個檔案系統
+、安裝到那個目錄上和有關安裝參數選項。所有的這些信息都必須寫入檔案/etc/fstab中。在安裝FreeBSD
+時，這個檔案已經具有必要的檔案系統了，此後所需要作的只是這個檔案中再增加其他的檔案系統。
+</p>
+
+<table bgcolor=cccccc width=100% cellpadding=3><tr><td>
+<pre># Device         Mountpoint   FStype  Options     Dump  Pass#
+<br>/dev/wd0s3b      none         swap    sw          0     0
+<br>/dev/wd0s3a      /            ufs     rw          1     1
+<br>/dev/wd0s3f      /usr         ufs     rw          2     2
+<br>/dev/wd0s3e      /var         ufs     rw          2     2
+<br>proc             /proc        procfs  rw          0     0
+<br>/dev/wcd0c       /cdrom       cd9660  ro,noauto   0     0
+<br>/dev/wd0s1       /dos         msdos   rw,noauto   0     1
+</td></pre></tr></table>
+
+<p>　　這個檔案中的每一行為一種檔案系統或交換設備定義對應的設備檔案及安裝選項。其中根檔案系統具備一定的特殊之
+處，因為這個檔案/etc/fstab以及FreeBSD的內核檔案，其實是在根檔案系統中的，因此系統必須首先安裝
+了根檔案系統，才能正常訪問這些檔案。事實上根檔案系統在FreeBSD內核中已經有了設置，啟動時先以唯讀方式安裝
+根檔案系統，并讀取根檔案系統中相關檔案的內容，然後再根據檔案內容裝載各個檔案系統。</p>
+
+<p>　　這個檔案的第一列為設備檔案名字，或者NFS使用的遠程檔案系統的名字。第二列為檔案系統的安裝位置，第三列
+為檔案系統的類型，其中UFS是FreeBSD使用的標準本地檔案系統的類型，procfs是FreeBSD用於管理
+進程的進程檔案系統。第四列為安裝的選項，rw表示該檔案系統能進行讀寫操作，ro表示該檔案系統是唯讀的，sw用於
+交換分區，noauto表示啟動時并不立即安裝這個檔案系統，而是由管理員在以後手工安裝。第五列和第六列的數字是系
+統程序dump和fsck程序使用的標誌，通常不需要改變，這個標誌對根檔案系統都是1，而對其他UFS類型的檔案系
+統都是2，其他類型的檔案系統為0。</p>
+
+<p>　　注意，由於fstab檔案非常重要，如果這個檔案有錯誤，就有可能造成系統不能正常啟動，因此向fstab添
+加數據應非常小心。不是必須安裝的檔案系統就不應該進行自動裝載，例如上面將CDROM對應的行參數設置為noauto
+，表示這個檔案系統不是啟動時自動裝載的系統。</p>
+
+<p>　　在使用了fstab檔案之後，mount命令的寫法就可以簡化了。mount命令將查看fstab檔案中的內
+容以進行匹配，來選定正確的參數。例如，使用下列命令均可以安裝上CD-Rom。
+</p>
+
+<table bgcolor=cccccc width=100% cellpadding=3><tr><td>
+<pre># mount /dev/wcd0c /cdrom
+<br># mount /dev/wcd0c
+<br># mount /cdrom
+</td></pre></tr></table>
+
+<p>　　在安裝了檔案系統之後，可以使用不加參數的mount命令或df命令查看當前已安裝的檔案系統信息。
+</p>
+
+
+<table bgcolor=cccccc width=100% cellpadding=3><tr><td>
+<pre># mount
+<br>/dev/wd0s3a on / (local, writes: sync 117 async 796)
+<br>/dev/wd0s3f on /usr (local, writes: sync 1189 async 4948)
+<br>/dev/wd0s3e on /var (local, writes: sync 362 async 1354)
+<br>procfs on /proc (local)
+<br>/dev/wd1s2e on /disk2 (local, writes: sync 4 async 41)
+</td></pre></tr></table>
+
+<BR>
+
+<!--開始：路徑顯示-->
+<!--結束：路徑顯示--></td>
+</TR></TABLE>
+
+
+<!--結束：新聞內容-->
+<!--開始：底部-->
+<!--開始：底部-->
+<!--結束：底部-->
+</CENTER>
+</BODY>
+</HTML>

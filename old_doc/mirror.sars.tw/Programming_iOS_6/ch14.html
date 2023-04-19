@@ -1,0 +1,1174 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>Chapter 14. Views</title>
+    <link rel="stylesheet" type="text/css" href="docbook-xsl-mymods.css" />
+    <meta name="generator" content="DocBook XSL Stylesheets V1.76.0" />
+    <link rel="home" href="index.html" />
+    <link rel="up" href="pt04.html" />
+    <link rel="prev" href="pt04.html" />
+    <link rel="next" href="ch15.html" />
+  </head>
+  <body>
+    <div class="mattnotice">
+      <p>As a courtesy, this is a <b>full free</b> rendering of my book, <i>Programming iOS 6</i>, by Matt Neuburg. Copyright 2013 Matt Neuburg. Please note that this book has now been completely superseded by two more recent books, <a href="http://shop.oreilly.com/product/0636920032465.do">iOS 7 Fundamentals</a> and <a href="http://shop.oreilly.com/product/0636920031017.do">Programming iOS 7</a>. If my work has been of help to you, please <b>consider purchasing</b> one or both of them. Thank you!
+	</p>
+    </div>
+    <div class="navfooter">
+      <table width="100%" summary="Navigation footer">
+        <tr>
+          <td width="40%" align="left"><a accesskey="p" href="pt04.html">Prev</a> </td>
+          <td width="20%" align="center">
+            <a accesskey="u" href="pt04.html">Up</a>
+          </td>
+          <td width="40%" align="right"> <a accesskey="n" href="ch15.html">Next</a></td>
+        </tr>
+        <tr>
+          <td width="40%" align="left" valign="top">Part IV. Views </td>
+          <td width="20%" align="center">
+            <a accesskey="h" href="index.html">Table of Contents</a>
+          </td>
+          <td width="40%" align="right" valign="top"> Chapter 15. Drawing</td>
+        </tr>
+      </table>
+    </div>
+    <div class="chapter">
+      <div class="titlepage">
+        <div>
+          <div>
+            <h2 class="title"><a id="chap_id14"></a>Chapter 14. Views</h2>
+          </div>
+        </div>
+      </div>
+      <p>A <span class="emphasis"><em>view</em></span> (an object whose class is UIView or a subclass of UIView) knows how to draw itself into a rectangular area of the interface. Your app has a visible interface thanks to views. Creating and configuring a view can be extremely simple: “Set it and forget it.” You’ve already seen that you can drag an interface widget, such as a UIButton, into a view in the nib; when the app runs, the button appears, and works properly. But you can also manipulate views in powerful ways, in real time. Your code can do some or all of the view’s drawing of itself; it can make the view appear and disappear, move, resize itself, and display many other physical changes, possibly with animation.
+<a id="idxviews" class="indexterm"></a></p>
+      <p>A view is also a responder (UIView is a subclass of UIResponder). This means that a view is subject to user interactions, such as taps and swipes. Thus, views are the basis not only of the interface that the user sees, but also of the interface that the user touches. Organizing your views so that the correct view reacts to a given touch allows you to allocate your code neatly and efficiently.
+<a id="idm441652031248" class="indexterm"></a></p>
+      <p>The <span class="emphasis"><em>view hierarchy</em></span> is the chief mode of view organization. A view can have subviews; a subview has exactly one immediate superview.<a id="idm441652028624" class="indexterm"></a><a id="idm441652027728" class="indexterm"></a> Thus there is a tree of views. This hierarchy allows views to come and go together. If a view is removed from the interface, its subviews are removed; if a view is hidden (made invisible), its subviews are hidden; if a view is moved, its subviews move with it; and other changes in a view are likewise shared with its subviews. The view hierarchy is also the basis of, though it is not identical to, the responder chain (<a class="xref" href="ch11.html">Chapter 11</a>).</p>
+      <p>A view may come from a nib, or you can create it in code. On balance, neither approach is to be preferred over the other; it depends on your needs and inclinations and on the overall architecture of your app.</p>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_the_window"></a>The Window</h2>
+            </div>
+          </div>
+        </div>
+        <p>The top of the view hierarchy is the app’s window. It is an instance of UIWindow (or your own subclass thereof), which is a UIView subclass.<a id="idm441652023120" class="indexterm"></a> Your app should have exactly one main window.<a id="idm441652022176" class="indexterm"></a> It occupies the entire screen and forms the background to, and is the ultimate superview of, all your other visible views. Other views are visible by virtue of being subviews, at some depth, of your app’s window. (If your app can display views on an external screen, you’ll create an additional UIWindow to contain those views; but in this chapter I’ll behave as if there were just one screen, the device’s own screen, and just one window.)<a id="idm441652020960" class="indexterm"></a>
+<a id="idm441652019056" class="indexterm"></a></p>
+        <p>The Xcode project templates all generate your app’s window for you.<a id="idm441652021168" class="indexterm"></a>
+<a id="idm441652016224" class="indexterm"></a>
+<a id="idm441652014912" class="indexterm"></a> The technique used, in a nonstoryboard app, is to create the window explicitly in code, in the app delegate’s <code class="literal">application:didFinishLaunchingWithOptions:</code>. The window must persist for the lifetime of the app, so the app delegate has a <code class="literal">window</code> property that retains it:</p>
+        <pre class="screen">self.window = [[UIWindow alloc] initWithFrame:[[UIScreen mainScreen] bounds]];</pre>
+        <p>The window’s designated initializer is <code class="literal">initWithFrame:</code>; I’ll explain in a moment what “frame” and “bounds” are, but the effect is to make the window the same size as the screen. In the template, the comment, “Override point for customization after application launch,” comes <span class="emphasis"><em>after</em></span> that line of code, because any code customizing what’s in the window will need the window to exist first. The various templates adopt various strategies for giving the window some content; this generally involves setting the window’s <code class="literal">rootViewController</code> to a UIViewController, whose <code class="literal">view</code> thus automatically becomes the window’s single primary subview. (I will refer to this as the window’s <span class="emphasis"><em>root view</em></span>.)<a id="idm441652006912" class="indexterm"></a>
+<a id="idm441652005744" class="indexterm"></a></p>
+        <p>For example, in the Single View Application project template, the ViewController class is instantiated, and the resulting instance is set to the window’s <code class="literal">rootViewController</code>. This sets in motion a further train of events automatically. The nib <span class="emphasis"><em>ViewController.xib</em></span> loads with the ViewController instance as its owner; the UIView pointed to by the File’s Owner’s <code class="literal">view</code> outlet in the nib is instantiated, and the ViewController instance’s <code class="literal">view</code> property is set by the nib-loading process to that UIView; and the window makes that view its single primary subview. Finally, the template code sends the window instance the <code class="literal">makeKeyAndVisible</code> message in order to make your app’s interface appear.<a id="idm441652000400" class="indexterm"></a>
+<a id="idm441651998800" class="indexterm"></a>
+<a id="idm441651997472" class="indexterm"></a>
+<a id="idm441651996432" class="indexterm"></a></p>
+        <p>If you choose the Storyboard option as you specify a template, the process works a little differently. The app is given a main storyboard, pointed to by the <span class="emphasis"><em>Info.plist</em></span> key “Main storyboard file base name” (<code class="literal">UIMainStoryboardFile</code>). After <code class="literal">UIApplicationMain</code> instantiates the app delegate class (<a class="xref" href="ch06.html">Chapter 6</a>), it asks the app delegate for the value of its <code class="literal">window</code> property; if that value is nil, the window is created and assigned to the app delegate’s <code class="literal">window</code> property. The storyboard’s initial view controller is then instantiated and assigned to the window’s <code class="literal">rootViewController</code> property, with the result that its view is placed in the window as its root view; the window is then sent the <code class="literal">makeKeyAndVisible</code> message. All of that is done behind the scenes by <code class="literal">UIApplicationMain</code>, with no visible code whatever. That is why, in a storyboard template, the <code class="literal">application:didFinishLaunchingWithOptions:</code> implementation is empty.<a id="idm441651987824" class="indexterm"></a></p>
+        <p>An app whose main window has no <code class="literal">rootViewController</code> is not strictly illegal, but it is strongly discouraged by a warning from the runtime as the app launches. <a id="idm441651985696" class="indexterm"></a>
+<a id="idm441651984352" class="indexterm"></a><a id="idm441651983408" class="indexterm"></a> The Single View Application template supplies a minimal root view controller for you. The Empty Application template does not; if you use it as is, it generates the warning.<a id="idm441651982192" class="indexterm"></a>
+<a id="idm441651980592" class="indexterm"></a>
+<a id="idm441651979264" class="indexterm"></a> To experiment with code that populates the interface with views, you can use the Empty Application template and put your code in its <code class="literal">application:didFinishLaunchingWithOptions:</code>, but if you want to avoid the warning, you’ll need to create a minimal root view controller and add the views to its <code class="literal">view</code>, like this:</p>
+        <pre class="screen">self.window = [[UIWindow alloc] initWithFrame:[[UIScreen mainScreen] bounds]];
+// Override point for customization after application launch.
+self.window.rootViewController = [UIViewController new];
+UIView* v = [[UIView alloc] initWithFrame:CGRectMake(100,100,50,50)];
+v.backgroundColor = [UIColor redColor]; // small red square
+// add it to the root view controller's view
+[self.window.rootViewController.view addSubview: v];
+self.window.backgroundColor = [UIColor whiteColor];
+[self.window makeKeyAndVisible];
+return YES;</pre>
+        <p>Alternatively, use the Single View Application template. In that case, any code that adds views should appear in View Controller’s <code class="literal">viewDidLoad</code> implementation, and the views should be added to <code class="literal">self.view</code>:</p>
+        <pre class="screen">[super viewDidLoad];
+// Do any additional setup after loading the view, typically from a nib.
+UIView* v = [[UIView alloc] initWithFrame:CGRectMake(100,100,50,50)];
+v.backgroundColor = [UIColor redColor]; // small red square
+// add it to this view controller's view
+[self.view addSubview: v];</pre>
+        <p>To experiment with views created in a nib, start with the Single View Application project template, as we did with our earlier Empty Window example. The view supplied in the nib will become the window’s root view, and whatever you drag into it in the nib will appear in the window when the app runs.</p>
+        <p>It is improbable that you would want to subclass UIWindow and substitute an instance of your subclass as the app’s main window, but you can certainly do so.<a id="idm441651970480" class="indexterm"></a><a id="idm441651969600" class="indexterm"></a> If the window is generated explicitly in code, you would obviously substitute the name of your window subclass as the class to be instantiated and assigned to the app delegate’s <code class="literal">window</code> property in <code class="literal">application:didFinishLaunchingWithOptions:</code>, in the template code I quoted a moment ago. If you’re using a main storyboard, however, <code class="literal">application:didFinishLaunchingWithOptions:</code> is too late; you’ll have to perform the substitution when <code class="literal">UIApplicationMain</code> asks for the app delegate’s <code class="literal">window</code> property, by implementing the app delegate’s <code class="literal">window</code> getter to create the window and set the <code class="literal">window</code> property exactly once:</p>
+        <pre class="screen">- (UIWindow*) window {
+    UIWindow* w = self-&gt;_window;
+    if (!w) {
+        w = [[MyWindow alloc] initWithFrame:[[UIScreen mainScreen] bounds]];
+        self-&gt;_window = w;
+    }
+    return w;
+}</pre>
+        <p>Once the app is up and running, the app delegate points to the window as the value of its <code class="literal">window</code> property; so any code in the app delegate class can refer to the window as <code class="literal">self.window</code>. Code elsewhere can get a reference to the app delegate, so it can also get a reference to the app’s window:</p>
+        <pre class="screen">UIWindow* theWindow = [[[UIApplication sharedApplication] delegate] window];</pre>
+        <p>That code is unusual, though, and may require typecasting to quiet the compiler (because the class of the application’s <code class="literal">delegate</code> property is otherwise unknown). You’d be more likely to use the application’s <code class="literal">keyWindow</code> property:<a id="idm441651957216" class="indexterm"></a></p>
+        <pre class="screen">UIWindow* theWindow = [[UIApplication sharedApplication] keyWindow];</pre>
+        <p>Perhaps the most typical way to get a reference to your app’s window would be through a subview of the window, at any depth of the hierarchy. You are very likely to have a reference to at least one such subview, and its <code class="literal">window</code> property points to the window that contains it, which is the app’s window. You can also use a UIView’s <code class="literal">window</code> property as a way of asking whether it is ultimately embedded in a window; if it isn’t, its <code class="literal">window</code> property is nil. A UIView whose <code class="literal">window</code> property is nil cannot be visible to the user.</p>
+        <p>Although your app will have exactly one primary window, it may generate other windows of which you are not conscious. For example, if you put up an alert view (UIAlertView), it is displayed in a secondary window that lies on top of your app’s window; at that moment, this secondary window is the application’s <code class="literal">keyWindow</code>. You would not be conscious of this fact, however, unless you needed a reference to your app’s window while an alert was showing, which is unlikely.</p>
+        <p>The window’s <code class="literal">backgroundColor</code> property, which it inherits from UIView, affects the appearance of the app if the window is visible behind its subviews. However, you are likely to give your window a primary subview that occupies the entire window and blocks it from sight; the window’s <code class="literal">backgroundColor</code> would then make no visible difference. The window would function solely as a container for the app’s visible views.<a id="idm441651947472" class="indexterm"></a></p>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_subview_and_superview"></a>Subview and Superview</h2>
+            </div>
+          </div>
+        </div>
+        <p>Once upon a time, and not so very long ago, a view owned precisely its rectangular area. No part of any view that was not a subview of this view could appear inside it, because when this view redrew its rectangle, it would erase the overlapping portion of the other view. No part of any subview of this view could appear outside it, because the view took responsibility for its own rectangle and no more.<a id="idm441651944528" class="indexterm"></a>
+<a id="idm441651943344" class="indexterm"></a></p>
+        <p>Those rules, however, were gradually relaxed, and starting in Mac OS X 10.5 Apple introduced an entirely new architecture for view drawing that lifted those restrictions completely. iOS view drawing is based on this revised architecture. So now some or all of a subview can appear outside its superview, and a view can overlap another view and can be drawn partially or totally in front of it without being its subview.<a id="idm441651941632" class="indexterm"></a>
+<a id="idm441651940320" class="indexterm"></a></p>
+        <p>So, for example, <a class="xref" href="ch14.html#FIGoverlap">Figure 14.1</a> shows three overlapping views. All three views have a background color, so each is completely represented by a colored rectangle. You have no way of knowing, from this visual representation, exactly how the views are related within the view hierarchy. In actual fact, the view in the middle (horizontally) is a sibling view of the view on the left (they are both direct subviews of the root view), and the view on the right is a subview of the middle view.</p>
+        <div class="figure">
+          <a id="FIGoverlap"></a>
+          <div class="figure-contents">
+            <div class="mediaobject">
+              <img src="figs/pios_1401.png" alt="figs/pios_1401.png" />
+            </div>
+          </div>
+          <p class="title">Figure 14.1. Overlapping views</p>
+        </div>
+        <br class="figure-break" />
+        <p>When views are created in the nib, you can examine the view hierarchy in the expanded dock to learn their actual relationship (<a class="xref" href="ch14.html#FIGviewHierarchy">Figure 14.2</a>). When views are created in code, you know their hierarchical relationship because you created that hierarchy. But the visible interface doesn’t tell you, because view overlapping is so flexible.</p>
+        <div class="figure">
+          <a id="FIGviewHierarchy"></a>
+          <div class="figure-contents">
+            <div class="mediaobject">
+              <img src="figs/pios_1402.png" alt="figs/pios_1402.png" />
+            </div>
+          </div>
+          <p class="title">Figure 14.2. A view hierarchy as displayed in the nib</p>
+        </div>
+        <br class="figure-break" />
+        <p>Nevertheless, a view’s position in the view hierarchy does affect how it is drawn. Most important, a view’s position in the view hierarchy dictates the <span class="emphasis"><em>order</em></span> in which it is drawn. Sibling subviews of the same superview have a layering order: one is “further back” than the other. This will make no visible difference if there is no overlap, but the subview that is “further back” is drawn first, so if there <span class="emphasis"><em>is</em></span> overlap, it will appear to be behind its sibling. Similarly, a superview is “further back” than its subviews; the superview is drawn first, so it will appear to be behind its subviews.<a id="idm441651928912" class="indexterm"></a>
+<a id="idm441651925936" class="indexterm"></a></p>
+        <p>You can see this illustrated in <a class="xref" href="ch14.html#FIGoverlap">Figure 14.1</a>. The view on the right is a subview of the view in the middle and is drawn on top of it. The view on the left is a sibling of the view in the middle, but it is a later sibling, so it is drawn on top of the view in the middle and on top of the view on the right. The view on the left <span class="emphasis"><em>cannot</em></span> appear behind the view on the right but in front of the view in the middle, because those views are subview and superview and are drawn together — both are drawn either before or after the view on the left, depending on the “further back” ordering of the siblings.</p>
+        <p>This layering order can be governed in the nib by arranging the views in the expanded dock. (If you click in the canvas, you may be able to use the menu items of the Editor → Arrange menu instead — Send to Front, Send to Back, Send Forward, Send Backward.) In code, there are methods for arranging the sibling order of views, which we’ll come to in a moment.</p>
+        <p>Here are some other effects of the view hierarchy:</p>
+        <div class="itemizedlist">
+          <ul class="itemizedlist" type="disc">
+            <li class="listitem">
+If a view is removed from or moved within its superview, its subviews go with it.
+</li>
+            <li class="listitem">
+If a view’s size is changed, its subviews can be resized automatically.
+</li>
+            <li class="listitem">
+A view’s degree of transparency is inherited by its subviews.
+</li>
+            <li class="listitem">
+A view can optionally limit the drawing of its subviews so that any parts of them outside the view are not shown. This is called <span class="emphasis"><em>clipping</em></span> and is set with the view’s <code class="literal">clipsToBounds</code> property.<a id="idm441651916400" class="indexterm"></a>
+</li>
+            <li class="listitem">
+A superview <span class="emphasis"><em>owns</em></span> its subviews, in the memory-management sense, much as an NSArray owns its elements; it retains them and is responsible for releasing a subview when that subview ceases to be its subview (it is removed from the collection of this view’s subviews) or when it itself goes out of existence.
+</li>
+          </ul>
+        </div>
+        <p>A UIView has a <code class="literal">superview</code> property (a UIView) and a <code class="literal">subviews</code> property (an NSArray of UIViews, in back-to-front order), allowing you to trace the view hierarchy in code. There is also a method <code class="literal">isDescendantOfView:</code> letting you check whether one view is a subview of another at any depth. If you need a reference to a particular view, you will probably arrange this beforehand as an instance variable, perhaps through an outlet. Alternatively, a view can have a numeric tag (its <code class="literal">tag</code> property), and can then be referred to by sending any view higher up the view hierarchy the <code class="literal">viewWithTag:</code> message. Seeing that all tags of interest are unique within their region of the hierarchy is up to you.</p>
+        <p>Manipulating the view hierarchy in code is easy. This is part of what gives iOS apps their dynamic quality, and it compensates for the fact that there is basically just a single window. It is perfectly reasonable for your code to rip an entire hierarchy of views out of the superview and substitute another. Such behavior can be implemented elegantly by using a UIViewController, a subject to which we’ll return later (<a class="xref" href="ch19.html">Chapter 19</a>). But you can do it directly, too. The method <code class="literal">addSubview:</code> makes one view a subview of another; <code class="literal">removeFromSuperview</code> takes a subview out of its superview’s view hierarchy. In both cases, if the superview is part of the visible interface, the subview will appear or disappear; and of course this view may itself have subviews that accompany it. Just remember that removing a subview from its superview releases it; if you intend to reuse that subview later on, you will wish to retain it first. This is often taken care of through a property with a retain policy.</p>
+        <p>Events inform a view of these dynamic changes. To respond to these events requires subclassing. Then you’ll be able to override any of <code class="literal">didAddSubview:</code> and <code class="literal">willRemoveSubview:</code>, <code class="literal">didMoveToSuperview</code> and <code class="literal">willMoveToSuperview:</code>, <code class="literal">didMoveToWindow</code> and <code class="literal">willMoveToWindow:</code>.</p>
+        <p>When <code class="literal">addSubview:</code> is called, the view is placed last among its superview’s subviews; thus it is drawn last, meaning that it appears frontmost. A view’s subviews are indexed, starting at <code class="literal">0</code>, which is rearmost. There are additional methods for inserting a subview at a given index (<code class="literal">insertSubview:atIndex:</code>), or below (behind) or above (in front of) a specific view (<code class="literal">insertSubview:belowSubview:</code>, <code class="literal">insertSubview:aboveSubview:</code>); for swapping two sibling views by index (<code class="literal">exchangeSubviewAtIndex:withSubviewAtIndex:</code>); and for moving a subview all the way to the front or back among its siblings (<code class="literal">bringSubviewToFront:</code>, <code class="literal">sendSubviewToBack:</code>).</p>
+        <p>Oddly, there is no command for removing all of a view’s subviews at once.<a id="idm441651893664" class="indexterm"></a> However, a view’s <code class="literal">subviews</code> array is an immutable copy of the internal list of subviews, so it is legal to cycle through it and remove each subview one at a time:</p>
+        <pre class="screen">for (UIView* v in view.subviews)
+    [v removeFromSuperview];</pre>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_visibility_and_opacity"></a>Visibility and Opacity</h2>
+            </div>
+          </div>
+        </div>
+        <p>A view can be made invisible by setting its <code class="literal">hidden</code> property to YES, and visible again by setting it to NO.<a id="idm441651888752" class="indexterm"></a>
+<a id="idm441651887456" class="indexterm"></a> This takes it (and its subviews, of course) out of the visible interface without the overhead of actually removing it from the view hierarchy. A hidden view does not (normally) receive touch events, so to the user it really is as if the view weren’t there. But it is there, so it can still be manipulated in code.</p>
+        <p>A view can be assigned a background color through its <code class="literal">backgroundColor</code> property. A color is a UIColor; this is not a difficult class to use, and I’m not going to go into details. A view whose background color is nil (the default) has a transparent background. It is perfectly reasonable for a view to have a transparent background and to do no additional drawing of its own, just so that it can act as a convenient superview to other views, making them behave together.</p>
+        <p>A view can be made partially or completely transparent through its <code class="literal">alpha</code> property: <code class="literal">1.0</code> means opaque, <code class="literal">0.0</code> means transparent, and a value may be anywhere between them, inclusive.<a id="idm441651881168" class="indexterm"></a>
+<a id="idm441651879872" class="indexterm"></a> This affects subviews: if a superview has an <code class="literal">alpha</code> of <code class="literal">0.5</code>, none of its subviews can have an <span class="emphasis"><em>apparent</em></span> opacity of more than <code class="literal">0.5</code>, because whatever <code class="literal">alpha</code> value they have will be drawn relative to <code class="literal">0.5</code>. (Just to make matters more complicated, colors have an alpha value as well. So, for example, a view can have an <code class="literal">alpha</code> of <code class="literal">1.0</code> but still have a transparent background because its <code class="literal">backgroundColor</code> has an alpha less than <code class="literal">1.0</code>.) A view that is completely transparent (or very close to it) is like a view whose <code class="literal">hidden</code> is YES: it is invisible, along with its subviews, and cannot (normally) be touched.</p>
+        <p>A view’s <code class="literal">alpha</code> property value affects the apparent transparency of its background color and the apparent transparency of its contents separately. For example, if a view displays an image and has a background color and its <code class="literal">alpha</code> is less than 1, the background color will seep through the image (and whatever is behind the view will seep through both).</p>
+        <p>A view’s <code class="literal">opaque</code> property, on the other hand, is a horse of a different color; changing it has no effect on the view’s appearance.<a id="idm441651868208" class="indexterm"></a>
+<a id="idm441651866912" class="indexterm"></a> Rather, this property is a hint to the drawing system.<a id="idm441651865824" class="indexterm"></a> If a view completely fills its bounds with ultimately opaque material and its <code class="literal">alpha</code> is <code class="literal">1.0</code>, so that the view has no effective transparency, then it can be drawn more efficiently (with less drag on performance) if you inform the drawing system of this fact by setting its <code class="literal">opaque</code> to YES. Otherwise, you should set its <code class="literal">opaque</code> to NO. The <code class="literal">opaque</code> value is <span class="emphasis"><em>not</em></span> changed for you when you set a view’s <code class="literal">backgroundColor</code> or <code class="literal">alpha</code>! Setting it correctly is entirely up to you; the default, perhaps surprisingly, is YES.</p>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_frame"></a>Frame</h2>
+            </div>
+          </div>
+        </div>
+        <p>A view’s <code class="literal">frame</code> property, a CGRect, is the position of its rectangle within its superview, <span class="emphasis"><em>in the superview’s coordinate system</em></span>.<a id="idm441651856768" class="indexterm"></a>
+<a id="idm441651855472" class="indexterm"></a><a id="idm441651854576" class="indexterm"></a>
+<a id="idm441651853296" class="indexterm"></a> By default, the superview’s coordinate system will have the origin at its top left, with the x-coordinate growing positively rightward and the y-coordinate growing positively downward.<a id="idm441651851712" class="indexterm"></a></p>
+        <p>Setting a view’s frame to a different CGRect value repositions the view, or resizes it, or both. If the view is visible, this change will be visibly reflected in the interface. On the other hand, you can also set a view’s frame when the view is not visible — for example, when you create the view in code. In that case, the frame describes where the view <span class="emphasis"><em>will</em></span> be positioned within its superview when it is given a superview. UIView’s designated initializer is <code class="literal">initWithFrame:</code>, and you’ll often assign a frame this way, especially because the default frame might otherwise be <code class="literal">{{0,0},{0,0}}</code>, which is rarely what you want.</p>
+        <div class="note" style="margin-left: 0; margin-right: 10%;">
+          <h3 class="title">Note</h3>
+          <p>Forgetting to assign a view a frame when creating it in code, and then wondering why it isn’t appearing when added to a superview, is a common beginner mistake. A view with a zero-size frame is effectively invisible. If a view has a standard size that you want it to adopt, especially in relation to its contents (like a UIButton in relation to its title), an alternative is to send it the <code class="literal">sizeToFit</code> message.<a id="idm441651845536" class="indexterm"></a>
+<a id="idm441651844256" class="indexterm"></a></p>
+        </div>
+        <p>Knowing this, we can generate programmatically the interface displayed in <a class="xref" href="ch14.html#FIGoverlap">Figure 14.1</a>. This code might appear in the <code class="literal">application:didFinishLaunchingWithOptions:</code> method of the app delegate in an Empty Application template-based app (as I suggested earlier):</p>
+        <pre class="screen">UIView* v1 = [[UIView alloc] initWithFrame:CGRectMake(113, 111, 132, 194)];
+v1.backgroundColor = [UIColor colorWithRed:1 green:.4 blue:1 alpha:1];
+UIView* v2 = [[UIView alloc] initWithFrame:CGRectMake(41, 56, 132, 194)];
+v2.backgroundColor = [UIColor colorWithRed:.5 green:1 blue:0 alpha:1];
+UIView* v3 = [[UIView alloc] initWithFrame:CGRectMake(43, 197, 160, 230)];
+v3.backgroundColor = [UIColor colorWithRed:1 green:0 blue:0 alpha:1];
+[self.window.rootViewController.view addSubview: v1];
+[v1 addSubview: v2];
+[self.window.rootViewController.view addSubview: v3];</pre>
+        <p>In that code, we determined the layering order of <code class="literal">v1</code> and <code class="literal">v3</code> (the middle and left views, which are sibling subviews of the window) by the order in which we inserted them into the view hierarchy with <code class="literal">addSubview:</code>.</p>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_bounds_and_center"></a>Bounds and Center</h2>
+            </div>
+          </div>
+        </div>
+        <p>Suppose we wish to give a view a subview inset by 10 points, as in <a class="xref" href="ch14.html#FIGinset">Figure 14.3</a>. The utility function <code class="literal">CGRectInset</code> makes it easy to derive one rectangle as an inset from another, but <span class="emphasis"><em>what</em></span> rectangle should we use as a basis? Not the superview’s frame; the frame represents a view’s position within <span class="emphasis"><em>its</em></span> superview, and in that superview’s coordinates. What we’re after is a CGRect describing our superview’s rectangle in its <span class="emphasis"><em>own</em></span> coordinates, because those are the coordinates in which the subview’s frame is to be expressed. That CGRect, describing a view’s rectangle in its own coordinates, is the view’s <code class="literal">bounds</code> property.<a id="idm441651831920" class="indexterm"></a>
+<a id="idm441651830640" class="indexterm"></a></p>
+        <div class="figure">
+          <a id="FIGinset"></a>
+          <div class="figure-contents">
+            <div class="mediaobject">
+              <img src="figs/pios_1403.png" alt="figs/pios_1403.png" />
+            </div>
+          </div>
+          <p class="title">Figure 14.3. A subview inset from its superview</p>
+        </div>
+        <br class="figure-break" />
+        <p>So, the code to generate <a class="xref" href="ch14.html#FIGinset">Figure 14.3</a> looks like this:</p>
+        <pre class="screen">UIView* v1 = [[UIView alloc] initWithFrame:CGRectMake(113, 111, 132, 194)];
+v1.backgroundColor = [UIColor colorWithRed:1 green:.4 blue:1 alpha:1];
+UIView* v2 = [[UIView alloc] initWithFrame:CGRectInset(v1.bounds, 10, 10)];
+v2.backgroundColor = [UIColor colorWithRed:.5 green:1 blue:0 alpha:1];
+[self.window.rootViewController.view addSubview: v1];
+[v1 addSubview: v2];</pre>
+        <p>You’ll very often use a view’s <code class="literal">bounds</code> in this way. When you need coordinates for drawing inside a view, whether drawing manually or placing a subview, you’ll often refer to the view’s <code class="literal">bounds</code>.</p>
+        <p>Interesting things happen when you set a view’s bounds. If you change a view’s bounds <span class="emphasis"><em>size</em></span>, you change its <span class="emphasis"><em>frame</em></span>. The change in the view’s frame takes place around its <span class="emphasis"><em>center</em></span>, which remains unchanged. So, for example:</p>
+        <pre class="screen">UIView* v1 = [[UIView alloc] initWithFrame:CGRectMake(113, 111, 132, 194)];
+v1.backgroundColor = [UIColor colorWithRed:1 green:.4 blue:1 alpha:1];
+UIView* v2 = [[UIView alloc] initWithFrame:CGRectInset(v1.bounds, 10, 10)];
+v2.backgroundColor = [UIColor colorWithRed:.5 green:1 blue:0 alpha:1];
+[self.window.rootViewController.view addSubview: v1];
+[v1 addSubview: v2];
+CGRect f = v2.bounds;
+f.size.height += 20;
+f.size.width += 20;
+v2.bounds = f;</pre>
+        <p>What appears is a single rectangle; the subview completely and exactly covers its superview, its frame being the same as the superview’s bounds. The call to <code class="literal">CGRectInset</code> started with the superview’s bounds and shaved 10 points off the left, right, top, and bottom to set the subview’s frame (<a class="xref" href="ch14.html#FIGinset">Figure 14.3</a>). But then we added 20 points to the subview’s bounds height and width, and thus added 20 points to the subview’s frame height and width as well (<a class="xref" href="ch14.html#FIGinsetnot">Figure 14.4</a>). The center didn’t move, so we effectively put the 10 points back onto the left, right, top, and bottom of the subview’s frame.</p>
+        <div class="figure">
+          <a id="FIGinsetnot"></a>
+          <div class="figure-contents">
+            <div class="mediaobject">
+              <img src="figs/pios_1404.png" alt="figs/pios_1404.png" />
+            </div>
+          </div>
+          <p class="title">Figure 14.4. A subview exactly covering its superview</p>
+        </div>
+        <br class="figure-break" />
+        <p>When you create a UIView, its bounds coordinate system’s <code class="literal">{0,0}</code> point is at its top left. If you change a view’s bounds <span class="emphasis"><em>origin</em></span>, you move the <span class="emphasis"><em>origin of its internal coordinate system</em></span>.<a id="idm441651810352" class="indexterm"></a>
+<a id="idm441651809072" class="indexterm"></a> Because a subview is positioned in its superview with respect to its superview’s coordinate system, a change in the bounds origin of the superview will change the apparent position of a subview. To illustrate, we start with our subview inset evenly within its superview, and then change the bounds origin of the superview:</p>
+        <pre class="screen">UIView* v1 = [[UIView alloc] initWithFrame:CGRectMake(113, 111, 132, 194)];
+v1.backgroundColor = [UIColor colorWithRed:1 green:.4 blue:1 alpha:1];
+UIView* v2 = [[UIView alloc] initWithFrame:CGRectInset(v1.bounds, 10, 10)];
+v2.backgroundColor = [UIColor colorWithRed:.5 green:1 blue:0 alpha:1];
+[self.window.rootViewController.view addSubview: v1];
+[v1 addSubview: v2];
+CGRect f = v1.bounds;
+f.origin.x += 10;
+f.origin.y += 10;
+v1.bounds = f;</pre>
+        <p>Nothing happens to the superview’s size or position. But the subview has moved up and to the left so that it is flush with its superview’s top-left corner (<a class="xref" href="ch14.html#FIGboundsOrigin">Figure 14.5</a>). Basically, what we’ve done is to say to the superview, “Instead of calling the point at your upper left <code class="literal">{0,0}</code>, call that point <code class="literal">{10,10}</code>.” Because the subview’s frame origin is itself at <code class="literal">{10,10}</code>, the subview now touches the superview’s top-left corner. The effect of changing a view’s bounds origin may seem directionally backward — we increased the superview’s origin in the positive direction, but the subview moved in the negative direction — but think of it this way: a view’s bounds origin point coincides with its frame’s top left.</p>
+        <div class="figure">
+          <a id="FIGboundsOrigin"></a>
+          <div class="figure-contents">
+            <div class="mediaobject">
+              <img src="figs/pios_1405.png" alt="figs/pios_1405.png" />
+            </div>
+          </div>
+          <p class="title">Figure 14.5. The superview’s bounds origin has been shifted</p>
+        </div>
+        <br class="figure-break" />
+        <p>We have seen that changing a view’s bounds size affects its frame size. The converse is also true: changing a view’s frame size affects its bounds size. What is <span class="emphasis"><em>not</em></span> affected by changing a view’s bounds size is the view’s <code class="literal">center</code>. This property, like the <code class="literal">frame</code> property, represents the view’s position within its superview, in the superview’s coordinates, but it is the position of the bounds center, the point derived from the bounds like this:</p>
+        <pre class="screen">CGPoint c = CGPointMake(CGRectGetMidX(theView.bounds),
+                        CGRectGetMidY(theView.bounds));</pre>
+        <p>A view’s center is thus a single point establishing the positional relationship between a view’s bounds and its superview’s bounds. Changing a view’s bounds does not change its center (we already saw that when we increased a view’s bounds size, its frame expanded around a stationary center); changing a view’s center does not change its bounds.</p>
+        <p>Thus, a view’s bounds and center are orthogonal (independent), and describe (among other things) both the view’s size and its position within its superview. The view’s frame is therefore superfluous! In fact, the <code class="literal">frame</code> property is merely a convenient expression of the <code class="literal">center</code> and <code class="literal">bounds</code> values. In most cases, this won’t matter to you; you’ll use the <code class="literal">frame</code> property anyway. When you first create a view from scratch, the designated initializer is <code class="literal">initWithFrame:</code>. You can change the frame, and the bounds size and center will change to match. You can change the bounds size or the center, and the frame will change to match. Nevertheless, the proper and most reliable way to position and size a view within its superview is to use its bounds and center, not its frame; there are some situations in which the frame is meaningless (or will at least behave very oddly), but the bounds and center will always work.</p>
+        <p>We have seen that every view has its own coordinate system, expressed by its <code class="literal">bounds</code>, and that a view’s coordinate system has a clear relationship to its superview’s coordinate system, expressed by its <code class="literal">center</code>. This is true of every view in a window, so it is possible to convert between the coordinates of any two views in the same window. Convenience methods are supplied to perform this conversion both for a CGPoint and for a CGRect: <code class="literal">convertPoint:fromView:</code>, <code class="literal">convertPoint:toView:</code>, <code class="literal">convertRect:fromView:</code>, and <code class="literal">convertRect:toView:</code>. If the second parameter is nil, it is taken to be the window.<a id="idm441651784448" class="indexterm"></a>
+<a id="idm441651783136" class="indexterm"></a></p>
+        <p>For example, if <code class="literal">v2</code> is a subview of <code class="literal">v1</code>, then to center <code class="literal">v2</code> within <code class="literal">v1</code> you could say:</p>
+        <pre class="screen">v2.center = [v1 convertPoint:v1.center fromView:v1.superview];</pre>
+        <div class="warning" style="margin-left: 0; margin-right: 10%;">
+          <h3 class="title">Warning</h3>
+          <p>When setting a view’s position by setting its center, if the height or width of the view is not an even integer, the view can end up <span class="emphasis"><em>misaligned</em></span> (on a single-resolution screen): its point values in one or both dimensions are located between the screen pixels. This can cause the view to be displayed incorrectly; for example, if the view contains text, the text may be blurry. You can detect this situation in the Simulator by checking Debug → Color Misaligned Images. A simple solution is to set the view’s frame, after positioning it, to the <code class="literal">CGRectIntegral</code> of its frame.<a id="idm441651775984" class="indexterm"></a>
+<a id="idm441651774704" class="indexterm"></a><a id="idm441651773808" class="indexterm"></a>
+<a id="idm441651772512" class="indexterm"></a></p>
+        </div>
+        <div class="sidebar">
+          <a id="SBWindowBounds"></a>
+          <div class="titlepage">
+            <div>
+              <div>
+                <p class="title">Window Coordinates and Screen Coordinates</p>
+              </div>
+            </div>
+          </div>
+          <p>The device screen has no frame, but it has bounds. The main window has no superview, but its frame is set with respect to the screen’s bounds, as in the template code I cited earlier:</p>
+          <pre class="screen">self.window =
+    [[UIWindow alloc] initWithFrame:[[UIScreen mainScreen] bounds]];</pre>
+          <p>The window’s frame is unusual. It isn’t your app’s visible frame, because it may be partially covered by the status bar, which is actually another window, supplied by the system.<a id="idm441651768096" class="indexterm"></a> Its coordinates are invariant, regardless of the rotation of the device: the window’s <code class="literal">{0,0}</code> point thus might be in any corner (from the user’s perspective). Thus, <span class="emphasis"><em>window coordinates are screen coordinates</em></span>.<a id="idm441651765824" class="indexterm"></a>
+<a id="idm441651764512" class="indexterm"></a><a id="idm441651763600" class="indexterm"></a>
+<a id="idm441651762288" class="indexterm"></a></p>
+          <p>The region of the window <span class="emphasis"><em>not</em></span> covered by the status bar, in screen coordinates, which are also window coordinates, may be obtained from the main screen’s <code class="literal">applicationFrame</code> property:<a id="idm441651759712" class="indexterm"></a><a id="idm441651758784" class="indexterm"></a></p>
+          <pre class="screen">CGRect f = [UIScreen mainScreen].applicationFrame;</pre>
+          <p>Once the window is created, you will rarely need to access its coordinates, except to use its bounds as the ultimate coordinate reference system. The root view controller’s view will be much more important to you. By default, its frame is set to equal the <code class="literal">applicationFrame</code>, and if the device is rotated and the interface rotates to compensate, its frame is adjusted so that it continues to equal the <code class="literal">applicationFrame</code>. This is one of the main benefits of using a root view controller.</p>
+        </div>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_transform"></a>Transform</h2>
+            </div>
+          </div>
+        </div>
+        <p>A view’s <code class="literal">transform</code> property alters how the view is drawn — it may, for example, change the view’s perceived size and orientation — without affecting its bounds and center. A transformed view continues to behave correctly: a rotated button, for example, is still a button, and can be tapped in its apparent location and orientation.<a id="idm441651751648" class="indexterm"></a>
+<a id="idm441651750400" class="indexterm"></a></p>
+        <p>A transform value is a <a id="idm441651749088" class="indexterm"></a>CGAffineTransform, which is a struct representing six of the nine values of a 3×3 transformation matrix (the other three values are constants, so there’s no point representing them in the struct). You may have forgotten your high-school linear algebra, so you may not recall what a transformation matrix is. For the details, which are quite simple really, see the “Transforms” chapter of Apple’s <span class="emphasis"><em>Quartz 2D Programming Guide</em></span>, especially the section called “The Math Behind the Matrices.” But you don’t really need to know those details, because convenience functions, whose names start with <code class="literal">CGAffineTransformMake...</code>, are provided for creating three of the basic types of transform: rotation, scaling, and translation (i.e., changing the view’s apparent position). A fourth basic transform type, skewing or shearing, has no convenience function.</p>
+        <p>By default, a view’s transformation matrix is <code class="literal">CGAffineTransformIdentity</code>, the identity transform. It has no visible effect, so you’re unaware of it. Any transform that you do apply takes place around the view’s center, which is held constant.</p>
+        <p>Here’s some code to illustrate use of a transform:</p>
+        <pre class="screen">UIView* v1 = [[UIView alloc] initWithFrame:CGRectMake(113, 111, 132, 194)];
+v1.backgroundColor = [UIColor colorWithRed:1 green:.4 blue:1 alpha:1];
+UIView* v2 = [[UIView alloc] initWithFrame:CGRectInset(v1.bounds, 10, 10)];
+v2.backgroundColor = [UIColor colorWithRed:.5 green:1 blue:0 alpha:1];
+[self.window.rootViewController.view addSubview: v1];
+[v1 addSubview: v2];
+v1.transform = CGAffineTransformMakeRotation(45 * M_PI/180.0);</pre>
+        <p>The <code class="literal">transform</code> property of the view <code class="literal">v1</code> is set to a rotation transform. The result (<a class="xref" href="ch14.html#FIGtransform">Figure 14.6</a>) is that the view appears to be rocked 45 degrees clockwise. (I think in degrees, but Core Graphics thinks in radians, so my code has to convert.) Observe that the view’s <code class="literal">center</code> property is unaffected, so that the rotation seems to have occurred around the view’s center. Moreover, the view’s <code class="literal">bounds</code> property is unaffected; the internal coordinate system is unchanged, so the subview is drawn in the same place relative to its superview. The view’s <code class="literal">frame</code>, however, is now useless, as no mere rectangle can describe the region of the superview apparently occupied by the view; the frame’s actual value, <code class="literal">{{63.7416, 92.7416}, {230.517, 230.517}}</code>, describes the minimal bounding rectangle surrounding the view’s apparent position. The rule is that if a view’s <code class="literal">transform</code> is not the identity transform, you should not set its <code class="literal">frame</code>; also, automatic resizing of a subview, discussed later in this chapter, requires that the superview’s transform be the identity transform.</p>
+        <div class="figure">
+          <a id="FIGtransform"></a>
+          <div class="figure-contents">
+            <div class="mediaobject">
+              <img src="figs/pios_1406.png" alt="figs/pios_1406.png" />
+            </div>
+          </div>
+          <p class="title">Figure 14.6. A rotation transform</p>
+        </div>
+        <br class="figure-break" />
+        <p>Suppose, instead of <code class="literal">CGAffineTransformMakeRotation</code>, we call <code class="literal">CGAffineTransformMakeScale</code>, like this:</p>
+        <pre class="screen">v1.transform = CGAffineTransformMakeScale(1.8, 1);</pre>
+        <p>The <code class="literal">bounds</code> property of the view <code class="literal">v1</code> is still unaffected, so the subview is still drawn in the same place relative to its superview; this means that the two views seem to have stretched horizontally together (<a class="xref" href="ch14.html#FIGtransformScale">Figure 14.7</a>). No bounds or centers were harmed by the application of this transform!</p>
+        <div class="figure">
+          <a id="FIGtransformScale"></a>
+          <div class="figure-contents">
+            <div class="mediaobject">
+              <img src="figs/pios_1407.png" alt="figs/pios_1407.png" />
+            </div>
+          </div>
+          <p class="title">Figure 14.7. A scale transform</p>
+        </div>
+        <br class="figure-break" />
+        <p>Transformation matrices can be chained. There are convenience functions for applying one transform to another. Their names do <span class="emphasis"><em>not</em></span> contain “Make.” These functions are not commutative; that is, order matters. If you start with a transform that translates a view to the right and then apply a rotation of 45 degrees, the rotated view appears to the right of its original position; on the other hand, if you start with a transform that rotates a view 45 degrees and then apply a translation to the right, the meaning of “right” has changed, so the rotated view appears 45 degrees down from its original position. To demonstrate the difference, I’ll start with a subview that exactly overlaps its superview:</p>
+        <pre class="screen">UIView* v1 = [[UIView alloc] initWithFrame:CGRectMake(20, 111, 132, 194)];
+v1.backgroundColor = [UIColor colorWithRed:1 green:.4 blue:1 alpha:1];
+UIView* v2 = [[UIView alloc] initWithFrame:v1.bounds];
+v2.backgroundColor = [UIColor colorWithRed:.5 green:1 blue:0 alpha:1];
+[self.window.rootViewController.view addSubview: v1];
+[v1 addSubview: v2];</pre>
+        <p>Then I’ll apply two successive transforms to the subview, leaving the superview to show where the subview was originally. In this example, I translate and then rotate (<a class="xref" href="ch14.html#FIGtranslateRotate">Figure 14.8</a>):</p>
+        <pre class="screen">v2.transform = CGAffineTransformMakeTranslation(100, 0);
+v2.transform = CGAffineTransformRotate(v2.transform, 45 * M_PI/180.0);</pre>
+        <div class="figure">
+          <a id="FIGtranslateRotate"></a>
+          <div class="figure-contents">
+            <div class="mediaobject">
+              <img src="figs/pios_1408.png" alt="figs/pios_1408.png" />
+            </div>
+          </div>
+          <p class="title">Figure 14.8. Translation, then rotation</p>
+        </div>
+        <br class="figure-break" />
+        <p>In this example, I rotate and then translate (<a class="xref" href="ch14.html#FIGrotateTranslate">Figure 14.9</a>):</p>
+        <pre class="screen">v2.transform = CGAffineTransformMakeRotation(45 * M_PI/180.0);
+v2.transform = CGAffineTransformTranslate(v2.transform, 100, 0);</pre>
+        <div class="figure">
+          <a id="FIGrotateTranslate"></a>
+          <div class="figure-contents">
+            <div class="mediaobject">
+              <img src="figs/pios_1409.png" alt="figs/pios_1409.png" />
+            </div>
+          </div>
+          <p class="title">Figure 14.9. Rotation, then translation</p>
+        </div>
+        <br class="figure-break" />
+        <p>The function <code class="literal">CGAffineTransformConcat</code> concatenates two transform matrices using matrix multiplication. Again, this operation is not commutative. The order is the <span class="emphasis"><em>opposite</em></span> of the order when using convenience functions for applying one transform to another. For example, this gives the same result as <a class="xref" href="ch14.html#FIGrotateTranslate">Figure 14.9</a>:</p>
+        <pre class="screen">CGAffineTransform r = CGAffineTransformMakeRotation(45 * M_PI/180.0);
+CGAffineTransform t = CGAffineTransformMakeTranslation(100, 0);
+v2.transform = CGAffineTransformConcat(t,r); // not r,t</pre>
+        <p>To remove a transform from a combination of transforms, apply its inverse. A convenience function lets you obtain the inverse of a given affine transform. Again, order matters. In this example, I rotate the subview and shift it to its “right,” and then remove the rotation (<a class="xref" href="ch14.html#FIGrotateTranslateUnrotate">Figure 14.10</a>):</p>
+        <pre class="screen">CGAffineTransform r = CGAffineTransformMakeRotation(45 * M_PI/180.0);
+CGAffineTransform t = CGAffineTransformMakeTranslation(100, 0);
+v2.transform = CGAffineTransformConcat(t,r);
+v2.transform =
+    CGAffineTransformConcat(CGAffineTransformInvert(r), v2.transform);</pre>
+        <div class="figure">
+          <a id="FIGrotateTranslateUnrotate"></a>
+          <div class="figure-contents">
+            <div class="mediaobject">
+              <img src="figs/pios_1410.png" alt="figs/pios_1410.png" />
+            </div>
+          </div>
+          <p class="title">Figure 14.10. Rotation, then translation, then inversion of the rotation</p>
+        </div>
+        <br class="figure-break" />
+        <p>Finally, as there are no convenience methods for creating a skew (shear) transform, I’ll illustrate by creating one manually, without further explanation (<a class="xref" href="ch14.html#FIGskew">Figure 14.11</a>):</p>
+        <pre class="screen">v1.transform = CGAffineTransformMake(1, 0, -0.2, 1, 0, 0);</pre>
+        <div class="figure">
+          <a id="FIGskew"></a>
+          <div class="figure-contents">
+            <div class="mediaobject">
+              <img src="figs/pios_1411.png" alt="figs/pios_1411.png" />
+            </div>
+          </div>
+          <p class="title">Figure 14.11. Skew (shear)</p>
+        </div>
+        <br class="figure-break" />
+        <p>Transforms are useful particularly as temporary visual indicators. For example, you might call attention to a view by applying a transform that scales it up slightly, and then applying the identity transform to restore it to its original size, and animating those changes (<a class="xref" href="ch17.html">Chapter 17</a>).</p>
+        <p>The <code class="literal">transform</code> property lies at the heart of an iOS app’s ability to rotate its interface. The window’s frame and bounds, as I’ve already said, are invariant, locked to the screen; but the root view’s frame and bounds are not. Suppose the user rotates the device 90 degrees and the app interface is to rotate to compensate. How is this done? The root view’s frame is adjusted to match the new <code class="literal">applicationFrame</code>, so that it continues to fill the window except for the part covered by the status bar. In addition, a 90-degree rotation transform is applied to the root view, so that its {0,0} point moves to what the user now sees as the top left of the view. The root view’s subviews have their frame in the root view’s bounds coordinate system, so they are effectively rotated.</p>
+        <p>But what about the <span class="emphasis"><em>position</em></span> of the root view’s subviews? Consider, for example, a subview located at the bottom right of the screen when the device is in portrait orientation. If the device is rotated 90 degrees, the screen is now considerably shorter vertically, and if a 90-degree rotation transform is applied to the root view to compensate for the device rotation, the root view’s bounds width and bounds height are effectively swapped, with what was the longer dimension becoming the shorter dimension and <span class="emphasis"><em>vice versa</em></span>. So that poor old subview will now be off the screen — unless something further is done. That’s the subject of the next section.</p>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_layout"></a>Layout</h2>
+            </div>
+          </div>
+        </div>
+        <p>We have seen that a subview moves when its superview’s bounds <span class="emphasis"><em>origin</em></span> is changed. But what happens to a subview when its superview’s bounds <span class="emphasis"><em>size</em></span> is changed? (And remember, this includes changing the superview’s frame size.)</p>
+        <p>Of its own accord, nothing happens. The subview’s bounds and center haven’t changed, and the superview’s bounds origin hasn’t moved, so the subview stays in the same position relative to the top left of its superview. In real life, however, that often won’t be what you want. You’ll want subviews to be resized and repositioned when their superview’s bounds size is changed. This is called <span class="emphasis"><em>layout</em></span>.<a id="idm441651685760" class="indexterm"></a>
+<a id="idm441651684512" class="indexterm"></a><a id="idm441651683648" class="indexterm"></a></p>
+        <p>The need for layout is obvious in a context such as Mac OS X, where the user can freely resize a window, potentially disturbing your interface. For example, you’d want an OK button near the lower-right corner to stay in the lower-right corner as the window grows, while a text field at the top of the window should stay at the top of the window, but perhaps should widen as the window widens.</p>
+        <p>There are no user-resizable windows on an iOS device, but still, a superview might be resized dynamically. For example, you might respond to the user rotating the device 90 degrees by swapping the width and height values of a view; now its subviews should shift to compensate. Or you might want to provide a reusable complex view, such as a table view cell containing several subviews, without knowing its precise final dimensions in advance. And the introduction of the iPhone 5, with its taller screen, means that one and the same app might launch into portrait orientation on an iPhone 4 and on an iPhone 5, with different height dimensions, which may call for some adjustment of the interface.</p>
+        <p>Layout is performed in three primary ways in iOS 6:</p>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+Manual layout
+</span>
+            </dt>
+            <dd>
+The superview is sent the <code class="literal">layoutSubviews</code> message whenever it is resized; so, to lay out subviews manually, provide your own subclass and override <code class="literal">layoutSubviews</code>. Clearly this could turn out to be a lot of work, but it means you can do anything you like.
+</dd>
+            <dt>
+              <span class="term">
+Autoresizing
+</span>
+            </dt>
+            <dd>
+Autoresizing is the pre-iOS 6 way of performing layout automatically. It depends ultimately on the superview’s <code class="literal">autoresizesSubviews</code> property. To turn off a view’s automatic resizing altogether, set this property to NO. If it is YES, then a subview will respond automatically to its superview’s being resized, in accordance with the rules prescribed by the subview’s <code class="literal">autoresizingMask</code> property value.<a id="idm441651674128" class="indexterm"></a>
+<a id="idm441651672848" class="indexterm"></a> Autoresizing is performed before <code class="literal">layoutSubviews</code> is called.
+</dd>
+            <dt>
+              <span class="term">
+Autolayout
+</span>
+            </dt>
+            <dd>
+              <p class="simpara">
+Autolayout, introduced in iOS 6, depends on the <span class="emphasis"><em>constraints</em></span> of views. A constraint (an instance of NSLayoutConstraint) is much more sophisticated than the <code class="literal">autoresizingMask</code>; it’s a full-fledged object with numeric values, and can describe a relationship between <span class="emphasis"><em>any</em></span> two views (not just a subview and its superview).
+</p>
+              <p class="simpara">Autolayout is an opt-in technology (though it is the default for new nibs created in Xcode 4.5 and later), and is incompatible with systems before iOS 6. You can implement it on a view by view basis; for example, you might lay out a superview using autoresizing but its subviews using autolayout. Autolayout replaces not only autoresizing but also the use of a view’s frame (or bounds and center) to position that view; once you choose to use autolayout for a view, you should use only autolayout for that view, both to set its position and to determine what should happen if there’s a change in another view to which this one is bound by a constraint.</p>
+            </dd>
+          </dl>
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_autoresizing"></a>Autoresizing</h3>
+              </div>
+            </div>
+          </div>
+          <p>Autoresizing is a matter of conceptually assigning a subview “springs and struts.” A spring can stretch; a strut can’t. Springs and struts can be assigned internally or externally. Thus you can specify (using <span class="emphasis"><em>internal</em></span> springs and struts) whether and how the view can be resized, and (using <span class="emphasis"><em>external</em></span> springs and struts) whether and how the view can be repositioned. For example:</p>
+          <div class="itemizedlist">
+            <ul class="itemizedlist" type="disc">
+              <li class="listitem">
+Imagine a subview that is centered in its superview and is to stay centered, but is to resize itself as the superview is resized. It would have struts externally and springs internally.
+</li>
+              <li class="listitem">
+Imagine a subview that is centered in its superview and is to stay centered, and is <span class="emphasis"><em>not</em></span> to resize itself as the superview is resized. It would have springs externally and struts internally.
+</li>
+              <li class="listitem">
+Imagine an OK button that is to stay in the lower right of its superview. It would have struts internally, struts externally to its right and bottom, and springs externally to its top and left.
+</li>
+              <li class="listitem">
+Imagine a text field that is to stay at the top of its superview. It is to widen as the superview widens. It would have struts externally; internally it would have a vertical strut and a horizontal spring.
+</li>
+            </ul>
+          </div>
+          <p>To experiment with autoresizing in a nib, you’ll need autolayout to be turned off for that nib. By default, autolayout is turned on for a new nib created in Xcode 4.5 and later. To turn it off, select the nib in the Project navigator and show the File inspector: uncheck “Use autolayout.”</p>
+          <p>When editing a nib file with autolayout turned off, you can assign a view springs and struts in the Size inspector (Autosizing). A solid line externally represents a strut; a solid line internally represents a spring. A helpful animation shows you the effect on your view’s position as its superview is resized.</p>
+          <p>In code, a combination of springs and struts is set through a view’s <code class="literal">autoresizingMask</code> property. It’s a bitmask, so you use logical-or to combine options (<a class="xref" href="ch01.html">Chapter 1</a>). The options, with names that start with <code class="literal">UIViewAutoresizingFlexible...</code>, represent springs; whatever isn’t specified is a strut. The default is <code class="literal">UIViewAutoresizingNone</code>, meaning all struts — but of course it can’t really be <span class="emphasis"><em>all</em></span> struts, because if the superview is resized, <span class="emphasis"><em>something</em></span> needs to change; in reality, <code class="literal">UIViewAutoresizingNone</code> is the same as <code class="literal">UIViewAutoresizingFlexibleRightMargin</code> together with <code class="literal">UIViewAutoresizingFlexibleBottomMargin</code>.</p>
+          <p>To demonstrate autoresizing, I’ll start with a view and two subviews, one stretched across the top, the other confined to the lower right (<a class="xref" href="ch14.html#FIGbeforeAutoresizing">Figure 14.12</a>):</p>
+          <pre class="screen">UIView* v1 = [[UIView alloc] initWithFrame:CGRectMake(100, 111, 132, 194)];
+v1.backgroundColor = [UIColor colorWithRed:1 green:.4 blue:1 alpha:1];
+UIView* v2 = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 132, 10)];
+v2.backgroundColor = [UIColor colorWithRed:.5 green:1 blue:0 alpha:1];
+UIView* v3 = [[UIView alloc] initWithFrame:CGRectMake(v1.bounds.size.width-20,
+                                                      v1.bounds.size.height-20,
+                                                      20, 20)];
+v3.backgroundColor = [UIColor colorWithRed:1 green:0 blue:0 alpha:1];
+[self.window.rootViewController.view addSubview: v1];
+[v1 addSubview: v2];
+[v1 addSubview: v3];</pre>
+          <div class="figure">
+            <a id="FIGbeforeAutoresizing"></a>
+            <div class="figure-contents">
+              <div class="mediaobject">
+                <img src="figs/pios_1412.png" alt="figs/pios_1412.png" />
+              </div>
+            </div>
+            <p class="title">Figure 14.12. Before autoresizing</p>
+          </div>
+          <br class="figure-break" />
+          <p>To that example, I’ll add code applying springs and struts to the two subviews to make them behave like the text field and the OK button I was hypothesizing earlier:</p>
+          <pre class="screen">v2.autoresizingMask = UIViewAutoresizingFlexibleWidth;
+v3.autoresizingMask = UIViewAutoresizingFlexibleTopMargin |
+                      UIViewAutoresizingFlexibleLeftMargin;</pre>
+          <p>Now I’ll resize the superview, thus bringing autoresizing into play; as you can see (<a class="xref" href="ch14.html#FIGafterAutoresizing">Figure 14.13</a>), the subviews remain pinned in their correct relative positions:</p>
+          <pre class="screen">CGRect f = v1.bounds;
+f.size.width += 40;
+f.size.height -= 50;
+v1.bounds = f;</pre>
+          <div class="figure">
+            <a id="FIGafterAutoresizing"></a>
+            <div class="figure-contents">
+              <div class="mediaobject">
+                <img src="figs/pios_1413.png" alt="figs/pios_1413.png" />
+              </div>
+            </div>
+            <p class="title">Figure 14.13. After autoresizing</p>
+          </div>
+          <br class="figure-break" />
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_autolayout"></a>Autolayout</h3>
+              </div>
+            </div>
+          </div>
+          <p>Autolayout is an opt-in technology. By default, as your app launches, autolayout is switched off, and the system behaves as in iOS 5 and before. But if, at any time while your app runs, the system sees an autolayout constraint (generated in code or by the loading of a nib that has “Use autolayout” checked), the autolayout system is switched on, and from then on you’re running under autolayout.<a id="idm441651635200" class="indexterm"></a>
+<a id="idm441651633312" class="indexterm"></a>
+<a id="idxautolayout" class="indexterm"></a>
+<a id="idxautolayout2" class="indexterm"></a>
+<a id="idm441651629264" class="indexterm"></a>
+<a id="idm441651627952" class="indexterm"></a></p>
+          <div class="note" style="margin-left: 0; margin-right: 10%;">
+            <h3 class="title">Note</h3>
+            <p>A common place to create constraints is in a view’s <code class="literal">updateConstraints</code> implementation (discussed later in this chapter). However, if there are no constraints to start with, <code class="literal">updateConstraints</code> won’t be called. So you might need a way to bootstrap autolayout. That way is to
+implement the UIView class method <code class="literal">requiresConstraintBasedLayout</code> to return YES in some UIView subclass.</p>
+          </div>
+          <p>An autolayout constraint, or simply <span class="emphasis"><em>constraint</em></span>, is an NSLayoutConstraint instance, and describes either the absolute width or height of a view or a relationship between an attribute of one view and an attribute of another view. In the latter case, the attributes don’t have to be the same attribute, and the two views don’t have to be siblings (subviews of the same superview) or parent and child (superview and subview) — the only requirement is that they share a common ancestor (a superview at some height up the view hierarchy).
+<a id="idm441651623024" class="indexterm"></a></p>
+          <p>Here are the chief properties of an NSLayoutConstraint:</p>
+          <div class="variablelist">
+            <dl>
+              <dt>
+                <span class="term">
+<code class="literal">firstItem</code>
+<br /></span>
+                <span class="term">
+<code class="literal">firstAttribute</code>
+<br /></span>
+                <span class="term">
+<code class="literal">secondItem</code>
+<br /></span>
+                <span class="term">
+<code class="literal">secondAttribute</code>
+</span>
+              </dt>
+              <dd>
+                <p class="simpara">
+The two views and their respective attributes involved in this constraint. If the constraint is describing a view’s absolute height or width, the second view will be nil and the second attribute will be <code class="literal">NSLayoutAttributeNotAnAttribute</code> (which you’ll probably write as 0). Additional attribute types are:
+</p>
+                <div class="itemizedlist">
+                  <ul class="itemizedlist" type="disc">
+                    <li class="listitem">
+<code class="literal">NSLayoutAttributeLeft</code>
+</li>
+                    <li class="listitem">
+<code class="literal">NSLayoutAttributeRight</code>
+</li>
+                    <li class="listitem">
+<code class="literal">NSLayoutAttributeTop</code>
+</li>
+                    <li class="listitem">
+<code class="literal">NSLayoutAttributeBottom</code>
+</li>
+                    <li class="listitem">
+<code class="literal">NSLayoutAttributeLeading</code>
+</li>
+                    <li class="listitem">
+<code class="literal">NSLayoutAttributeTrailing</code>
+</li>
+                    <li class="listitem">
+<code class="literal">NSLayoutAttributeWidth</code>
+</li>
+                    <li class="listitem">
+<code class="literal">NSLayoutAttributeHeight</code>
+</li>
+                    <li class="listitem">
+<code class="literal">NSLayoutAttributeCenterX</code>
+</li>
+                    <li class="listitem">
+<code class="literal">NSLayoutAttributeCenterY</code>
+</li>
+                    <li class="listitem">
+<code class="literal">NSLayoutAttributeBaseline</code>
+</li>
+                  </ul>
+                </div>
+                <p class="simpara">The meanings of the attributes are intuitively obvious, except that you might be wondering about what “leading” and “trailing” mean: they are the international equivalent of “left” and “right”, automatically reversing their meaning on systems whose language is written right-to-left (making it easy, say, to align the beginnings of several labels of different lengths, irrespective of localization).</p>
+              </dd>
+              <dt>
+                <span class="term">
+<code class="literal">multiplier</code>
+<br /></span>
+                <span class="term">
+<code class="literal">constant</code>
+</span>
+              </dt>
+              <dd>
+Numbers to be applied to the second attribute’s value to determine the first attribute’s value. The <code class="literal">multiplier</code> is multiplied by the second attribute’s value; the <code class="literal">constant</code> is added to that product. (The name <span class="emphasis"><em>constant</em></span> is a very poor choice, as this value isn’t constant; have the Apple folks never heard the term <span class="emphasis"><em>addend</em></span>?) Basically, you’re writing an equation of the form <span class="emphasis"><em>a<sub>1</sub> = ma<sub>2</sub> + c</em></span>, where <span class="emphasis"><em>a<sub>1</sub></em></span> and <span class="emphasis"><em>a<sub>2</sub></em></span> are the two attributes, and <span class="emphasis"><em>m</em></span> and <span class="emphasis"><em>c</em></span> are the multiplier and the constant. Thus, in the most degenerate case, when the first attribute’s value is to equal the second attribute’s value, the multiplier will be 1 and the constant will be 0.
+</dd>
+              <dt>
+                <span class="term">
+<code class="literal">relation</code>
+</span>
+              </dt>
+              <dd>
+How the two attribute values are to be related to one another, as modified by the <code class="literal">multiplier</code> and the <code class="literal">constant</code>. This is the operator that goes in the spot where I put the equal sign in the equation in the preceding paragraph. It might be an equal sign (<code class="literal">NSLayoutRelationEqual</code>, which you’ll probably write as 0), but then again it might not; inequalities are also permitted (<code class="literal">NSLayoutRelationLessThanOrEqual</code>, <code class="literal">NSLayoutRelationGreaterThanOrEqual</code>).
+</dd>
+              <dt>
+                <span class="term">
+<code class="literal">priority</code>
+</span>
+              </dt>
+              <dd>
+Priority values range from 1000 (required) down to 1, and certain standard behaviors have standard priorities. Constraints can have different priorities, determining the order in which they are applied. Constraints are permitted to conflict with one another provided they have different priorities.
+</dd>
+            </dl>
+          </div>
+          <p>A constraint belongs to a view. A view can have many constraints: a UIView has a <code class="literal">constraints</code> property, along with instance methods <code class="literal">addConstraint:</code>, <code class="literal">addConstraints:</code>, <code class="literal">removeConstraint:</code>, and <code class="literal">removeConstraints:</code>.</p>
+          <p>The question then is <span class="emphasis"><em>which</em></span> view a given constraint should belong to. The answer is absolute: it is the <span class="emphasis"><em>closest superview</em></span> of both views involved in a constraint. Thus, for example, if the constraint dictates a view’s absolute width, it belongs to that view; if it aligns the tops of two sibling views, it belongs to their superview; if it sets the top of a view in relation to the top of its superview, it belongs to the superview. The runtime may permit you to cheat and add a constraint at too high a level, but adding a constraint that refers to a view outside the subview hierarchy of the view to which you add it will cause a crash (with a helpful error message).<a id="idm441651573760" class="indexterm"></a>
+<a id="idm441651572528" class="indexterm"></a></p>
+          <p>Both views involved in a constraint must be present in the view hierarchy before the constraint can be added.</p>
+          <p>NSLayoutConstraint properties are read-only, except for <code class="literal">priority</code> and <code class="literal">constant</code>. In <a class="xref" href="ch17.html">Chapter 17</a>, it will turn out that changing a constraint’s <code class="literal">constant</code> in real time is a good way to animate a view. If you want to change anything else about a constraint, you must remove the constraint and add a new one.</p>
+          <p>If you use constraints, and if a view is created either in code or in a nib where “Use autolayout” is unchecked, that view’s <code class="literal">autoresizingMask</code> is automatically translated into constraint form and applied in addition to any constraints you apply. It isn’t one of the view’s <code class="literal">constraints</code>, but it’s operating as a set of constraints anyway. If that isn’t what you want — that is, if <span class="emphasis"><em>only</em></span> the constraints you apply are to be treated as constraints — you must explicitly turn off this behavior by setting the view’s <code class="literal">translatesAutoresizingMaskIntoConstraints</code> property to NO, because the default is YES.</p>
+          <div class="note" style="margin-left: 0; margin-right: 10%;">
+            <h3 class="title">Note</h3>
+            <p>It may seem inconvenient to have to keep turning off <code class="literal">translatesAutoresizingMaskIntoConstraints</code>; why is the default YES? For a very good reason: that’s what allows you to use autolayout for some views and autoresizing for others. If a minimum of just one view has a minimum of just one explicit constraint, the <span class="emphasis"><em>entire</em></span> autolayout system springs to life throughout your entire interface. This doesn’t cause havoc, because all the views without explicit constraints have <code class="literal">translatesAutoresizingMaskIntoConstraints</code> turned on by default, so their autoresizing masks are implicitly translated into constraints (hence the name!) and the layout dictated by those autoresizing masks continues to work.</p>
+          </div>
+          <p>We are now ready to write some code involving constraints! I’ll generate the same views and subviews and layout behavior as in <a class="xref" href="ch14.html#FIGbeforeAutoresizing">Figure 14.12</a> and <a class="xref" href="ch14.html#FIGafterAutoresizing">Figure 14.13</a>, but using constraints:</p>
+          <pre class="screen">UIView* v1 = [[UIView alloc] initWithFrame:CGRectMake(100, 111, 132, 194)];
+v1.backgroundColor = [UIColor colorWithRed:1 green:.4 blue:1 alpha:1];
+UIView* v2 = [UIView new];
+UIView* v3 = [UIView new];
+v2.backgroundColor = [UIColor colorWithRed:.5 green:1 blue:0 alpha:1];
+v3.backgroundColor = [UIColor colorWithRed:1 green:0 blue:0 alpha:1];
+[self.window.rootViewController.view addSubview: v1];
+[v1 addSubview: v2];
+[v1 addSubview: v3];
+
+v2.translatesAutoresizingMaskIntoConstraints = NO;
+v3.translatesAutoresizingMaskIntoConstraints = NO;
+[v1 addConstraint:
+ [NSLayoutConstraint
+  constraintWithItem:v2 attribute:NSLayoutAttributeLeft
+  relatedBy:0
+  toItem:v1 attribute:NSLayoutAttributeLeft
+  multiplier:1 constant:0]];
+[v1 addConstraint:
+ [NSLayoutConstraint
+  constraintWithItem:v2 attribute:NSLayoutAttributeRight
+  relatedBy:0
+  toItem:v1 attribute:NSLayoutAttributeRight
+  multiplier:1 constant:0]];
+[v1 addConstraint:
+ [NSLayoutConstraint
+  constraintWithItem:v2 attribute:NSLayoutAttributeTop
+  relatedBy:0
+  toItem:v1 attribute:NSLayoutAttributeTop
+  multiplier:1 constant:0]];
+[v2 addConstraint:
+ [NSLayoutConstraint
+  constraintWithItem:v2 attribute:NSLayoutAttributeHeight
+  relatedBy:0
+  toItem:nil attribute:0
+  multiplier:1 constant:10]];
+[v3 addConstraint:
+ [NSLayoutConstraint
+  constraintWithItem:v3 attribute:NSLayoutAttributeWidth
+  relatedBy:0
+  toItem:nil attribute:0
+  multiplier:1 constant:20]];
+[v3 addConstraint:
+ [NSLayoutConstraint
+  constraintWithItem:v3 attribute:NSLayoutAttributeHeight
+  relatedBy:0
+  toItem:nil attribute:0
+  multiplier:1 constant:20]];
+[v1 addConstraint:
+ [NSLayoutConstraint
+  constraintWithItem:v3 attribute:NSLayoutAttributeRight
+  relatedBy:0
+  toItem:v1 attribute:NSLayoutAttributeRight
+  multiplier:1 constant:0]];
+[v1 addConstraint:
+ [NSLayoutConstraint
+  constraintWithItem:v3 attribute:NSLayoutAttributeBottom
+  relatedBy:0
+  toItem:v1 attribute:NSLayoutAttributeBottom
+  multiplier:1 constant:0]];</pre>
+          <p>Now, I know what you’re thinking. You’re thinking: “What are you, nuts? That is a boatload of code!” (Except that you probably used another four-letter word instead of “boat”.) But that’s something of an illusion. I’d argue that what we’re doing here is actually <span class="emphasis"><em>simpler</em></span> than the code with which we created <a class="xref" href="ch14.html#FIGbeforeAutoresizing">Figure 14.12</a> through autoresizing:</p>
+          <div class="itemizedlist">
+            <ul class="itemizedlist" type="disc">
+              <li class="listitem">
+We create eight constraints in eight commands; I’ve broken each command into multiple lines, but that’s just a matter of formatting. They’re verbose, but they are the same command repeated with different parameters, so creating them is just a matter of copy-and-paste.
+</li>
+              <li class="listitem">
+It looks as though just two commands (setting the autoresizing masks of the two subviews) have been replaced by eight commands. But we’re getting more bang for our buck than that: we’re no longer assigning <code class="literal">v2</code> and <code class="literal">v3</code> an initial frame! The constraints describe the positions of those views from the outset, and this, in constraint terms, remains their position <span class="emphasis"><em>even as their superview is resized</em></span>. So constraints replace <span class="emphasis"><em>both</em></span> setting a view’s autoresizing mask <span class="emphasis"><em>and</em></span> setting its frame (or bounds and center) as a way of describing its layout.
+</li>
+              <li class="listitem">
+Constraints are a far clearer expression of what’s supposed to happen than setting the autoresizing mask.
+</li>
+              <li class="listitem">
+                <p class="simpara">
+Constraints are also a far clearer expression of a subview’s position than setting its frame! For example, in describing <code class="literal">v3</code>’s position, we don’t have to use any math to place its frame origin. Recall what we had to say before:
+</p>
+                <pre class="screen">v3 = [[UIView alloc] initWithFrame:CGRectMake(v1.bounds.size.width-20,
+                                              v1.bounds.size.height-20,
+                                              20, 20)];</pre>
+                <p class="simpara">That business of subtracting the view’s height and width from its superview’s bounds height and width in order to place the view is skanky and error-prone. With constraints, we can speak the truth directly; our code says, plainly and simply, “<code class="literal">v3</code> is 20 points wide and 20 points high and it’s flush with the bottom right corner of <code class="literal">v1</code>”.</p>
+              </li>
+            </ul>
+          </div>
+          <p>In addition, constraints can express things that autoresizing can’t. For example, instead of applying an absolute height to <code class="literal">v2</code>, we could require that its height be exactly one-tenth of <code class="literal">v1</code>’s height, regardless of how <code class="literal">v1</code> is resized. That sort of thing is utterly impossible without constraints (unless you implement <code class="literal">layoutSubviews</code> and enforce it manually, in code).</p>
+          <p>If you really find our code too verbose, it may be possible to condense it somewhat. Instead of creating each constraint individually, we can sometimes describe multiple constraints simultaneously through a sort of text-based shorthand, called a <span class="emphasis"><em>visual format</em></span>. The shorthand is best understood by example:</p>
+          <pre class="screen">@"V:|[v2(10)]"</pre>
+          <p>In that expression, <code class="literal">V:</code> means that the vertical dimension is under discussion; the alternative is <code class="literal">H:</code>, which is also the default (so it is permitted to specify no dimension). A view’s name appears in square brackets, and a pipe (<code class="literal">|</code>) signifies the superview, so here we’re describing <code class="literal">v2</code>’s top edge as butting up against its superview’s top edge. Numeric dimensions appear in parentheses, and a numeric dimension accompanying a view’s name sets that dimension of that view, so here we’re also taking advantage of this specification of the vertical dimension to set <code class="literal">v2</code>’s height to 10.</p>
+          <p>To use a visual format, you have to provide a dictionary mapping the string name of each view mentioned to the actual view. For example, the dictionary accompanying the preceding expression might be <code class="literal">@{@"v2":v2}</code>. We can form this dictionary automatically with a macro, <code class="literal">NSDictionaryOfVariableBindings</code>, which takes a list of variable names. So here’s another way of expressing of the preceding code example, using the visual format shorthand throughout:</p>
+          <pre class="screen">UIView* v1 = [[UIView alloc] initWithFrame:CGRectMake(100, 111, 132, 194)];
+v1.backgroundColor = [UIColor colorWithRed:1 green:.4 blue:1 alpha:1];
+UIView* v2 = [UIView new];
+UIView* v3 = [UIView new];
+v2.backgroundColor = [UIColor colorWithRed:.5 green:1 blue:0 alpha:1];
+v3.backgroundColor = [UIColor colorWithRed:1 green:0 blue:0 alpha:1];
+[self.window.rootViewController.view addSubview: v1];
+[v1 addSubview: v2];
+[v1 addSubview: v3];
+
+NSDictionary *vs = NSDictionaryOfVariableBindings(v2,v3);
+v2.translatesAutoresizingMaskIntoConstraints = NO;
+v3.translatesAutoresizingMaskIntoConstraints = NO;
+[v1 addConstraints:
+ [NSLayoutConstraint
+  constraintsWithVisualFormat:@"H:|[v2]|"
+  options:0 metrics:nil views:vs]];
+[v1 addConstraints:
+ [NSLayoutConstraint
+  constraintsWithVisualFormat:@"V:|[v2(10)]"
+  options:0 metrics:nil views:vs]];
+[v1 addConstraints:
+ [NSLayoutConstraint
+  constraintsWithVisualFormat:@"H:[v3(20)]|"
+  options:0 metrics:nil views:vs]];
+[v1 addConstraints:
+ [NSLayoutConstraint
+  constraintsWithVisualFormat:@"V:[v3(20)]|"
+  options:0 metrics:nil views:vs]];</pre>
+          <p>That example creates the same constraints as the previous example, but in four commands instead of eight.</p>
+          <p>The visual format syntax shows itself to best advantage when multiple views are laid out in relation to one another along the same dimension; in that situation, you get a lot of bang for your buck (many constraints generated by one visual format string). The syntax, however, is somewhat limited in what constraints it can express; it conceals the number and exact nature of the constraints that it produces; and personally I find it easier to make a mistake with the visual format syntax than with the complete expression of each constraint. Still, you’ll want to become familiar with it, not least because console messages describing a constraint sometimes use it.</p>
+          <p>Here are some further things to know when generating constraints with the visual format syntax:</p>
+          <div class="itemizedlist">
+            <ul class="itemizedlist" type="disc">
+              <li class="listitem">
+The <code class="literal">metrics:</code> parameter is a dictionary of NSNumber values. This lets you use a name in the visual format string where a numeric value needs to go.
+</li>
+              <li class="listitem">
+The <code class="literal">options:</code> parameter is a bitmask letting you do things like add alignments. The alignments you specify are applied to all the views mentioned in the visual format string.
+</li>
+              <li class="listitem">
+To specify the distance between two successive views, use hyphens surrounding the numeric value, like this: <code class="literal">@"[v1]-20-[v2]"</code>. The numeric value may optionally be surrounded by parentheses. A single hyphen means that a default distance should be used.
+</li>
+              <li class="listitem">
+A numeric value in parentheses may be preceded by an equality or inequality operator, and may be followed by an at sign with a priority. Multiple numeric values, separated by comma, may appear in parentheses together. For example: <code class="literal">@"[v1(&gt;=20@400,&lt;=30)]"</code>.
+</li>
+            </ul>
+          </div>
+          <p>You can make two major kinds of mistake with constraints:</p>
+          <div class="variablelist">
+            <dl>
+              <dt>
+                <span class="term">
+Conflict
+</span>
+              </dt>
+              <dd>
+                <p class="simpara">
+You can apply constraints that can’t be satisfied simultaneously. This will be reported in the console (at great length). Only required constraints (priority 1000) can contribute to a conflict, as the runtime is free to ignore lower-priority constraints that it can’t satisfy. For example, to the previous code, append this line:
+</p>
+                <pre class="screen">[v1 addConstraints:
+ [NSLayoutConstraint
+  constraintsWithVisualFormat:@"V:[v3(10)]|"
+  options:0 metrics:nil views:vs]];</pre>
+                <p class="simpara">The height of <code class="literal">v3</code> can’t be both 10 (as here) and 20 (as in the preceding line). The runtime reports the conflict, and tells you which constraints are causing it.<a id="idm441651518736" class="indexterm"></a>
+<a id="idm441651517424" class="indexterm"></a></p>
+              </dd>
+              <dt>
+                <span class="term">
+Underdetermination (ambiguity)
+</span>
+              </dt>
+              <dd>
+                <p class="simpara">
+You haven’t supplied sufficient information to determine the size and position of some view. This is a far more insidious problem, because nothing bad may seem to happen, so you might not discover it until much later. If you’re lucky, the view will at least fail to appear, or will appear in an undesirable place, alerting you to the problem. For example, in the last line of the previous code, we set the height of <code class="literal">v3</code> to 20; suppose we remove that specification:
+</p>
+                <pre class="screen">[v1 addConstraints:
+ [NSLayoutConstraint
+  constraintsWithVisualFormat:@"V:[v3]|"
+  options:0 metrics:nil views:vs]];</pre>
+                <p class="simpara">Fortunately, <code class="literal">v3</code> fails to appear in the interface, so we know we’ve made a mistake.</p>
+              </dd>
+            </dl>
+          </div>
+          <p>To help you analyze ambiguity, log a view’s <code class="literal">hasAmbiguousLayout</code> property (a BOOL); be sure to remove that call before submitting your app to the App Store. Alternatively, pause the running app and ask the debugger for the key window’s <code class="literal">_autolayoutTrace</code>; ambiguously laid out views are clearly marked:</p>
+          <pre class="screen">(lldb) po [[UIWindow keyWindow] _autolayoutTrace]
+(id) $1 = 0x074a41a0
+*&lt;UIWindow:0x749b890&gt;
+|   *&lt;UIView:0x749ccb0&gt;
+|   |   *&lt;UIView:0x749c280&gt;
+|   |   |   *&lt;UIView:0x749c790&gt;
+|   |   |   *&lt;UIView:0x749c930&gt; - AMBIGUOUS LAYOUT</pre>
+          <p>I find it useful to set up a category on NSLayoutConstraint with a method that lets me check a view and all its subviews at any depth for ambiguity:</p>
+          <pre class="screen">@implementation NSLayoutConstraint (Ambiguity)
++ (void) reportAmbiguity:(UIView*) v {
+    if (nil == v)
+        v = [[UIApplication sharedApplication] keyWindow];
+    for (UIView* vv in v.subviews) {
+        NSLog(@"%@ %i", vv, vv.hasAmbiguousLayout);
+        if (vv.subviews.count)
+            [self reportAmbiguity:vv];
+    }
+}
+@end</pre>
+          <p>Given the notions of conflict and ambiguity, we can understand what priorities are for. Imagine that all constraints have been placed in boxes, where each box is a priority value, in descending order. The first box (1000) contains all the required constraints, so all required constraints are obeyed first. (If they conflict, that’s bad, and a report appears in the log; meanwhile, the system implicitly lowers the priority of one of the conflicting constraints, so that it doesn’t have to obey it and can continue with layout by satisfying the remaining required constraints.) If there still isn’t enough information to perform unambiguous layout given the required priorities alone, we pull the constraints out of the next box and try to obey them. If we can, consistently with what we’ve already done, fine; if we can’t, or if ambiguity remains, we look in the <span class="emphasis"><em>next</em></span> box — and so on. For a box after the first, we don’t care about obeying exactly the constraints it contains; if an ambiguity remains, we can use a lower-priority constraint value to give us something to aim at, resolving the ambiguity, without fully obeying the lower-priority constraint’s desires. For example, an inequality is an ambiguity, because an infinite number of values will satisfy it; a lower-priority equality can tell us what value to prefer, resolving the ambiguity, but there’s no conflict even if we can’t fully achieve that preferred value.</p>
+          <p>Some built-in interface objects have an inherent size in one or both dimensions, so they are not ambiguously laid out even if no explicit NSLayoutConstraint dictates their size. Rather, the inherent size is used to generate constraints implicitly. For example, a button has a standard height, and its width is determined by its title. This inherent size is the object’s <span class="emphasis"><em>intrinsic content size</em></span>.<a id="idm441651504016" class="indexterm"></a>
+<a id="idm441651502000" class="indexterm"></a> You can supply an intrinsic size in your own custom UIView subclass by implementing <code class="literal">intrinsicContentSize</code>. If you need the runtime to call <code class="literal">intrinsicContentSize</code> again, because that size has changed and the view needs to be laid out afresh, send your view the <code class="literal">invalidateIntrinsicContentSize</code> message.</p>
+          <p>The tendency of an interface object to size itself to its intrinsic content size can conflict with its tendency to obey explicit constraints. For example, we wouldn’t want a UILabel to extend out of its superview, no matter how long its text may be; if the text isn’t permitted to wrap, it should be truncated. Therefore these tendencies have a priority:</p>
+          <div class="variablelist">
+            <dl>
+              <dt>
+                <span class="term">
+<code class="literal">contentHuggingPriorityForAxis:</code>
+</span>
+              </dt>
+              <dd>
+The tendency of a view to refuse to grow larger than its intrinsic size in this dimension. The default is 250 (also known as <code class="literal">UILayoutPriorityDefaultLow</code>).
+</dd>
+              <dt>
+                <span class="term">
+<code class="literal">contentCompressionResistancePriorityForAxis:</code>
+</span>
+              </dt>
+              <dd>
+The tendency of a view to refuse to shrink smaller than its intrinsic size in this dimension. The default is 750 (also known as <code class="literal">UILayoutPriorityDefaultHigh</code>).
+</dd>
+            </dl>
+          </div>
+          <p>(The dimensions are <code class="literal">UILayoutConstraintAxisHorizontal</code> and <code class="literal">UILayoutConstraintAxisVertical</code>.) Those methods are getters; there are corresponding setters. You’re unlikely, however, to change the priorities for these tendencies — at least, you’re unlikely to change them by much. A situation where you <span class="emphasis"><em>would</em></span> possibly need to change them is when two views with an intrinsic content size are pinned to one another. This can result in an ambiguity. Of two adjacent labels, which should be truncated if the superview gets narrower? To dictate the answer, it suffices to raise the compression resistance priority of one of the labels by a single point.</p>
+          <p>Another common situation is where you’ll want to lower the priority of some other constraint, to allow intrinsic content size to predominate. An example that Apple gives is a label to the left of a centered button: the button’s bottom is pinned to the superview’s bottom, and the label and button are pinned to one another with their baselines aligned, and the button’s horizontal center is pinned to its superview’s horizontal center. If the label’s text grows longer (or the superview’s width grows narrower), the label should not stretch leftward past the left side of its superview, so it has an inequality constraint pinning its left at a guaranteed minimum distance from the superview’s left. But the text should not then be truncated if it doesn’t have to be, so the priority with which the button is horizontally centered is made lower than the label’s compression resistance priority:</p>
+          <pre class="screen">self.button.translatesAutoresizingMaskIntoConstraints = NO;
+self.label.translatesAutoresizingMaskIntoConstraints = NO;
+id button = self.button;
+id label = self.label;
+
+NSDictionary* d = NSDictionaryOfVariableBindings(button,label);
+[self.view addConstraints:
+ [NSLayoutConstraint
+  constraintsWithVisualFormat:@"V:[button]-|"
+  options:0 metrics:nil views:d]];
+[self.view addConstraints:
+ [NSLayoutConstraint
+  constraintsWithVisualFormat:@"H:|-(&gt;=10)-[label]-[button]-(&gt;=10)-|"
+  options:NSLayoutFormatAlignAllBaseline metrics:nil views:d]];
+NSLayoutConstraint* con =
+ [NSLayoutConstraint
+  constraintWithItem:button attribute:NSLayoutAttributeCenterX
+  relatedBy:0
+  toItem:self.view attribute:NSLayoutAttributeCenterX
+  multiplier:1 constant:0];
+con.priority = 700;
+[self.view addConstraint:con];</pre>
+          <p>Behind the scenes, compression resistance and content hugging work like this: Suppose the view’s intrinsic width is 100 points. Then two implicit constraints are generated, an inequality saying that the view’s width should be greater than or equal to 100 points, but with a priority of 750, and an inequality saying that the view’s width should be less than or equal to 100 points, but with a priority of 250. All other things being equal, the view’s width will be exactly 100 points, as this satisfies both inequalities unambiguously. But higher-priority constraints could cause the width to be less or greater. In the preceding example, as the label’s text becomes longer, its intrinsic width grows. The first inequality says we may make the label’s width greater than its intrinsic width, at a priority of 750, but the button’s tenacity to hold its position in the center is even less, at a priority of 700, so the label adopts its intrinsic width and the button shifts right to obey the spacing constraint between them (which is required). But there is also an inequality spacing constraint on the button’s right side (which is also required); eventually the button moves so far to the right that it can move no further without violating that constraint, which is impossible. At that point, since the first inequality cannot be satisfied, the second inequality is consulted; it permits the label to be narrower than its intrinsic content, the label stops growing to match its growing intrinsic width, and its text is truncated instead.</p>
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_constraints_in_the_nib"></a>Constraints in the Nib</h3>
+              </div>
+            </div>
+          </div>
+          <p>In a nib where “Use autolayout” is checked, when you add a view to a superview or move or resize it within its superview, the nib editor adds constraints. A constraint is an object, so these are nib objects. Constraints in the nib are visible in three places:<a id="idm441651484784" class="indexterm"></a>
+<a id="idm441651483280" class="indexterm"></a>
+<a id="idm441651482000" class="indexterm"></a></p>
+          <div class="variablelist">
+            <dl>
+              <dt>
+                <span class="term">
+In the expanded dock
+</span>
+              </dt>
+              <dd>
+Constraints are listed in a special category, “Constraints”, under the view to which they belong. You’ll have a much easier time distinguishing these constraints if you give your views meaningful labels! (See <a class="xref" href="ch07.html">Chapter 7</a>.) Select a constraint and show the Attributes inspector to view its numeric value, its priority, and so on.
+</dd>
+              <dt>
+                <span class="term">
+In the canvas
+</span>
+              </dt>
+              <dd>
+Constraints appear graphically as dimension lines. Select a constraint and show the Attributes inspector to view its numeric value, its priority, and so on.
+</dd>
+              <dt>
+                <span class="term">
+In the Size inspector
+</span>
+              </dt>
+              <dd>
+When a view involved in any constraints is selected, the Size inspector displays those constraints, along with the view’s content hugging priority and compression resistance priority in each dimension. For example, in <a class="xref" href="ch14.html#FIGconstraintNib">Figure 14.14</a>, I’ve started to set up a view and a subview like <code class="literal">v1</code> and <code class="literal">v2</code> in the earlier code example; the subview is selected, so its constraints are shown in the Size inspector.
+</dd>
+            </dl>
+          </div>
+          <div class="figure">
+            <a id="FIGconstraintNib"></a>
+            <div class="figure-contents">
+              <div class="mediaobject">
+                <img src="figs/pios_1414.png" alt="figs/pios_1414.png" />
+              </div>
+            </div>
+            <p class="title">Figure 14.14. A view’s constraints displayed in the nib</p>
+          </div>
+          <br class="figure-break" />
+          <p>The nib editor’s automatic creation of constraints in the nib is clever, but it presents two major challenges:</p>
+          <div class="itemizedlist">
+            <ul class="itemizedlist" type="disc">
+              <li class="listitem">
+It doesn’t know what you really intend to have happen if a view’s superview is resized at runtime.
+</li>
+              <li class="listitem">
+It won’t let you create, even temporarily, an ambiguous or conflicted layout — but it <span class="emphasis"><em>will</em></span> let you create a layout that could generate a conflict if a superview is resized at runtime.
+</li>
+            </ul>
+          </div>
+          <p>As a result, you’ll often find yourself trying to correct a misapprehension on the nib editor’s part, and you’ll find that this can be quite tricky. <a class="xref" href="ch14.html#FIGconstraintNib">Figure 14.14</a> shows a case in point. Of the automatically generated constraints affecting the subview, three are correct — the left, right, and top space between the subview and its superview — but the fourth is not. Xcode has created a constraint describing the space between the bottom of the subview and the bottom of the superview; I want that space free to change. Instead, I want to fix the subview’s height (at 10 points). But Xcode won’t let me delete the unwanted constraint, because that would cause ambiguous layout.</p>
+          <p>The solution is to create the new constraint first. To do so, select the affected view(s) and choose from the Editor → Align or Editor → Pin menu (or use the first or second pop-up menu in the floating cartouche at the lower right of the canvas). In this case, we want to constrain the subview’s height to its current height, so we select the subview and choose Editor → Pin → Height.</p>
+          <p>This generates an additional constraint. Unfortunately we now have a potential conflict. Our subview has a height constraint of 10 points; meanwhile, its top is still pinned to the top of its superview, and its bottom is still pinned to the bottom of its superview. Xcode permits this situation because it is legal <span class="emphasis"><em>now</em></span>, but if the superview’s height changes at runtime, it won’t be possible to satisfy all of those constraints; something needs to give. In this situation, you can do one of three things:</p>
+          <div class="variablelist">
+            <dl>
+              <dt>
+                <span class="term">
+Delete the unwanted constraint
+</span>
+              </dt>
+              <dd>
+In this case, that’s the simplest solution. We can select the constraint that pins the bottom of the subview to the bottom of its superview and delete it. In more complicated situations, though, the nib editor might not permit that.
+</dd>
+              <dt>
+                <span class="term">
+Lower the priority of the unwanted constraint
+</span>
+              </dt>
+              <dd>
+If the unwanted constraint has a low enough priority, it will have no effect on the layout. You can lower the constraint’s priority by selecting the constraint and adjusting the Priority slider in the Attributes inspector.
+</dd>
+              <dt>
+                <span class="term">
+Remove the unwanted constraint in code
+</span>
+              </dt>
+              <dd>
+If you’re really desperate, you can make an outlet to the unwanted constraint and use this to remove the constraint in code after the nib loads (but before layout actually takes place). I’ve found myself in situations so complex that this was my only recourse; I simply couldn’t bully the nib editor into letting me do what I wanted, even though that wouldn’t have resulted in an ambiguous layout.
+</dd>
+            </dl>
+          </div>
+          <p>Another maddening feature of the nib editor is its tendency to change what’s selected. For example, when you select the subview and choose Editor → Pin → Height, the newly created constraint is selected instead of the subview. If what you’re trying to do is create several constraints having to do with a certain view, Xcode keeps deselecting the view and you have to keep reselecting it.</p>
+          <p>The nib editor, like the visual format syntax, can’t specify every possible constraint. For example, you can’t express a multiplier, or a relationship between one view and another that isn’t its sibling or superview. Sometimes there’s no alternative to adding or adjusting a constraint in code after the nib loads.</p>
+          <p>Still, once you get used to it, you’ll find that being able to set up constraints in the nib is really nice. It’s quite easy to construct an interface that keeps working correctly when the app launches on the iPhone 5 (with its taller screen) vs. the iPhone 4, or when the app is rotated. <a class="xref" href="ch14.html#FIGequalWidths">Figure 14.15</a> shows two subviews with their superview margins set and configured to have their widths equal to one another. This was easily attained by selecting both views and choosing Editor → Pin → Widths Equally. The result, which looks great both on the iPhone 5 and on the iPhone 4, requires no code; without constraints, only manual layout (in <code class="literal">layoutSubviews</code>) could have achieved the same thing.</p>
+          <div class="figure">
+            <a id="FIGequalWidths"></a>
+            <div class="figure-contents">
+              <div class="mediaobject">
+                <img src="figs/pios_1415.png" alt="figs/pios_1415.png" />
+              </div>
+            </div>
+            <p class="title">Figure 14.15. An equal widths constraint configured in the nib</p>
+          </div>
+          <br class="figure-break" />
+          <p>Here’s how to achieve in code the constraints created by the nib in <a class="xref" href="ch14.html#FIGequalWidths">Figure 14.15</a> (in the view controller’s <code class="literal">viewDidLoad</code>). Presume that we are starting with a nib where “Use autolayout” is unchecked, so it contains no constraints; and presume we have outlets to the two subviews, <code class="literal">v1</code> and <code class="literal">v2</code>:</p>
+          <pre class="screen">UIView* sup = self.view;
+v1.translatesAutoresizingMaskIntoConstraints = NO;
+v2.translatesAutoresizingMaskIntoConstraints = NO;
+NSDictionary* d = NSDictionaryOfVariableBindings(sup, v1, v2);
+[sup addConstraints:
+ [NSLayoutConstraint
+  constraintsWithVisualFormat:@"|-[v1]-(40)-[v2(==v1)]-|"
+  options:0 metrics:0 views:d]];
+[sup addConstraints:
+ [NSLayoutConstraint
+  constraintsWithVisualFormat:@"V:|-[v1]-|"
+  options:0 metrics:0 views:d]];
+[sup addConstraints:
+ [NSLayoutConstraint
+  constraintsWithVisualFormat:@"V:|-[v2]-|"
+  options:0 metrics:0 views:d]];</pre>
+          <p>I’ll modify that same code to illustrate the notion of removing and adding constraints in code after the nib loads. Presume this time that our nib’s “Use autolayout” is checked. But let’s pretend that we can’t set up the horizontal spacing and width constraints in the nib; instead, both subviews have all four edges pinned to the corresponding edge of the superview. We already have outlets <code class="literal">v1</code> and <code class="literal">v2</code> to the two subviews; in addition, we create outlets <code class="literal">cons1</code> and <code class="literal">cons2</code> to the two unwanted constraints — the left subview’s right constraint and the right subview’s left constraint. Then, in the view controller’s <code class="literal">viewDidLoad</code>, we simply remove those constraints and replace them with what we really want:</p>
+          <pre class="screen">UIView* sup = self.view;
+[sup removeConstraints:@[cons1, cons2]];
+NSDictionary* d = NSDictionaryOfVariableBindings(sup, v1, v2);
+[sup addConstraints:
+ [NSLayoutConstraint
+  constraintsWithVisualFormat:@"|-[v1]-(40)-[v2(==v1)]-|"
+  options:0 metrics:0 views:d]];</pre>
+          <p>Another situation in which the nib editor may misunderstand what you intend is when a view has an intrinsic size. Should a label or a button, for example, be assigned an explicit width constraint, or should its width be governed by its intrinsic size? Xcode tries to guess which you want, based on the signals you give it; so it helps to know what signals Xcode is watching for. If you set a view’s size explicitly, Xcode will probably assume that you want an explicit size constraint. If you select a view and choose Editor → Size to Fit Content, Xcode will remove the view’s explicit size constraints, letting the intrinsic size predominate.</p>
+          <div class="note" style="margin-left: 0; margin-right: 10%;">
+            <h3 class="title">Note</h3>
+            <p>You can’t turn off autolayout for just part of a nib. Either all views have constraints or all views use autoresizing. There’s no nib equivalent to the <code class="literal">translatesAutoresizingMaskIntoConstraints</code> property for an individual view. A workaround, if you’re bent on generating different parts of your interface in nibs, one part with autoresizing, another part with autolayout, is to separate those parts into different nibs and then combine them at runtime.</p>
+          </div>
+          <div class="warning" style="margin-left: 0; margin-right: 10%;">
+            <h3 class="title">Warning</h3>
+            <p>If a nib’s “Use autolayout” is checked, do not load it on any system earlier than iOS 6. If you do, your app will crash, because you’re using a class, NSLayoutConstraint, that doesn’t exist before iOS 6. Unfortunately, “Use autolayout” <span class="emphasis"><em>is</em></span> checked, by default, in all nibs created in Xcode 4.5 and later.<a id="idm441651430032" class="indexterm"></a>
+<a id="idm441651428784" class="indexterm"></a></p>
+          </div>
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_order_of_layout_events"></a>Order of Layout Events</h3>
+              </div>
+            </div>
+          </div>
+          <p>When the moment comes to lay out a view, the following events take place:<a id="idm441651426192" class="indexterm"></a><a id="idm441651425312" class="indexterm"></a></p>
+          <div class="orderedlist">
+            <ol class="orderedlist" type="1">
+              <li class="listitem">
+                <p class="simpara">
+The view and its subviews are sent <code class="literal">updateConstraints</code>, starting at the <span class="emphasis"><em>bottom</em></span> of the hierarchy (the deepest subview) and working up to the top (the view itself, possibly the root view). This event may be omitted for a view if its constraints have not changed.
+</p>
+                <p class="simpara">You can override <code class="literal">updateConstraints</code> in a subclass. You might do this, for example, if your subclass is capable of altering its own constraints and you need a signal that now is the time to do so. You must call <code class="literal">super</code> or the app will crash (with a helpful error message). You should never call <code class="literal">updateConstraints</code>; to trigger an immediate call to <code class="literal">updateConstraints</code>, send a view the <code class="literal">updateConstraintsIfNeeded</code> message.</p>
+                <p class="simpara">If you’re not using autolayout, <code class="literal">updateConstraints</code> by default won’t be sent to your view as part of the layout process. If you want it to be sent, send <code class="literal">setNeedsUpdateConstraints</code> to the view. You’ll then get <code class="literal">updateConstraints</code> events from then on, whenever layout is to be performed.</p>
+              </li>
+              <li class="listitem">
+                <p class="simpara">
+The view and its subviews are sent <code class="literal">layoutSubviews</code>, starting at the <span class="emphasis"><em>top</em></span> of the hierarchy (the view itself, possibly the root view) and working down to the bottom (the deepest subview).
+</p>
+                <p class="simpara">You can override <code class="literal">layoutSubviews</code> in a subclass in order to take a hand in the layout process. If you’re not using autolayout, <code class="literal">layoutSubviews</code> does nothing by default; <code class="literal">layoutSubviews</code> is your opportunity to perform manual layout after autoresizing has taken place. If you are using autolayout, you must call <code class="literal">super</code> or the app will crash (with a helpful error message). You should never call <code class="literal">layoutSubviews</code>; to trigger an immediate call to <code class="literal">layoutSubviews</code>, send a view the <code class="literal">layoutIfNeeded</code> message (which may cause layout of the entire view tree, not only below but also above this view), or send <code class="literal">setNeedsLayout</code> to trigger a call to <code class="literal">layoutSubviews</code> later on, after your code finishes running, when layout would normally take place.</p>
+              </li>
+            </ol>
+          </div>
+          <p>When you’re using autolayout, what happens in <code class="literal">layoutSubviews</code>? The runtime examines all the constraints affecting this view’s subviews, works out values for their frames, and assigns those views those frames. In other words, <code class="literal">layoutSubviews</code> performs manual layout! The constraints are merely instructions attached to the views; <code class="literal">layoutSubviews</code> reads them and responds accordingly, setting frames in the good old-fashioned way.</p>
+          <p>Knowing this, you might override <code class="literal">layoutSubviews</code> when you’re using autolayout, in order to tweak the outcome. First you call <code class="literal">super</code>, causing all the subviews to adopt their new frames. Then you examine those frames. If you don’t like the outcome, you can change the situation, removing subviews, adding or removing constraints, and so on — and then you call <code class="literal">super</code> again, to get a new layout outcome.</p>
+          <p>Unless you explicitly demand immediate layout, layout isn’t performed until your code finishes running (and then only if needed). Moreover, ambiguous layout isn’t ambiguous until layout actually takes place. Thus, for example, it’s perfectly reasonable to cause an ambiguous layout temporarily, provided you resolve the ambiguity before <code class="literal">layoutSubviews</code> is called. (Your last best opportunity to do this is in <code class="literal">updateConstraints</code>!) That’s why it was legal for me, in the code at the end of the preceding section, to remove two constraints before adding some new ones; there was briefly an ambiguous layout situation, but no layout took place during that time.</p>
+          <p>On the other hand, a conflicting constraint conflicts the instant it is added. This code may cause a conflict report to appear in the log:</p>
+          <pre class="screen">NSDictionary* d = NSDictionaryOfVariableBindings(sup, v1, v2);
+[sup addConstraints:
+ [NSLayoutConstraint
+  constraintsWithVisualFormat:@"|-[v1]-(40)-[v2(==v1)]-|"
+  options:0 metrics:0 views:d]];
+[sup removeConstraints:@[cons1, cons2]];</pre>
+          <p>If you try it and no conflict report appears, that’s only because this code is in the view controller’s <code class="literal">viewDidLoad</code>, which is called when the views in question are not yet part of the visible interface. If that same code were postponed to run at a later time, the <code class="literal">addConstraints:</code> call would generate the conflict report. The moral is clear: remove constraints that need to be removed before adding new ones that need to be added.</p>
+          <p>It is also possible to <span class="emphasis"><em>simulate</em></span> layout of a view in accordance with its constraints and those of its subviews. This is useful for discovering ahead of time what the view’s size would be if layout were performed at this moment. Send the view the <code class="literal">systemLayoutSizeFittingSize:</code> message. The system will attempt to reach or at least approach the size you specify, at a very low priority; mostly likely you’ll specify either <code class="literal">UILayoutFittingCompressedSize</code> or <code class="literal">UILayoutFittingExpandedSize</code>, depending on whether what you’re after is the smallest or largest size the view can legally attain. I’ll show an example in <a class="xref" href="ch21.html">Chapter 21</a>.</p>
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_autolayout_and_view_transforms"></a>Autolayout and View Transforms</h3>
+              </div>
+            </div>
+          </div>
+          <p>Suppose I apply to a view a transform that shrinks it to half its size:<a id="idm441651386496" class="indexterm"></a>
+<a id="idm441651385216" class="indexterm"></a><a id="idm441651384304" class="indexterm"></a></p>
+          <pre class="screen">v.transform = CGAffineTransformMakeScale(0.5,0.5);</pre>
+          <p>I expect the view to shrink in both dimensions, toward its center. Instead, under autolayout, I might see it shrink just its height, while its width holds steady, and instead of shrinking toward its center, it shrinks toward its bottom; and this could turn out to be because its width and bottom are determined by constraints.</p>
+          <p>The fact is that autolayout does not play well with view transforms. The reason, apparently, is that (as I explained in the preceding section) autolayout works by treating the constraints as a to-do list and obeying them in <code class="literal">layoutSubviews</code> by applying manual layout. If a constraint describes a view’s frame by pinning one of its edges, then autolayout will set that view’s frame. But setting a view’s frame is exactly what you’re <span class="emphasis"><em>not</em></span> supposed to do when a view has a nonidentity transform.</p>
+          <div class="warning" style="margin-left: 0; margin-right: 10%;">
+            <h3 class="title">Warning</h3>
+            <p>A further problem is that applying a transform to a view triggers layout immediately. This feels like a bug.</p>
+          </div>
+          <p>One possible solution is this: if a view is to be given a transform, then take it out of autolayout’s influence altogether. In this code, I prepare to apply a transform to a view (<code class="literal">self.otherView</code>) by removing its constraints and any constraints of its superview (<code class="literal">self.view</code>) that affect it:</p>
+          <pre class="screen">NSMutableArray* cons = [NSMutableArray array];
+for (NSLayoutConstraint* con in self.view.constraints)
+    if (con.firstItem == self.otherView || con.secondItem == self.otherView)
+        [cons addObject:con];
+[self.view removeConstraints:cons];
+[self.otherView removeConstraints:self.otherView.constraints];</pre>
+          <p>Unfortunately, this won’t quite do, as <code class="literal">otherView</code> vanishes from the screen. The reason is that we are still using autolayout, and now <code class="literal">otherView</code> has no constraints whatever, so it has neither size nor position! To complete our code, we must prevent autolayout from using constraints as a way of positioning <code class="literal">otherView</code>, which we can do by bringing its autoresizing mask back into play:</p>
+          <pre class="screen">self.otherView.translatesAutoresizingMaskIntoConstraints = YES;</pre>
+          <p>The result is that <code class="literal">otherView</code> is now treated exactly as it was before autolayout existed, and a transform applied to it works correctly.</p>
+          <p>Perhaps, however, that approach seems too drastic, as we have completely lost the benefit of being able to position our view through constraints. An alternative might be to use only constraints that don’t conflict with the transform we intend to apply. For example, if a view with an internally fixed width and height is positioned solely by pinning its center, then we can freely apply scale and rotation transforms to it, as these are applied around the view’s center and thus don’t conflict with the constraints that position it. Unfortunately, you probably won’t be able to arrange that in a nib, so you’ll have to use code to remove the existing constraints and then apply new ones:</p>
+          <pre class="screen">// remove constraints affecting otherView's edges
+NSMutableArray* cons = [NSMutableArray array];
+for (NSLayoutConstraint* con in self.view.constraints)
+    if (con.firstItem == self.otherView || con.secondItem == self.otherView)
+        [cons addObject:con];
+[self.view removeConstraints:cons];
+// add constraints positioning otherView by its center
+[self.view addConstraint:
+ [NSLayoutConstraint
+  constraintWithItem:self.otherView attribute:NSLayoutAttributeCenterX
+  relatedBy:0
+  toItem:self.view attribute:NSLayoutAttributeLeft
+  multiplier:1 constant:self.otherView.center.x]];
+[self.view addConstraint:
+ [NSLayoutConstraint
+  constraintWithItem:self.otherView attribute:NSLayoutAttributeCenterY
+  relatedBy:0 toItem:self.view attribute:NSLayoutAttributeTop
+  multiplier:1 constant:self.otherView.center.y]];</pre>
+          <p>A further variant would be to use a host view and a subview. The host view is positioned by constraints, in the normal way: you can use the host view’s edges as part of the overall constraint-based layout. But the host view is also invisible. Now we can apply either of the preceding two solutions to the host view’s subview, which is visible. Either the subview has a fixed width and height, and is pinned by its center to the host view’s center, in which case scale and rotation transforms can be applied to it, or else we take the subview out of the influence of autolayout altogether, in which case any transform can be applied to it.</p>
+          <p>Still another solution is to use a layer transform (<a class="xref" href="ch16.html">Chapter 16</a>) instead of a view transform, since applying a layer transform doesn’t trigger layout.
+<a id="idm441651367904" class="indexterm"></a>
+<a id="idm441651366784" class="indexterm"></a></p>
+        </div>
+      </div>
+    </div>
+    <div class="navfooter">
+      <table width="100%" summary="Navigation footer">
+        <tr>
+          <td width="40%" align="left"><a accesskey="p" href="pt04.html">Prev</a> </td>
+          <td width="20%" align="center">
+            <a accesskey="u" href="pt04.html">Up</a>
+          </td>
+          <td width="40%" align="right"> <a accesskey="n" href="ch15.html">Next</a></td>
+        </tr>
+        <tr>
+          <td width="40%" align="left" valign="top">Part IV. Views </td>
+          <td width="20%" align="center">
+            <a accesskey="h" href="index.html">Table of Contents</a>
+          </td>
+          <td width="40%" align="right" valign="top"> Chapter 15. Drawing</td>
+        </tr>
+      </table>
+    </div>
+  </body>
+</html>

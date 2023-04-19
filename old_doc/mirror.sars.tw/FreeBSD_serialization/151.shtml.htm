@@ -1,0 +1,307 @@
+
+
+<!-- Vignette StoryServer 4 Sat Mar 11 15:43:24 2000 --> 
+<style type=text/css>
+<!--
+p,div {font-size:12pt; line-height:14pt; font-family:宋體;}
+.p1{font-size:12pt;font-family:宋體;}
+.p2{font-size:12pt;font-family:宋體;line-height:14pt;}
+.p3{font-size:14.8px;font-family:宋體;}
+.p4{font-size:14.8px;font-family:宋體;line-height:14pt;}
+.p5{font-size:1pt}
+a:hover{color:red;}
+a.t1:visited{color:red;}
+-->
+</style>
+<title>FreeBSD使用大全</title></head>
+
+<body bgcolor="#FFFFFF" text="#000000" link="#383098" vlink="#336699" alink="#FF0000" topmargin="0">
+<!-- Vignette StoryServer 4 Thu Mar 23 10:01:54 2000 --> <!-- Vignette StoryServer 4 Thu Mar 23 15:34:35 2000 --> 
+
+<!--開始：新聞內容-->
+<TABLE WIDTH=750 BORDER=0 CELLSPACING=0 CELLPADDING=0>
+
+<tr valign=top>
+
+
+
+<TD  valign=top>
+<CENTER><FONT COLOR=#000066 size=5><B>FreeBSD連載(50)：定制X Window的基本方法</B><br></FONT></CENTER>
+
+<HR  ALIGN="center" SIZE=1>
+<CENTER><FONT FACE="Arial" SIZE=2> 1999年12月22日 13:45 </FONT><FONT COLOR="#990000" SIZE=2>王波</FONT></CENTER><p>
+
+<h1 align=center>定制X Window的基本方法</LI></P></B>
+
+<p>　　與其他圖形界面相比，X Window是高度可配置的，這是因為X Window
+本身只是定義了一系列最基本的顯示功能調用，而並沒有規定圖形視窗應該是
+什麼樣子的，因此大批程序員為X Window開發了各種不同風格的開發工具包和
+視窗管理程序，使得X Window的風格多種多樣。因此X Window的使用者有多種
+選擇，可以根據自己的喜好來定制工作站的圖形界面。</p>
+
+<ul><h2><P><LI>顏色深度、分辨率與字體配置：</LI></P></h2></ul>
+
+<P>　　在前面的設置過程中可以設置X伺服器使用多種色彩深度，如8bpp、
+16bpp、24bpp和32bpp，一般來講色彩深度越大，所能表現的色彩越豐富，而
+24bpp就被稱為真彩色，能真實的表現圖象的色彩（32bpp實際也只是24bpp，
+它是為了讓每個象素都占據獨立的32位雙字，以對齊象素邊界，加速處理速度）
+。預設的色彩深度為對應於256色的8bpp，顯然這不足於表現圖象的色彩，在硬
+件能力滿足的條件下應該使用更高的色彩深度（要受顯存大小和分辨率大小的
+限制）。例如要設置X伺服器工作在16bpp的準真彩色下，可以使用帶參數的
+startx或xinit。</P>
+
+<p>　　$ startx --  -bpp 16</p>
+
+<P>　　其中前面的兩個--線表示將後面的參數不加改變的傳遞給X伺服器。另
+一種設置預設色彩深度的方法是在X的設置檔案XF86Config中設置DefaultColorDepth
+選項。</P><P>由於X Window中的色彩深度是可以改變的，為了幫助客戶程序使
+用具體的色彩，X客戶程序中使用的色彩將通過X伺服器映射為真實的色彩。X中
+還定義了多種標準色的名字，在X程序或資源定義檔案中直接使用色彩名字，如
+Red、Blue，就得到常用的顏色。</P><P>X伺服器也可以同時支持多種分辨率，
+並能夠在運行時刻動態切換它所支持的分辨率。在前面XF86Setup設置程序中的
+顯示器設置選項中，有部分顯示器能同時設置了幾個顯示模式，然而這些分辨率
+並不是該顯示器能支持的分辨率的全部，如果是使用xf86config或者手工更改設
+置檔案，還能設置更多的分辨率。當設置了多個分辨率模式的時候，就能在X
+Window下使用熱鍵<Ctrl>、<Alt>和<+>向後切換模式，使用
+<Ctrl>、<Alt>和<->向前切換分辨率模式，其中<+>和
+<->是小鍵碟上的鍵，主鍵碟上的<+><->並不能用來切換分辨
+率。</P>
+
+<P>　　雖然存在不同的分辨率模式，但是X伺服器顯示的虛屏大小仍然相同，虛擬
+顯示屏大於實際顯示屏，但可以通過滑鼠的移動，在實際顯示屏上顯示虛擬顯示屏
+的不同部分。因此在有多個分辨率的時候，虛擬顯示屏至少應該等同於最大分辨率
+的大小，這樣不論切換到哪個分辨率，應用程序的視窗仍然保持原有的樣子，只是
+視窗有可能位於真實的顯示屏外，需要通過移動滑鼠來移動虛擬顯示屏，看到應用
+程序視窗的全貌。由於移動虛擬顯示屏是通過直接控制顯示卡上的寄存器來進行的
+，不需要在顯存或內存中進行額外的移動或復制操作，因此幾乎不消耗資源，也不
+影響任何顯示速度。</P>
+
+<P>　　雖然XFree86預設已經支持了相當豐富的字體，但是還是有可能需要安裝新
+的字體，例如某種中文字體。X Window的字體應該在配置檔案中設置其搜尋路徑，
+但在啟動X Window之後，也可以使用xset命令來重新設置字體的搜尋路徑。</P>
+
+<P>　　xset fp+ ：增加一個字體搜尋目錄。</P>
+
+<P>　　xset fp- ：刪除一個字體搜尋目錄。</P>
+
+<P>　　xset fp= ：重新設置字體搜尋目錄。</P>
+
+<P>　　xset fp rehash：更改某個字體目錄中的內容後，強迫系統刷新字體搜尋路徑。</P>
+
+<P>　　要想使用一些使用者自己設置的字體，就要按下面的步驟將這些字體加入
+到X Window的搜尋路徑。</P>
+
+<ul>
+<P><LI>　　將這些字體單獨放在一個目錄下，或者放到系統原有的字體目錄下。</LI></P>
+<P><LI>　　運行 “mkfontdir 該字體目錄” ，構建這個字體目錄（將按照所有的字體，
+重新生成fonts.dir檔案）。</LI></P>
+<P><LI>　　使用 “xset fp+  該字體目錄” 或 “xset fp rehash” ，使設置生效。</LI></P>
+</ul>
+
+<P>　　fonts.dir檔案中包含該字體目錄下所有字體的名字，以下為一個例子的部分
+內容，該檔案每一行都給出一個字體的名字。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre><font size=2>gb16st.pcf.gz -isas-song ti-medium-r-normal--16-160-72-72-c-160-big5.1980-0
+gb24st.pcf.gz -isas-song ti-medium-r-normal--24-240-72-72-c-240-big5.1980-0
+10x20.pcf.gz -misc-fixed-medium-r-normal--20-200-75-75-c-100-iso8859-1
+gb16fs.pcf.gz -isas-fangsong ti-medium-r-normal--16-160-72-72-c-160-big5.1980-0</font></td></pre></tr></table>
+
+
+<P>　　可以看出font.dir中的內容分為兩部分，第一部分為字體檔案的名字，第二部
+分為字體的名字。每個字體的名字用 “-” 將不同的部分分隔開了，這些相互分隔的部
+分包括字體的開發者、字體的類別、字體本身的尺寸（磅數）、傾斜度和點的大小，字
+符間距的類型、字體所為的字符集，以及字符的風格。</P>
+
+<P>　　可以看出，每個字體的名字相當複雜，然而可以通過定義別名的方式來簡化具
+體字體的名字，在一個字體目錄下，都有一個對應的fonts.alias的檔案，這裡就登記
+了很多字體的別名，使用者也可以自己根據需要增添。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre><font size=2>fixed        -misc-fixed-medium-r-semicondensed--13-120-75-75-c-60-iso8859-1
+variable     -*-helvetica-bold-r-normal-*-*-120-*-*-*-*-iso8859-1
+5x7          -misc-fixed-medium-r-normal--7-70-75-75-c-50-iso8859-1
+5x8          -misc-fixed-medium-r-normal--8-80-75-75-c-50-iso646.1991-irv</font></td></pre></tr></table>
+
+<P>　　上面就是某個font.alias的一部分，它的第一列就為簡單易記的別名。在運行
+X Window時，可以使用xlsfonts來查看系統中可以使用的字體信息，使用xfontsel來
+查看每種字體的外觀。</P>
+
+<ul><h2><P><LI>定制客戶桌面基本方法</LI></P></h2></ul>
+
+<P>　　根視窗的特征可以使用xsetroot命令來設置，可以使用它來定制視窗的顏色（背
+景色和前景色），或者使用一個位圖作為背景等。也可以使用”xset s seconds”來定義屏
+幕保護的激活時間，”xset s default”將螢幕保護設為系統的預設配置。</P>
+
+<P>　　還有很多更強大的X程序能用來定制X的根視窗，設置壁紙和螢幕保護。例如可以使
+用xv來將gif或jpg等類型的圖片設置為壁紙，這些程序都可以在FreeBSD的Packages Collection
+和Ports Collection中找到。</P>
+
+<P>　　X客戶程序通常使用標準的構件，通常這些構件都有一些標準的參數來定義它們使
+用的字體、文字的前景色、背景色、滾動條等。這些參數可以通過更改構件的資源設置，
+來改變其設置。一般使用用戶個人目錄下的.Xdefaults或.Xresoures作為用戶的個人資源
+檔案，資源檔案在啟動時在.xinitrc檔案中由xrdb命令載入系統。</P>
+
+<P>　　除了資源設置之外，標準X客戶程序中的構件也支持標準的命令行選項，可以用來
+改變視窗構件的屬性：</P>
+
+<P>　　-borderwith或-bw，框架的寬度，以像素為單位</P>
+<P>　　-foreground或-fg，前景色</P>
+<P>　　-background或-bg，背景色</P>
+<P>　　-display，客戶程序要使用的X伺服器的顯示位置</P>
+<P>　　-font或-fn，顯示特殊文字使用的字體</P>
+<P>　　-geometry，視窗的幾何結構，包括位置和大小</P>
+<P>　　-iconic，以圖標方式啟動</P>
+<P>　　-title，標題欄的標題</P>
+
+<ul><h2><P><LI>選擇視窗管理器和桌面環境</LI></P></h2></ul>
+
+<P>　　在FreeBSD安裝好XFree86之後，預設的視窗管理器是twm，這是一個比較簡單的
+視窗管理器，會使得第一次接觸X Window的使用者對X Window產生不好的印象，但是如
+果進一步了解X Window系統，就會知道X Window本身並沒有包括真正好用的視窗管理器
+，但是卻存在很多種優秀的視窗管理器能達到這個目的，使X Window變得更華麗、更易
+用。</P>
+
+<P>　　因此必須從Packages Collection中選擇安裝相應的視窗管理器或桌面環境，可
+供選擇的有fvwm95、AfterStep、KDE等。</P>
+
+<P>　　fvwm95是從另一個視窗管理器fvwm2的進行改進之後的版本，它被設置為與Windows95
+的桌面非常相似，因此習慣於Windows95界面的個人電腦使用者常常會選擇這個視窗管
+理器，然而既然使用的是X Window，沒有必要一定還要使用Window95的顯示風格，使用
+fvwm2、AfterStep等其他視窗管理器來嘗試其他風格更為有益。一般情況下使用者還是
+會安裝一個fvwm95，fvwm95使用的配置檔案是用戶主目錄下的.fvwm2rc95檔案，而預設
+配置檔案為/usr/X11R6/lib/fvwm95/system.fvwm2rc95檔案。使用fvwm95時最簡單的啟
+動檔案.xinitrc應包括：</P>
+
+<P>　　/usr/X11R6/bin/fvwm95</P>
+
+<P>　　AfterStep是模仿NextStep的視窗管理器，這個視窗管理器精巧而且漂亮，如果
+不是過於沉迷於Windows95的操作方式，不妨使用這個視窗管理器，它還有幾個派生的管
+理器，如WindowMaker、enlightenment等。為了充分發揮AfterStep的華麗，X的顯示屏
+應該大於800x600的分辨率，並至少使用16bpp的色彩深度。AfterStep的所有配置檔案均
+放置在用戶主目錄下的GNUStep目錄中，相應的啟動檔案為：</P>
+
+<P>　　/usr/X11R6/bin/AfterStep</P>
+
+<P>　　與前面兩者不同，gnome和KDE不僅僅是一個視窗管理器，還包括大量的應用程序
+和相關工具（gnome使用enlightenment作為其預設視窗管理器）。這些桌面環境包括各種
+應用程序、控制條、圖形化的設置程序等，使用它們能夠全面享受到圖形桌面環境的優
+點，但它們占用的系統資源也相對較多。如果是將安裝FreeBSD的電腦用做一台工作站
+，那麼就應該選擇其中一種桌面環境，用戶可以根據自己的喜好來選擇安裝gnome或者KDE。</P>
+
+<P>　　如果選擇安裝了KDE時，在.xinitrc及.xsession中應該包含的相應啟動命令為：</P>
+
+<P>　　/usr/local/bin/startkde</P>
+
+<P>　　在3.2=RELEASE之後，FreeBSD能通過Sysinstall來設置不同的桌面環境，Sysinstall
+能安裝相應的軟體包，並在/usr/share/skel中添加dot.xinitrc和dot.xsession檔案，這樣
+在生成用戶時就自動生成.xinitrc和.xsession檔案。</P>
+
+<ul><h2><P><LI>配置和使用KDE</LI></P></h2></ul>
+
+<P>　　KDE不單單是一個視窗管理程序，它包括了使用X Window圖形界面進行操作所
+需要的各種應用程序。它的主要部分為一個擁有任務條、工具條、快捷圖標的桌面環
+境，並包括可用於瀏覽WWW網頁的檔案管理器、編輯器、計算器、CD播放器、郵件處
+理程序、新聞組閱讀程序等等大量的應用程序。</P>
+
+<P>　　KDE的另一個特點就是包括了對圖形界面外觀的定制程序，一般情況下Unix中進
+行配置需要修改對應的配置檔案，雖然這種方式提供了很大的靈活性，但對於很多不重
+要的設置，並不需要這麼靈活的方式，而要求方便、簡易。在KDE下不需要使用手工更
+改配置檔案，而是通過圖形界面的設置程序進行設置，因此更容易使用。下面為一個KDE
+界面的例子：</P>
+
+<P align=center><IMG SRC="FreeBSD_52.gif" tppabs="http://tech.sina.com.cn/focus/FreeBSD/images/FreeBSD_52.gif" WIDTH=500 HEIGHT=375></P>
+
+<P>　　由於KDE是為了高性能的圖形界面開發的，因此為了獲得較好的觀感，至少應該
+以800x600分辨率運行X Window，建議使用1024x768以上的分辨率，以充分發揮KDE的顯
+示效果。</P>
+
+<P>　　KDE圖形桌面由桌面背景、快捷圖標、工作欄和任務條組成，每個可以點擊的位
+置上通常使用左鍵一次點擊啟動相應的功能，使用右鍵點擊出現一個選單，可以進行相
+關設置。上圖為進行工作欄和任務條的外觀設置，設置它們顯示的不同的大小和位置。
+此外，在桌面上使用右鍵可以配置桌面外觀，包括牆紙和螢幕保護。點擊左下角的K圖標
+可以彈出一個選單，選單中包括了KDE環境提供個多種應用程序，也可以添加對其他應用
+程序的連接。</P>
+
+<P>　　與MS Windows不同，KDE（以及大部分X視窗管理器），使用一次點擊啟動應用程
+序，而不是雙擊。KDE下切換視窗的熱鍵與Windows相同為Alt-Tab。</P>
+
+<P>　　KDE界面低部工作欄上的各個按鈕都對應一個相應的應用程序，而其中並列的四
+個按鈕，對應四個不同虛擬螢幕，每個螢幕上的內容各不相同，可以分別配置。KDE最
+多可支持八個虛擬螢幕，每個視窗只顯示在一個螢幕上，除非使用滑鼠將視窗左上角的
+圖釘標志打開，這樣操作之後這個視窗總顯示在螢幕上，而不管如何切換虛擬螢幕。</P>
+
+<P>　　KDE的配置工作全部可以通過KDE配置中心（KDE Control Center）來完成。點中
+左下角的 “K” 圖標，在選單中選中KDE Control Center或使用工作欄上的快捷圖標，就
+可以啟動它對KDE的外觀進行配置。</P>
+
+<P align=center><IMG SRC="FreeBSD_53.gif" tppabs="http://tech.sina.com.cn/focus/FreeBSD/images/FreeBSD_53.gif" WIDTH=500 HEIGHT=390></P>
+
+<P>　　KDE控制中心可以設置KDE桌面環境的排列方式，如工作欄、任務欄的大小和位
+置，視窗的風格，使用的顏色，螢幕保護以及其他一些應用程序的相關設置。這些設置
+也可以在KDE桌面環境中，使用滑鼠右鍵彈出的選單中的選項來啟動。</P>
+
+<P>　　由於KDE是一種國際化的應用程序，因此可以使用上面的設置程序將KDE使用的字符
+設置為中文。當將KDE使用的語言設置為中文時，那麼所有KDE的選單都使用中文，但是這
+需要中文X伺服器或其他中文系統的中文顯示能力的支持，否則KDE雖然顯示的是中文字符，
+但是顯示的卻會是亂碼。</P>
+
+<P>　　對於使用XDM登錄方式的系統，需要使用xdm以提供系統登錄。雖然用戶登錄後可以
+從.xsessin中啟動KDE，但仍然擺脫不了xdm過於簡陋的登錄畫面。而KDE的另一個特點就是
+提供一個xdm的替代程序kdm，這使得系統管理員可以替換掉簡單的xdm界面，使用kdm來提
+供更漂亮的XDM登錄界面，這使得X Window系統表現得更為華麗。</P>
+
+<P align=center><IMG SRC="FreeBSD_54.gif" tppabs="http://tech.sina.com.cn/focus/FreeBSD/images/FreeBSD_54.gif" WIDTH=405 HEIGHT=417></P>
+
+<P>　　上圖就是一個kdm的外觀，它同樣也是在KDE控制中心中來進行配置的，只是由於
+kdm屬於系統程序，因此只有root運行的KDE控制中心才能選擇這一項配置功能。設置KDM
+，需要選擇KDE配置中心的第一個選項Desktop Manager。</P>
+
+<P align=center><IMG SRC="FreeBSD_55.gif" tppabs="http://tech.sina.com.cn/focus/FreeBSD/images/FreeBSD_55.gif" WIDTH=500 HEIGHT=350></P>
+
+<P>　　這個選項中可以設置kdm的圖標、出現在kdm的用戶列表中的用戶、或者不出現在kdm
+的用戶列表中的用於，以及在會話結束時用於關閉系統的指令等。</P>
+
+<ul><h2><P><LI>將工作站用作專用X終端</LI></P></h2></ul>
+
+<P>　　專用機房中常常使用X終端為公共使用者提供服務，使用者可以通過這些終端以XDM
+方式登錄到機房中的Unix主機上去。X終端不允許使用者登錄到自己系統中，而只能使用本
+地X伺服器的處理能力，登錄到其他主機上進行使用。</P>
+
+<P>　　由於個人電腦硬體更為便宜，並且由於硬體的發展其性能也並不落後，使用個
+人電腦作X終端也是一種在使用專用X終端之外很不錯的選擇。可以使用FreeBSD作操作
+系統，Xfree86支持X Window系統，就能將FreeBSD系統用作專用X終端，這樣的優勢是所
+有的軟體都可以免費得到，就使得在實現幾乎同樣的性能的條件下，卻減少了大量的資金
+投入。</P>
+
+<P>　　同樣也可以通過設置使得用戶不能登錄進本地系統，而是直接登錄到網路上的其
+他Unix主機中去。這需要那台提供登錄服務的Unix主機運行xdm，這樣X終端就能通過xdmcp
+協議在網路中通過廣播或者直接查詢的方式，查找到運行xdm的主機，並連接上來提供登錄
+登錄畫面，就如同在本地系統一樣。用作X終端的FreeBSD系統需要以使用特別的參數運行X，
+以查找XDM主機。</P>
+
+<P>　　如果運行XDM的Unix主機和用作X終端的FreeBSD系統在同一個以太網段上，可以使
+用廣播的方式尋找運行XDM的主機，此時啟動X的命令為：</P>
+
+<P>　　# /usr/X11R6/bin/X -broadcast</P>
+
+<P>　　這樣系統上將列出本地所有運行XDM的Unix主機，供使用者選擇登錄。或者可以直
+接查詢方式，通過query參數直接與某台Unix主機相連接，這可以用在客戶機和伺服器不在
+同一個網段上的時候。</P>
+
+<P>　　# /usr/X11R6/bin/X -query Unixhost</P>
+
+<P>　　為了使系統一啟動就進入這個登錄狀態，可以將這個命令寫入shell腳本，並放入
+系統啟動目錄/usr/X11R6/etc/rc.d中。然而此時使用ttys檔案進行設置更佳，因為此時可
+能同時想關閉虛擬控制台，以防止X終端使用者切換到虛擬控制台上。</P>
+
+
+<BR>
+
+</TD>
+</TR></TABLE>
+
+
+
+</BODY>
+</HTML>

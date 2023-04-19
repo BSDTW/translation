@@ -1,0 +1,1618 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><title>Chapter 6. Backup and Recovery</title><link rel="stylesheet" href="mysql-html.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.69.1"><link rel="start" href="index.html" title="MySQL 5.1 Reference Manual"><link rel="up" href="index.html" title="MySQL 5.1 Reference Manual"><link rel="prev" href="server-administration.html" title="Chapter 5. MySQL Server Administration"><link rel="next" href="optimization.html" title="Chapter 7. Optimization"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">Chapter 6. Backup and Recovery</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="server-administration.html">Prev</a> </td><th width="60%" align="center"> </th><td width="20%" align="right"> <a accesskey="n" href="optimization.html">Next</a></td></tr></table><hr></div><div class="chapter" lang="en"><div class="titlepage"><div><div><h2 class="title"><a name="backup-and-recovery"></a>Chapter 6. Backup and Recovery</h2></div></div></div><div class="toc"><p><b>Table of Contents</b></p><dl><dt><span class="section"><a href="backup-and-recovery.html#backup">6.1. Database Backups</a></span></dt><dt><span class="section"><a href="backup-and-recovery.html#backup-strategy-example">6.2. Example Backup and Recovery Strategy</a></span></dt><dd><dl><dt><span class="section"><a href="backup-and-recovery.html#backup-policy">6.2.1. Backup Policy</a></span></dt><dt><span class="section"><a href="backup-and-recovery.html#recovery-from-backups">6.2.2. Using Backups for Recovery</a></span></dt><dt><span class="section"><a href="backup-and-recovery.html#backup-strategy-summary">6.2.3. Backup Strategy Summary</a></span></dt></dl></dd><dt><span class="section"><a href="backup-and-recovery.html#point-in-time-recovery">6.3. Point-in-Time Recovery</a></span></dt><dd><dl><dt><span class="section"><a href="backup-and-recovery.html#point-in-time-recovery-times">6.3.1. Specifying Times for Recovery</a></span></dt><dt><span class="section"><a href="backup-and-recovery.html#point-in-time-recovery-positions">6.3.2. Specifying Positions for Recovery</a></span></dt></dl></dd><dt><span class="section"><a href="backup-and-recovery.html#table-maintenance">6.4. Table Maintenance and Crash Recovery</a></span></dt><dd><dl><dt><span class="section"><a href="backup-and-recovery.html#crash-recovery">6.4.1. Using <span><strong class="command">myisamchk</strong></span> for Crash Recovery</a></span></dt><dt><span class="section"><a href="backup-and-recovery.html#check">6.4.2. How to Check <code class="literal">MyISAM</code> Tables for Errors</a></span></dt><dt><span class="section"><a href="backup-and-recovery.html#repair">6.4.3. How to Repair Tables</a></span></dt><dt><span class="section"><a href="backup-and-recovery.html#table-optimization">6.4.4. Table Optimization</a></span></dt><dt><span class="section"><a href="backup-and-recovery.html#table-info">6.4.5. Getting Information About a Table</a></span></dt><dt><span class="section"><a href="backup-and-recovery.html#maintenance-schedule">6.4.6. Setting Up a Table Maintenance Schedule</a></span></dt></dl></dd></dl></div><a class="indexterm" name="id2043365"></a><a class="indexterm" name="id2043377"></a><p>
+    It is important to back up your databases in case problems occur so
+    that you can recover your data and be up and running again. MySQL
+    offers a variety of backup strategies from which you can choose to
+    select whatever methods best suit the requirements for your
+    installation.
+  </p><p>
+    Briefly summarized, backup concepts with which you should be
+    familiar include the following:
+  </p><div class="itemizedlist"><ul type="disc"><li><p>
+        Logical versus physical backups
+      </p></li><li><p>
+        Online versus offline backups
+      </p></li><li><p>
+        Local versus remote backups
+      </p></li><li><p>
+        Snapshot backups
+      </p></li><li><p>
+        Full versus incremental backups
+      </p></li><li><p>
+        Point-in-time recovery
+      </p></li><li><p>
+        Backup scheduling, compression, and encryption
+      </p></li><li><p>
+        Table maintenance
+      </p></li></ul></div><div class="itemizedlist"><p>
+      More generally, the following discussion amplifies on the
+      properties of different backup methods.
+    </p><ul type="disc"><li><p>
+        <span class="bold"><strong>Logical versus physical (raw)
+        backups.</strong></span> Logical backups save information represented
+        as logical database structure (<code class="literal">CREATE
+        DATABASE</code>, <code class="literal">CREATE TABLE</code> statements)
+        and content (<code class="literal">INSERT</code> statements or
+        delimited-text files). Physical backups consist of raw copies of
+        the directories and files that store database contents.
+      </p><p>
+        Logical backup methods have these characteristics:
+      </p><div class="itemizedlist"><ul type="circle"><li><p>
+            The backup is done by going through the MySQL server to
+            obtain database structure and content information.
+          </p></li><li><p>
+            Backup is slower than physical methods because the server
+            must access database information, convert it to logical
+            format, and send it to the backup program.
+          </p></li><li><p>
+            Output is larger than for physical backup, paticularly when
+            saved in text format.
+          </p></li><li><p>
+            Backup and restore granularity is available at the server
+            level (all databases), database level (all tables in a
+            particular database), or table level. This is true
+            regardless of storage engine.
+          </p></li><li><p>
+            The backup does not include log or configuration files, or
+            other database-related files that are not part of databases.
+          </p></li><li><p>
+            Backups stored in logical format are machine independent and
+            highly portable.
+          </p></li><li><p>
+            Logical backups are performed with the MySQL server running
+            (the server is not taken offline).
+          </p></li><li><p>
+            Logical backup tools include the
+            <span><strong class="command">mysqldump</strong></span> program and the <code class="literal">SELECT
+            ... INTO OUTFILE</code> statement. These work for any
+            storage engine, even <code class="literal">MEMORY</code>.
+          </p><p>
+            For restore, SQL-format dump files can be processed using
+            the <span><strong class="command">mysql</strong></span> client. To load delimited-text
+            files, use the <code class="literal">LOAD DATA INFILE</code> statement
+            or the <span><strong class="command">mysqlimport</strong></span> client.
+          </p></li></ul></div><p>
+        Physical backup methods have these characteristics:
+      </p><div class="itemizedlist"><ul type="circle"><li><p>
+            The backup consists of exact copies of database directories
+            and files. Typically this is a copy of all or part of the
+            MySQL data directory. Data from <code class="literal">MEMORY</code>
+            tables cannot be backed up this way because their contents
+            are not stored on disk.
+          </p></li><li><p>
+            Physical backup methods are faster than logical because they
+            involve only file copying without conversion.
+          </p></li><li><p>
+            Output is more compact than for logical backup.
+          </p></li><li><p>
+            Backup and restore granularity extends from the level of the
+            entire data directory down to the level of individual files.
+            This may or may not provide for table-level granularity,
+            depending on storage engine. (Each <code class="literal">MyISAM</code>
+            table corresponds uniquely to a set of files, but an
+            <code class="literal">InnoDB</code> table shares file storage with
+            other <code class="literal">InnoDB</code> tables.)
+          </p></li><li><p>
+            In addition to databases, the backup can include any related
+            files such as log or configuration files.
+          </p></li><li><p>
+            Backups are portable only to other machines that have
+            identical or similar hardware characteristics.
+          </p></li><li><p>
+            Backups can be performed while the MySQL server is not
+            running. If the server is running, it is necessary to
+            perform appropriate locking so that the server does not
+            change database contents during the backup.
+          </p></li><li><p>
+            Physical backup tools include filesystem-level commands
+            (such as <span><strong class="command">cp</strong></span>, <span><strong class="command">scp</strong></span>,
+            <span><strong class="command">tar</strong></span>, <span><strong class="command">rsync</strong></span>),
+            <span><strong class="command">mysqlhotcopy</strong></span> for
+            <code class="literal">MyISAM</code> tables,
+            <span><strong class="command">ibbackup</strong></span> for <code class="literal">InnoDB</code>
+            tables, or <code class="literal">START BACKUP</code> for
+            <code class="literal">NDB</code> tables.
+          </p><p>
+            For restore, files copied at the filesystem level or with
+            <span><strong class="command">mysqlhotcopy</strong></span> can be copied back to their
+            original locations with filesystem commands;
+            <span><strong class="command">ibback</strong></span> restores <code class="literal">InnoDB</code>
+            tables, and <span><strong class="command">ndb_restore</strong></span> restores
+            <code class="literal">NDB</code> tables.
+          </p></li></ul></div></li><li><p>
+        <span class="bold"><strong>Online versus offline backups.</strong></span>
+        Online backups take place while the MySQL server is running so
+        that the database information can be obtained from the server.
+        Offline backups take place while the server is stopped. (This
+        distinction can also be described as “<span class="quote">hot</span>” versus
+        “<span class="quote">cold</span>” backups; a “<span class="quote">warm</span>” backup is one
+        where the server remains running but locked against modifying
+        data while you access database files externally.)
+      </p><p>
+        Online backup methods have these characteristics:
+      </p><div class="itemizedlist"><ul type="circle"><li><p>
+            Less intrusive to other clients, which can connect to the
+            MySQL server during the backup and may be able to access
+            data depending on what operations they need to perform.
+          </p></li><li><p>
+            Care must be taken to impose appropriate locking so that
+            data modifications do not take place that compromise backup
+            integrity.
+          </p></li></ul></div><p>
+        Offline backup methods have these characteristics:
+      </p><div class="itemizedlist"><ul type="circle"><li><p>
+            Affects clients adversely because the server is unavailable
+            during backup.
+          </p></li><li><p>
+            Simpler backup procedure because there is no possibility of
+            interference from client activity.
+          </p></li></ul></div></li><li><p>
+        <span class="bold"><strong>Local versus remote backups.</strong></span> A
+        local backup is performed on the same host where the MySQL
+        server runs, whereas a remote backup is initiated from a
+        different host.
+      </p><div class="itemizedlist"><ul type="circle"><li><p>
+            <span><strong class="command">mysqldump</strong></span> can connect to local or remote
+            servers. For SQL output (<code class="literal">CREATE</code> and
+            <code class="literal">INSERT</code> statements), local or remote dumps
+            can be done and generate output on the client. For
+            delimited-text output (with the <code class="option">--tab</code>
+            option), data files are created on the server host.
+          </p></li><li><p>
+            <span><strong class="command">mysqlhotcopy</strong></span> performs only local backups:
+            It connects to the server to lock it against data
+            modifications and then copies local table files.
+          </p></li><li><p>
+            <code class="literal">SELECT ... INTO OUTFILE</code> can be initiated
+            from a remote client host, but the output file is created on
+            the server host.
+          </p></li><li><p>
+            Physical backup methods typically are initiated locally on
+            the MySQL server host so that the server can be taken
+            offline, although the destination for file copies might be
+            remote.
+          </p></li></ul></div></li><li><p>
+        <span class="bold"><strong>Snapshot backups.</strong></span> Some
+        filesystem implementations enable “<span class="quote">snapshots</span>” to be
+        taken. These provide logical copies of the filesystem at a given
+        point in time, without having to physically copy the entire
+        filesystem. (For example, the implementation may use
+        copy-on-write techniques so that only parts of the filesystem
+        modified after the snapshot time need be copied.) MySQL itself
+        does not provide the capability for taking filesystem snapshots.
+        It is available through third-party solutions such as Veritas or
+        LVM.
+      </p></li><li><p>
+        <span class="bold"><strong>Full versus incremental
+        backups.</strong></span> A full backup includes all data managed by a
+        MySQL server at a given point in time. An incremental backup
+        consists of the changes made to the data since the full backup.
+        MySQL has different ways to perform full backups, such as those
+        described in previous items. Incremental backups are made
+        possible by enabling the server's binary log, which the server
+        uses to record data changes.
+      </p></li><li><p>
+        <span class="bold"><strong>Point-in-time recovery.</strong></span> One use
+        for the binary log is to achieve point-in-time recovery. This is
+        done by recovering first from the backup files to restore the
+        server to its state when the backup was made, and then by
+        re-executing changes in subsequently written binary log files to
+        redo data modifications up to the desired point in time.
+      </p></li><li><p>
+        <span class="bold"><strong>Backup scheduling, compression, and
+        encryption.</strong></span> Backup scheduling is valuable for
+        automating backup procedures. Compression of backup output
+        reduces space requirements, and encryption of the output
+        provides better security against unauthorized access of
+        backed-up data. MySQL itself does not provide these
+        capabilities. <span><strong class="command">ibbackup</strong></span> can compress
+        <code class="literal">InnoDB</code> backups, and compression or encryption
+        of backup output can be achieved using filesystem utilities.
+        Other third-party solutions may be available.
+      </p></li><li><p>
+        <span class="bold"><strong>Table maintenance.</strong></span> Data
+        integrity can be compromised if tables become corrupt. MySQL
+        provides programs for checking tables and repairing them should
+        problems be found. These programs apply primarily to
+        <code class="literal">MyISAM</code> tables. See
+        <a href="backup-and-recovery.html#table-maintenance" title="6.4. Table Maintenance and Crash Recovery">Section 6.4, “Table Maintenance and Crash Recovery”</a>.
+      </p></li></ul></div><p>
+    <span class="bold"><strong>Additional resources</strong></span>
+  </p><p>
+    Resources related to backup or to maintaining data availability
+    include the following:
+  </p><div class="itemizedlist"><ul type="disc"><li><p>
+        A forum dedicated to backup issues is available at
+        <a href="http://forums.mysql.com/list.php?93" target="_top">http://forums.mysql.com/list.php?93</a>.
+      </p></li><li><p>
+        The syntax of the SQL statements described here is given in
+        <a href="sql-syntax.html" title="Chapter 12. SQL Statement Syntax">Chapter 12, <i>SQL Statement Syntax</i></a>.
+      </p></li><li><p>
+        Details for <span><strong class="command">mysqldump</strong></span>,
+        <span><strong class="command">mysqlhotcopy</strong></span>, and other MySQL backup programs
+        can be found in <a href="programs.html" title="Chapter 4. MySQL Programs">Chapter 4, <i>MySQL Programs</i></a>.
+      </p></li><li><p>
+        For additional information about <code class="literal">InnoDB</code>
+        backup procedures, see <a href="storage-engines.html#innodb-backup" title="13.5.8. Backing Up and Recovering an InnoDB Database">Section 13.5.8, “Backing Up and Recovering an <code class="literal">InnoDB</code> Database”</a>.
+      </p></li><li><p>
+        Replication enables you to maintain identical data on multiple
+        servers. This has several benefits, such as allowing client load
+        to be distributed over servers, availability of data even if a
+        given server is taken offline or fails, and the ability to make
+        backups using a slave server without affecting the master. See
+        <a href="replication.html" title="Chapter 19. Replication">Chapter 19, <i>Replication</i></a>.
+      </p></li><li><p>
+        MySQL Cluster provides a high-availability, high-redundancy
+        version of MySQL adapted for the distributed computing
+        environment. See <a href="mysql-cluster.html" title="Chapter 20. MySQL Cluster">Chapter 20, <i>MySQL Cluster</i></a>. For
+        information specifically about MySQL Cluster backup, see
+        <a href="mysql-cluster.html#mysql-cluster-backup" title="20.9. On-line Backup of MySQL Cluster">Section 20.9, “On-line Backup of MySQL Cluster”</a>.
+      </p></li><li><p>
+        Distributed Replicated Block Device (DRBD) is another
+        high-availability solution. It works by replicating a block
+        device from a primary server to a secondary server at the block
+        level. See <a href="ha-overview.html" title="Chapter 14. High Availability and Scalability">Chapter 14, <i>High Availability and Scalability</i></a>
+      </p></li></ul></div><div class="section" lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="backup"></a>6.1. Database Backups</h2></div></div></div><p>
+      This section summarizes some general methods for making backups.
+    </p><p>
+      <span class="bold"><strong>Making Backups by Copying Files</strong></span>
+    </p><p>
+      <code class="literal">MyISAM</code> tables are stored as files, so it is
+      easy to do a backup by copying files. To get a consistent backup,
+      do a <code class="literal">LOCK TABLES</code> on the relevant tables,
+      followed by <code class="literal">FLUSH TABLES</code> for the tables. See
+      <a href="sql-syntax.html#lock-tables" title="12.4.5. LOCK TABLES and UNLOCK TABLES
+      Syntax">Section 12.4.5, “<code class="literal">LOCK TABLES</code> and <code class="literal">UNLOCK TABLES</code>
+      Syntax”</a>, and <a href="sql-syntax.html#flush" title="12.5.6.2. FLUSH Syntax">Section 12.5.6.2, “<code class="literal">FLUSH</code> Syntax”</a>. You
+      need only a read lock; this allows other clients to continue to
+      query the tables while you are making a copy of the files in the
+      database directory. The <code class="literal">FLUSH TABLES</code> statement
+      is needed to ensure that the all active index pages are written to
+      disk before you start the backup.
+    </p><p>
+      <span class="bold"><strong>Making Delimited-Text File
+      Backups</strong></span>
+    </p><p>
+      To create a text file containing a table's data, you can use
+      <code class="literal">SELECT * INTO OUTFILE
+      '<em class="replaceable"><code>file_name</code></em>' FROM
+      <em class="replaceable"><code>tbl_name</code></em></code>. The file is created
+      on the MySQL server host, not the client host. For this statement,
+      the output file cannot already exist because allowing files to be
+      overwritten would constitute a security risk. See
+      <a href="sql-syntax.html#select" title="12.2.7. SELECT Syntax">Section 12.2.7, “<code class="literal">SELECT</code> Syntax”</a>. This method works for any kind of data
+      file, but saves only table data, not the table structure.
+    </p><p>
+      To reload the output file, use <code class="literal">LOAD DATA INFILE</code>
+      or <span><strong class="command">mysqlimport</strong></span>.
+    </p><p>
+      <span class="bold"><strong>Making Backups with
+      <span><strong class="command">mysqldump</strong></span> or
+      <span><strong class="command">mysqlhotcopy</strong></span></strong></span>
+    </p><p>
+      Another technique for backing up a database is to use the
+      <span><strong class="command">mysqldump</strong></span> program or the
+      <span><strong class="command">mysqlhotcopy</strong></span> script.
+      <span><strong class="command">mysqldump</strong></span> is more general because it can back
+      up all kinds of tables. <span><strong class="command">mysqlhotcopy</strong></span> works only
+      with some storage engines. (See <a href="programs.html#mysqldump" title="4.5.4. mysqldump — A Database Backup Program">Section 4.5.4, “<span><strong class="command">mysqldump</strong></span> — A Database Backup Program”</a>, and
+      <a href="programs.html#mysqlhotcopy" title="4.6.8. mysqlhotcopy — A Database Backup Program">Section 4.6.8, “<span><strong class="command">mysqlhotcopy</strong></span> — A Database Backup Program”</a>.)
+    </p><p>
+      Create a full backup of your database:
+    </p><pre class="programlisting">shell&gt; <strong class="userinput"><code>mysqldump --tab=<em class="replaceable"><code>/path/to/some/dir</code></em> --opt <em class="replaceable"><code>db_name</code></em></code></strong>
+</pre><p>
+      Or:
+    </p><pre class="programlisting">shell&gt; <strong class="userinput"><code>mysqlhotcopy <em class="replaceable"><code>db_name</code></em> <em class="replaceable"><code>/path/to/some/dir</code></em></code></strong>
+</pre><p>
+      You can also create a binary backup simply by copying all table
+      files (<code class="filename">*.frm</code>, <code class="filename">*.MYD</code>, and
+      <code class="filename">*.MYI</code> files), as long as the server isn't
+      updating anything. The <span><strong class="command">mysqlhotcopy</strong></span> script uses
+      this method. (But note that these methods do not work if your
+      database contains <code class="literal">InnoDB</code> tables.
+      <code class="literal">InnoDB</code> does not necessarily store table
+      contents in database directories, and
+      <span><strong class="command">mysqlhotcopy</strong></span> works only for
+      <code class="literal">MyISAM</code> and <code class="literal">ISAM</code> tables.)
+    </p><p>
+      For <code class="literal">InnoDB</code> tables, it is possible to perform an
+      online backup that takes no locks on tables; see
+      <a href="programs.html#mysqldump" title="4.5.4. mysqldump — A Database Backup Program">Section 4.5.4, “<span><strong class="command">mysqldump</strong></span> — A Database Backup Program”</a>.
+    </p><p>
+      <span class="bold"><strong>Using the Binary Log to Enable Incremental
+      Backups</strong></span>
+    </p><p>
+      MySQL supports incremental backups: You must start the server with
+      the <code class="option">--log-bin</code> option to enable binary logging;
+      see <a href="server-administration.html#binary-log" title="5.2.4. The Binary Log">Section 5.2.4, “The Binary Log”</a>. The binary log files provide you
+      with the information you need to replicate changes to the database
+      that are made subsequent to the point at which you performed a
+      backup. At the moment you want to make an incremental backup
+      (containing all changes that happened since the last full or
+      incremental backup), you should rotate the binary log by using
+      <code class="literal">FLUSH LOGS</code>. This done, you need to copy to the
+      backup location all binary logs which range from the one of the
+      moment of the last full or incremental backup to the last but one.
+      These binary logs are the incremental backup; at restore time, you
+      apply them as explained in
+      <a href="backup-and-recovery.html#point-in-time-recovery" title="6.3. Point-in-Time Recovery">Section 6.3, “Point-in-Time Recovery”</a>. The next time you do a
+      full backup, you should also rotate the binary log using
+      <code class="literal">FLUSH LOGS</code>, <span><strong class="command">mysqldump
+      --flush-logs</strong></span>, or <span><strong class="command">mysqlhotcopy
+      --flushlog</strong></span>. See <a href="programs.html#mysqldump" title="4.5.4. mysqldump — A Database Backup Program">Section 4.5.4, “<span><strong class="command">mysqldump</strong></span> — A Database Backup Program”</a>, and
+      <a href="programs.html#mysqlhotcopy" title="4.6.8. mysqlhotcopy — A Database Backup Program">Section 4.6.8, “<span><strong class="command">mysqlhotcopy</strong></span> — A Database Backup Program”</a>.
+    </p><p>
+      <span class="bold"><strong>Backing Up Replication Slaves</strong></span>
+    </p><p>
+      If your MySQL server is a slave replication server, then
+      regardless of the backup method you choose, you should also back
+      up the <code class="filename">master.info</code> and
+      <code class="filename">relay-log.info</code> files when you back up your
+      slave's data. These files are always needed to resume replication
+      after you restore the slave's data. If your slave is subject to
+      replicating <code class="literal">LOAD DATA INFILE</code> commands, you
+      should also back up any <code class="filename">SQL_LOAD-*</code> files that
+      may exist in the directory specified by the
+      <code class="option">--slave-load-tmpdir</code> option. (This location
+      defaults to the value of the <code class="literal">tmpdir</code> system
+      variable if not specified.) The slave needs these files to resume
+      replication of any interrupted <code class="literal">LOAD DATA INFILE</code>
+      operations.
+    </p><p class="mnmas"><b>MySQL Enterprise</b>
+        The MySQL Enterprise Monitor provides numerous advisors that
+        issue immediate warnings should replication issues arise. For
+        more information, see
+        <a href="http://www.mysql.com/products/enterprise/advisors.html" target="_top">http://www.mysql.com/products/enterprise/advisors.html</a>.
+      </p><p>
+      If you have performance problems with your master server while
+      making backups, one strategy that can help is to set up
+      replication and perform backups on the slave rather than on the
+      master. See <a href="replication.html" title="Chapter 19. Replication">Chapter 19, <i>Replication</i></a>.
+    </p><p>
+      <span class="bold"><strong>Recovering Corrupt Tables</strong></span>
+    </p><p>
+      If you have to restore <code class="literal">MyISAM</code> tables that have
+      become corrupt, try to recover them using <code class="literal">REPAIR
+      TABLE</code> or <span><strong class="command">myisamchk -r</strong></span> first. That
+      should work in 99.9% of all cases. If <span><strong class="command">myisamchk</strong></span>
+      fails, try the following procedure. It is assumed that you have
+      enabled binary logging by starting MySQL with the
+      <code class="option">--log-bin</code> option.
+    </p><div class="orderedlist"><ol type="1"><li><p>
+          Restore the original <span><strong class="command">mysqldump</strong></span> backup, or
+          binary backup.
+        </p></li><li><p>
+          Execute the following command to re-run the updates in the
+          binary logs:
+        </p><pre class="programlisting">shell&gt; <strong class="userinput"><code>mysqlbinlog binlog.[0-9]* | mysql</code></strong>
+</pre><p>
+          In some cases, you may want to re-run only certain binary
+          logs, from certain positions (usually you want to re-run all
+          binary logs from the date of the restored backup, excepting
+          possibly some incorrect statements). See
+          <a href="backup-and-recovery.html#point-in-time-recovery" title="6.3. Point-in-Time Recovery">Section 6.3, “Point-in-Time Recovery”</a>.
+        </p></li></ol></div><p>
+      <span class="bold"><strong>Making Backups Using a Filesystem
+      Snapshot</strong></span>
+    </p><p>
+      If you are using a Veritas filesystem, you can make a backup like
+      this:
+    </p><div class="orderedlist"><ol type="1"><li><p>
+          From a client program, execute <code class="literal">FLUSH TABLES WITH READ
+          LOCK</code>.
+        </p></li><li><p>
+          From another shell, execute <code class="literal">mount vxfs
+          snapshot</code>.
+        </p></li><li><p>
+          From the first client, execute <code class="literal">UNLOCK
+          TABLES</code>.
+        </p></li><li><p>
+          Copy files from the snapshot.
+        </p></li><li><p>
+          Unmount the snapshot.
+        </p></li></ol></div></div><div class="section" lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="backup-strategy-example"></a>6.2. Example Backup and Recovery Strategy</h2></div></div></div><div class="toc"><dl><dt><span class="section"><a href="backup-and-recovery.html#backup-policy">6.2.1. Backup Policy</a></span></dt><dt><span class="section"><a href="backup-and-recovery.html#recovery-from-backups">6.2.2. Using Backups for Recovery</a></span></dt><dt><span class="section"><a href="backup-and-recovery.html#backup-strategy-summary">6.2.3. Backup Strategy Summary</a></span></dt></dl></div><p>
+      This section discusses a procedure for performing backups that
+      allows you to recover data after several types of crashes:
+    </p><div class="itemizedlist"><ul type="disc"><li><p>
+          Operating system crash
+        </p></li><li><p>
+          Power failure
+        </p></li><li><p>
+          Filesystem crash
+        </p></li><li><p>
+          Hardware problem (hard drive, motherboard, and so forth)
+        </p></li></ul></div><p>
+      The example commands do not include options such as
+      <code class="option">--user</code> and <code class="option">--password</code> for the
+      <span><strong class="command">mysqldump</strong></span> and <span><strong class="command">mysql</strong></span>
+      programs. You should include such options as necessary so that the
+      MySQL server allows you to connect to it.
+    </p><p>
+      We assume that data is stored in the <code class="literal">InnoDB</code>
+      storage engine, which has support for transactions and automatic
+      crash recovery. We also assume that the MySQL server is under load
+      at the time of the crash. If it were not, no recovery would ever
+      be needed.
+    </p><p>
+      For cases of operating system crashes or power failures, we can
+      assume that MySQL's disk data is available after a restart. The
+      <code class="literal">InnoDB</code> data files might not contain consistent
+      data due to the crash, but <code class="literal">InnoDB</code> reads its
+      logs and finds in them the list of pending committed and
+      non-committed transactions that have not been flushed to the data
+      files. <code class="literal">InnoDB</code> automatically rolls back those
+      transactions that were not committed, and flushes to its data
+      files those that were committed. Information about this recovery
+      process is conveyed to the user through the MySQL error log. The
+      following is an example log excerpt:
+    </p><pre class="programlisting">InnoDB: Database was not shut down normally.
+InnoDB: Starting recovery from log files...
+InnoDB: Starting log scan based on checkpoint at
+InnoDB: log sequence number 0 13674004
+InnoDB: Doing recovery: scanned up to log sequence number 0 13739520
+InnoDB: Doing recovery: scanned up to log sequence number 0 13805056
+InnoDB: Doing recovery: scanned up to log sequence number 0 13870592
+InnoDB: Doing recovery: scanned up to log sequence number 0 13936128
+...
+InnoDB: Doing recovery: scanned up to log sequence number 0 20555264
+InnoDB: Doing recovery: scanned up to log sequence number 0 20620800
+InnoDB: Doing recovery: scanned up to log sequence number 0 20664692
+InnoDB: 1 uncommitted transaction(s) which must be rolled back
+InnoDB: Starting rollback of uncommitted transactions
+InnoDB: Rolling back trx no 16745
+InnoDB: Rolling back of trx no 16745 completed
+InnoDB: Rollback of uncommitted transactions completed
+InnoDB: Starting an apply batch of log records to the database...
+InnoDB: Apply batch completed
+InnoDB: Started
+mysqld: ready for connections
+</pre><p>
+      For the cases of filesystem crashes or hardware problems, we can
+      assume that the MySQL disk data is <span class="emphasis"><em>not</em></span>
+      available after a restart. This means that MySQL fails to start
+      successfully because some blocks of disk data are no longer
+      readable. In this case, it is necessary to reformat the disk,
+      install a new one, or otherwise correct the underlying problem.
+      Then it is necessary to recover our MySQL data from backups, which
+      means that we must already have made backups. To make sure that is
+      the case, we should design a backup policy.
+    </p><div class="section" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="backup-policy"></a>6.2.1. Backup Policy</h3></div></div></div><p>
+        We all know that backups must be scheduled periodically. A full
+        backup (a snapshot of the data at a point in time) can be done
+        in MySQL with several tools. For example, <code class="literal">InnoDB Hot
+        Backup</code> provides online non-blocking physical backup of
+        the <code class="literal">InnoDB</code> data files, and
+        <span><strong class="command">mysqldump</strong></span> provides online logical backup.
+        This discussion uses <span><strong class="command">mysqldump</strong></span>.
+      </p><p class="mnmas"><b>MySQL Enterprise</b>
+          For expert advice on backups and replication, subscribe to the
+          MySQL Enterprise Monitor. For more information, see
+          <a href="http://www.mysql.com/products/enterprise/advisors.html" target="_top">http://www.mysql.com/products/enterprise/advisors.html</a>.
+        </p><p>
+        Assume that we make a backup on Sunday at 1 p.m., when load is
+        low. The following command makes a full backup of all our
+        <code class="literal">InnoDB</code> tables in all databases:
+      </p><pre class="programlisting">shell&gt; <strong class="userinput"><code>mysqldump --single-transaction --all-databases &gt; backup_sunday_1_PM.sql</code></strong>
+</pre><p>
+        This is an online, non-blocking backup that does not disturb the
+        reads and writes on the tables. We assumed earlier that our
+        tables are <code class="literal">InnoDB</code> tables, so
+        <code class="option">--single-transaction</code> uses a consistent read and
+        guarantees that data seen by <span><strong class="command">mysqldump</strong></span> does
+        not change. (Changes made by other clients to
+        <code class="literal">InnoDB</code> tables are not seen by the
+        <span><strong class="command">mysqldump</strong></span> process.) If we do also have other
+        types of tables, we must assume that they are not changed during
+        the backup. For example, for the <code class="literal">MyISAM</code>
+        tables in the <code class="literal">mysql</code> database, we must assume
+        that no administrative changes are being made to MySQL accounts
+        during the backup.
+      </p><p>
+        The resulting <code class="filename">.sql</code> file produced by
+        <span><strong class="command">mysqldump</strong></span> contains a set of SQL
+        <code class="literal">INSERT</code> statements that can be used to reload
+        the dumped tables at a later time.
+      </p><p>
+        Full backups are necessary, but they are not always convenient.
+        They produce large backup files and take time to generate. They
+        are not optimal in the sense that each successive full backup
+        includes all data, even that part that has not changed since the
+        previous full backup. After we have made the initial full
+        backup, it is more efficient to make incremental backups. They
+        are smaller and take less time to produce. The tradeoff is that,
+        at recovery time, you cannot restore your data just by reloading
+        the full backup. You must also process the incremental backups
+        to recover the incremental changes.
+      </p><p>
+        To make incremental backups, we need to save the incremental
+        changes. The MySQL server should always be started with the
+        <code class="option">--log-bin</code> option so that it stores these
+        changes in a file while it updates data. This option enables
+        binary logging, so that the server writes each SQL statement
+        that updates data into a file called a MySQL binary log. Looking
+        at the data directory of a MySQL server that was started with
+        the <code class="option">--log-bin</code> option and that has been running
+        for some days, we find these MySQL binary log files:
+      </p><pre class="programlisting">-rw-rw---- 1 guilhem  guilhem   1277324 Nov 10 23:59 gbichot2-bin.000001
+-rw-rw---- 1 guilhem  guilhem         4 Nov 10 23:59 gbichot2-bin.000002
+-rw-rw---- 1 guilhem  guilhem        79 Nov 11 11:06 gbichot2-bin.000003
+-rw-rw---- 1 guilhem  guilhem       508 Nov 11 11:08 gbichot2-bin.000004
+-rw-rw---- 1 guilhem  guilhem 220047446 Nov 12 16:47 gbichot2-bin.000005
+-rw-rw---- 1 guilhem  guilhem    998412 Nov 14 10:08 gbichot2-bin.000006
+-rw-rw---- 1 guilhem  guilhem       361 Nov 14 10:07 gbichot2-bin.index
+</pre><p>
+        Each time it restarts, the MySQL server creates a new binary log
+        file using the next number in the sequence. While the server is
+        running, you can also tell it to close the current binary log
+        file and begin a new one manually by issuing a <code class="literal">FLUSH
+        LOGS</code> SQL statement or with a <span><strong class="command">mysqladmin
+        flush-logs</strong></span> command. <span><strong class="command">mysqldump</strong></span> also
+        has an option to flush the logs. The <code class="literal">.index</code>
+        file in the data directory contains the list of all MySQL binary
+        logs in the directory. This file is used for replication.
+      </p><p>
+        The MySQL binary logs are important for recovery because they
+        form the set of incremental backups. If you make sure to flush
+        the logs when you make your full backup, then any binary log
+        files created afterward contain all the data changes made since
+        the backup. Let's modify the previous
+        <span><strong class="command">mysqldump</strong></span> command a bit so that it flushes
+        the MySQL binary logs at the moment of the full backup, and so
+        that the dump file contains the name of the new current binary
+        log:
+      </p><pre class="programlisting">shell&gt; <strong class="userinput"><code>mysqldump --single-transaction --flush-logs --master-data=2 \</code></strong>
+         <strong class="userinput"><code>--all-databases &gt; backup_sunday_1_PM.sql</code></strong>
+</pre><p>
+        After executing this command, the data directory contains a new
+        binary log file, <code class="filename">gbichot2-bin.000007</code>. The
+        resulting <code class="filename">.sql</code> file includes these lines:
+      </p><pre class="programlisting">-- Position to start replication or point-in-time recovery from
+-- CHANGE MASTER TO MASTER_LOG_FILE='gbichot2-bin.000007',MASTER_LOG_POS=4;
+</pre><p>
+        Because the <span><strong class="command">mysqldump</strong></span> command made a full
+        backup, those lines mean two things:
+      </p><div class="itemizedlist"><ul type="disc"><li><p>
+            The <code class="filename">.sql</code> file contains all changes made
+            before any changes written to the
+            <code class="filename">gbichot2-bin.000007</code> binary log file or
+            newer.
+          </p></li><li><p>
+            All data changes logged after the backup are not present in
+            the <code class="filename">.sql</code>, but are present in the
+            <code class="filename">gbichot2-bin.000007</code> binary log file or
+            newer.
+          </p></li></ul></div><p>
+        On Monday at 1 p.m., we can create an incremental backup by
+        flushing the logs to begin a new binary log file. For example,
+        executing a <span><strong class="command">mysqladmin flush-logs</strong></span> command
+        creates <code class="filename">gbichot2-bin.000008</code>. All changes
+        between the Sunday 1 p.m. full backup and Monday 1 p.m. will be
+        in the <code class="filename">gbichot2-bin.000007</code> file. This
+        incremental backup is important, so it is a good idea to copy it
+        to a safe place. (For example, back it up on tape or DVD, or
+        copy it to another machine.) On Tuesday at 1 p.m., execute
+        another <span><strong class="command">mysqladmin flush-logs</strong></span> command. All
+        changes between Monday 1 p.m. and Tuesday 1 p.m. will be in the
+        <code class="filename">gbichot2-bin.000008</code> file (which also should
+        be copied somewhere safe).
+      </p><p>
+        The MySQL binary logs take up disk space. To free up space,
+        purge them from time to time. One way to do this is by deleting
+        the binary logs that are no longer needed, such as when we make
+        a full backup:
+      </p><pre class="programlisting">shell&gt; <strong class="userinput"><code>mysqldump --single-transaction --flush-logs --master-data=2 \</code></strong>
+         <strong class="userinput"><code>--all-databases --delete-master-logs &gt; backup_sunday_1_PM.sql</code></strong>
+</pre><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Note</h3><p>
+          Deleting the MySQL binary logs with <span><strong class="command">mysqldump
+          --delete-master-logs</strong></span> can be dangerous if your server
+          is a replication master server, because slave servers might
+          not yet fully have processed the contents of the binary log.
+          The description for the <code class="literal">PURGE MASTER LOGS</code>
+          statement explains what should be verified before deleting the
+          MySQL binary logs. See <a href="sql-syntax.html#purge-master-logs" title="12.6.1.1. PURGE MASTER LOGS Syntax">Section 12.6.1.1, “<code class="literal">PURGE MASTER LOGS</code> Syntax”</a>.
+        </p></div></div><div class="section" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="recovery-from-backups"></a>6.2.2. Using Backups for Recovery</h3></div></div></div><p>
+        Now, suppose that we have a catastrophic crash on Wednesday at 8
+        a.m. that requires recovery from backups. To recover, first we
+        restore the last full backup we have (the one from Sunday 1
+        p.m.). The full backup file is just a set of SQL statements, so
+        restoring it is very easy:
+      </p><pre class="programlisting">shell&gt; <strong class="userinput"><code>mysql &lt; backup_sunday_1_PM.sql</code></strong>
+</pre><p>
+        At this point, the data is restored to its state as of Sunday 1
+        p.m.. To restore the changes made since then, we must use the
+        incremental backups; that is, the
+        <code class="filename">gbichot2-bin.000007</code> and
+        <code class="filename">gbichot2-bin.000008</code> binary log files. Fetch
+        the files if necessary from where they were backed up, and then
+        process their contents like this:
+      </p><pre class="programlisting">shell&gt; <strong class="userinput"><code>mysqlbinlog gbichot2-bin.000007 gbichot2-bin.000008 | mysql</code></strong>
+</pre><p>
+        We now have recovered the data to its state as of Tuesday 1
+        p.m., but still are missing the changes from that date to the
+        date of the crash. To not lose them, we would have needed to
+        have the MySQL server store its MySQL binary logs into a safe
+        location (RAID disks, SAN, ...) different from the place where
+        it stores its data files, so that these logs were not on the
+        destroyed disk. (That is, we can start the server with a
+        <code class="option">--log-bin</code> option that specifies a location on a
+        different physical device from the one on which the data
+        directory resides. That way, the logs are safe even if the
+        device containing the directory is lost.) If we had done this,
+        we would have the <code class="filename">gbichot2-bin.000009</code> file
+        at hand, and we could apply it using
+        <span><strong class="command">mysqlbinlog</strong></span> and <span><strong class="command">mysql</strong></span> to
+        restore the most recent data changes with no loss up to the
+        moment of the crash.
+      </p></div><div class="section" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="backup-strategy-summary"></a>6.2.3. Backup Strategy Summary</h3></div></div></div><p>
+        In case of an operating system crash or power failure,
+        <code class="literal">InnoDB</code> itself does all the job of recovering
+        data. But to make sure that you can sleep well, observe the
+        following guidelines:
+      </p><div class="itemizedlist"><ul type="disc"><li><p>
+            Always run the MySQL server with the
+            <code class="option">--log-bin</code> option, or even
+            <code class="option">--log-bin=<em class="replaceable"><code>log_name</code></em></code>,
+            where the log file name is located on some safe media
+            different from the drive on which the data directory is
+            located. If you have such safe media, this technique can
+            also be good for disk load balancing (which results in a
+            performance improvement).
+          </p></li><li><p>
+            Make periodic full backups, using the
+            <span><strong class="command">mysqldump</strong></span> command shown earlier in
+            <a href="backup-and-recovery.html#backup-policy" title="6.2.1. Backup Policy">Section 6.2.1, “Backup Policy”</a>, that makes an online,
+            non-blocking backup.
+          </p></li><li><p>
+            Make periodic incremental backups by flushing the logs with
+            <code class="literal">FLUSH LOGS</code> or <span><strong class="command">mysqladmin
+            flush-logs</strong></span>.
+          </p></li></ul></div></div></div><div class="section" lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="point-in-time-recovery"></a>6.3. Point-in-Time Recovery</h2></div></div></div><div class="toc"><dl><dt><span class="section"><a href="backup-and-recovery.html#point-in-time-recovery-times">6.3.1. Specifying Times for Recovery</a></span></dt><dt><span class="section"><a href="backup-and-recovery.html#point-in-time-recovery-positions">6.3.2. Specifying Positions for Recovery</a></span></dt></dl></div><a class="indexterm" name="id2045503"></a><a class="indexterm" name="id2045512"></a><p>
+      If a MySQL server was started with the <code class="option">--log-bin</code>
+      option to enable binary logging, you can use the
+      <span><strong class="command">mysqlbinlog</strong></span> utility to recover data from the
+      binary log files, starting from a specified point in time (for
+      example, since your last backup) until the present or another
+      specified point in time. For information on enabling the binary
+      log and using <span><strong class="command">mysqlbinlog</strong></span>, see
+      <a href="server-administration.html#binary-log" title="5.2.4. The Binary Log">Section 5.2.4, “The Binary Log”</a>, and <a href="programs.html#mysqlbinlog" title="4.6.7. mysqlbinlog — Utility for Processing Binary Log Files">Section 4.6.7, “<span><strong class="command">mysqlbinlog</strong></span> — Utility for Processing Binary Log Files”</a>.
+    </p><p class="mnmas"><b>MySQL Enterprise</b>
+        For maximum data recovery, the MySQL Enterprise Monitor advises
+        subscribers to synchronize to disk at each write. For more
+        information, see
+        <a href="http://www.mysql.com/products/enterprise/advisors.html" target="_top">http://www.mysql.com/products/enterprise/advisors.html</a>.
+      </p><p>
+      To restore data from a binary log, you must know the location and
+      name of the current binary log file. By default, the server
+      creates binary log files in the data directory, but a pathname can
+      be specified with the <code class="option">--log-bin</code> option to place
+      the files in a different location. Typically the option is given
+      in an option file (that is, <code class="filename">my.cnf</code> or
+      <code class="filename">my.ini</code>, depending on your system). It can
+      also be given on the command line when the server is started. To
+      determine the name of the current binary log file, issue the
+      following statement:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SHOW MASTER STATUS</code></strong>
+</pre><p>
+      If you prefer, you can execute the following command from the
+      command line instead:
+    </p><pre class="programlisting">shell&gt; <strong class="userinput"><code>mysql -u root -p -E -e "SHOW MASTER STATUS"</code></strong>
+</pre><p>
+      Enter the <code class="literal">root</code> password for your server when
+      <span><strong class="command">mysql</strong></span> prompts you for it.
+    </p><p>
+      To view the contents of a binary log, use
+      <code class="literal">mysqlbinlog</code>. See <a href="programs.html#mysqlbinlog" title="4.6.7. mysqlbinlog — Utility for Processing Binary Log Files">Section 4.6.7, “<span><strong class="command">mysqlbinlog</strong></span> — Utility for Processing Binary Log Files”</a>.
+    </p><div class="section" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="point-in-time-recovery-times"></a>6.3.1. Specifying Times for Recovery</h3></div></div></div><p>
+        To indicate the start and end times for recovery, specify the
+        <code class="option">--start-date</code> and <code class="option">--stop-date</code>
+        options for <span><strong class="command">mysqlbinlog</strong></span>, in
+        <code class="literal">DATETIME</code> format. As an example, suppose that
+        exactly at 10:00 a.m. on April 20, 2005 an SQL statement was
+        executed that deleted a large table. To restore the table and
+        data, you could restore the previous night's backup, and then
+        execute the following command:
+      </p><pre class="programlisting">shell&gt; <strong class="userinput"><code>mysqlbinlog --stop-date="2005-04-20 9:59:59" \</code></strong>
+         <strong class="userinput"><code>/var/log/mysql/bin.123456 | mysql -u root -p</code></strong>
+</pre><p>
+        This command recovers all of the data up until the date and time
+        given by the <code class="option">--stop-date</code> option. If you did not
+        detect the erroneous SQL statement that was entered until hours
+        later, you will probably also want to recover the activity that
+        occurred afterward. Based on this, you could run
+        <span><strong class="command">mysqlbinlog</strong></span> again with a start date and time,
+        like so:
+      </p><pre class="programlisting">shell&gt; <strong class="userinput"><code>mysqlbinlog --start-date="2005-04-20 10:01:00" \</code></strong>
+         <strong class="userinput"><code>/var/log/mysql/bin.123456 | mysql -u root -p</code></strong>
+</pre><p>
+        In this command, the SQL statements logged from 10:01 a.m. on
+        will be re-executed. The combination of restoring of the
+        previous night's dump file and the two
+        <span><strong class="command">mysqlbinlog</strong></span> commands restores everything up
+        until one second before 10:00 a.m. and everything from 10:01
+        a.m. on. You should examine the log to be sure of the exact
+        times to specify for the commands. To display the log file
+        contents without executing them, use this command:
+      </p><pre class="programlisting">shell&gt; <strong class="userinput"><code>mysqlbinlog /var/log/mysql/bin.123456 &gt; /tmp/mysql_restore.sql</code></strong>
+</pre><p>
+        Then open the file with a text editor to examine it.
+      </p></div><div class="section" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="point-in-time-recovery-positions"></a>6.3.2. Specifying Positions for Recovery</h3></div></div></div><p>
+        Instead of specifying dates and times, the
+        <code class="option">--start-position</code> and
+        <code class="option">--stop-position</code> options for
+        <span><strong class="command">mysqlbinlog</strong></span> can be used for specifying log
+        positions. They work the same as the start and stop date
+        options, except that you specify log position numbers rather
+        than dates. Using positions may enable you to be more precise
+        about which part of the log to recover, especially if many
+        transactions occurred around the same time as a damaging SQL
+        statement. To determine the position numbers, run
+        <span><strong class="command">mysqlbinlog</strong></span> for a range of times near the
+        time when the unwanted transaction was executed, but redirect
+        the results to a text file for examination. This can be done
+        like so:
+      </p><pre class="programlisting">shell&gt; <strong class="userinput"><code>mysqlbinlog --start-date="2005-04-20 9:55:00" \</code></strong>
+         <strong class="userinput"><code>--stop-date="2005-04-20 10:05:00" \</code></strong>
+         <strong class="userinput"><code>/var/log/mysql/bin.123456 &gt; /tmp/mysql_restore.sql</code></strong>
+</pre><p>
+        This command creates a small text file in the
+        <code class="filename">/tmp</code> directory that contains the SQL
+        statements around the time that the deleterious SQL statement
+        was executed. Open this file with a text editor and look for the
+        statement that you don't want to repeat. Determine the positions
+        in the binary log for stopping and resuming the recovery and
+        make note of them. Positions are labeled as
+        <code class="literal">log_pos</code> followed by a number. After restoring
+        the previous backup file, use the position numbers to process
+        the binary log file. For example, you would use commands
+        something like these:
+      </p><pre class="programlisting">shell&gt; <strong class="userinput"><code>mysqlbinlog --stop-position="368312" /var/log/mysql/bin.123456 \</code></strong>
+         <strong class="userinput"><code>| mysql -u root -p</code></strong>
+
+shell&gt; <strong class="userinput"><code>mysqlbinlog --start-position="368315" /var/log/mysql/bin.123456 \</code></strong>
+         <strong class="userinput"><code>| mysql -u root -p</code></strong>
+</pre><p>
+        The first command recovers all the transactions up until the
+        stop position given. The second command recovers all
+        transactions from the starting position given until the end of
+        the binary log. Because the output of
+        <span><strong class="command">mysqlbinlog</strong></span> includes <code class="literal">SET
+        TIMESTAMP</code> statements before each SQL statement
+        recorded, the recovered data and related MySQL logs will reflect
+        the original times at which the transactions were executed.
+      </p></div></div><div class="section" lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="table-maintenance"></a>6.4. Table Maintenance and Crash Recovery</h2></div></div></div><div class="toc"><dl><dt><span class="section"><a href="backup-and-recovery.html#crash-recovery">6.4.1. Using <span><strong class="command">myisamchk</strong></span> for Crash Recovery</a></span></dt><dt><span class="section"><a href="backup-and-recovery.html#check">6.4.2. How to Check <code class="literal">MyISAM</code> Tables for Errors</a></span></dt><dt><span class="section"><a href="backup-and-recovery.html#repair">6.4.3. How to Repair Tables</a></span></dt><dt><span class="section"><a href="backup-and-recovery.html#table-optimization">6.4.4. Table Optimization</a></span></dt><dt><span class="section"><a href="backup-and-recovery.html#table-info">6.4.5. Getting Information About a Table</a></span></dt><dt><span class="section"><a href="backup-and-recovery.html#maintenance-schedule">6.4.6. Setting Up a Table Maintenance Schedule</a></span></dt></dl></div><p>
+      This section discusses how to use <span><strong class="command">myisamchk</strong></span> to
+      check or repair <code class="literal">MyISAM</code> tables (tables that have
+      <code class="filename">.MYD</code> and <code class="filename">.MYI</code> files for
+      storing data and indexes). For general
+      <span><strong class="command">myisamchk</strong></span> background, see
+      <a href="programs.html#myisamchk" title="4.6.3. myisamchk — MyISAM Table-Maintenance Utility">Section 4.6.3, “<span><strong class="command">myisamchk</strong></span> — MyISAM Table-Maintenance Utility”</a>.
+    </p><p>
+      You can use <span><strong class="command">myisamchk</strong></span> to get information about
+      your database tables or to check, repair, or optimize them. The
+      following sections describe how to perform these operations and
+      how to set up a table maintenance schedule.
+    </p><p>
+      Even though table repair with <span><strong class="command">myisamchk</strong></span> is
+      quite secure, it is always a good idea to make a backup
+      <span class="emphasis"><em>before</em></span> doing a repair or any maintenance
+      operation that could make a lot of changes to a table.
+    </p><p>
+      <span><strong class="command">myisamchk</strong></span> operations that affect indexes can
+      cause <code class="literal">FULLTEXT</code> indexes to be rebuilt with
+      full-text parameters that are incompatible with the values used by
+      the MySQL server. To avoid this problem, follow the guidelines in
+      <a href="programs.html#myisamchk-general-options" title="4.6.3.1. myisamchk General Options">Section 4.6.3.1, “<span><strong class="command">myisamchk</strong></span> General Options”</a>.
+    </p><p>
+      In many cases, you may find it simpler to do
+      <code class="literal">MyISAM</code> table maintenance using the SQL
+      statements that perform operations that
+      <span><strong class="command">myisamchk</strong></span> can do:
+    </p><div class="itemizedlist"><ul type="disc"><li><p>
+          To check or repair <code class="literal">MyISAM</code> tables, use
+          <code class="literal">CHECK TABLE</code> or <code class="literal">REPAIR
+          TABLE</code>.
+        </p></li><li><p>
+          To optimize <code class="literal">MyISAM</code> tables, use
+          <code class="literal">OPTIMIZE TABLE</code>.
+        </p></li><li><p>
+          To analyze <code class="literal">MyISAM</code> tables, use
+          <code class="literal">ANALYZE TABLE</code>.
+        </p></li></ul></div><p>
+      These statements can be used directly or by means of the
+      <span><strong class="command">mysqlcheck</strong></span> client program. One advantage of
+      these statements over <span><strong class="command">myisamchk</strong></span> is that the
+      server does all the work. With <span><strong class="command">myisamchk</strong></span>, you
+      must make sure that the server does not use the tables at the same
+      time so that there is no unwanted interaction between
+      <span><strong class="command">myisamchk</strong></span> and the server. See
+      <a href="sql-syntax.html#analyze-table" title="12.5.2.1. ANALYZE TABLE Syntax">Section 12.5.2.1, “<code class="literal">ANALYZE TABLE</code> Syntax”</a>, <a href="sql-syntax.html#check-table" title="12.5.2.3. CHECK TABLE Syntax">Section 12.5.2.3, “<code class="literal">CHECK TABLE</code> Syntax”</a>,
+      <a href="sql-syntax.html#optimize-table" title="12.5.2.5. OPTIMIZE TABLE Syntax">Section 12.5.2.5, “<code class="literal">OPTIMIZE TABLE</code> Syntax”</a>, and
+      <a href="sql-syntax.html#repair-table" title="12.5.2.6. REPAIR TABLE Syntax">Section 12.5.2.6, “<code class="literal">REPAIR TABLE</code> Syntax”</a>.
+    </p><div class="section" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="crash-recovery"></a>6.4.1. Using <span><strong class="command">myisamchk</strong></span> for Crash Recovery</h3></div></div></div><a class="indexterm" name="id2046143"></a><a class="indexterm" name="id2046156"></a><a class="indexterm" name="id2046168"></a><a class="indexterm" name="id2046177"></a><p>
+        This section describes how to check for and deal with data
+        corruption in MySQL databases. If your tables become corrupted
+        frequently, you should try to find the reason why. See
+        <a href="error-handling.html#crashing" title="B.1.4.2. What to Do If MySQL Keeps Crashing">Section B.1.4.2, “What to Do If MySQL Keeps Crashing”</a>.
+      </p><p>
+        For an explanation of how <code class="literal">MyISAM</code> tables can
+        become corrupted, see <a href="storage-engines.html#myisam-table-problems" title="13.4.4. MyISAM Table Problems">Section 13.4.4, “<code class="literal">MyISAM</code> Table Problems”</a>.
+      </p><p>
+        If you run <span><strong class="command">mysqld</strong></span> with external locking
+        disabled (which is the default as of MySQL 4.0), you cannot
+        reliably use <span><strong class="command">myisamchk</strong></span> to check a table when
+        <span><strong class="command">mysqld</strong></span> is using the same table. If you can be
+        certain that no one will access the tables through
+        <span><strong class="command">mysqld</strong></span> while you run
+        <span><strong class="command">myisamchk</strong></span>, you only have to execute
+        <span><strong class="command">mysqladmin flush-tables</strong></span> before you start
+        checking the tables. If you cannot guarantee this, you must stop
+        <span><strong class="command">mysqld</strong></span> while you check the tables. If you run
+        <span><strong class="command">myisamchk</strong></span> to check tables that
+        <span><strong class="command">mysqld</strong></span> is updating at the same time, you may
+        get a warning that a table is corrupt even when it is not.
+      </p><p>
+        If the server is run with external locking enabled, you can use
+        <span><strong class="command">myisamchk</strong></span> to check tables at any time. In
+        this case, if the server tries to update a table that
+        <span><strong class="command">myisamchk</strong></span> is using, the server will wait for
+        <span><strong class="command">myisamchk</strong></span> to finish before it continues.
+      </p><p>
+        If you use <span><strong class="command">myisamchk</strong></span> to repair or optimize
+        tables, you <span class="emphasis"><em>must</em></span> always ensure that the
+        <span><strong class="command">mysqld</strong></span> server is not using the table (this
+        also applies if external locking is disabled). If you don't stop
+        <span><strong class="command">mysqld</strong></span>, you should at least do a
+        <span><strong class="command">mysqladmin flush-tables</strong></span> before you run
+        <span><strong class="command">myisamchk</strong></span>. Your tables <span class="emphasis"><em>may become
+        corrupted</em></span> if the server and
+        <span><strong class="command">myisamchk</strong></span> access the tables simultaneously.
+      </p><p>
+        When performing crash recovery, it is important to understand
+        that each <code class="literal">MyISAM</code> table
+        <em class="replaceable"><code>tbl_name</code></em> in a database corresponds to
+        three files in the database directory:
+      </p><div class="informaltable"><table border="1"><colgroup><col><col></colgroup><tbody><tr><td><span class="bold"><strong>File</strong></span></td><td><span class="bold"><strong>Purpose</strong></span></td></tr><tr><td><code class="filename"><em class="replaceable"><code>tbl_name</code></em>.frm</code></td><td>Definition (format) file</td></tr><tr><td><code class="filename"><em class="replaceable"><code>tbl_name</code></em>.MYD</code></td><td>Data file</td></tr><tr><td><code class="filename"><em class="replaceable"><code>tbl_name</code></em>.MYI</code></td><td>Index file</td></tr></tbody></table></div><p>
+        Each of these three file types is subject to corruption in
+        various ways, but problems occur most often in data files and
+        index files.
+      </p><p>
+        <span><strong class="command">myisamchk</strong></span> works by creating a copy of the
+        <code class="filename">.MYD</code> data file row by row. It ends the
+        repair stage by removing the old <code class="filename">.MYD</code> file
+        and renaming the new file to the original file name. If you use
+        <code class="option">--quick</code>, <span><strong class="command">myisamchk</strong></span> does not
+        create a temporary <code class="filename">.MYD</code> file, but instead
+        assumes that the <code class="filename">.MYD</code> file is correct and
+        generates only a new index file without touching the
+        <code class="filename">.MYD</code> file. This is safe, because
+        <span><strong class="command">myisamchk</strong></span> automatically detects whether the
+        <code class="filename">.MYD</code> file is corrupt and aborts the repair
+        if it is. You can also specify the <code class="option">--quick</code>
+        option twice to <span><strong class="command">myisamchk</strong></span>. In this case,
+        <span><strong class="command">myisamchk</strong></span> does not abort on some errors (such
+        as duplicate-key errors) but instead tries to resolve them by
+        modifying the <code class="filename">.MYD</code> file. Normally the use
+        of two <code class="option">--quick</code> options is useful only if you
+        have too little free disk space to perform a normal repair. In
+        this case, you should at least make a backup of the table before
+        running <span><strong class="command">myisamchk</strong></span>.
+      </p></div><div class="section" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="check"></a>6.4.2. How to Check <code class="literal">MyISAM</code> Tables for Errors</h3></div></div></div><a class="indexterm" name="id2046570"></a><a class="indexterm" name="id2046582"></a><a class="indexterm" name="id2046595"></a><p>
+        To check a <code class="literal">MyISAM</code> table, use the following
+        commands:
+      </p><div class="itemizedlist"><ul type="disc"><li><p>
+            <code class="literal">myisamchk
+            <em class="replaceable"><code>tbl_name</code></em></code>
+          </p><p>
+            This finds 99.99% of all errors. What it cannot find is
+            corruption that involves <span class="emphasis"><em>only</em></span> the data
+            file (which is very unusual). If you want to check a table,
+            you should normally run <span><strong class="command">myisamchk</strong></span> without
+            options or with the <code class="option">-s</code> (silent) option.
+          </p></li><li><p>
+            <code class="literal">myisamchk -m
+            <em class="replaceable"><code>tbl_name</code></em></code>
+          </p><p>
+            This finds 99.999% of all errors. It first checks all index
+            entries for errors and then reads through all rows. It
+            calculates a checksum for all key values in the rows and
+            verifies that the checksum matches the checksum for the keys
+            in the index tree.
+          </p></li><li><p>
+            <code class="literal">myisamchk -e
+            <em class="replaceable"><code>tbl_name</code></em></code>
+          </p><p>
+            This does a complete and thorough check of all data
+            (<code class="option">-e</code> means “<span class="quote">extended check</span>”).
+            It does a check-read of every key for each row to verify
+            that they indeed point to the correct row. This may take a
+            long time for a large table that has many indexes. Normally,
+            <span><strong class="command">myisamchk</strong></span> stops after the first error it
+            finds. If you want to obtain more information, you can add
+            the <code class="option">-v</code> (verbose) option. This causes
+            <span><strong class="command">myisamchk</strong></span> to keep going, up through a
+            maximum of 20 errors.
+          </p></li><li><p>
+            <code class="literal">myisamchk -e -i
+            <em class="replaceable"><code>tbl_name</code></em></code>
+          </p><p>
+            This is like the previous command, but the
+            <code class="option">-i</code> option tells
+            <span><strong class="command">myisamchk</strong></span> to print additional statistical
+            information.
+          </p></li></ul></div><p>
+        In most cases, a simple <span><strong class="command">myisamchk</strong></span> command
+        with no arguments other than the table name is sufficient to
+        check a table.
+      </p></div><div class="section" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="repair"></a>6.4.3. How to Repair Tables</h3></div></div></div><a class="indexterm" name="id2046766"></a><a class="indexterm" name="id2046779"></a><p>
+        The discussion in this section describes how to use
+        <span><strong class="command">myisamchk</strong></span> on <code class="literal">MyISAM</code> tables
+        (extensions <code class="filename">.MYI</code> and
+        <code class="filename">.MYD</code>).
+      </p><p>
+        You can also (and should, if possible) use the <code class="literal">CHECK
+        TABLE</code> and <code class="literal">REPAIR TABLE</code> statements
+        to check and repair <code class="literal">MyISAM</code> tables. See
+        <a href="sql-syntax.html#check-table" title="12.5.2.3. CHECK TABLE Syntax">Section 12.5.2.3, “<code class="literal">CHECK TABLE</code> Syntax”</a>, and
+        <a href="sql-syntax.html#repair-table" title="12.5.2.6. REPAIR TABLE Syntax">Section 12.5.2.6, “<code class="literal">REPAIR TABLE</code> Syntax”</a>.
+      </p><p>
+        Symptoms of corrupted tables include queries that abort
+        unexpectedly and observable errors such as these:
+      </p><div class="itemizedlist"><ul type="disc"><li><p>
+            <code class="filename"><em class="replaceable"><code>tbl_name</code></em>.frm</code>
+            is locked against change
+          </p></li><li><p>
+            Can't find file
+            <code class="filename"><em class="replaceable"><code>tbl_name</code></em>.MYI</code>
+            (Errcode: <em class="replaceable"><code>nnn</code></em>)
+          </p></li><li><p>
+            Unexpected end of file
+          </p></li><li><p>
+            Record file is crashed
+          </p></li><li><p>
+            Got error <em class="replaceable"><code>nnn</code></em> from table handler
+          </p></li></ul></div><p>
+        To get more information about the error, run
+        <span><strong class="command">perror</strong></span> <em class="replaceable"><code>nnn</code></em>, where
+        <em class="replaceable"><code>nnn</code></em> is the error number. The
+        following example shows how to use <span><strong class="command">perror</strong></span> to
+        find the meanings for the most common error numbers that
+        indicate a problem with a table:
+      </p><pre class="programlisting">shell&gt; <strong class="userinput"><code>perror 126 127 132 134 135 136 141 144 145</code></strong>
+MySQL error code 126 = Index file is crashed
+MySQL error code 127 = Record-file is crashed
+MySQL error code 132 = Old database file
+MySQL error code 134 = Record was already deleted (or record file crashed)
+MySQL error code 135 = No more room in record file
+MySQL error code 136 = No more room in index file
+MySQL error code 141 = Duplicate unique key or constraint on write or update
+MySQL error code 144 = Table is crashed and last repair failed
+MySQL error code 145 = Table was marked as crashed and should be repaired
+</pre><p>
+        Note that error 135 (no more room in record file) and error 136
+        (no more room in index file) are not errors that can be fixed by
+        a simple repair. In this case, you must use <code class="literal">ALTER
+        TABLE</code> to increase the <code class="literal">MAX_ROWS</code> and
+        <code class="literal">AVG_ROW_LENGTH</code> table option values:
+      </p><pre class="programlisting">ALTER TABLE <em class="replaceable"><code>tbl_name</code></em> MAX_ROWS=<em class="replaceable"><code>xxx</code></em> AVG_ROW_LENGTH=<em class="replaceable"><code>yyy</code></em>;
+</pre><p>
+        If you do not know the current table option values, use
+        <code class="literal">SHOW CREATE TABLE</code>.
+      </p><p>
+        For the other errors, you must repair your tables.
+        <span><strong class="command">myisamchk</strong></span> can usually detect and fix most
+        problems that occur.
+      </p><p>
+        The repair process involves up to four stages, described here.
+        Before you begin, you should change location to the database
+        directory and check the permissions of the table files. On Unix,
+        make sure that they are readable by the user that
+        <span><strong class="command">mysqld</strong></span> runs as (and to you, because you need
+        to access the files you are checking). If it turns out you need
+        to modify files, they must also be writable by you.
+      </p><p>
+        This section is for the cases where a table check fails (such as
+        those described in <a href="backup-and-recovery.html#check" title="6.4.2. How to Check MyISAM Tables for Errors">Section 6.4.2, “How to Check <code class="literal">MyISAM</code> Tables for Errors”</a>), or you want to use
+        the extended features that <span><strong class="command">myisamchk</strong></span>
+        provides.
+      </p><p>
+        The options that you can use for table maintenance with
+        <span><strong class="command">myisamchk</strong></span> are described in
+        <a href="programs.html#myisamchk" title="4.6.3. myisamchk — MyISAM Table-Maintenance Utility">Section 4.6.3, “<span><strong class="command">myisamchk</strong></span> — MyISAM Table-Maintenance Utility”</a>.
+      </p><p>
+        If you are going to repair a table from the command line, you
+        must first stop the <span><strong class="command">mysqld</strong></span> server. Note that
+        when you do <span><strong class="command">mysqladmin shutdown</strong></span> on a remote
+        server, the <span><strong class="command">mysqld</strong></span> server is still alive for
+        a while after <span><strong class="command">mysqladmin</strong></span> returns, until all
+        statement-processing has stopped and all index changes have been
+        flushed to disk.
+      </p><p>
+        <span class="bold"><strong>Stage 1: Checking your tables</strong></span>
+      </p><p>
+        Run <span><strong class="command">myisamchk *.MYI</strong></span> or <span><strong class="command">myisamchk -e
+        *.MYI</strong></span> if you have more time. Use the
+        <code class="option">-s</code> (silent) option to suppress unnecessary
+        information.
+      </p><p>
+        If the <span><strong class="command">mysqld</strong></span> server is stopped, you should
+        use the <code class="option">--update-state</code> option to tell
+        <span><strong class="command">myisamchk</strong></span> to mark the table as
+        “<span class="quote">checked.</span>”
+      </p><p>
+        You have to repair only those tables for which
+        <span><strong class="command">myisamchk</strong></span> announces an error. For such
+        tables, proceed to Stage 2.
+      </p><p>
+        If you get unexpected errors when checking (such as <code class="literal">out
+        of memory</code> errors), or if <span><strong class="command">myisamchk</strong></span>
+        crashes, go to Stage 3.
+      </p><p>
+        <span class="bold"><strong>Stage 2: Easy safe repair</strong></span>
+      </p><p>
+        First, try <span><strong class="command">myisamchk -r -q
+        <em class="replaceable"><code>tbl_name</code></em></strong></span> (<code class="option">-r
+        -q</code> means “<span class="quote">quick recovery mode</span>”). This
+        attempts to repair the index file without touching the data
+        file. If the data file contains everything that it should and
+        the delete links point at the correct locations within the data
+        file, this should work, and the table is fixed. Start repairing
+        the next table. Otherwise, use the following procedure:
+      </p><div class="orderedlist"><ol type="1"><li><p>
+            Make a backup of the data file before continuing.
+          </p></li><li><p>
+            Use <span><strong class="command">myisamchk -r
+            <em class="replaceable"><code>tbl_name</code></em></strong></span>
+            (<code class="option">-r</code> means “<span class="quote">recovery mode</span>”).
+            This removes incorrect rows and deleted rows from the data
+            file and reconstructs the index file.
+          </p></li><li><p>
+            If the preceding step fails, use <span><strong class="command">myisamchk
+            --safe-recover
+            <em class="replaceable"><code>tbl_name</code></em></strong></span>. Safe recovery
+            mode uses an old recovery method that handles a few cases
+            that regular recovery mode does not (but is slower).
+          </p></li></ol></div><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Note</h3><p>
+          If you want a repair operation to go much faster, you should
+          set the values of the <code class="literal">sort_buffer_size</code> and
+          <code class="literal">key_buffer_size</code> variables each to about 25%
+          of your available memory when running
+          <span><strong class="command">myisamchk</strong></span>.
+        </p></div><p>
+        If you get unexpected errors when repairing (such as
+        <code class="literal">out of memory</code> errors), or if
+        <span><strong class="command">myisamchk</strong></span> crashes, go to Stage 3.
+      </p><p>
+        <span class="bold"><strong>Stage 3: Difficult repair</strong></span>
+      </p><p>
+        You should reach this stage only if the first 16KB block in the
+        index file is destroyed or contains incorrect information, or if
+        the index file is missing. In this case, it is necessary to
+        create a new index file. Do so as follows:
+      </p><div class="orderedlist"><ol type="1"><li><p>
+            Move the data file to a safe place.
+          </p></li><li><p>
+            Use the table description file to create new (empty) data
+            and index files:
+          </p><pre class="programlisting">shell&gt; <strong class="userinput"><code>mysql <em class="replaceable"><code>db_name</code></em></code></strong>
+mysql&gt; <strong class="userinput"><code>SET AUTOCOMMIT=1;</code></strong>
+mysql&gt; <strong class="userinput"><code>TRUNCATE TABLE <em class="replaceable"><code>tbl_name</code></em>;</code></strong>
+mysql&gt; <strong class="userinput"><code>quit</code></strong>
+</pre></li><li><p>
+            Copy the old data file back onto the newly created data
+            file. (Do not just move the old file back onto the new file.
+            You want to retain a copy in case something goes wrong.)
+          </p></li></ol></div><div class="important" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Important</h3><p>
+          If you are using replication, you should stop it prior to
+          performing the above procedure, since it involves filesystem
+          operations, and these are not logged by MySQL.
+        </p></div><p>
+        Go back to Stage 2. <span><strong class="command">myisamchk -r -q</strong></span> should
+        work. (This should not be an endless loop.)
+      </p><p>
+        You can also use the <code class="literal">REPAIR TABLE
+        <em class="replaceable"><code>tbl_name</code></em> USE_FRM</code> SQL
+        statement, which performs the whole procedure automatically.
+        There is also no possibility of unwanted interaction between a
+        utility and the server, because the server does all the work
+        when you use <code class="literal">REPAIR TABLE</code>. See
+        <a href="sql-syntax.html#repair-table" title="12.5.2.6. REPAIR TABLE Syntax">Section 12.5.2.6, “<code class="literal">REPAIR TABLE</code> Syntax”</a>.
+      </p><p>
+        <span class="bold"><strong>Stage 4: Very difficult repair</strong></span>
+      </p><p>
+        You should reach this stage only if the
+        <code class="filename">.frm</code> description file has also crashed.
+        That should never happen, because the description file is not
+        changed after the table is created:
+      </p><div class="orderedlist"><ol type="1"><li><p>
+            Restore the description file from a backup and go back to
+            Stage 3. You can also restore the index file and go back to
+            Stage 2. In the latter case, you should start with
+            <span><strong class="command">myisamchk -r</strong></span>.
+          </p></li><li><p>
+            If you do not have a backup but know exactly how the table
+            was created, create a copy of the table in another database.
+            Remove the new data file, and then move the
+            <code class="filename">.frm</code> description and
+            <code class="filename">.MYI</code> index files from the other
+            database to your crashed database. This gives you new
+            description and index files, but leaves the
+            <code class="filename">.MYD</code> data file alone. Go back to Stage
+            2 and attempt to reconstruct the index file.
+          </p></li></ol></div></div><div class="section" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="table-optimization"></a>6.4.4. Table Optimization</h3></div></div></div><a class="indexterm" name="id2047500"></a><a class="indexterm" name="id2047513"></a><p>
+        To coalesce fragmented rows and eliminate wasted space that
+        results from deleting or updating rows, run
+        <span><strong class="command">myisamchk</strong></span> in recovery mode:
+      </p><pre class="programlisting">shell&gt; <strong class="userinput"><code>myisamchk -r <em class="replaceable"><code>tbl_name</code></em></code></strong>
+</pre><p>
+        You can optimize a table in the same way by using the
+        <code class="literal">OPTIMIZE TABLE</code> SQL statement.
+        <code class="literal">OPTIMIZE TABLE</code> does a table repair and a key
+        analysis, and also sorts the index tree so that key lookups are
+        faster. There is also no possibility of unwanted interaction
+        between a utility and the server, because the server does all
+        the work when you use <code class="literal">OPTIMIZE TABLE</code>. See
+        <a href="sql-syntax.html#optimize-table" title="12.5.2.5. OPTIMIZE TABLE Syntax">Section 12.5.2.5, “<code class="literal">OPTIMIZE TABLE</code> Syntax”</a>.
+      </p><p>
+        <span><strong class="command">myisamchk</strong></span> has a number of other options that
+        you can use to improve the performance of a table:
+      </p><div class="itemizedlist"><ul type="disc"><li><p>
+            <code class="option">--analyze</code>, <code class="option">-a</code>
+          </p></li><li><p>
+            <code class="option">--sort-index</code>, <code class="option">-S</code>
+          </p></li><li><p>
+            <code class="option">--sort-records=<em class="replaceable"><code>index_num</code></em></code>,
+            <code class="option">-R <em class="replaceable"><code>index_num</code></em></code>
+          </p></li></ul></div><p>
+        For a full description of all available options, see
+        <a href="programs.html#myisamchk" title="4.6.3. myisamchk — MyISAM Table-Maintenance Utility">Section 4.6.3, “<span><strong class="command">myisamchk</strong></span> — MyISAM Table-Maintenance Utility”</a>.
+      </p></div><div class="section" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="table-info"></a>6.4.5. Getting Information About a Table</h3></div></div></div><a class="indexterm" name="id2047653"></a><p>
+        To obtain a description of a table or statistics about it, use
+        the commands shown here. We explain some of the information in
+        more detail later.
+      </p><div class="itemizedlist"><ul type="disc"><li><p>
+            <span><strong class="command">myisamchk -d
+            <em class="replaceable"><code>tbl_name</code></em></strong></span>
+          </p><p>
+            Runs <span><strong class="command">myisamchk</strong></span> in “<span class="quote">describe
+            mode</span>” to produce a description of your table. If you
+            start the MySQL server with external locking disabled,
+            <span><strong class="command">myisamchk</strong></span> may report an error for a table
+            that is updated while it runs. However, because
+            <span><strong class="command">myisamchk</strong></span> does not change the table in
+            describe mode, there is no risk of destroying data.
+          </p></li><li><p>
+            <span><strong class="command">myisamchk -d -v
+            <em class="replaceable"><code>tbl_name</code></em></strong></span>
+          </p><p>
+            Adding <code class="option">-v</code> runs <span><strong class="command">myisamchk</strong></span>
+            in verbose mode so that it produces more information about
+            what it is doing.
+          </p></li><li><p>
+            <span><strong class="command">myisamchk -eis
+            <em class="replaceable"><code>tbl_name</code></em></strong></span>
+          </p><p>
+            Shows only the most important information from a table. This
+            operation is slow because it must read the entire table.
+          </p></li><li><p>
+            <span><strong class="command">myisamchk -eiv
+            <em class="replaceable"><code>tbl_name</code></em></strong></span>
+          </p><p>
+            This is like <code class="option">-eis</code>, but tells you what is
+            being done.
+          </p></li></ul></div><p>
+        The <em class="replaceable"><code>tbl_name</code></em> argument can be either
+        the name of a <code class="literal">MyISAM</code> table or the name of its
+        index file, as described in <a href="programs.html#myisamchk" title="4.6.3. myisamchk — MyISAM Table-Maintenance Utility">Section 4.6.3, “<span><strong class="command">myisamchk</strong></span> — MyISAM Table-Maintenance Utility”</a>.
+        Multiple <em class="replaceable"><code>tbl_name</code></em> arguments can be
+        given.
+      </p><a class="indexterm" name="id2047809"></a><a class="indexterm" name="id2047821"></a><p>
+        Sample output for some of these commands follows. They are based
+        on a table with these data and index file sizes:
+      </p><pre class="programlisting">-rw-rw-r--   1 monty    tcx     317235748 Jan 12 17:30 company.MYD
+-rw-rw-r--   1 davida   tcx      96482304 Jan 12 18:35 company.MYI
+</pre><p>
+        Example of <span><strong class="command">myisamchk -d</strong></span> output:
+      </p><pre class="programlisting">MyISAM file:     company.MYI
+Record format:   Fixed length
+Data records:    1403698  Deleted blocks:         0
+Recordlength:    226
+
+table description:
+Key Start Len Index   Type
+1   2     8   unique  double
+2   15    10  multip. text packed stripped
+3   219   8   multip. double
+4   63    10  multip. text packed stripped
+5   167   2   multip. unsigned short
+6   177   4   multip. unsigned long
+7   155   4   multip. text
+8   138   4   multip. unsigned long
+9   177   4   multip. unsigned long
+    193   1           text
+</pre><p>
+        Example of <span><strong class="command">myisamchk -d -v</strong></span> output:
+      </p><pre class="programlisting">MyISAM file:         company
+Record format:       Fixed length
+File-version:        1
+Creation time:       1999-10-30 12:12:51
+Recover time:        1999-10-31 19:13:01
+Status:              checked
+Data records:            1403698  Deleted blocks:              0
+Datafile parts:          1403698  Deleted data:                0
+Datafile pointer (bytes):      3  Keyfile pointer (bytes):     3
+Max datafile length:  3791650815  Max keyfile length: 4294967294
+Recordlength:                226
+
+table description:
+Key Start Len Index   Type                  Rec/key     Root Blocksize
+1   2     8   unique  double                      1 15845376      1024
+2   15    10  multip. text packed stripped        2 25062400      1024
+3   219   8   multip. double                     73 40907776      1024
+4   63    10  multip. text packed stripped        5 48097280      1024
+5   167   2   multip. unsigned short           4840 55200768      1024
+6   177   4   multip. unsigned long            1346 65145856      1024
+7   155   4   multip. text                     4995 75090944      1024
+8   138   4   multip. unsigned long              87 85036032      1024
+9   177   4   multip. unsigned long             178 96481280      1024
+    193   1           text
+</pre><p>
+        Example of <span><strong class="command">myisamchk -eis</strong></span> output:
+      </p><pre class="programlisting">Checking MyISAM file: company
+Key:  1:  Keyblocks used:  97%  Packed:    0%  Max levels:  4
+Key:  2:  Keyblocks used:  98%  Packed:   50%  Max levels:  4
+Key:  3:  Keyblocks used:  97%  Packed:    0%  Max levels:  4
+Key:  4:  Keyblocks used:  99%  Packed:   60%  Max levels:  3
+Key:  5:  Keyblocks used:  99%  Packed:    0%  Max levels:  3
+Key:  6:  Keyblocks used:  99%  Packed:    0%  Max levels:  3
+Key:  7:  Keyblocks used:  99%  Packed:    0%  Max levels:  3
+Key:  8:  Keyblocks used:  99%  Packed:    0%  Max levels:  3
+Key:  9:  Keyblocks used:  98%  Packed:    0%  Max levels:  4
+Total:    Keyblocks used:  98%  Packed:   17%
+
+Records:          1403698    M.recordlength:     226
+Packed:             0%
+Recordspace used:     100%   Empty space:          0%
+Blocks/Record:   1.00
+Record blocks:    1403698    Delete blocks:        0
+Recorddata:     317235748    Deleted data:         0
+Lost space:             0    Linkdata:             0
+
+User time 1626.51, System time 232.36
+Maximum resident set size 0, Integral resident set size 0
+Non physical pagefaults 0, Physical pagefaults 627, Swaps 0
+Blocks in 0 out 0, Messages in 0 out 0, Signals 0
+Voluntary context switches 639, Involuntary context switches 28966
+</pre><p>
+        Example of <span><strong class="command">myisamchk -eiv</strong></span> output:
+      </p><pre class="programlisting">Checking MyISAM file: company
+Data records: 1403698   Deleted blocks:       0
+- check file-size
+- check delete-chain
+block_size 1024:
+index  1:
+index  2:
+index  3:
+index  4:
+index  5:
+index  6:
+index  7:
+index  8:
+index  9:
+No recordlinks
+- check index reference
+- check data record references index: 1
+Key:  1:  Keyblocks used:  97%  Packed:    0%  Max levels:  4
+- check data record references index: 2
+Key:  2:  Keyblocks used:  98%  Packed:   50%  Max levels:  4
+- check data record references index: 3
+Key:  3:  Keyblocks used:  97%  Packed:    0%  Max levels:  4
+- check data record references index: 4
+Key:  4:  Keyblocks used:  99%  Packed:   60%  Max levels:  3
+- check data record references index: 5
+Key:  5:  Keyblocks used:  99%  Packed:    0%  Max levels:  3
+- check data record references index: 6
+Key:  6:  Keyblocks used:  99%  Packed:    0%  Max levels:  3
+- check data record references index: 7
+Key:  7:  Keyblocks used:  99%  Packed:    0%  Max levels:  3
+- check data record references index: 8
+Key:  8:  Keyblocks used:  99%  Packed:    0%  Max levels:  3
+- check data record references index: 9
+Key:  9:  Keyblocks used:  98%  Packed:    0%  Max levels:  4
+Total:    Keyblocks used:   9%  Packed:   17%
+
+- check records and index references
+<em class="replaceable"><code>*** LOTS OF ROW NUMBERS DELETED ***</code></em>
+
+Records:         1403698   M.recordlength:   226   Packed:           0%
+Recordspace used:    100%  Empty space:        0%  Blocks/Record: 1.00
+Record blocks:   1403698   Delete blocks:      0
+Recorddata:    317235748   Deleted data:       0
+Lost space:            0   Linkdata:           0
+
+User time 1639.63, System time 251.61
+Maximum resident set size 0, Integral resident set size 0
+Non physical pagefaults 0, Physical pagefaults 10580, Swaps 0
+Blocks in 4 out 0, Messages in 0 out 0, Signals 0
+Voluntary context switches 10604, Involuntary context switches 122798
+</pre><p>
+        Explanations for the types of information
+        <span><strong class="command">myisamchk</strong></span> produces are given here.
+        “<span class="quote">Keyfile</span>” refers to the index file.
+        “<span class="quote">Record</span>” and “<span class="quote">row</span>” are synonymous.
+      </p><div class="itemizedlist"><ul type="disc"><li><p>
+            <code class="literal">MyISAM file</code>
+          </p><p>
+            Name of the <code class="literal">MyISAM</code> (index) file.
+          </p></li><li><p>
+            <code class="literal">File-version</code>
+          </p><p>
+            Version of <code class="literal">MyISAM</code> format. Currently
+            always 2.
+          </p></li><li><p>
+            <code class="literal">Creation time</code>
+          </p><p>
+            When the data file was created.
+          </p></li><li><p>
+            <code class="literal">Recover time</code>
+          </p><p>
+            When the index/data file was last reconstructed.
+          </p></li><li><p>
+            <code class="literal">Data records</code>
+          </p><p>
+            How many rows are in the table.
+          </p></li><li><p>
+            <code class="literal">Deleted blocks</code>
+          </p><p>
+            How many deleted blocks still have reserved space. You can
+            optimize your table to minimize this space. See
+            <a href="backup-and-recovery.html#table-optimization" title="6.4.4. Table Optimization">Section 6.4.4, “Table Optimization”</a>.
+          </p></li><li><p>
+            <code class="literal">Datafile parts</code>
+          </p><p>
+            For dynamic-row format, this indicates how many data blocks
+            there are. For an optimized table without fragmented rows,
+            this is the same as <code class="literal">Data records</code>.
+          </p></li><li><p>
+            <code class="literal">Deleted data</code>
+          </p><p>
+            How many bytes of unreclaimed deleted data there are. You
+            can optimize your table to minimize this space. See
+            <a href="backup-and-recovery.html#table-optimization" title="6.4.4. Table Optimization">Section 6.4.4, “Table Optimization”</a>.
+          </p></li><li><p>
+            <code class="literal">Datafile pointer</code>
+          </p><p>
+            The size of the data file pointer, in bytes. It is usually
+            2, 3, 4, or 5 bytes. Most tables manage with 2 bytes, but
+            this cannot be controlled from MySQL yet. For fixed tables,
+            this is a row address. For dynamic tables, this is a byte
+            address.
+          </p></li><li><p>
+            <code class="literal">Keyfile pointer</code>
+          </p><p>
+            The size of the index file pointer, in bytes. It is usually
+            1, 2, or 3 bytes. Most tables manage with 2 bytes, but this
+            is calculated automatically by MySQL. It is always a block
+            address.
+          </p></li><li><p>
+            <code class="literal">Max datafile length</code>
+          </p><p>
+            How long the table data file can become, in bytes.
+          </p></li><li><p>
+            <code class="literal">Max keyfile length</code>
+          </p><p>
+            How long the table index file can become, in bytes.
+          </p></li><li><p>
+            <code class="literal">Recordlength</code>
+          </p><p>
+            How much space each row takes, in bytes.
+          </p></li><li><p>
+            <code class="literal">Record format</code>
+          </p><p>
+            The format used to store table rows. The preceding examples
+            use <code class="literal">Fixed length</code>. Other possible values
+            are <code class="literal">Compressed</code> and
+            <code class="literal">Packed</code>.
+          </p></li><li><p>
+            <code class="literal">table description</code>
+          </p><p>
+            A list of all keys in the table. For each key,
+            <span><strong class="command">myisamchk</strong></span> displays some low-level
+            information:
+          </p><div class="itemizedlist"><ul type="circle"><li><p>
+                <code class="literal">Key</code>
+              </p><p>
+                This key's number.
+              </p></li><li><p>
+                <code class="literal">Start</code>
+              </p><p>
+                Where in the row this portion of the index starts.
+              </p></li><li><p>
+                <code class="literal">Len</code>
+              </p><p>
+                How long this portion of the index is. For packed
+                numbers, this should always be the full length of the
+                column. For strings, it may be shorter than the full
+                length of the indexed column, because you can index a
+                prefix of a string column.
+              </p></li><li><p>
+                <code class="literal">Index</code>
+              </p><p>
+                Whether a key value can exist multiple times in the
+                index. Possible values are <code class="literal">unique</code> or
+                <code class="literal">multip.</code> (multiple).
+              </p></li><li><p>
+                <code class="literal">Type</code>
+              </p><p>
+                What data type this portion of the index has. This is a
+                <code class="literal">MyISAM</code> data type with the possible
+                values <code class="literal">packed</code>,
+                <code class="literal">stripped</code>, or
+                <code class="literal">empty</code>.
+              </p></li><li><p>
+                <code class="literal">Root</code>
+              </p><p>
+                Address of the root index block.
+              </p></li><li><p>
+                <code class="literal">Blocksize</code>
+              </p><p>
+                The size of each index block. By default this is 1024,
+                but the value may be changed at compile time when MySQL
+                is built from source.
+              </p></li><li><p>
+                <code class="literal">Rec/key</code>
+              </p><p>
+                This is a statistical value used by the optimizer. It
+                tells how many rows there are per value for this index.
+                A unique index always has a value of 1. This may be
+                updated after a table is loaded (or greatly changed)
+                with <span><strong class="command">myisamchk -a</strong></span>. If this is not
+                updated at all, a default value of 30 is given.
+              </p></li></ul></div><p>
+            For the table shown in the examples, there are two
+            <code class="literal">table description</code> lines for the ninth
+            index. This indicates that it is a multiple-part index with
+            two parts.
+          </p></li><li><p>
+            <code class="literal">Keyblocks used</code>
+          </p><p>
+            What percentage of the keyblocks are used. When a table has
+            just been reorganized with <span><strong class="command">myisamchk</strong></span>, as
+            for the table in the examples, the values are very high
+            (very near the theoretical maximum).
+          </p></li><li><p>
+            <code class="literal">Packed</code>
+          </p><p>
+            MySQL tries to pack key values that have a common suffix.
+            This can only be used for indexes on <code class="literal">CHAR</code>
+            and <code class="literal">VARCHAR</code> columns. For long indexed
+            strings that have similar leftmost parts, this can
+            significantly reduce the space used. In the third of the
+            preceding examples, the fourth key is 10 characters long and
+            a 60% reduction in space is achieved.
+          </p></li><li><p>
+            <code class="literal">Max levels</code>
+          </p><p>
+            How deep the B-tree for this key is. Large tables with long
+            key values get high values.
+          </p></li><li><p>
+            <code class="literal">Records</code>
+          </p><p>
+            How many rows are in the table.
+          </p></li><li><p>
+            <code class="literal">M.recordlength</code>
+          </p><p>
+            The average row length. This is the exact row length for
+            tables with fixed-length rows, because all rows have the
+            same length.
+          </p></li><li><p>
+            <code class="literal">Packed</code>
+          </p><p>
+            MySQL strips spaces from the end of strings. The
+            <code class="literal">Packed</code> value indicates the percentage of
+            savings achieved by doing this.
+          </p></li><li><p>
+            <code class="literal">Recordspace used</code>
+          </p><p>
+            What percentage of the data file is used.
+          </p></li><li><p>
+            <code class="literal">Empty space</code>
+          </p><p>
+            What percentage of the data file is unused.
+          </p></li><li><p>
+            <code class="literal">Blocks/Record</code>
+          </p><p>
+            Average number of blocks per row (that is, how many links a
+            fragmented row is composed of). This is always 1.0 for
+            fixed-format tables. This value should stay as close to 1.0
+            as possible. If it gets too large, you can reorganize the
+            table. See <a href="backup-and-recovery.html#table-optimization" title="6.4.4. Table Optimization">Section 6.4.4, “Table Optimization”</a>.
+          </p></li><li><p>
+            <code class="literal">Recordblocks</code>
+          </p><p>
+            How many blocks (links) are used. For fixed-format tables,
+            this is the same as the number of rows.
+          </p></li><li><p>
+            <code class="literal">Deleteblocks</code>
+          </p><p>
+            How many blocks (links) are deleted.
+          </p></li><li><p>
+            <code class="literal">Recorddata</code>
+          </p><p>
+            How many bytes in the data file are used.
+          </p></li><li><p>
+            <code class="literal">Deleted data</code>
+          </p><p>
+            How many bytes in the data file are deleted (unused).
+          </p></li><li><p>
+            <code class="literal">Lost space</code>
+          </p><p>
+            If a row is updated to a shorter length, some space is lost.
+            This is the sum of all such losses, in bytes.
+          </p></li><li><p>
+            <code class="literal">Linkdata</code>
+          </p><p>
+            When the dynamic table format is used, row fragments are
+            linked with pointers (4 to 7 bytes each).
+            <code class="literal">Linkdata</code> is the sum of the amount of
+            storage used by all such pointers.
+          </p></li></ul></div><p>
+        If a table has been compressed with
+        <span><strong class="command">myisampack</strong></span>, <span><strong class="command">myisamchk -d</strong></span>
+        prints additional information about each table column. See
+        <a href="programs.html#myisampack" title="4.6.5. myisampack — Generate Compressed, Read-Only MyISAM Tables">Section 4.6.5, “<span><strong class="command">myisampack</strong></span> — Generate Compressed, Read-Only MyISAM Tables”</a>, for an example of this information
+        and a description of what it means.
+      </p></div><div class="section" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="maintenance-schedule"></a>6.4.6. Setting Up a Table Maintenance Schedule</h3></div></div></div><a class="indexterm" name="id2048784"></a><a class="indexterm" name="id2048796"></a><p>
+        It is a good idea to perform table checks on a regular basis
+        rather than waiting for problems to occur. One way to check and
+        repair <code class="literal">MyISAM</code> tables is with the
+        <code class="literal">CHECK TABLE</code> and <code class="literal">REPAIR
+        TABLE</code> statements. See <a href="sql-syntax.html#check-table" title="12.5.2.3. CHECK TABLE Syntax">Section 12.5.2.3, “<code class="literal">CHECK TABLE</code> Syntax”</a>,
+        and <a href="sql-syntax.html#repair-table" title="12.5.2.6. REPAIR TABLE Syntax">Section 12.5.2.6, “<code class="literal">REPAIR TABLE</code> Syntax”</a>.
+      </p><p>
+        Another way to check tables is to use
+        <span><strong class="command">myisamchk</strong></span>. For maintenance purposes, you can
+        use <span><strong class="command">myisamchk -s</strong></span>. The <code class="option">-s</code>
+        option (short for <code class="option">--silent</code>) causes
+        <span><strong class="command">myisamchk</strong></span> to run in silent mode, printing
+        messages only when errors occur.
+      </p><a class="indexterm" name="id2048871"></a><p>
+        It is also a good idea to enable automatic
+        <code class="literal">MyISAM</code> table checking. For example, whenever
+        the machine has done a restart in the middle of an update, you
+        usually need to check each table that could have been affected
+        before it is used further. (These are “<span class="quote">expected crashed
+        tables.</span>”) To check <code class="literal">MyISAM</code> tables
+        automatically, start the server with the
+        <code class="option">--myisam-recover</code> option. See
+        <a href="server-administration.html#server-options" title="5.1.2. Command Options">Section 5.1.2, “Command Options”</a>.
+      </p><p>
+        You should also check your tables regularly during normal system
+        operation. At MySQL AB, we run a <span><strong class="command">cron</strong></span> job to
+        check all our important tables once a week, using a line like
+        this in a <code class="filename">crontab</code> file:
+      </p><pre class="programlisting">35 0 * * 0 <em class="replaceable"><code>/path/to/myisamchk</code></em> --fast --silent <em class="replaceable"><code>/path/to/datadir</code></em>/*/*.MYI
+</pre><p>
+        This prints out information about crashed tables so that we can
+        examine and repair them when needed.
+      </p><p>
+        Because we have not had any unexpectedly crashed tables (tables
+        that become corrupted for reasons other than hardware trouble)
+        for several years, once a week is more than sufficient for us.
+      </p><p>
+        We recommend that to start with, you execute <span><strong class="command">myisamchk
+        -s</strong></span> each night on all tables that have been updated
+        during the last 24 hours, until you come to trust MySQL as much
+        as we do.
+      </p><a class="indexterm" name="id2048960"></a><p>
+        Normally, MySQL tables need little maintenance. If you are
+        performing many updates to <code class="literal">MyISAM</code> tables with
+        dynamic-sized rows (tables with <code class="literal">VARCHAR</code>,
+        <code class="literal">BLOB</code>, or <code class="literal">TEXT</code> columns) or
+        have tables with many deleted rows you may want to
+        defragment/reclaim space from the tables from time to time. You
+        can do this by using <code class="literal">OPTIMIZE TABLE</code> on the
+        tables in question. Alternatively, if you can stop the
+        <span><strong class="command">mysqld</strong></span> server for a while, change location
+        into the data directory and use this command while the server is
+        stopped:
+      </p><pre class="programlisting">shell&gt; <strong class="userinput"><code>myisamchk -r -s --sort-index --sort_buffer_size=16M */*.MYI</code></strong>
+</pre></div></div></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="server-administration.html">Prev</a> </td><td width="20%" align="center"> </td><td width="40%" align="right"> <a accesskey="n" href="optimization.html">Next</a></td></tr><tr><td width="40%" align="left" valign="top">Chapter 5. MySQL Server Administration </td><td width="20%" align="center"><a accesskey="h" href="index.html">Home</a></td><td width="40%" align="right" valign="top"> Chapter 7. Optimization</td></tr></table></div></body></html>

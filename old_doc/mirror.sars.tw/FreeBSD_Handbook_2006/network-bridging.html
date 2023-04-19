@@ -1,0 +1,247 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>Bridging</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.79" />
+<link rel="HOME" title="FreeBSD 使用手冊" href="index.html" />
+<link rel="UP" title="Advanced Networking" href="advanced-networking.html" />
+<link rel="PREVIOUS" title="Bluetooth" href="network-bluetooth.html" />
+<link rel="NEXT" title="Diskless Operation" href="network-diskless.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD 使用手冊</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="network-bluetooth.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 27 Advanced Networking</td>
+<td width="10%" align="right" valign="bottom"><a href="network-diskless.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="NETWORK-BRIDGING" name="NETWORK-BRIDGING">27.5 Bridging</a></h1>
+
+<i class="AUTHORGROUP"><span class="CONTRIB">Written by</span> Steve Peterson.</i> 
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN39525" name="AEN39525">27.5.1 Introduction</a></h2>
+
+<p>It is sometimes useful to divide one physical network (such as an Ethernet segment)
+into two separate network segments without having to create IP subnets and use a router
+to connect the segments together. A device that connects two networks together in this
+fashion is called a “bridge”. A FreeBSD system with two network interface cards can act
+as a bridge.</p>
+
+<p>The bridge works by learning the MAC layer addresses (Ethernet addresses) of the
+devices on each of its network interfaces. It forwards traffic between two networks only
+when its source and destination are on different networks.</p>
+
+<p>In many respects, a bridge is like an Ethernet switch with very few ports.</p>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN39535" name="AEN39535">27.5.2 Situations Where Bridging Is
+Appropriate</a></h2>
+
+<p>There are two common situations in which a bridge is used today.</p>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="AEN39538" name="AEN39538">27.5.2.1 High Traffic on a
+Segment</a></h3>
+
+<p>Situation one is where your physical network segment is overloaded with traffic, but
+you do not want for whatever reason to subnet the network and interconnect the subnets
+with a router.</p>
+
+<p>Let us consider an example of a newspaper where the Editorial and Production
+departments are on the same subnetwork. The Editorial users all use server <tt
+class="HOSTID">A</tt> for file service, and the Production users are on server <tt
+class="HOSTID">B</tt>. An Ethernet network is used to connect all users together, and
+high loads on the network are slowing things down.</p>
+
+<p>If the Editorial users could be segregated on one network segment and the Production
+users on another, the two network segments could be connected with a bridge. Only the
+network traffic destined for interfaces on the “other” side of the bridge would be sent
+to the other network, reducing congestion on each network segment.</p>
+</div>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="AEN39546" name="AEN39546">27.5.2.2 Filtering/Traffic Shaping
+Firewall</a></h3>
+
+<p>The second common situation is where firewall functionality is needed without network
+address translation (NAT).</p>
+
+<p>An example is a small company that is connected via DSL or ISDN to their ISP. They
+have a 13 globally-accessible IP addresses from their ISP and have 10 PCs on their
+network. In this situation, using a router-based firewall is difficult because of
+subnetting issues.</p>
+
+<p>A bridge-based firewall can be configured and dropped into the path just downstream of
+their DSL/ISDN router without any IP numbering issues.</p>
+</div>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN39561" name="AEN39561">27.5.3 Configuring a Bridge</a></h2>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="AEN39563" name="AEN39563">27.5.3.1 Network Interface Card
+Selection</a></h3>
+
+<p>A bridge requires at least two network cards to function. Unfortunately, not all
+network interface cards as of FreeBSD&nbsp;4.0 support bridging. Read <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=bridge&amp;sektion=4"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">bridge</span>(4)</span></a> for details
+on the cards that are supported.</p>
+
+<p>Install and test the two network cards before continuing.</p>
+</div>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="AEN39570" name="AEN39570">27.5.3.2 Kernel Configuration
+Changes</a></h3>
+
+<p>To enable kernel support for bridging, add the:</p>
+
+<pre class="PROGRAMLISTING">
+options BRIDGE
+</pre>
+
+<p>statement to your kernel configuration file, and rebuild your kernel.</p>
+</div>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="AEN39578" name="AEN39578">27.5.3.3 Firewall Support</a></h3>
+
+<p>If you are planning to use the bridge as a firewall, you will need to add the <tt
+class="LITERAL">IPFIREWALL</tt> option as well. Read <a href="firewalls.html">Chapter
+26</a> for general information on configuring the bridge as a firewall.</p>
+
+<p>If you need to allow non-IP packets (such as ARP) to flow through the bridge, there is
+a firewall option that must be set. This option is <tt
+class="LITERAL">IPFIREWALL_DEFAULT_TO_ACCEPT</tt>. Note that this changes the default
+rule for the firewall to accept any packet. Make sure you know how this changes the
+meaning of your ruleset before you set it.</p>
+</div>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="AEN39587" name="AEN39587">27.5.3.4 Traffic Shaping
+Support</a></h3>
+
+<p>If you want to use the bridge as a traffic shaper, you will need to add the <tt
+class="LITERAL">DUMMYNET</tt> option to your kernel configuration. Read <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=dummynet&amp;sektion=4"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">dummynet</span>(4)</span></a> for
+further information.</p>
+</div>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN39594" name="AEN39594">27.5.4 Enabling the Bridge</a></h2>
+
+<p>Add the line:</p>
+
+<pre class="PROGRAMLISTING">
+net.link.ether.bridge.enable=1
+</pre>
+
+<p>to <tt class="FILENAME">/etc/sysctl.conf</tt> to enable the bridge at runtime, and the
+line:</p>
+
+<pre class="PROGRAMLISTING">
+net.link.ether.bridge.config=<tt class="REPLACEABLE"><i>if1</i></tt>,<tt
+class="REPLACEABLE"><i>if2</i></tt>
+</pre>
+
+<p>to enable bridging on the specified interfaces (replace <tt
+class="REPLACEABLE"><i>if1</i></tt> and <tt class="REPLACEABLE"><i>if2</i></tt> with the
+names of your two network interfaces). If you want the bridged packets to be filtered by
+<a href="http://www.FreeBSD.org/cgi/man.cgi?query=ipfw&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">ipfw</span>(8)</span></a>, you should
+add:</p>
+
+<pre class="PROGRAMLISTING">
+net.link.ether.bridge.ipfw=1
+</pre>
+
+<p>as well.</p>
+
+<p>For versions prior to FreeBSD&nbsp;5.2-RELEASE, use instead the following lines:</p>
+
+<pre class="PROGRAMLISTING">
+net.link.ether.bridge=1
+net.link.ether.bridge_cfg=<tt class="REPLACEABLE"><i>if1</i></tt>,<tt
+class="REPLACEABLE"><i>if2</i></tt>
+net.link.ether.bridge_ipfw=1
+</pre>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN39615" name="AEN39615">27.5.5 Other Information</a></h2>
+
+<p>If you want to be able to <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=ssh&amp;sektion=1&amp;manpath=OpenBSD+3.4">
+<span class="CITEREFENTRY"><span class="REFENTRYTITLE">ssh</span>(1)</span></a> into the
+bridge from the network, it is correct to assign one of the network cards an IP address.
+The consensus is that assigning both cards an address is a bad idea.</p>
+
+<p>If you have multiple bridges on your network, there cannot be more than one path
+between any two workstations. Technically, this means that there is no support for
+spanning tree link management.</p>
+
+<p>A bridge can add latency to your <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=ping&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">ping</span>(8)</span></a> times,
+especially for traffic from one segment to another.</p>
+</div>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="network-bluetooth.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="network-diskless.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">Bluetooth</td>
+<td width="34%" align="center" valign="top"><a href="advanced-networking.html"
+accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">Diskless Operation</td>
+</tr>
+</table>
+</div>
+
+<p align="center"><small>This, and other documents, can be downloaded from <a
+href="ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/">ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/</a>.</small></p>
+
+<p align="center"><small>For questions about FreeBSD, read the <a
+href="http://www.FreeBSD.org/docs.html">documentation</a> before contacting &#60;<a
+href="mailto:questions@FreeBSD.org">questions@FreeBSD.org</a>&#62;.<br />
+For questions about this documentation, e-mail &#60;<a
+href="mailto:doc@FreeBSD.org">doc@FreeBSD.org</a>&#62;.</small></p>
+</body>
+</html>
+

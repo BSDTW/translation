@@ -1,0 +1,842 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><title>Appendix D. Restrictions and Limits</title><link rel="stylesheet" href="mysql-html.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.69.1"><link rel="start" href="index.html" title="MySQL 5.1 Reference Manual"><link rel="up" href="index.html" title="MySQL 5.1 Reference Manual"><link rel="prev" href="news.html" title="Appendix C. MySQL Change History"><link rel="next" href="credits.html" title="Appendix E. Credits"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">Appendix D. Restrictions and Limits</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="news.html">Prev</a> </td><th width="60%" align="center"> </th><td width="20%" align="right"> <a accesskey="n" href="credits.html">Next</a></td></tr></table><hr></div><div class="appendix" lang="en"><div class="titlepage"><div><div><h2 class="title"><a name="restrictions"></a>Appendix D. Restrictions and Limits</h2></div></div></div><div class="toc"><p><b>Table of Contents</b></p><dl><dt><span class="section"><a href="restrictions.html#routine-restrictions">D.1. Restrictions on Stored Routines, Triggers, and Events</a></span></dt><dt><span class="section"><a href="restrictions.html#cursor-restrictions">D.2. Restrictions on Server-Side Cursors</a></span></dt><dt><span class="section"><a href="restrictions.html#subquery-restrictions">D.3. Restrictions on Subqueries</a></span></dt><dt><span class="section"><a href="restrictions.html#view-restrictions">D.4. Restrictions on Views</a></span></dt><dt><span class="section"><a href="restrictions.html#xa-restrictions">D.5. Restrictions on XA Transactions</a></span></dt><dt><span class="section"><a href="restrictions.html#charset-restrictions">D.6. Restrictions on Character Sets</a></span></dt><dt><span class="section"><a href="restrictions.html#limits">D.7. Limits in MySQL</a></span></dt><dd><dl><dt><span class="section"><a href="restrictions.html#joins-limits">D.7.1. Limits of Joins</a></span></dt><dt><span class="section"><a href="restrictions.html#column-count-limit">D.7.2. The Maximum Number of Columns Per Table</a></span></dt><dt><span class="section"><a href="restrictions.html#limits-windows">D.7.3. Windows Platform Limitations</a></span></dt></dl></dd></dl></div><p>
+    The discussion here describes restrictions that apply to the use of
+    MySQL features such as subqueries or views.
+  </p><div class="section" lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="routine-restrictions"></a>D.1. Restrictions on Stored Routines, Triggers, and Events</h2></div></div></div><a class="indexterm" name="id2818377"></a><a class="indexterm" name="id2818386"></a><a class="indexterm" name="id2818398"></a><a class="indexterm" name="id2818407"></a><a class="indexterm" name="id2818419"></a><a class="indexterm" name="id2818428"></a><p>
+      Some of the restrictions noted here apply to all stored routines;
+      that is, both to stored procedures and stored functions. Some of
+      these restrictions apply only to stored functions, and not to
+      stored procedures.
+    </p><p>
+      All of the restrictions for stored functions also apply to
+      triggers.
+    </p><p>
+      All of the restrictions for stored procedures also apply to the
+      <code class="literal">DO</code> clause of event definitions. For additional
+      event-related restrictions, see
+      <a href="events.html#events-limitations-restrictions" title="25.6. Event Scheduler Limitations and Restrictions">Section 25.6, “Event Scheduler Limitations and Restrictions”</a>.
+    </p><p>
+      Stored routines cannot contain arbitrary SQL statements. The
+      following statements are disallowed:
+    </p><div class="itemizedlist"><ul type="disc"><li><p>
+          The locking statements <code class="literal">LOCK TABLES</code>,
+          <code class="literal">UNLOCK TABLES</code>.
+        </p></li><li><p>
+          <code class="literal">ALTER VIEW</code>. (Before MySQL 5.1.21, this
+          restriction is enforced only for stored functions.)
+        </p></li><li><p>
+          <code class="literal">LOAD DATA</code> and <code class="literal">LOAD
+          TABLE</code>.
+        </p></li><li><p>
+          SQL prepared statements (<code class="literal">PREPARE</code>,
+          <code class="literal">EXECUTE</code>, <code class="literal">DEALLOCATE
+          PREPARE</code>) can be used in stored procedures, but not
+          stored functions or triggers. Implication: You cannot use
+          dynamic SQL within stored functions or triggers (where you
+          construct dynamically statements as strings and then execute
+          them).
+        </p><p>
+          In addition, SQL statements that are not permitted within
+          prepared statements are also not permitted in stored routines.
+          See <a href="sql-syntax.html#sql-syntax-prepared-statements" title="12.7. SQL Syntax for Prepared Statements">Section 12.7, “SQL Syntax for Prepared Statements”</a>, for a
+          list of statements supported in prepared statements.
+          Statements not listed there are not supported for SQL prepared
+          statements and thus are also not supported for stored routines
+          unless noted otherwise in <a href="stored-procedures.html" title="Chapter 23. Stored Procedures and Functions">Chapter 23, <i>Stored Procedures and Functions</i></a>.
+        </p></li><li><p>
+          Inserts cannot be delayed. <code class="literal">INSERT DELAYED</code>
+          syntax is accepted but the statement is handled as a normal
+          <code class="literal">INSERT</code>.
+        </p></li></ul></div><p>
+      For stored functions (but not stored procedures), the following
+      additional statements or operations are disallowed:
+    </p><div class="itemizedlist"><ul type="disc"><li><p>
+          Statements that do explicit or implicit commit or rollback.
+        </p></li><li><p>
+          Statements that return a result set. This includes
+          <code class="literal">SELECT</code> statements that do not have an
+          <code class="literal">INTO <em class="replaceable"><code>var_list</code></em></code>
+          clause and <code class="literal">SHOW</code> statements. A function can
+          process a result set either with <code class="literal">SELECT ... INTO
+          <em class="replaceable"><code>var_list</code></em></code> or by using a
+          cursor and <code class="literal">FETCH</code> statements. See
+          <a href="stored-procedures.html#select-into-statement" title="23.2.9.3. SELECT ... INTO Statement">Section 23.2.9.3, “<code class="literal">SELECT ... INTO</code> Statement”</a>.
+        </p></li><li><p>
+          <code class="literal">FLUSH</code> statements.
+        </p></li><li><p>
+          Recursive statements. That is, stored functions cannot be used
+          recursively.
+        </p></li><li><p>
+          Within a stored function or trigger, it is not permitted to
+          modify a table that is already being used (for reading or
+          writing) by the statement that invoked the function or
+          trigger.
+        </p></li><li><p>
+          If you refer to a temporary table multiple times in a stored
+          function under different aliases, a <code class="literal">Can't reopen
+          table:
+          '<em class="replaceable"><code>tbl_name</code></em><code class="literal"></code>'</code>
+          error occurs, even if the references occur in different
+          statements within the function.
+        </p></li><li><p>
+          A stored function acquires table locks before executing, to
+          avoid inconsistency in the binary log due to mismatch of the
+          order in which statements execute and when they appear in the
+          log. When statement-based binary logging is used, statements
+          that invoke a function are recorded rather than the statements
+          executed within the function. Consequently, stored functions
+          that update the same underlying tables do not execute in
+          parallel.
+        </p><p>
+          In contrast, stored procedures do not acquire table-level
+          locks. All statements executed within stored procedures are
+          written to the binary log even for statement-based binary
+          logging.
+        </p></li></ul></div><p>
+      Note that although some restrictions normally apply to stored
+      functions and triggers but not to stored procedures, those
+      restrictions do apply to stored procedures if they are invoked
+      from within a stored function or trigger. For example, although
+      you can use <code class="literal">FLUSH</code> in a stored procedure, such a
+      stored procedure cannot be called from a stored function or
+      trigger.
+    </p><p>
+      It is possible for the same identifier to be used for a routine
+      parameter, a local variable, and a table column. Also, the same
+      local variable name can be used in nested blocks. For example:
+    </p><pre class="programlisting">CREATE PROCEDURE p (i INT)
+BEGIN
+  DECLARE i INT DEFAULT 0;
+  SELECT i FROM t;
+  BEGIN
+    DECLARE i INT DEFAULT 1;
+    SELECT i FROM t;
+  END;
+END;
+</pre><p>
+      In such cases the identifier is ambiguous and the following
+      precedence rules apply:
+    </p><div class="itemizedlist"><ul type="disc"><li><p>
+          A local variable takes precedence over a routine parameter or
+          table column
+        </p></li><li><p>
+          A routine parameter takes precedence over a table column
+        </p></li><li><p>
+          A local variable in an inner block takes precedence over a
+          local variable in an outer block
+        </p></li></ul></div><p>
+      The behavior that variables take precedence over table columns is
+      non-standard.
+    </p><p>
+      Use of stored routines can cause replication problems. This issue
+      is discussed further in
+      <a href="stored-procedures.html#stored-procedure-logging" title="23.4. Binary Logging of Stored Routines and Triggers">Section 23.4, “Binary Logging of Stored Routines and Triggers”</a>.
+    </p><p>
+      <code class="literal">INFORMATION_SCHEMA</code> does not have a
+      <code class="literal">PARAMETERS</code> table until MySQL 6.0, so
+      applications that need to acquire routine parameter information at
+      runtime must use workarounds such as parsing the output of
+      <code class="literal">SHOW CREATE</code> statements or the
+      <code class="literal">param_list</code> column of the
+      <code class="literal">mysql.proc</code> table. <code class="literal">param_list</code>
+      contents can be processed from within a stored routine, unlike the
+      output from <code class="literal">SHOW</code>.
+    </p><p>
+      There are no stored routine debugging facilities.
+    </p><p>
+      Before MySQL 5.1.4, <code class="literal">CALL</code> statements cannot be
+      prepared. This true both for server-side prepared statements and
+      for SQL prepared statements.
+    </p><p>
+      <code class="literal">UNDO</code> handlers are not supported.
+    </p><p>
+      <code class="literal">FOR</code> loops are not supported.
+    </p><p>
+      To prevent problems of interaction between server threads, when a
+      client issues a statement, the server uses a snapshot of routines
+      and triggers available for execution of the statement. That is,
+      the server calculates a list of procedures, functions, and
+      triggers that may be used during execution of the statement, loads
+      them, and then proceeds to execute the statement. This means that
+      while the statement executes, it will not see changes to routines
+      performed by other threads.
+    </p><p>
+      For triggers, the following additional statements or operations
+      are disallowed:
+    </p><div class="itemizedlist"><ul type="disc"><li><p>
+          Triggers currently are not activated by foreign key actions.
+        </p></li><li><p>
+          The <code class="literal">RETURN</code> statement is disallowed in
+          triggers, which cannot return a value. To exit a trigger
+          immediately, use the <code class="literal">LEAVE</code> statement.
+        </p></li><li><p>
+          Triggers are not allowed on tables in the
+          <code class="literal">mysql</code> database.
+        </p></li></ul></div><p><b>Stored routines and triggers in MySQL Cluster. </b>
+        Stored functions, stored procedures, and triggers are all
+        supported by tables using the <code class="literal">NDB</code> storage
+        engine; however, it is important to keep in mind that they do
+        <span class="emphasis"><em>not</em></span> propagate automatically between MySQL
+        Servers acting as Cluster SQL nodes. This is because of the
+        following:
+
+        </p><div class="itemizedlist"><ul type="disc"><li><p>
+              Stored routine definitions are kept in tables in the
+              <code class="literal">mysql</code> system database using the
+              <code class="literal">MyISAM</code> storage engine, and so do not
+              participate in clustering.
+            </p></li><li><p>
+              The <code class="filename">.TRN</code> and
+              <code class="filename">.TRG</code> files containing trigger
+              definitions are not read by the <code class="literal">NDB</code>
+              storage engine, and are not copied between Cluster nodes.
+            </p></li></ul></div><p>
+
+        Any stored routine or trigger that interacts with MySQL Cluster
+        tables must be re-created by running the appropriate
+        <code class="literal">CREATE PROCEDURE</code>, <code class="literal">CREATE
+        FUNCTION</code>, or <code class="literal">CREATE TRIGGER</code>
+        statements on each MySQL Server that participates in the cluster
+        where you wish to use the stored routine or trigger. Similarly,
+        any changes to existing stored routines or triggers must be
+        carried out explicitly on all Cluster SQL nodes, using the
+        appropriate <code class="literal">ALTER</code> or <code class="literal">DROP</code>
+        statements on each MySQL Server accessing the cluster.
+
+        </p><div class="warning" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Warning</h3><p>
+            Do <span class="emphasis"><em>not</em></span> attempt to work around the issue
+            described in the first item mentioned previously by
+            converting any <code class="literal">mysql</code> database tables to
+            use the <code class="literal">NDB</code> storage engine.
+            <span class="emphasis"><em>Altering the system tables in the
+            <code class="literal">mysql</code> database is very likely to produce
+            undesirable results, and is not supported by MySQL
+            AB</em></span>.
+          </p></div><p>
+      </p></div><div class="section" lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="cursor-restrictions"></a>D.2. Restrictions on Server-Side Cursors</h2></div></div></div><a class="indexterm" name="id2819064"></a><a class="indexterm" name="id2819073"></a><p>
+      Server-side cursors are implemented in the C API via the
+      <a href="apis.html#mysql-stmt-attr-set" title="29.2.7.3. mysql_stmt_attr_set()"><code class="literal">mysql_stmt_attr_set()</code></a> function.
+      The same implementation is used for cursors in stored routines. A
+      server-side cursor allows a result set to be generated on the
+      server side, but not transferred to the client except for those
+      rows that the client requests. For example, if a client executes a
+      query but is only interested in the first row, the remaining rows
+      are not transferred.
+    </p><p>
+      In MySQL, a server-side cursor is materialized into a temporary
+      table. Initially, this is a <code class="literal">MEMORY</code> table, but
+      is converted to a <code class="literal">MyISAM</code> table if its size
+      reaches the value of the <code class="literal">max_heap_table_size</code>
+      system variable. One limitation of the implementation is that for
+      a large result set, retrieving its rows through a cursor might be
+      slow.
+    </p><p>
+      Cursors are read only; you cannot use a cursor to update rows.
+    </p><p>
+      <code class="literal">UPDATE WHERE CURRENT OF</code> and <code class="literal">DELETE
+      WHERE CURRENT OF</code> are not implemented, because updatable
+      cursors are not supported.
+    </p><p>
+      Cursors are non-holdable (not held open after a commit).
+    </p><p>
+      Cursors are asensitive.
+    </p><p>
+      Cursors are non-scrollable.
+    </p><p>
+      Cursors are not named. The statement handler acts as the cursor
+      ID.
+    </p><p>
+      You can have open only a single cursor per prepared statement. If
+      you need several cursors, you must prepare several statements.
+    </p><p>
+      You cannot use a cursor for a statement that generates a result
+      set if the statement is not supported in prepared mode. This
+      includes statements such as <code class="literal">CHECK TABLE</code>,
+      <code class="literal">HANDLER READ</code>, and <code class="literal">SHOW BINLOG
+      EVENTS</code>.
+    </p></div><div class="section" lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="subquery-restrictions"></a>D.3. Restrictions on Subqueries</h2></div></div></div><a class="indexterm" name="id2819194"></a><a class="indexterm" name="id2819203"></a><div class="itemizedlist"><ul type="disc"><li><p>
+          In MySQL 5.1 before 5.1.16, if you compare a
+          <code class="literal">NULL</code> value to a subquery using
+          <code class="literal">ALL</code>, <code class="literal">ANY</code>, or
+          <code class="literal">SOME</code>, and the subquery returns an empty
+          result, the comparison might evaluate to the non-standard
+          result of <code class="literal">NULL</code> rather than to
+          <code class="literal">TRUE</code> or <code class="literal">FALSE</code>.
+        </p></li><li><p>
+          A subquery's outer statement can be any one of:
+          <code class="literal">SELECT</code>, <code class="literal">INSERT</code>,
+          <code class="literal">UPDATE</code>, <code class="literal">DELETE</code>,
+          <code class="literal">SET</code>, or <code class="literal">DO</code>.
+        </p></li><li><p>
+          Subquery optimization for <code class="literal">IN</code> is not as
+          effective as for the <code class="literal">=</code> operator or for the
+          <a href="functions.html#function_in"><code class="literal">IN(<em class="replaceable"><code>value_list</code></em>)</code></a>
+          operator.
+        </p><p>
+          A typical case for poor <code class="literal">IN</code> subquery
+          performance is when the subquery returns a small number of
+          rows but the outer query returns a large number of rows to be
+          compared to the subquery result.
+        </p><p>
+          The problem is that, for a statement that uses an
+          <code class="literal">IN</code> subquery, the optimizer rewrites it as a
+          correlated subquery. Consider the following statement that
+          uses an uncorrelated subquery:
+        </p><pre class="programlisting">SELECT ... FROM t1 WHERE t1.a IN (SELECT b FROM t2);
+</pre><p>
+          The optimizer rewrites the statement to a correlated subquery:
+        </p><pre class="programlisting">SELECT ... FROM t1 WHERE EXISTS (SELECT 1 FROM t2 WHERE t2.b = t1.a);
+</pre><p>
+          If the inner and outer queries return
+          <em class="replaceable"><code>M</code></em> and <em class="replaceable"><code>N</code></em>
+          rows, respectively, the execution time becomes on the order of
+          <code class="literal">O(<em class="replaceable"><code>M</code></em>×<em class="replaceable"><code>N</code></em>)</code>,
+          rather than
+          <code class="literal">O(<em class="replaceable"><code>M</code></em>+<em class="replaceable"><code>N</code></em>)</code>
+          as it would be for an uncorrelated subquery.
+        </p><p>
+          An implication is that an <code class="literal">IN</code> subquery can
+          be much slower than a query written using an
+          <a href="functions.html#function_in"><code class="literal">IN(<em class="replaceable"><code>value_list</code></em>)</code></a>
+          operator that lists the same values that the subquery would
+          return.
+        </p></li><li><p>
+          In general, you cannot modify a table and select from the same
+          table in a subquery. For example, this limitation applies to
+          statements of the following forms:
+        </p><pre class="programlisting">DELETE FROM t WHERE ... (SELECT ... FROM t ...);
+UPDATE t ... WHERE col = (SELECT ... FROM t ...);
+{INSERT|REPLACE} INTO t (SELECT ... FROM t ...);
+</pre><p>
+          Exception: The preceding prohibition does not apply if you are
+          using a subquery for the modified table in the
+          <code class="literal">FROM</code> clause. Example:
+        </p><pre class="programlisting">UPDATE t ... WHERE col = (SELECT * FROM (SELECT ... FROM t...) AS _t ...);
+</pre><p>
+          Here the prohibition does not apply because the result from a
+          subquery in the <code class="literal">FROM</code> clause is stored as a
+          temporary table, so the relevant rows in <code class="literal">t</code>
+          have already been selected by the time the update to
+          <code class="literal">t</code> takes place.
+        </p></li><li><p>
+          Row comparison operations are only partially supported:
+        </p><div class="itemizedlist"><ul type="circle"><li><p>
+              For <code class="literal"><em class="replaceable"><code>expr</code></em> IN
+              (<em class="replaceable"><code>subquery</code></em>)</code>,
+              <em class="replaceable"><code>expr</code></em> can be an
+              <em class="replaceable"><code>n</code></em>-tuple (specified via row
+              constructor syntax) and the subquery can return rows of
+              <em class="replaceable"><code>n</code></em>-tuples.
+            </p></li><li><p>
+              For <code class="literal"><em class="replaceable"><code>expr</code></em>
+              <em class="replaceable"><code>op</code></em> {ALL|ANY|SOME}
+              (<em class="replaceable"><code>subquery</code></em>)</code>,
+              <em class="replaceable"><code>expr</code></em> must be a scalar value and
+              the subquery must be a column subquery; it cannot return
+              multiple-column rows.
+            </p></li></ul></div><p>
+          In other words, for a subquery that returns rows of
+          <em class="replaceable"><code>n</code></em>-tuples, this is supported:
+        </p><pre class="programlisting">(<em class="replaceable"><code>val_1</code></em>, ..., <em class="replaceable"><code>val_n</code></em>) IN (<em class="replaceable"><code>subquery</code></em>)
+</pre><p>
+          But this is not supported:
+        </p><pre class="programlisting">(<em class="replaceable"><code>val_1</code></em>, ..., <em class="replaceable"><code>val_n</code></em>) <em class="replaceable"><code>op</code></em> {ALL|ANY|SOME} (<em class="replaceable"><code>subquery</code></em>)
+</pre><p>
+          The reason for supporting row comparisons for
+          <code class="literal">IN</code> but not for the others is that
+          <code class="literal">IN</code> is implemented by rewriting it as a
+          sequence of
+          <a href="functions.html#operator_equal"><code class="literal">=</code></a>
+          comparisons and <a href="functions.html#operator_and"><code class="literal">AND</code></a>
+          operations. This approach cannot be used for
+          <code class="literal">ALL</code>, <code class="literal">ANY</code>, or
+          <code class="literal">SOME</code>.
+        </p></li><li><p>
+          Row constructors are not well optimized. The following two
+          expressions are equivalent, but only the second can be
+          optimized:
+        </p><pre class="programlisting">(col1, col2, ...) = (val1, val2, ...)
+col1 = val1 AND col2 = val2 AND ...
+</pre></li><li><p>
+          Subqueries in the <code class="literal">FROM</code> clause cannot be
+          correlated subqueries. They are materialized (executed to
+          produce a result set) before evaluating the outer query, so
+          they cannot be evaluated per row of the outer query.
+        </p></li><li><p>
+          The optimizer is more mature for joins than for subqueries, so
+          in many cases a statement that uses a subquery can be executed
+          more efficiently if you rewrite it as a join.
+        </p><p>
+          An exception occurs for the case where an
+          <code class="literal">IN</code> subquery can be rewritten as a
+          <code class="literal">SELECT DISTINCT</code> join. Example:
+        </p><pre class="programlisting">SELECT col FROM t1 WHERE id_col IN (SELECT id_col2 FROM t2 WHERE <em class="replaceable"><code>condition</code></em>);
+</pre><p>
+          That statement can be rewritten as follows:
+        </p><pre class="programlisting">SELECT DISTINCT col FROM t1, t2 WHERE t1.id_col = t2.id_col AND <em class="replaceable"><code>condition</code></em>;
+</pre><p>
+          But in this case, the join requires an extra
+          <code class="literal">DISTINCT</code> operation and is not more
+          efficient than the subquery.
+        </p></li><li><p>
+          Possible future optimization: MySQL does not rewrite the join
+          order for subquery evaluation. In some cases, a subquery could
+          be executed more efficiently if MySQL rewrote it as a join.
+          This would give the optimizer a chance to choose between more
+          execution plans. For example, it could decide whether to read
+          one table or the other first.
+        </p><p>
+          Example:
+        </p><pre class="programlisting">SELECT a FROM outer_table AS ot
+WHERE a IN (SELECT a FROM inner_table AS it WHERE ot.b = it.b);
+</pre><p>
+          For that query, MySQL always scans
+          <code class="literal">outer_table</code> first and then executes the
+          subquery on <code class="literal">inner_table</code> for each row. If
+          <code class="literal">outer_table</code> has a lot of rows and
+          <code class="literal">inner_table</code> has few rows, the query
+          probably will not be as fast as it could be.
+        </p><p>
+          The preceding query could be rewritten like this:
+        </p><pre class="programlisting">SELECT a FROM outer_table AS ot, inner_table AS it
+WHERE ot.a = it.a AND ot.b = it.b;
+</pre><p>
+          In this case, we can scan the small table
+          (<code class="literal">inner_table</code>) and look up rows in
+          <code class="literal">outer_table</code>, which will be fast if there is
+          an index on <code class="literal">(ot.a,ot.b)</code>.
+        </p></li><li><p>
+          Possible future optimization: A correlated subquery is
+          evaluated for each row of the outer query. A better approach
+          is that if the outer row values do not change from the
+          previous row, do not evaluate the subquery again. Instead, use
+          its previous result.
+        </p></li><li><p>
+          Possible future optimization: A subquery in the
+          <code class="literal">FROM</code> clause is evaluated by materializing
+          the result into a temporary table, and this table does not use
+          indexes. This does not allow the use of indexes in comparison
+          with other tables in the query, although that might be useful.
+        </p></li><li><p>
+          Possible future optimization: If a subquery in the
+          <code class="literal">FROM</code> clause resembles a view to which the
+          merge algorithm can be applied, rewrite the query and apply
+          the merge algorithm so that indexes can be used. The following
+          statement contains such a subquery:
+        </p><pre class="programlisting">SELECT * FROM (SELECT * FROM t1 WHERE t1.t1_col) 
+         AS _t1, t2 WHERE t2.t2_col;
+</pre><p>
+          The statement can be rewritten as a join like this:
+        </p><pre class="programlisting">SELECT * FROM t1, t2 WHERE t1.t1_col AND t2.t2_col;
+</pre><p>
+          This type of rewriting would provide two benefits:
+        </p><div class="itemizedlist"><ul type="circle"><li><p>
+              It avoids the use of a temporary table for which no
+              indexes can be used. In the rewritten query, the optimizer
+              can use indexes on <code class="literal">t1</code>.
+            </p></li><li><p>
+              It gives the optimizer more freedom to choose between
+              different execution plans. For example, rewriting the
+              query as a join allows the optimizer to use
+              <code class="literal">t1</code> or <code class="literal">t2</code> first.
+            </p></li></ul></div></li><li><p>
+          Possible future optimization: For <code class="literal">IN</code>,
+          <code class="literal">= ANY</code>, <code class="literal">&lt;&gt; ANY</code>,
+          <code class="literal">= ALL</code>, and <code class="literal">&lt;&gt; ALL</code>
+          with uncorrelated subqueries, use an in-memory hash for a
+          result or a temporary table with an index for larger results.
+          Example:
+        </p><pre class="programlisting">SELECT a FROM big_table AS bt
+WHERE non_key_field IN (SELECT non_key_field FROM <em class="replaceable"><code>table</code></em> WHERE <em class="replaceable"><code>condition</code></em>)
+</pre><p>
+          In this case, we could create a temporary table:
+        </p><pre class="programlisting">CREATE TABLE t (key (non_key_field))
+(SELECT non_key_field FROM <em class="replaceable"><code>table</code></em> WHERE <em class="replaceable"><code>condition</code></em>)
+</pre><p>
+          Then, for each row in <code class="literal">big_table</code>, do a key
+          lookup in <code class="literal">t</code> based on
+          <code class="literal">bt.non_key_field</code>.
+        </p></li></ul></div></div><div class="section" lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="view-restrictions"></a>D.4. Restrictions on Views</h2></div></div></div><a class="indexterm" name="id2820014"></a><a class="indexterm" name="id2820023"></a><p>
+      View processing is not optimized:
+    </p><div class="itemizedlist"><ul type="disc"><li><p>
+          It is not possible to create an index on a view.
+        </p></li><li><p>
+          Indexes can be used for views processed using the merge
+          algorithm. However, a view that is processed with the
+          temptable algorithm is unable to take advantage of indexes on
+          its underlying tables (although indexes can be used during
+          generation of the temporary tables).
+        </p></li></ul></div><p>
+      Subqueries cannot be used in the <code class="literal">FROM</code> clause of
+      a view. This limitation will be lifted in the future.
+    </p><p>
+      There is a general principle that you cannot modify a table and
+      select from the same table in a subquery. See
+      <a href="restrictions.html#subquery-restrictions" title="D.3. Restrictions on Subqueries">Section D.3, “Restrictions on Subqueries”</a>.
+    </p><p>
+      The same principle also applies if you select from a view that
+      selects from the table, if the view selects from the table in a
+      subquery and the view is evaluated using the merge algorithm.
+      Example:
+    </p><pre class="programlisting">CREATE VIEW v1 AS
+SELECT * FROM t2 WHERE EXISTS (SELECT 1 FROM t1 WHERE t1.a = t2.a);
+
+UPDATE t1, v2 SET t1.a = 1 WHERE t1.b = v2.b;
+</pre><p>
+      If the view is evaluated using a temporary table, you
+      <span class="emphasis"><em>can</em></span> select from the table in the view
+      subquery and still modify that table in the outer query. In this
+      case the view will be stored in a temporary table and thus you are
+      not really selecting from the table in a subquery and modifying it
+      “<span class="quote">at the same time.</span>” (This is another reason you might
+      wish to force MySQL to use the temptable algorithm by specifying
+      <code class="literal">ALGORITHM = TEMPTABLE</code> in the view definition.)
+    </p><p>
+      You can use <code class="literal">DROP TABLE</code> or <code class="literal">ALTER
+      TABLE</code> to drop or alter a table that is used in a view
+      definition (which invalidates the view) and no warning results
+      from the drop or alter operation. An error occurs later when the
+      view is used.
+    </p><p>
+      A view definition is “<span class="quote">frozen</span>” by certain statements:
+    </p><div class="itemizedlist"><ul type="disc"><li><p>
+          If a statement prepared by <code class="literal">PREPARE</code> refers
+          to a view, the view definition seen each time the statement is
+          executed later will be the definition of the view at the time
+          it was prepared. This is true even if the view definition is
+          changed after the statement is prepared and before it is
+          executed. Example:
+        </p><pre class="programlisting">CREATE VIEW v AS SELECT RAND();
+PREPARE s FROM 'SELECT * FROM v';
+ALTER VIEW v AS SELECT NOW();
+EXECUTE s;
+</pre><p>
+          The result returned by the <code class="literal">EXECUTE</code>
+          statement is a random number, not the current date and time.
+        </p></li><li><p>
+          If a statement in a stored routine refers to a view, the view
+          definition seen by the statement are its definition the first
+          time that statement is executed. For example, this means that
+          if the statement is executed in a loop, further iterations of
+          the statement see the same view definition, even if the
+          definition is changed later in the loop. Example:
+        </p><pre class="programlisting">CREATE VIEW v AS SELECT 1;
+delimiter //
+CREATE PROCEDURE p ()
+BEGIN
+  DECLARE i INT DEFAULT 0;
+  WHILE i &lt; 5 DO
+    SELECT * FROM v;
+    SET i = i + 1;
+    ALTER VIEW v AS SELECT 2;
+  END WHILE;
+END;
+//
+delimiter ;
+CALL p();
+</pre><p>
+          When the procedure <code class="literal">p()</code> is called, the
+          <code class="literal">SELECT</code> returns 1 each time through the
+          loop, even though the view definition is changed within the
+          loop.
+        </p><p>
+          As of MySQL 5.1.21, <code class="literal">ALTER VIEW</code> is
+          prohibited within stored routines, so this restriction does
+          not apply.
+        </p></li></ul></div><p>
+      With regard to view updatability, the overall goal for views is
+      that if any view is theoretically updatable, it should be
+      updatable in practice. This includes views that have
+      <code class="literal">UNION</code> in their definition. Currently, not all
+      views that are theoretically updatable can be updated. The initial
+      view implementation was deliberately written this way to get
+      usable, updatable views into MySQL as quickly as possible. Many
+      theoretically updatable views can be updated now, but limitations
+      still exist:
+    </p><div class="itemizedlist"><ul type="disc"><li><p>
+          Updatable views with subqueries anywhere other than in the
+          <code class="literal">WHERE</code> clause. Some views that have
+          subqueries in the <code class="literal">SELECT</code> list may be
+          updatable.
+        </p></li><li><p>
+          You cannot use <code class="literal">UPDATE</code> to update more than
+          one underlying table of a view that is defined as a join.
+        </p></li><li><p>
+          You cannot use <code class="literal">DELETE</code> to update a view that
+          is defined as a join.
+        </p></li></ul></div><a class="indexterm" name="id2820281"></a><a class="indexterm" name="id2820293"></a><a class="indexterm" name="id2820306"></a><a class="indexterm" name="id2820318"></a><a class="indexterm" name="id2820330"></a><a class="indexterm" name="id2820343"></a><p>
+      There exists a shortcoming with the current implementation of
+      views. If a user is granted the basic privileges necessary to
+      create a view (the <code class="literal">CREATE VIEW</code> and
+      <code class="literal">SELECT</code> privileges), that user will be unable to
+      call <code class="literal">SHOW CREATE VIEW</code> on that object unless the
+      user is also granted the <code class="literal">SHOW VIEW</code> privilege.
+    </p><p>
+      That shortcoming can lead to problems backing up a database with
+      <span><strong class="command">mysqldump</strong></span>, which may fail due to insufficient
+      privileges. This problem is described in <a href="http://bugs.mysql.com/22062" target="_top">Bug#22062</a>.
+    </p><p>
+      The workaround to the problem is for the administrator to manually
+      grant the <code class="literal">SHOW VIEW</code> privilege to users who are
+      granted <code class="literal">CREATE VIEW</code>, since MySQL doesn't grant
+      it implicitly when views are created.
+    </p><p>
+      Views do not have indexes, so index hints do not apply. Use of
+      index hints when selecting from a view is disallowed.
+    </p></div><div class="section" lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="xa-restrictions"></a>D.5. Restrictions on XA Transactions</h2></div></div></div><p>
+      XA transaction support is limited to the <code class="literal">InnoDB</code>
+      storage engine.
+    </p><p>
+      The MySQL XA implementation is for “<span class="quote">external XA,</span>”
+      where a MySQL server acts as a Resource Manager and client
+      programs act as Transaction Managers. “<span class="quote">Internal XA</span>”
+      is not implemented. This would allow individual storage engines
+      within a MySQL server to act as RMs, and the server itself to act
+      as a TM. Internal XA is required for handling XA transactions that
+      involve more than one storage engine. The implementation of
+      internal XA is incomplete because it requires that a storage
+      engine support two-phase commit at the table handler level, and
+      currently this is true only for <code class="literal">InnoDB</code>.
+    </p><p>
+      For <code class="literal">XA START</code>, the <code class="literal">JOIN</code> and
+      <code class="literal">RESUME</code> clauses are not supported.
+    </p><p>
+      For <code class="literal">XA END</code>, the <code class="literal">SUSPEND [FOR
+      MIGRATE]</code> clause is not supported.
+    </p><p>
+      The requirement that the <em class="replaceable"><code>bqual</code></em> part of
+      the <em class="replaceable"><code>xid</code></em> value be different for each XA
+      transaction within a global transaction is a limitation of the
+      current MySQL XA implementation. It is not part of the XA
+      specification.
+    </p><p>
+      If an XA transaction has reached the <code class="literal">PREPARED</code>
+      state and the MySQL server is killed (for example, with
+      <span><strong class="command">kill -9</strong></span> on Unix) or shuts down abnormally, the
+      transaction can be continued after the server restarts. However,
+      if the client reconnects and commits the transaction, the
+      transaction will be absent from the binary log even though it has
+      been committed. This means the data and the binary log have gone
+      out of synchrony. An implication is that XA cannot be used safely
+      together with replication.
+    </p><p>
+      It is possible that the server will roll back a pending XA
+      transaction, even one that has reached the
+      <code class="literal">PREPARED</code> state. This happens if a client
+      connection terminates and the server continues to run, or if
+      clients are connected and the server shuts down gracefully. (In
+      the latter case, the server marks each connection to be
+      terminated, and then rolls back the <code class="literal">PREPARED</code> XA
+      transaction associated with it.) It should be possible to commit
+      or roll back a <code class="literal">PREPARED</code> XA transaction, but
+      this cannot be done without changes to the binary logging
+      mechanism.
+    </p></div><div class="section" lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="charset-restrictions"></a>D.6. Restrictions on Character Sets</h2></div></div></div><div class="itemizedlist"><ul type="disc"><li><p>
+          Identifiers are stored in <code class="literal">mysql</code> database
+          tables (<code class="literal">user</code>, <code class="literal">db</code>, and so
+          forth) using <code class="literal">utf8</code>, but identifiers can
+          contain only characters in the Basic Multilingual Plane (BMP).
+          Supplementary characters are not allowed in identifiers.
+        </p></li><li><p>
+          The <code class="literal">ucs2</code> character sets has the following
+          restrictions:
+        </p><div class="itemizedlist"><ul type="circle"><li><p>
+              It cannot be used as a client character set, which means
+              that it does not work for <code class="literal">SET NAMES</code> or
+              <code class="literal">SET CHARACTER SET</code>. (See
+              <a href="internationalization-localization.html#charset-connection" title="9.1.4. Connection Character Sets and Collations">Section 9.1.4, “Connection Character Sets and Collations”</a>.)
+            </p></li><li><p>
+              It is currently not possible to use <code class="literal">LOAD DATA
+              INFILE</code> to load data files that use this
+              character set.
+            </p></li><li><p>
+              <code class="literal">FULLTEXT</code> indexes cannot be created on a
+              column that this character set. However, you can perform
+              <code class="literal">IN BOOLEAN MODE</code> searches on the column
+              without an index.
+            </p></li></ul></div></li><li><p>
+          The <a href="functions.html#operator_regexp"><code class="literal">REGEXP</code></a> and
+          <a href="functions.html#operator_regexp"><code class="literal">RLIKE</code></a>
+          operators work in byte-wise fashion, so they are not
+          multi-byte safe and may produce unexpected results with
+          multi-byte character sets. In addition, these operators
+          compare characters by their byte values and accented
+          characters may not compare as equal even if a given collation
+          treats them as equal.
+        </p></li></ul></div></div><div class="section" lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="limits"></a>D.7. Limits in MySQL</h2></div></div></div><div class="toc"><dl><dt><span class="section"><a href="restrictions.html#joins-limits">D.7.1. Limits of Joins</a></span></dt><dt><span class="section"><a href="restrictions.html#column-count-limit">D.7.2. The Maximum Number of Columns Per Table</a></span></dt><dt><span class="section"><a href="restrictions.html#limits-windows">D.7.3. Windows Platform Limitations</a></span></dt></dl></div><a class="indexterm" name="id2820709"></a><a class="indexterm" name="id2820721"></a><p>
+      This section lists current limits in MySQL 5.1.
+    </p><div class="section" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="joins-limits"></a>D.7.1. Limits of Joins</h3></div></div></div><a class="indexterm" name="id2820746"></a><p>
+        The maximum number of tables that can be referenced in a single
+        join is 61. This also applies to the number of tables that can
+        be referenced in the definition of a view.
+      </p></div><div class="section" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="column-count-limit"></a>D.7.2. The Maximum Number of Columns Per Table</h3></div></div></div><a class="indexterm" name="id2820772"></a><p>
+        There is a hard limit of 4096 columns per table, but the
+        effective maximum may be less for a given table. The exact limit
+        depends on several interacting factors, listed in the following
+        discussion.
+      </p><div class="itemizedlist"><ul type="disc"><li><p>
+            Every table has a maximum row size of 65,535 bytes. This
+            maximum applies to all storage engines, but a given engine
+            might have additional constraints that result in a lower
+            effective maximum row size.
+          </p><p>
+            The maximum row size constrains the number of columns
+            because the total width of all columns cannot exceed this
+            size. For example, <code class="literal">utf8</code> characters
+            require up to three bytes per character, so for a
+            <code class="literal">CHAR(255) CHARACTER SET utf8</code> column, the
+            server must allocate 255 × 3 = 765 bytes per value.
+            Consequently, a table cannot contain more than 65,535 / 765
+            = 85 such columns.
+          </p><p>
+            Storage for variable-length columns includes length bytes,
+            which are assessed against the row size. For example, a
+            <code class="literal">VARCHAR(255) CHARACTER SET utf8</code> column
+            takes two bytes to store the length of the value, so each
+            value can take up to 767 bytes.
+          </p><p>
+            <code class="literal">BLOB</code> and <code class="literal">TEXT</code> columns
+            count from one to four plus eight bytes each toward the
+            row-size limit because their contents are stored separately.
+          </p><p>
+            Declaring columns <code class="literal">NULL</code> can reduce the
+            maximum number of columns allowed. <code class="literal">NULL</code>
+            columns require additional space in the row to record
+            whether or not their values are <code class="literal">NULL</code>.
+          </p><p>
+            For <code class="literal">MyISAM</code> tables, each
+            <code class="literal">NULL</code> column takes one bit extra, rounded
+            up to the nearest byte. The maximum row length in bytes can
+            be calculated as follows:
+          </p><pre class="programlisting">row length = 1
+             + (<em class="replaceable"><code>sum of column lengths</code></em>)
+             + (<em class="replaceable"><code>number of NULL columns</code></em> + <em class="replaceable"><code>delete_flag</code></em> + 7)/8
+             + (<em class="replaceable"><code>number of variable-length columns</code></em>)
+</pre><p>
+            <em class="replaceable"><code>delete_flag</code></em> is 1 for tables with
+            static row format. Static tables use a bit in the row record
+            for a flag that indicates whether the row has been deleted.
+            <em class="replaceable"><code>delete_flag</code></em> is 0 for dynamic
+            tables because the flag is stored in the dynamic row header.
+          </p><p>
+            These calculations do not apply for
+            <code class="literal">InnoDB</code> tables, for which storage size is
+            no different for <code class="literal">NULL</code> columns than for
+            <code class="literal">NOT NULL</code> columns.
+          </p><p>
+            The following statement to create table
+            <code class="literal">t1</code> succeeds because the columns require
+            32,765 + 2 bytes and 32,766 + 2 bytes, which falls within
+            the maximum row size of 65,535 bytes:
+          </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>CREATE TABLE t1</code></strong>
+    -&gt; <strong class="userinput"><code>(c1 VARCHAR(32765) NOT NULL, c2 VARCHAR(32766) NOT NULL);</code></strong>
+Query OK, 0 rows affected (0.01 sec)
+</pre><p>
+            The following statement to create table
+            <code class="literal">t2</code> fails because the columns are
+            <code class="literal">NULL</code> and require additional space that
+            causes the row size to exceed 65,535 bytes:
+          </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>CREATE TABLE t2</code></strong>
+    -&gt; <strong class="userinput"><code>(c1 VARCHAR(32765) NULL, c2 VARCHAR(32766) NULL);</code></strong>
+ERROR 1118 (42000): Row size too large. The maximum row size for the
+used table type, not counting BLOBs, is 65535. You have to change some
+columns to TEXT or BLOBs
+</pre></li><li><p>
+            Each table has an <code class="filename">.frm</code> file that
+            contains the table definition. The <code class="filename">.frm</code>
+            file size limit is fixed at 64KB. If a table definition
+            reaches this size, no more columns can be added. The
+            expression that checks information to be stored in the
+            <code class="filename">.frm</code> file against the limit looks like
+            this:
+          </p><pre class="programlisting">if (info_length+(ulong) create_fields.elements*FCOMP+288+
+    n_length+int_length+com_length &gt; 65535L || int_count &gt; 255)
+</pre><p>
+            The relevant factors in this expression are:
+          </p><div class="itemizedlist"><ul type="circle"><li><p>
+                <code class="literal">info_length</code> is space needed for
+                “<span class="quote">screens.</span>” This is related to MySQL's
+                Unireg heritage.
+              </p></li><li><p>
+                <code class="literal">create_fields.elements</code> is the number
+                of columns.
+              </p></li><li><p>
+                <code class="literal">FCOMP</code> is 17.
+              </p></li><li><p>
+                <code class="literal">n_length</code> is the total length of all
+                column names, including one byte per name as a
+                separator.
+              </p></li><li><p>
+                <code class="literal">int_length</code> is related to the list of
+                values for SET and ENUM columns.
+              </p></li><li><p>
+                <code class="literal">com_length</code> is the total length of
+                column and table comments.
+              </p></li></ul></div><p>
+            Thus, using long column names can reduce the maximum number
+            of columns, as can the inclusion of <code class="literal">ENUM</code>
+            or <code class="literal">SET</code> columns, or use of column or table
+            comments.
+          </p></li><li><p>
+            Individual storage engines might impose additional
+            restrictions that limit table column count. Examples:
+          </p><div class="itemizedlist"><ul type="circle"><li><p>
+                <code class="literal">InnoDB</code> allows no more than 1000
+                columns.
+              </p></li><li><p>
+                <code class="literal">InnoDB</code> restricts row size to
+                something less than half a database page (approximately
+                8000 bytes), not including <code class="literal">VARBINARY</code>,
+                <code class="literal">VARCHAR</code>, <code class="literal">BLOB</code>, or
+                <code class="literal">TEXT</code> columns.
+              </p></li><li><p>
+                Different <code class="literal">InnoDB</code> storage formats
+                (<code class="literal">COMPRESSED</code>,
+                <code class="literal">REDUNDANT</code>) use different amounts of
+                page header and trailer data, which affects the amount
+                of storage available for rows.
+              </p></li></ul></div></li></ul></div></div><div class="section" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="limits-windows"></a>D.7.3. Windows Platform Limitations</h3></div></div></div><p>
+        The following limitations apply only to the Windows platform:
+      </p><div class="itemizedlist"><ul type="disc"><li><p>
+            The number of open file descriptors on Windows is limited to
+            a maximum of 2048, which may limit the ability to open a
+            large number of tables simultaneously. This limit is due to
+            the compatibility functions used to open files on Windows
+            that use the POSIX compatibility layer.
+          </p><p>
+            This limitation will also cause problems if you try to set
+            <code class="option">max_open_files</code> to a value greater than the
+            2048 file limit.
+          </p></li><li><p>
+            On Windows 32-bit platforms it is not possible to use more
+            than 2GB of RAM within a single process, including MySQL.
+            This is because the physical address limit on Windows 32-bit
+            is 4GB and the default setting within Windows is to split
+            the virtual address space between kernel (2GB) and
+            user/applications (2GB).
+          </p><p>
+            To use more memory than this you will need to use a 64-bit
+            version of Windows.
+          </p></li><li><p>
+            When using <code class="literal">MyISAM</code> tables, you cannot use
+            aliases within Windows link to the data files on another
+            volume and then link back to the main MySQL
+            <code class="option">datadir</code> location.
+          </p><p>
+            This facility is often used to move the data and index files
+            to a RAID or other fast solution, while retaining the main
+            <code class="filename">.FRM</code> files in the default data
+            directory configured with the <code class="option">datadir</code>
+            option.
+          </p></li><li><p>
+            The timers within MySQL used on Windows are of a lower
+            precision than the timers used on Linux. For most situations
+            you may not notice a difference, but the delay implied by a
+            call to <a href="functions.html#function_sleep"><code class="literal">SLEEP()</code></a> on Windows
+            and Linux may differ slightly due to the differences in
+            precision.
+          </p></li><li><p>
+            There is no 64-bit OLEDB Provider for ODBC (MSDASQL) in any
+            64-bit Windows operating system up to and including Windows
+            Vista. In practical terms this means that you can't use the
+            MySQL ODBC driver from ADO and other users of OLEDB.
+          </p></li></ul></div></div></div></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="news.html">Prev</a> </td><td width="20%" align="center"> </td><td width="40%" align="right"> <a accesskey="n" href="credits.html">Next</a></td></tr><tr><td width="40%" align="left" valign="top">Appendix C. MySQL Change History </td><td width="20%" align="center"><a accesskey="h" href="index.html">Home</a></td><td width="40%" align="right" valign="top"> Appendix E. Credits</td></tr></table></div></body></html>

@@ -1,0 +1,119 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>英文字和中文字等寬？</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.7" />
+<link rel="HOME" title="FreeBSD Chinese HOWTO" href="index.html" />
+<link rel="UP" title="常見問題解答" href="faq.html" />
+<link rel="PREVIOUS" title="Cyrus-IMAP 將 8-bit 文字轉換為 X 的問題"
+href="cyrus-imapd2.html" />
+<link rel="NEXT" title="pw 開帳號碰到'@'問題？" href="pw.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD Chinese HOWTO</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="cyrus-imapd2.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 21. 常見問題解答</td>
+<td width="10%" align="right" valign="bottom"><a href="pw.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="FONT-WIDTH" name="FONT-WIDTH">21.39.
+英文字和中文字等寬？</a></h1>
+
+<p>Contributed by firefly</p>
+
+<p>TrueType 字體分成兩種，一種是可變字距，也就是每個字符寬度不一樣， 比如 "x" 與
+"i"，這兩個字符就不等寬，它是在每個字符中紀錄該字符的寬度， 大多數的 TrueType
+都是這種格式。</p>
+
+<p>另一種就是固定字距。也就是每個字符寬度都一樣，這樣顯示或打印時，
+會有對齊效果，比較美觀，在英語環境中，不會有任何問題，聰明的您， 知道問題所在了吧。</p>
+
+<p>沒錯！CJK 的等寬字體，包含『半寬英數字符』與『全寬 CJK 字符』，
+字型引擎會把全寬字寬度套用在半寬字上頭，造成半寬字看起來間距太大， 這就是問題所在。</p>
+
+<p>這裡提供一個方法，讓字型引擎忽略 CJK 字體指定的寬度， 您可以將以下這段內容，複製到
+~/.fonts.conf 中：</p>
+
+<pre class="PROGRAMLISTING">
+&lt;match target="font"&gt; 
+        &lt;test target="pattern" name="lang" compare="contains"&gt; 
+                &lt;string&gt;zh-tw&lt;/string&gt; 
+                &lt;string&gt;zh-cn&lt;/string&gt; 
+                &lt;string&gt;ja&lt;/string&gt; 
+                &lt;string&gt;ko&lt;/string&gt; 
+        &lt;/test&gt; 
+        &lt;test name="spacing" compare="eq"&gt; 
+                &lt;const&#62;mono&lt;/const&gt; 
+        &lt;/test&gt; 
+        &lt;edit name="globaladvance" mode="assign"&gt; 
+                &lt;bool&gt;false&lt;/bool&gt; 
+        &lt;/edit&gt; 
+&lt;/match&gt;
+</pre>
+
+<p>以上那段的意思是：當遇到 CJK 字型，又是等寬時， 忽略系統內定寬度，這樣，當系統使用 CJK
+等寬字時， 便不會再有間距過大的問題。</p>
+
+<p>因為 MingLiU 宣稱自己是 monospaced 字型，但實際上它有兩種寬度：
+中文的全形以及英文的半形。</p>
+
+<pre class="PROGRAMLISTING">
+    &lt;match target="font"&gt;
+        &lt;test name="family"&gt;&lt;string&gt;MingLiU&lt;/string&gt;&lt;/test&gt;
+        &lt;edit name="globaladvance"&gt;&lt;bool&gt;false&lt;/bool&gt;&lt;/edit&gt;
+    &lt;/match&gt;
+</pre>
+
+<p>還可以改 spacing，0 是 proportional 的 spacing，100 是 mono， 110 是 charcell。</p>
+
+<pre class="PROGRAMLISTING">
+    &lt;match target="font"&gt;
+        &lt;test name="family"&gt;&lt;string&gt;MingLiU&lt;/string&gt;&lt;/test&gt;
+        &lt;edit name="spacing"&gt;&lt;int&gt;0&lt;/int&gt;&lt;/edit&gt;
+    &lt;/match&gt;
+</pre>
+
+<p>在 X11 Core Font 的部分則是必須修改 XLFD， 將 -m- 改成 -p-。</p>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="cyrus-imapd2.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="pw.html" accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">Cyrus-IMAP 將 8-bit 文字轉換為 X 的問題</td>
+<td width="34%" align="center" valign="top"><a href="faq.html" accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">pw 開帳號碰到'@'問題？</td>
+</tr>
+</table>
+</div>
+</body>
+</html>
+

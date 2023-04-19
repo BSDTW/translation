@@ -1,0 +1,725 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>播放影片</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.79" />
+<link rel="HOME" title="FreeBSD 使用手冊" href="index.html" />
+<link rel="UP" title="多媒體影音娛樂(Multimedia)" href="multimedia.html" />
+<link rel="PREVIOUS" title="MP3 音樂" href="sound-mp3.html" />
+<link rel="NEXT" title="設定電視卡(TV Cards)" href="tvcard.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD 使用手冊</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="sound-mp3.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 7 多媒體影音娛樂(Multimedia)</td>
+<td width="10%" align="right" valign="bottom"><a href="tvcard.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="VIDEO-PLAYBACK" name="VIDEO-PLAYBACK">7.4 播放影片</a></h1>
+
+<i class="AUTHORGROUP"><span class="CONTRIB">Contributed by</span> Ross Lippert.</i> 
+
+<p>Video playback is a very new and rapidly developing application area. Be patient. Not
+everything is going to work as smoothly as it did with sound.</p>
+
+<p>Before you begin, you should know the model of the video card you have and the chip it
+uses. While <b class="APPLICATION">Xorg</b> and <b class="APPLICATION"><span
+class="TRADEMARK">XFree86</span>&#8482;</b> support a wide variety of video cards, fewer
+give good playback performance. To obtain a list of extensions supported by the X server
+using your card use the command <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=xdpyinfo&amp;sektion=1&amp;manpath=XFree86+4.4.0">
+<span class="CITEREFENTRY"><span class="REFENTRYTITLE">xdpyinfo</span>(1)</span></a>
+while X11 is running.</p>
+
+<p>It is a good idea to have a short MPEG file which can be treated as a test file for
+evaluating various players and options. Since some DVD players will look for DVD media in
+<tt class="FILENAME">/dev/dvd</tt> by default, or have this device name hardcoded in
+them, you might find it useful to make symbolic links to the proper devices:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">ln -sf /dev/acd0c /dev/dvd</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">ln -sf /dev/racd0c /dev/rdvd</kbd>
+</pre>
+
+<p>On FreeBSD&nbsp;5.X, which uses <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=devfs&amp;sektion=5&amp;manpath=FreeBSD+6-current">
+<span class="CITEREFENTRY"><span class="REFENTRYTITLE">devfs</span>(5)</span></a> there
+is a slightly different set of recommended links:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">ln -sf /dev/acd0 /dev/dvd</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">ln -sf /dev/acd0 /dev/rdvd</kbd>
+</pre>
+
+<p>Note that due to the nature of <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=devfs&amp;sektion=5&amp;manpath=FreeBSD+6-current">
+<span class="CITEREFENTRY"><span class="REFENTRYTITLE">devfs</span>(5)</span></a>,
+manually created links like these will not persist if you reboot your system. In order to
+create the symbolic links automatically whenever you boot your system, add the following
+lines to <tt class="FILENAME">/etc/devfs.conf</tt>:</p>
+
+<pre class="PROGRAMLISTING">
+link acd0 dvd
+link acd0 rdvd
+</pre>
+
+<p>Additionally, DVD decryption, which requires invoking special DVD-ROM functions,
+requires write permission on the DVD devices.</p>
+
+<p>Some of the ports discussed rely on the following kernel options to build correctly.
+Before attempting to build, add this option to the kernel configuration file, build a new
+kernel, and reboot:</p>
+
+<pre class="PROGRAMLISTING">
+options CPU_ENABLE_SSE
+</pre>
+
+<div class="NOTE">
+<blockquote class="NOTE">
+<p><b>Note:</b> On FreeBSD&nbsp;4.X <tt class="LITERAL">options USER_LDT</tt> should be
+added to the kernel configuration file. This option is not available on FreeBSD&nbsp;5.X
+and later version.</p>
+</blockquote>
+</div>
+
+<p>To enhance the shared memory X11 interface, it is recommended that the values of some
+<a href="http://www.FreeBSD.org/cgi/man.cgi?query=sysctl&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">sysctl</span>(8)</span></a> variables
+should be increased:</p>
+
+<pre class="PROGRAMLISTING">
+kern.ipc.shmmax=67108864
+kern.ipc.shmall=32768
+</pre>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="VIDEO-INTERFACE" name="VIDEO-INTERFACE">7.4.1 Determining Video
+Capabilities</a></h2>
+
+<p>There are several possible ways to display video under X11. What will really work is
+largely hardware dependent. Each method described below will have varying quality across
+different hardware. Secondly, the rendering of video in X11 is a topic receiving a lot of
+attention lately, and with each version of <b class="APPLICATION">Xorg</b>, or of <b
+class="APPLICATION"><span class="TRADEMARK">XFree86</span></b>, there may be significant
+improvement.</p>
+
+<p>A list of common video interfaces:</p>
+
+<ol type="1">
+<li>
+<p>X11: normal X11 output using shared memory.</p>
+</li>
+
+<li>
+<p>XVideo: an extension to the X11 interface which supports video in any X11
+drawable.</p>
+</li>
+
+<li>
+<p>SDL: the Simple Directmedia Layer.</p>
+</li>
+
+<li>
+<p>DGA: the Direct Graphics Access.</p>
+</li>
+
+<li>
+<p>SVGAlib: low level console graphics layer.</p>
+</li>
+</ol>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="VIDEO-INTERFACE-XVIDEO" name="VIDEO-INTERFACE-XVIDEO">7.4.1.1
+XVideo</a></h3>
+
+<p><b class="APPLICATION">Xorg</b> and <b class="APPLICATION"><span
+class="TRADEMARK">XFree86</span> 4.X</b> have an extension called <span
+class="emphasis"><i class="EMPHASIS">XVideo</i></span> (aka Xvideo, aka Xv, aka xv) which
+allows video to be directly displayed in drawable objects through a special acceleration.
+This extension provides very good quality playback even on low-end machines.</p>
+
+<p>To check whether the extension is running, use <tt class="COMMAND">xvinfo</tt>:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">%</samp> <kbd class="USERINPUT">xvinfo</kbd>
+</pre>
+
+<p>XVideo is supported for your card if the result looks like:</p>
+
+<pre class="SCREEN">
+X-Video Extension version 2.2
+screen #0
+  Adaptor #0: "Savage Streams Engine"
+    number of ports: 1
+    port base: 43
+    operations supported: PutImage 
+    supported visuals:
+      depth 16, visualID 0x22
+      depth 16, visualID 0x23
+    number of attributes: 5
+      "XV_COLORKEY" (range 0 to 16777215)
+              client settable attribute
+              client gettable attribute (current value is 2110)
+      "XV_BRIGHTNESS" (range -128 to 127)
+              client settable attribute
+              client gettable attribute (current value is 0)
+      "XV_CONTRAST" (range 0 to 255)
+              client settable attribute
+              client gettable attribute (current value is 128)
+      "XV_SATURATION" (range 0 to 255)
+              client settable attribute
+              client gettable attribute (current value is 128)
+      "XV_HUE" (range -180 to 180)
+              client settable attribute
+              client gettable attribute (current value is 0)
+    maximum XvImage size: 1024 x 1024
+    Number of image formats: 7
+      id: 0x32595559 (YUY2)
+        guid: 59555932-0000-0010-8000-00aa00389b71
+        bits per pixel: 16
+        number of planes: 1
+        type: YUV (packed)
+      id: 0x32315659 (YV12)
+        guid: 59563132-0000-0010-8000-00aa00389b71
+        bits per pixel: 12
+        number of planes: 3
+        type: YUV (planar)
+      id: 0x30323449 (I420)
+        guid: 49343230-0000-0010-8000-00aa00389b71
+        bits per pixel: 12
+        number of planes: 3
+        type: YUV (planar)
+      id: 0x36315652 (RV16)
+        guid: 52563135-0000-0000-0000-000000000000
+        bits per pixel: 16
+        number of planes: 1
+        type: RGB (packed)
+        depth: 0
+        red, green, blue masks: 0x1f, 0x3e0, 0x7c00
+      id: 0x35315652 (RV15)
+        guid: 52563136-0000-0000-0000-000000000000
+        bits per pixel: 16
+        number of planes: 1
+        type: RGB (packed)
+        depth: 0
+        red, green, blue masks: 0x1f, 0x7e0, 0xf800
+      id: 0x31313259 (Y211)
+        guid: 59323131-0000-0010-8000-00aa00389b71
+        bits per pixel: 6
+        number of planes: 3
+        type: YUV (packed)
+      id: 0x0
+        guid: 00000000-0000-0000-0000-000000000000
+        bits per pixel: 0
+        number of planes: 0
+        type: RGB (packed)
+        depth: 1
+        red, green, blue masks: 0x0, 0x0, 0x0
+</pre>
+
+<p>Also note that the formats listed (YUV2, YUV12, etc) are not present with every
+implementation of XVideo and their absence may hinder some players.</p>
+
+<p>If the result looks like:</p>
+
+<pre class="SCREEN">
+X-Video Extension version 2.2
+screen #0
+no adaptors present
+</pre>
+
+<p>Then XVideo is probably not supported for your card.</p>
+
+<p>If XVideo is not supported for your card, this only means that it will be more
+difficult for your display to meet the computational demands of rendering video.
+Depending on your video card and processor, though, you might still be able to have a
+satisfying experience. You should probably read about ways of improving performance in
+the advanced reading <a href="video-playback.html#VIDEO-FURTHER-READING">Section
+7.4.3</a>.</p>
+</div>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="VIDEO-INTERFACE-SDL" name="VIDEO-INTERFACE-SDL">7.4.1.2 Simple
+Directmedia Layer</a></h3>
+
+<p>The Simple Directmedia Layer, SDL, was intended to be a porting layer between <span
+class="TRADEMARK">Microsoft</span>&reg;&nbsp;<span class="TRADEMARK">Windows</span>&reg;,
+BeOS, and <span class="TRADEMARK">UNIX</span>&reg;, allowing cross-platform applications
+to be developed which made efficient use of sound and graphics. The SDL layer provides a
+low-level abstraction to the hardware which can sometimes be more efficient than the X11
+interface.</p>
+
+<p>The SDL can be found at <a
+href="http://www.FreeBSD.org/cgi/url.cgi?ports/devel/sdl12/pkg-descr"><tt
+class="FILENAME">devel/sdl12</tt></a>.</p>
+</div>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="VIDEO-INTERFACE-DGA" name="VIDEO-INTERFACE-DGA">7.4.1.3 Direct
+Graphics Access</a></h3>
+
+<p>Direct Graphics Access is an X11 extension which allows a program to bypass the X
+server and directly alter the framebuffer. Because it relies on a low level memory
+mapping to effect this sharing, programs using it must be run as <tt
+class="USERNAME">root</tt>.</p>
+
+<p>The DGA extension can be tested and benchmarked by <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=dga&amp;sektion=1&amp;manpath=XFree86+4.4.0">
+<span class="CITEREFENTRY"><span class="REFENTRYTITLE">dga</span>(1)</span></a>. When <tt
+class="COMMAND">dga</tt> is running, it changes the colors of the display whenever a key
+is pressed. To quit, use <b class="KEYCAP">q</b>.</p>
+</div>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="VIDEO-PORTS" name="VIDEO-PORTS">7.4.2 Ports and Packages Dealing
+with Video</a></h2>
+
+<p>This section discusses the software available from the FreeBSD Ports Collection which
+can be used for video playback. Video playback is a very active area of software
+development, and the capabilities of various applications are bound to diverge somewhat
+from the descriptions given here.</p>
+
+<p>Firstly, it is important to know that many of the video applications which run on
+FreeBSD were developed as Linux applications. Many of these applications are still
+beta-quality. Some of the problems that you may encounter with video packages on FreeBSD
+include:</p>
+
+<ol type="1">
+<li>
+<p>An application cannot playback a file which another application produced.</p>
+</li>
+
+<li>
+<p>An application cannot playback a file which the application itself produced.</p>
+</li>
+
+<li>
+<p>The same application on two different machines, rebuilt on each machine for that
+machine, plays back the same file differently.</p>
+</li>
+
+<li>
+<p>A seemingly trivial filter like rescaling of the image size results in very bad
+artifacts from a buggy rescaling routine.</p>
+</li>
+
+<li>
+<p>An application frequently dumps core.</p>
+</li>
+
+<li>
+<p>Documentation is not installed with the port and can be found either on the web or
+under the port's <tt class="FILENAME">work</tt> directory.</p>
+</li>
+</ol>
+
+<p>Many of these applications may also exhibit “Linux-isms”. That is, there may be
+issues resulting from the way some standard libraries are implemented in the Linux
+distributions, or some features of the Linux kernel which have been assumed by the
+authors of the applications. These issues are not always noticed and worked around by the
+port maintainers, which can lead to problems like these:</p>
+
+<ol type="1">
+<li>
+<p>The use of <tt class="FILENAME">/proc/cpuinfo</tt> to detect processor
+characteristics.</p>
+</li>
+
+<li>
+<p>A misuse of threads which causes a program to hang upon completion instead of truly
+terminating.</p>
+</li>
+
+<li>
+<p>Software not yet in the FreeBSD Ports Collection which is commonly used in conjunction
+with the application.</p>
+</li>
+</ol>
+
+<p>So far, these application developers have been cooperative with port maintainers to
+minimize the work-arounds needed for port-ing.</p>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="VIDEO-MPLAYER" name="VIDEO-MPLAYER">7.4.2.1 MPlayer</a></h3>
+
+<p><b class="APPLICATION">MPlayer</b> is a recently developed and rapidly developing
+video player. The goals of the <b class="APPLICATION">MPlayer</b> team are speed and
+flexibility on Linux and other Unices. The project was started when the team founder got
+fed up with bad playback performance on then available players. Some would say that the
+graphical interface has been sacrificed for a streamlined design. However, once you get
+used to the command line options and the key-stroke controls, it works very well.</p>
+
+<div class="SECT4">
+<h4 class="SECT4"><a id="VIDEO-MPLAYER-BUILDING" name="VIDEO-MPLAYER-BUILDING">7.4.2.1.1
+Building MPlayer</a></h4>
+
+<p><b class="APPLICATION">MPlayer</b> resides in <a
+href="http://www.FreeBSD.org/cgi/url.cgi?ports/multimedia/mplayer/pkg-descr"><tt
+class="FILENAME">multimedia/mplayer</tt></a>. <b class="APPLICATION">MPlayer</b> performs
+a variety of hardware checks during the build process, resulting in a binary which will
+not be portable from one system to another. Therefore, it is important to build it from
+ports and not to use a binary package. Additionally, a number of options can be specified
+in the <tt class="COMMAND">make</tt> command line, as described in the <tt
+class="FILENAME">Makefile</tt> and at the start of the build:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">cd /usr/ports/multimedia/mplayer</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">make</kbd>
+N - O - T - E
+
+Take a careful look into the Makefile in order
+to learn how to tune mplayer towards you personal preferences!
+For example,
+make WITH_GTK1
+builds MPlayer with GTK1-GUI support.
+If you want to use the GUI, you can either install
+/usr/ports/multimedia/mplayer-skins
+or download official skin collections from
+http://www.mplayerhq.hu/homepage/dload.html
+</pre>
+
+<p>The default port options should be sufficient for most users. However, if you need the
+XviD codec, you have to specify the <tt class="MAKEVAR">WITH_XVID</tt> option in the
+command line. The default DVD device can also be defined with the <tt
+class="MAKEVAR">WITH_DVD_DEVICE</tt> option, by default <tt
+class="FILENAME">/dev/acd0</tt> will be used.</p>
+
+<p>As of this writing, the <b class="APPLICATION">MPlayer</b> port will build its HTML
+documentation and two executables, <tt class="COMMAND">mplayer</tt>, and <tt
+class="COMMAND">mencoder</tt>, which is a tool for re-encoding video.</p>
+
+<p>The HTML documentation for <b class="APPLICATION">MPlayer</b> is very informative. If
+the reader finds the information on video hardware and interfaces in this chapter
+lacking, the <b class="APPLICATION">MPlayer</b> documentation is a very thorough
+supplement. You should definitely take the time to read the <b
+class="APPLICATION">MPlayer</b> documentation if you are looking for information about
+video support in <span class="TRADEMARK">UNIX</span>.</p>
+</div>
+
+<div class="SECT4">
+<h4 class="SECT4"><a id="VIDEO-MPLAYER-USING" name="VIDEO-MPLAYER-USING">7.4.2.1.2 Using
+MPlayer</a></h4>
+
+<p>Any user of <b class="APPLICATION">MPlayer</b> must set up a <tt
+class="FILENAME">.mplayer</tt> subdirectory of her home directory. To create this
+necessary subdirectory, you can type the following:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">%</samp> <kbd
+class="USERINPUT">cd /usr/ports/multimedia/mplayer</kbd>
+<samp class="PROMPT">%</samp> <kbd class="USERINPUT">make install-user</kbd>
+</pre>
+
+<p>The command options for <tt class="COMMAND">mplayer</tt> are listed in the manual
+page. For even more detail there is HTML documentation. In this section, we will describe
+only a few common uses.</p>
+
+<p>To play a file, such as <tt class="FILENAME"><tt
+class="REPLACEABLE"><i>testfile.avi</i></tt></tt>, through one of the various video
+interfaces set the <code class="OPTION">-vo</code> option:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">%</samp> <kbd class="USERINPUT">mplayer -vo xv testfile.avi</kbd>
+</pre>
+
+<pre class="SCREEN">
+<samp class="PROMPT">%</samp> <kbd class="USERINPUT">mplayer -vo sdl testfile.avi</kbd>
+</pre>
+
+<pre class="SCREEN">
+<samp class="PROMPT">%</samp> <kbd class="USERINPUT">mplayer -vo x11 testfile.avi</kbd>
+</pre>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">mplayer -vo dga testfile.avi</kbd>
+</pre>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">mplayer -vo 'sdl:dga' testfile.avi</kbd>
+</pre>
+
+<p>It is worth trying all of these options, as their relative performance depends on many
+factors and will vary significantly with hardware.</p>
+
+<p>To play from a DVD, replace the <tt class="FILENAME">testfile.avi</tt> with <code
+class="OPTION">dvd://<tt class="REPLACEABLE"><i>N</i></tt> -dvd-device <tt
+class="REPLACEABLE"><i>DEVICE</i></tt></code> where <tt class="REPLACEABLE"><i>N</i></tt>
+is the title number to play and <tt class="FILENAME"><tt
+class="REPLACEABLE"><i>DEVICE</i></tt></tt> is the device node for the DVD-ROM. For
+example, to play title 3 from <tt class="FILENAME">/dev/dvd</tt>:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">mplayer -vo xv dvd://3 -dvd-device /dev/dvd</kbd>
+</pre>
+
+<div class="NOTE">
+<blockquote class="NOTE">
+<p><b>Note:</b> The default DVD device can be defined during the build of the <b
+class="APPLICATION">MPlayer</b> port via the <tt class="MAKEVAR">WITH_DVD_DEVICE</tt>
+option. By default, this device is <tt class="FILENAME">/dev/acd0</tt>. More details can
+be found in the port <tt class="FILENAME">Makefile</tt>.</p>
+</blockquote>
+</div>
+
+<p>To stop, pause, advance and so on, consult the keybindings, which are output by
+running <tt class="COMMAND">mplayer -h</tt> or read the manual page.</p>
+
+<p>Additional important options for playback are: <code class="OPTION">-fs -zoom</code>
+which engages the fullscreen mode and <code class="OPTION">-framedrop</code> which helps
+performance.</p>
+
+<p>In order for the mplayer command line to not become too large, the user can create a
+file <tt class="FILENAME">.mplayer/config</tt> and set default options there:</p>
+
+<pre class="PROGRAMLISTING">
+vo=xv
+fs=yes
+zoom=yes
+</pre>
+
+<p>Finally, <tt class="COMMAND">mplayer</tt> can be used to rip a DVD title into a <tt
+class="FILENAME">.vob</tt> file. To dump out the second title from a DVD, type this:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">mplayer -dumpstream -dumpfile out.vob dvd://2 -dvd-device /dev/dvd</kbd>
+</pre>
+
+<p>The output file, <tt class="FILENAME">out.vob</tt>, will be MPEG and can be
+manipulated by the other packages described in this section.</p>
+</div>
+
+<div class="SECT4">
+<h4 class="SECT4"><a id="VIDEO-MENCODER" name="VIDEO-MENCODER">7.4.2.1.3
+mencoder</a></h4>
+
+<p>Before using <tt class="COMMAND">mencoder</tt> it is a good idea to familiarize
+yourself with the options from the HTML documentation. There is a manual page, but it is
+not very useful without the HTML documentation. There are innumerable ways to improve
+quality, lower bitrate, and change formats, and some of these tricks may make the
+difference between good or bad performance. Here are a couple of examples to get you
+going. First a simple copy:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">%</samp> <kbd
+class="USERINPUT">mencoder input.avi -oac copy -ovc copy -o output.avi</kbd>
+</pre>
+
+<p>Improper combinations of command line options can yield output files that are
+unplayable even by <tt class="COMMAND">mplayer</tt>. Thus, if you just want to rip to a
+file, stick to the <code class="OPTION">-dumpfile</code> in <tt
+class="COMMAND">mplayer</tt>.</p>
+
+<p>To convert <tt class="FILENAME">input.avi</tt> to the MPEG4 codec with MPEG3 audio
+encoding (<a href="http://www.FreeBSD.org/cgi/url.cgi?ports/audio/lame/pkg-descr"><tt
+class="FILENAME">audio/lame</tt></a> is required):</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">%</samp> <kbd
+class="USERINPUT">mencoder input.avi -oac mp3lame -lameopts br=192 \
+     -ovc lavc -lavcopts vcodec=mpeg4:vhq -o output.avi</kbd>
+</pre>
+
+<p>This has produced output playable by <tt class="COMMAND">mplayer</tt> and <tt
+class="COMMAND">xine</tt>.</p>
+
+<p><tt class="FILENAME">input.avi</tt> can be replaced with <code class="OPTION">dvd://1
+-dvd-device /dev/dvd</code> and run as <tt class="USERNAME">root</tt> to re-encode a DVD
+title directly. Since you are likely to be dissatisfied with your results the first time
+around, it is recommended you dump the title to a file and work on the file.</p>
+</div>
+</div>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="VIDEO-XINE" name="VIDEO-XINE">7.4.2.2 The xine Video
+Player</a></h3>
+
+<p>The <b class="APPLICATION">xine</b> video player is a project of wide scope aiming not
+only at being an all in one video solution, but also in producing a reusable base library
+and a modular executable which can be extended with plugins. It comes both as a package
+and as a port, <a
+href="http://www.FreeBSD.org/cgi/url.cgi?ports/multimedia/xine/pkg-descr"><tt
+class="FILENAME">multimedia/xine</tt></a>.</p>
+
+<p>The <b class="APPLICATION">xine</b> player is still very rough around the edges, but
+it is clearly off to a good start. In practice, <b class="APPLICATION">xine</b> requires
+either a fast CPU with a fast video card, or support for the XVideo extension. The GUI is
+usable, but a bit clumsy.</p>
+
+<p>As of this writing, there is no input module shipped with <b
+class="APPLICATION">xine</b> which will play CSS encoded DVD's. There are third party
+builds which do have modules for this built in them, but none of these are in the FreeBSD
+Ports Collection.</p>
+
+<p>Compared to <b class="APPLICATION">MPlayer</b>, <b class="APPLICATION">xine</b> does
+more for the user, but at the same time, takes some of the more fine-grained control away
+from the user. The <b class="APPLICATION">xine</b> video player performs best on XVideo
+interfaces.</p>
+
+<p>By default, <b class="APPLICATION">xine</b> player will start up in a graphical user
+interface. The menus can then be used to open a specific file:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">%</samp> <kbd class="USERINPUT">xine</kbd>
+</pre>
+
+<p>Alternatively, it may be invoked to play a file immediately without the GUI with the
+command:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">%</samp> <kbd class="USERINPUT">xine -g -p mymovie.avi</kbd>
+</pre>
+</div>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="VIDEO-PORTS-TRANSCODE" name="VIDEO-PORTS-TRANSCODE">7.4.2.3 The
+transcode Utilities</a></h3>
+
+<p>The software <b class="APPLICATION">transcode</b> is not a player, but a suite of
+tools for re-encoding video and audio files. With <b class="APPLICATION">transcode</b>,
+one has the ability to merge video files, repair broken files, using command line tools
+with <tt class="FILENAME">stdin/stdout</tt> stream interfaces.</p>
+
+<p>A great number of options can be specified during the build from the <a
+href="http://www.FreeBSD.org/cgi/url.cgi?ports/multimedia/transcode/pkg-descr"><tt
+class="FILENAME">multimedia/transcode</tt></a> port, we recommend the following command
+line to build <b class="APPLICATION">transcode</b>:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">make WITH_OPTIMIZED_CFLAGS=yes WITH_LIBA52=yes WITH_LAME=yes WITH_OGG=yes \
+WITH_MJPEG=yes -DWITH_XVID=yes</kbd>
+</pre>
+
+<p>The proposed settings should be sufficient for most users.</p>
+
+<p>To illustrate <tt class="COMMAND">transcode</tt> capacities, one example to show how
+to convert a DivX file into a PAL MPEG-1 file (PAL VCD):</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">%</samp> <kbd
+class="USERINPUT">transcode -i input.avi -V --export_prof vcd-pal -o output_vcd</kbd>
+<samp class="PROMPT">%</samp> <kbd
+class="USERINPUT">mplex -f 1 -o output_vcd.mpg output_vcd.m1v output_vcd.mpa</kbd>
+</pre>
+
+<p>The resulting MPEG file, <tt class="FILENAME">output_vcd.mpg</tt>, is ready to be
+played with <b class="APPLICATION">MPlayer</b>. You could even burn the file on a CD-R
+media to create a Video CD, in this case you will need to install and use both <a
+href="http://www.FreeBSD.org/cgi/url.cgi?ports/multimedia/vcdimager/pkg-descr"><tt
+class="FILENAME">multimedia/vcdimager</tt></a> and <a
+href="http://www.FreeBSD.org/cgi/url.cgi?ports/sysutils/cdrdao/pkg-descr"><tt
+class="FILENAME">sysutils/cdrdao</tt></a> programs.</p>
+
+<p>There is a manual page for <tt class="COMMAND">transcode</tt>, but you should also
+consult the <a href="http://www.transcoding.org/cgi-bin/transcode"
+target="_top">transcode wiki</a> for further information and examples.</p>
+</div>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="VIDEO-FURTHER-READING" name="VIDEO-FURTHER-READING">7.4.3
+Further Reading</a></h2>
+
+<p>The various video software packages for FreeBSD are developing rapidly. It is quite
+possible that in the near future many of the problems discussed here will have been
+resolved. In the mean time, those who want to get the very most out of FreeBSD's A/V
+capabilities will have to cobble together knowledge from several FAQs and tutorials and
+use a few different applications. This section exists to give the reader pointers to such
+additional information.</p>
+
+<p>The <a href="http://www.mplayerhq.hu/DOCS/" target="_top">MPlayer documentation</a> is
+very technically informative. These documents should probably be consulted by anyone
+wishing to obtain a high level of expertise with <span class="TRADEMARK">UNIX</span>
+video. The <b class="APPLICATION">MPlayer</b> mailing list is hostile to anyone who has
+not bothered to read the documentation, so if you plan on making bug reports to them,
+RTFM.</p>
+
+<p>The <a href="http://dvd.sourceforge.net/xine-howto/en_GB/html/howto.html"
+target="_top">xine HOWTO</a> contains a chapter on performance improvement which is
+general to all players.</p>
+
+<p>Finally, there are some other promising applications which the reader may try:</p>
+
+<ul>
+<li>
+<p><a href="http://avifile.sourceforge.net/" target="_top">Avifile</a> which is also a
+port <a href="http://www.FreeBSD.org/cgi/url.cgi?ports/multimedia/avifile/pkg-descr"><tt
+class="FILENAME">multimedia/avifile</tt></a>.</p>
+</li>
+
+<li>
+<p><a href="http://www.dtek.chalmers.se/groups/dvd/" target="_top">Ogle</a> which is also
+a port <a href="http://www.FreeBSD.org/cgi/url.cgi?ports/multimedia/ogle/pkg-descr"><tt
+class="FILENAME">multimedia/ogle</tt></a>.</p>
+</li>
+
+<li>
+<p><a href="http://xtheater.sourceforge.net/" target="_top">Xtheater</a></p>
+</li>
+
+<li>
+<p><a href="http://www.FreeBSD.org/cgi/url.cgi?ports/multimedia/dvdauthor/pkg-descr"><tt
+class="FILENAME">multimedia/dvdauthor</tt></a>, an open source package for authoring DVD
+content.</p>
+</li>
+</ul>
+</div>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="sound-mp3.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="tvcard.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">MP3 音樂</td>
+<td width="34%" align="center" valign="top"><a href="multimedia.html"
+accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">設定電視卡(TV Cards)</td>
+</tr>
+</table>
+</div>
+
+<p align="center"><small>This, and other documents, can be downloaded from <a
+href="ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/">ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/</a>.</small></p>
+
+<p align="center"><small>For questions about FreeBSD, read the <a
+href="http://www.FreeBSD.org/docs.html">documentation</a> before contacting &#60;<a
+href="mailto:questions@FreeBSD.org">questions@FreeBSD.org</a>&#62;.<br />
+For questions about this documentation, e-mail &#60;<a
+href="mailto:doc@FreeBSD.org">doc@FreeBSD.org</a>&#62;.</small></p>
+</body>
+</html>
+

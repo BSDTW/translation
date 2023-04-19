@@ -1,0 +1,367 @@
+<!-- Vignette StoryServer 4 Sat Mar 11 15:43:24 2000 --> 
+<style type=text/css>
+<!--
+p,div {font-size:12pt; line-height:14pt; font-family:宋體;}
+.p1{font-size:12pt;font-family:宋體;}
+.p2{font-size:12pt;font-family:宋體;line-height:14pt;}
+.p3{font-size:14.8px;font-family:宋體;}
+.p4{font-size:14.8px;font-family:宋體;line-height:14pt;}
+.p5{font-size:1pt}
+a:hover{color:red;}
+a.t1:visited{color:red;}
+-->
+</style>
+<title>FreeBSD使用大全</title></head>
+
+<body bgcolor="#FFFFFF" text="#000000" link="#383098" vlink="#336699" alink="#FF0000" topmargin="0">
+<!-- Vignette StoryServer 4 Thu Mar 23 10:01:54 2000 --> <!-- Vignette StoryServer 4 Thu Mar 23 15:34:35 2000 --> 
+
+<!--開始：新聞內容-->
+<TABLE WIDTH=750 BORDER=0 CELLSPACING=0 CELLPADDING=0>
+
+<tr valign=top>
+
+
+
+<TD  valign=top>
+<CENTER><FONT COLOR=#000066 size=5><B>FreeBSD連載(30)：配置印表機</B><br></FONT></CENTER>
+
+<HR  ALIGN="center" SIZE=1>
+<CENTER><FONT FACE="Arial" SIZE=2> 1999年12月2日 23:09 </FONT><FONT COLOR="#990000" SIZE=2>王波</FONT></CENTER><p>
+
+<h1 align=center>配置印表機</h1>
+
+<p>　　本地印表機通常連接到電腦的並口上，因此在安裝印表機之前，首先要查看並口的狀態是否正常。正常情況下，缺
+省的硬體配置將能夠自動偵測到電腦的並口，那麼在啟動時，系統將在控制台上顯示下面的信息，如果由於滾屏太快而沒有
+看到這一行的話，可以使用dmesg命令進行查看：</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>$ dmesg | grep lpt
+<br>nlpt0: <generic printer> on ppbus 0
+<br>nlpt0: Interrupt-driven port</pre></td></tr></table>
+
+<p>　　在FreeBSD 3.0之前使用lpt作為印表機的驅動程序，這個老驅動程序對於現有具備多個模式的並口硬
+件支持能力不足。3.1之後系統的並口驅動程序更新了，使用了nlpt作為新的驅動程序名字，但設備檔案的名字仍然為
+/dev/lpt0。以後當老版本的驅動程序徹底從FreeBSD中消失之後，驅動程序名字會恢復為lpt。</p>
+
+<p>　　通常不需任何配置，並口就能正常工作。此時就可以通過設備檔案/dev/lpt0來直接訪問並口（0表示第一
+個並口，依次類推），如果並口和印表機的電纜連接也正常，就能測試印表機是否正常，此時需要root權限。</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># lptest > /dev/lpt0</pre></td></tr></table>
+
+<p>　　如果對於普通行式印表機，這將打印出一頁測試信息，但如果印表機是使用PostScript或其他頁面描述語
+言，印表機並不一定進行打印，但印表機的狀態指示燈將閃爍。如果印表機是PostScript印表機，可以使用下面命
+令來測試：</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># lptest | a2ps -q -o - > /dev/lpt0</pre></td></tr></table>
+
+<p>　　這需要預先通過Packages Collection安裝好a2ps軟體，其中使用的-q參數表示不輸出a2ps
+的狀態信息，-o -參數表示向標準輸出輸出轉化後的PS數據，如果沒有使用這個參數，則a2ps直接將PS數
+據發送給lpr命令，由於此時打印系統還未設置完畢，因此需要直接輸出到印表機端口上以進行測試。</p>
+
+<p>　　當這個測試正常之後，就可以嘗試使用lpr命令來打印文檔了。當然此時打印系統的設置還沒有完成，預設的設置
+並不一定適合每個電腦。應該調整打印設置，使得打印系統適合本系統。</p>
+
+<ul><h2><P><LI>印表機配置檔案printcap</LI><p></P></h2></ul>
+
+<p>　　當並口和印表機連接正確之後，可以進行下一步配置/etc/printcap檔案了。在BSD打印系統中，使
+用這個printcap檔案來定義印表機，包括命名印表機、將打印緩衝區和具體的印表機相聯繫等。下面的例子中配置了
+兩個印表機，一個為本地的LaserJet 6P型印表機，另一個為遠程FreeBSD電腦printersvr上
+的印表機。</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre><font size=2>lp|lj|ps|HP LaserJet 6P:\
+<br>     :lp=/dev/lpt0:sd=/var/spool/lpd/lp:lf=/var/log/lpd-errs:sh:mx#0:\
+<br>     :if=/usr/local/libexec/lpfilter:
+<br>
+<br>rlp|remote printer:\
+<br>     :rm=printersvr:rp=lp:sd=/var/spool/output/lpd/printersvr:lf=/var/log/lpd-errs:</font></pre></td></tr></table>
+
+<p>　　從上面的例子可以看出printcap檔案的格式：</p>
+
+<p>　　printcap中的每行描述由多個部分組成，每個部分用 “:” 分隔﹔由於對印表機的描述一行寫不下，必
+須使用反斜杠 “\” 分隔，這是Unix和C語言的標準做法。為了避免出現配置錯誤等問題，不要在同一個描述部分的
+中間續行﹔</p>
+
+<p>　　每行中的第一個描述部分定義印表機的名字，通常可以用多個名字來稱呼一個印表機，例如本例中第一個HP 
+LaserJet 6P又有另外的名字lp、lj和ps，這些名字方便用戶和不同的程序使用印表機。這些名字之間使用豎線
+“|” 分隔，習慣上使用最後一個名字作為印表機的全名﹔</p>
+
+<p>　　每個印表機的各個定義部分定義了印表機的不同屬性，定義方式就是上例中使用的方式，定義字符串使用 “=“ 
+，定義數值使用 “#” 。一個印表機應該具備下面的不同屬性：</p>
+
+<p>　　lp（local printer）定義本地印表機使用的設備，通常為並口設備/dev/lpt0。</p>
+
+<p>　　rm（remote machine）定義遠程電腦的名字，這在使用遠程印表機時有用。</p>
+
+<p>　　rp（remote printer）的值應該為rm定義的遠程電腦上的一個印表機名。遠程印表機不需要l
+p來定義印表機端口，但需要使用rm和rp定義，以將打印檔案發送到遠程電腦上的正確印表機中。這個印表機名應該在
+遠程電腦中/etc/printcap中進行了定義。如果沒有使用rp定義而只使用了rm定義，則使用該電腦上的
+預設印表機。</p>
+
+<p>　　sd（spool directory）定義這個印表機使用的緩衝區目錄，這個目錄一般放在/var/spo
+ol的下面，並擁有合適的權限設置，以使得打印系統能正確處理緩衝區。系統預設使用/var/spool/lpd目錄
+來放置要打印的檔案，不同的印表機應使用這個目錄下的不同子目錄，習慣上這個目錄名與前面定義的印表機名字相一致。</p>
+
+<p>　　lf（log file）定義與這個印表機相聯繫的日誌檔案，記錄出現的錯誤信息，習慣上放在/var/lo
+g目錄下。</p>
+
+<p>　　mx（maximum size）定義緩衝區中打印檔案的最大尺寸，單位為千字節，預設值為0，表示不限制打
+印檔案的大小。</p>
+
+<p>　　if（input filter）定義一個輸入打印過濾器，過濾器程序用於將用戶打印作業的格式轉變為印表機
+能夠識別的格式。</p>
+
+<p>　　of（output filter）定義輸出過濾器，這也是一個打印過濾器，習慣上使用if的多些，使用of
+的少些。如果if和of都沒有定義，打印系統則使用預設的過濾器/usr/libexec/lpr/lpf。</p>
+
+<p>　　sh（suppress header），不打印標題頁。</p>
+
+<p>　　mc（maximum coyies）定義最大的打印份數，預設為0不限制打印份數。</p>
+
+<p>　　br（baud rate）定義串口波特率，只有在使用串口印表機時才有用。</p>
+
+<p>　　當將prinrcap檔案設置正確之後，就能夠使用打印命令lpr來打印文本檔案了，由於沒有設置打印中文或
+圖形的過濾器，打印系統只能打印英文檔案，它將處理過的檔案直接發送到印表機上進行打印。</p>
+
+<ul><h2><P><LI>在PostScript印表機上打印</LI><p></P></h2></ul>
+
+<p>　　大多數印表機不但能打印字符，也能夠打印圖形，應用軟體通過輸出控制字符對印表機進行控制。這些控制字符就被
+稱為印表機控制語言。為了將字符和圖形檔案輸出到印表機上，就需要過濾器將打印檔案轉化為印表機識別的打印語言。</p>
+
+<p>　　打印過濾器是打印程序的一個重要部分，使Unix的打印系統更為靈活，從而能適合各種不同的印表機。除了將文
+檔轉換為印表機識別的語言之外，還可以對要打印的檔案做其他處理，例如某些行式印表機需要文檔同時使用回車和換行，而
+Unix的文本檔案只使用換行，此時直接打印文檔就會造成行列不齊，這些情況下就需要一個過濾器進行轉換。</p>
+
+<p>　　印表機控制語言可以分為兩類，一種將操縱印表機進行繪圖的命令及其他控制命令通過特殊字符（或特殊字符引導的
+命令）來表示，對普通字符檔案不作處理，直接發送到印表機。此時普通英文字符檔案可以直接發送到印表機上打印，但要打
+印包括圖形在內的檔案就是包括特殊控制字符的二進制檔案，不能用文本方式進行查看。另一種為Postscript語言
+，它使用頁面描述語言來描述要打印的內容，可以直接打印的檔案就是一個符合一定語法規則的文本檔案，因此對於一個Po
+stScript印表機來講，一個普通文本檔案只是一個不合乎語法的PostScript語言檔案，不能被直接打印。
+</p>
+<p>　　因此如果要在僅支持PostScript的印表機上打印普通文檔，也必須使用識別PostScript的過濾
+器進行轉換，首先將普通文本檔案轉換為PostScript語言，再發送給PostScript印表機進行打印。Fr
+eeBSD的Packages Collection中專門有一個類別print，提供了很多打印相關的軟體包，其中
+包括很多種將文本檔案轉換為PostScript檔案的過濾器程序，如a2ps等。其中gb2ps能將GB編碼的文本
+轉換未內嵌中文的PostScript檔案，從而能在PostScript印表機上將中文檔案打印出來。</p>
+
+<p>　　因此首先應該安裝這些轉換軟體包，當安裝了這些轉換程序之後，最簡單的使用方式是先使用他們將文檔轉換為Po
+stscript檔案，再發送給打印命令lpr，這可以通過管道來實現。一些打印工具內部就包括了使用管道，自動將生
+成的Postscript數據發送給lpr命令的指令，下面的a2ps指令就直接將PostScript檔案發送給l
+pr命令。</p>
+
+<p>　　$ a2ps file </p>
+
+<p>　　或者可以在printcap檔案中設置if參數，以自動使用這些過濾器，此時要設置過濾程序從標準輸入上讀入
+數據，將PostScript數據從標準輸出上輸出。</p>
+
+<p>　　		:if=/usr/local/bin/a2ps -q -o -:</p>
+
+<p>　　對於要使用gb2ps來打印中文檔案的情況，由於gb2ps使用參數讀入源檔案、並輸出PostScript
+中文檔案，不使用標準輸入輸出，因此不能直接使用gb2ps作過濾器程序，而需要自己使用臨時檔案保存中間結果，生成
+PostSript檔案之後再打印。此外，gb2ps輸出的PostScript檔案都包括一頁gb2ps的版權信息
+，對於打印來講沒有必要每次都打印這個版權頁，可以使用psutils中包括的psselect程序，從原有檔案中去
+除第一頁，再進行打印。</p>
+
+<p>　　高級的過濾器程序應該能夠識別各種不同格式的文檔檔案，並依據文檔的格式，使用不同的過濾器功能來進行處理，
+最後生成符合印表機描述語言的打印檔案。
+</p>
+
+<ul><h2><P><LI>PostScript與Ghostscript</LI><p></P></h2></ul>
+
+<p>　　PostScript使用命令來描述頁面，雖然也是文本檔案，但這裡都是繪圖指令，需要一個PostScript
+語言解釋器對檔案中描述的指令進行解釋操作，才能得到正確的結果。因此PostScript檔案在普通印表機上只
+能打印出源檔案，同樣普通文檔在PostScript印表機上也不能正確解釋、打印出來。下面是一個PostScript
+檔案的開始部分：</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>%!PS-Adobe-3.0
+<br>%%Creator: gb2ps
+<br>%%CreationDate: Fri Oct 31 18:36:45 1998
+<br>%%DocumentNeededResources: font Symbol
+<br>%%+ font Courier
+<br>%%+ font Times-Roman
+<br>%%DocumentSuppliedResources: file images/file.ps
+<br>%%Pages: 32
+<br>%%PageOrder: Ascend
+<br>%%Orientation: Portrait
+<br>%%EndComments
+<br>%%BeginProlog</pre></td></tr></table>
+
+<p>　　如果要查看PostScript的內容，則需要一個頁面語言解釋器。雖然存在不少商業PostScript解
+釋器，但大部分並不見得比Ghostscript好，雖然GhostScript只是一個免費的PostScript
+解釋器。GhostScript能在X Window下正確顯示PostScript檔案的內容，並能實現各種強大的
+PostScript處理能力。Ghostscript是一個相當複雜的程序，如果僅僅是要查看Postscript
+檔案的內容，可以使用命令 “gs psfile.ps” ，退出時在Ghostscript提示下輸入 “quit
+” 即可。</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre><font size=2>$ gs psfile.ps
+<br>Aladdin Ghostscript 5.50 (1998-9-16)
+<br>Copyright (C) 1998 Aladdin Enterprises, Menlo Park, CA.  All rights reserved.
+<br>This software comes with NO WARRANTY: see the file PUBLIC for details.
+<br>GS> quit</font></pre></td></tr></table>
+
+<p>　　另外，Ghostscript有一個前端程序Ghostview，能使用Ghostscript來瀏覽PostScript
+檔案，但使用了比較簡單的圖形操作方式。Ghostscirpt和Ghostview都可以通過Packages Collection
+安裝。</p>
+
+<ul><h2><P><LI>在非PostScript印表機上打印</LI><p></P></h2></ul>
+
+<p>　　通常非PostScript印表機使用特殊的ESC序列來表示命令，而對普通文本不做特殊處理，因此文本檔案
+仍然被看作文本檔案，能夠直接打印文本檔案，因此這些非PostScript的印表機能夠直接設置為普通的文本印表機
+來使用。</p>
+
+<p>　　然而要想充分發揮印表機的能力，打印包括圖形在內的文檔，就必須有能理解這台非PostScirpt印表機使
+用的控制語言的過濾器。這些過濾器就相當於Windows下的印表機驅動，應該由生產這台印表機的廠商提供。但是很多
+低檔印表機是專門為使用DOS或Windows的電腦生產的，沒有為Unix配置過濾器，因此在這些印表機上打印圖
+形就遇到了困難。幸運的是，Ghostscript能夠識別很多種印表機，並能將PostScript檔案在指定的設
+備上打印出來。</p>
+
+<p>　　因此在前面的操作中生成了Postscript檔案之後，就可以使用Ghostscript在一台非Post
+Script印表機上打印PostScript檔案，下面檔案將在一台Laserjet4印表機上打印test.ps
+檔案。</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre><font size=2># gs -sDEVICE=ljet4 -sOutput=/dev/lpt0  test.ps
+<br>使用gs -help能列出一系列Ghostscrit支持的設備檔案，有些是印表機設備，有些是代表不同的圖形格式的偽設備。
+<br>$ gs -help
+<br>Aladdin Ghostscript 5.50 (1998-9-16)
+<br>Copyright (C) 1998 Aladdin Enterprises, Menlo Park, CA.  All rights reserved.
+<br>Usage: gs [switches] [file1.ps file2.ps ...]
+<br>Most frequently used switches: (you can use # in place of =)
+<br> -dNOPAUSE           no pause after page   | -q       `quiet', fewer messages
+<br> -g<width>x<height>  page size in pixels   | -r<res>  pixels/inch resolution
+<br> -sDEVICE=<devname>  select device         | -dBATCH  exit after last file
+<br> -sOutputFile=<file> select output file: - for stdout, |command for pipe,
+<br>                                         embed %d or %ld for page #
+<br>Input formats: PostScript PostScriptLevel1 PostScriptLevel2 PDF
+<br>Available devices:
+<br>   appledmp iwhi iwlo iwlq hl7x0 bj10e bj200 bjc600 bjc800 lbp8 lips3 m8510
+<br>   uniprint la50 la70 la75 la75plus lj250 declj250 ln03 ap3250 epson eps9mid
+<br>   eps9high lp8000 lq850 epsonc st800 stcolor lp2563 dnj650c deskjet djet500
+<br>   cdeskjet djet500c cdjcolor cdjmono cdj500 cdj550 cdj670 cdj850 cdj890
+<br>   cdj1600 laserjet ljetplus ljet2p ljet3 ljet3d ljet4 lj4dith cljet5
+<br>   lj5mono lj5gray pj pjetxl pjxl paintjet pjxl300 pxlmono bbox pxlcolor
+<br>   ibmpro jetp3852 imagen cp50 necp6 oce9050 oki182 okiibm r4081 sj48 xes
+<br>   bmpmono bmp16 bmp256 bmp16m ccr cgmmono cgm8 cgm24 sxlcrt dfaxhigh
+<br>   dfaxlow faxg3 faxg32d faxg4 bit bitrgb bitcmyk cif miff24 inferno jpeg
+<br>   jpeggray mgrmono mgrgray2 mgrgray4 mgrgray8 mgr4 mgr8 pcxmono pcxgray
+<br>   pcx16 pcx256 pcx24b pcxcmyk pdfwrite plan9bm pbm pbmraw pgm pgmraw pgnm
+<br>   pgnmraw pnm pnmraw ppm ppmraw pkm pkmraw pngmono pnggray png16 png256
+<br>   png16m psmono psgray psrgb pswrite epswrite sgirgb t4693d2 t4693d4
+<br>   t4693d8 tek4696 tiffcrle tiffg3 tiffg32d tiffg4 tiff12nc tiff24nc tifflzw
+<br>   tiffpack x11 x11alpha x11cmyk x11cmyk2 x11cmyk4 x11cmyk8 x11gray2
+<br>   x11gray4 x11mono nullpage
+<br>Search path:
+<br>   . : /usr/local/share/ghostscript/5.50 :
+<br>   /usr/local/share/ghostscript/fonts
+<br>For more information, see /usr/local/share/ghostscript/5.50/doc/Use.htm.
+<br>Report bugs to ghost@aladdin.com, using the form in Bug-form.htm.</font></pre></td></tr></table>
+
+<p>　　從這些簡單的名字中很難判斷那個設備對應於自己的印表機型號，為了找出正確的設備檔案名，需要閱讀Ghost
+script的文檔device.txt，或者選擇相近的設備名並反復嘗試。如果萬一找不到自己的檔案名，也許要升級
+Ghostscript的版本，或者更新自己Ghostscript的設備驅動之後再重新安裝Ghostscript
+。</p>
+
+<p>　　當能夠使用Ghostscript打印文檔之後，就需要將它和FreeBSD的打印過濾器集成在一起了，因此
+首先要將打印的文檔轉換為PS文檔，然後將PS文檔轉換為印表機支持的格式，因此就需要更改過濾程序。例如在一個EP
+SON行式印表機上輸出文檔，使用的標準過濾應該是，最後兩個短橫線表示標準輸出和標準輸入：</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>#! /bin/sh
+<br>a2ps -q -o - | \
+<br>gs -sDevice=epson -sOutfile=- - </pre></td></tr></table>
+
+<B><P><LI>使用apsfilter配置印表機</LI><p></P></B>
+
+<P>設置印表機要手工編輯/etc/printcap檔案，安裝並配置各種過濾器，安裝Ghostscript等。這些操作都非常煩瑣，幸好FreeBSD通過Ports Collection提供了一種自動配置印表機的apsfilter程序。</P>
+
+<P>Ports Collection的機制、用法將在後面討論。</P>
+
+<P>為了使用apsfilter設置印表機並配置過濾器，就需要執行下列命令：</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># cd /usr/ports/print/apsfilter/
+<br># make install</pre></td></tr></table>
+
+<p>　　然後，系統將自動下載、編譯安裝必要的過濾器軟體，此後將自動啟動一個設置程序，通過選單提示讓用戶選擇打印
+機的各種屬性，包括印表機的類型、端口、分辨率、紙張大小等等。最後將自動生成合適的printcap檔案和各種過濾
+器。這些過濾器能分辨要打印檔案的類型，進行正確的處理。</p>
+
+<p>　　apsfilter生成的過濾器是調用包括ghostscript在內的大量其他軟體，因此上面的make過
+程就需要從網路上下載必要軟體包，可以通過預先安裝相應的Packages以減少下載任務。如果網路太慢，下載過程可
+能會出現問題導致軟體安裝問題，後面會講到如何為Ports Collection手工下載必要的軟體包。</p>
+
+<ul><h2><P><LI>使用和控制印表機</LI><p></P></h2></ul>
+
+<p>　　當一切都配置正確之後，使用印表機就非常簡單了。為了自動啟動lpd守護進程，需要將/etc/rc.con
+f檔案中的lpd_enable項設置為lpd_enable=”Yes”，FreeBSD在下次系統啟動時會自動啟
+動lpd。當lpd沒有啟動時，也不需要重起電腦，簡單使用root身份執行lpd就可以啟動這個守護進程。有了l
+pd守護進程，打印系統就能正常進行打印工作，並能針對整個網路上的用戶，提供打印服務了。</p>
+
+<p>　　使用者可以直接使用lpr命令打印檔案，或者通過管道來使用lpr命令。</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>$ lpr hello.c
+<br>$ ls | lpr</pre></td></tr></table>
+
+<p>　　如果系統中某個印表機沒有配置打印過濾器，用戶可以直接使用自己的打印過濾器，通過管道將輸出送到lpr中。
+這提供了一種較靈活的配置方式，使得用戶不需要root權限，也能使用合適的印表機過濾器。下面是一個使用gs打印文
+件的例子：</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>$ gs -dNOPAUSE -q -sljet4 -sOutputFile=\|lpr -- tt.ps</pre></td></tr></table>
+
+<p>　　注意這個例子中使用反斜線取消豎線的特殊含義，將其和緊隨其後的lpr一起作為參數發送給gs，gs再將其解
+釋為管道操作。可以將上面的檔案編制成shell程序，這樣每次就能更方便的使用。</p>
+
+<p>　　當使用lpr將打印作業放入打印緩衝區之後，就能使用lpq命令來查看打印隊列的內容：</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>$ lpq
+<br>waiting for lp to become ready (offline ?)
+<br>Rank   Owner   Job  Files                 Total Size
+<br>1st    user    1    hello.c                151 bytes
+<br>2nd    user    2    (standard input)      3359 bytes
+<br>3nd    user    3    (standard input)     43765 bytes</pre></td></tr></table>
+
+<p>　　在這個例子中，由於印表機lp沒有被正常連接到系統上，因此lpq在第一行提醒使用者目前印表機不正常。由於
+這台印表機工作不正常，因此用戶可能不想使用這個印表機進行打印了，而想通過其他印表機進行打印。為了避免在這台打印
+機正常之後，仍然打印這個作業，需要將這個打印作業刪去。這可以通過命令lprm加上作業序號（顯示在lpq中第三列
+）來完成：</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>$ lprm 1
+<br>dfA001freebsd.domain dequeued
+<br>cfA001freebsd.domain dequeued</pre></td></tr></table>
+
+<p>　　或者使用all作參數，這將刪除該用戶的所有打印作業。用戶只能刪除自己的打印作業，只有root才能刪除其
+他用戶的作業。如果root使用all參數，那麼將會將這個印表機緩衝區中的所有打印作業全部清空。</p>
+
+<p>　　作為系統管理員，需要進一步的能力來管理打印守護程序。BSD風格的打印系統使用lpc來執行這個功能，以
+root身份啟動lpc，則進入lpc的交互模式，然後使用help命令可以得到管理命令的列表。一般可以使用start all
+命令來啟動所有的印表機，或者使用stop lp命令來停止一台名為lp的印表機。</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># lpc
+<br>lpc > start all</pre></td></tr></table>
+
+<P>　　也可以用命令行的方式使用lpc，例如重新啟動所有的印表機，使用帶參數的lpc發出以下命令：</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># lpc restart all</pre></td></tr></table>
+
+
+
+<BR>
+
+</TD>
+</TR></TABLE>
+
+
+
+
+</BODY></HTML>

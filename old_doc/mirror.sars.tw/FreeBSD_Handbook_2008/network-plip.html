@@ -1,0 +1,327 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>Parallel Line IP (PLIP)</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.79" />
+<link rel="HOME" title="FreeBSD 使用手冊" href="index.html" />
+<link rel="UP" title="網路進階練功房" href="advanced-networking.html" />
+<link rel="PREVIOUS" title="Network Address Translation" href="network-natd.html" />
+<link rel="NEXT" title="IPv6" href="network-ipv6.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD 使用手冊</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="network-natd.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 29 網路進階練功房</td>
+<td width="10%" align="right" valign="bottom"><a href="network-ipv6.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="NETWORK-PLIP" name="NETWORK-PLIP">29.10 Parallel Line IP
+(PLIP)</a></h1>
+
+<p>PLIP lets us run TCP/IP between parallel ports. It is useful on machines without
+network cards, or to install on laptops. In this section, we will discuss:</p>
+
+<ul>
+<li>
+<p>Creating a parallel (laplink) cable.</p>
+</li>
+
+<li>
+<p>Connecting two computers with PLIP.</p>
+</li>
+</ul>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="NETWORK-CREATE-PARALLEL-CABLE"
+name="NETWORK-CREATE-PARALLEL-CABLE">29.10.1 Creating a Parallel Cable</a></h2>
+
+<p>You can purchase a parallel cable at most computer supply stores. If you cannot do
+that, or you just want to know how it is done, the following table shows how to make one
+out of a normal parallel printer cable.</p>
+
+<div class="TABLE"><a id="AEN41039" name="AEN41039"></a>
+<p><b>Table 29-1. Wiring a Parallel Cable for Networking</b></p>
+
+<table border="0" frame="void" class="CALSTABLE">
+<col />
+<col />
+<col />
+<col />
+<col />
+<thead>
+<tr>
+<th>A-name</th>
+<th>A-End</th>
+<th>B-End</th>
+<th>Descr.</th>
+<th>Post/Bit</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>
+<p class="LITERALLAYOUT">DATA0<br />
+-ERROR</p>
+</td>
+<td>
+<p class="LITERALLAYOUT">2<br />
+15</p>
+</td>
+<td>
+<p class="LITERALLAYOUT">15<br />
+2</p>
+</td>
+<td>Data</td>
+<td>
+<p class="LITERALLAYOUT">0/0x01<br />
+1/0x08</p>
+</td>
+</tr>
+
+<tr>
+<td>
+<p class="LITERALLAYOUT">DATA1<br />
++SLCT</p>
+</td>
+<td>
+<p class="LITERALLAYOUT">3<br />
+13</p>
+</td>
+<td>
+<p class="LITERALLAYOUT">13<br />
+3</p>
+</td>
+<td>Data</td>
+<td>
+<p class="LITERALLAYOUT">0/0x02<br />
+1/0x10</p>
+</td>
+</tr>
+
+<tr>
+<td>
+<p class="LITERALLAYOUT">DATA2<br />
++PE</p>
+</td>
+<td>
+<p class="LITERALLAYOUT">4<br />
+12</p>
+</td>
+<td>
+<p class="LITERALLAYOUT">12<br />
+4</p>
+</td>
+<td>Data</td>
+<td>
+<p class="LITERALLAYOUT">0/0x04<br />
+1/0x20</p>
+</td>
+</tr>
+
+<tr>
+<td>
+<p class="LITERALLAYOUT">DATA3<br />
+-ACK</p>
+</td>
+<td>
+<p class="LITERALLAYOUT">5<br />
+10</p>
+</td>
+<td>
+<p class="LITERALLAYOUT">10<br />
+5</p>
+</td>
+<td>Strobe</td>
+<td>
+<p class="LITERALLAYOUT">0/0x08<br />
+1/0x40</p>
+</td>
+</tr>
+
+<tr>
+<td>
+<p class="LITERALLAYOUT">DATA4<br />
+BUSY</p>
+</td>
+<td>
+<p class="LITERALLAYOUT">6<br />
+11</p>
+</td>
+<td>
+<p class="LITERALLAYOUT">11<br />
+6</p>
+</td>
+<td>Data</td>
+<td>
+<p class="LITERALLAYOUT">0/0x10<br />
+1/0x80</p>
+</td>
+</tr>
+
+<tr>
+<td>GND</td>
+<td>18-25</td>
+<td>18-25</td>
+<td>GND</td>
+<td>-</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="NETWORK-PLIP-SETUP" name="NETWORK-PLIP-SETUP">29.10.2 Setting Up
+PLIP</a></h2>
+
+<p>First, you have to get a laplink cable. Then, confirm that both computers have a
+kernel with <a href="http://www.FreeBSD.org/cgi/man.cgi?query=lpt&amp;sektion=4"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">lpt</span>(4)</span></a> driver
+support:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">grep lp /var/run/dmesg.boot</kbd>
+lpt0: &lt;Printer&gt; on ppbus0
+lpt0: Interrupt-driven port
+</pre>
+
+<p>The parallel port must be an interrupt driven port, you should have lines similar to
+the following in your in the <tt class="FILENAME">/boot/device.hints</tt> file:</p>
+
+<pre class="PROGRAMLISTING">
+hint.ppc.0.at="isa"
+hint.ppc.0.irq="7"
+</pre>
+
+<p>Then check if the kernel configuration file has a <tt class="LITERAL">device plip</tt>
+line or if the <tt class="FILENAME">plip.ko</tt> kernel module is loaded. In both cases
+the parallel networking interface should appear when you use the <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=ifconfig&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">ifconfig</span>(8)</span></a> command to
+display it:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">ifconfig plip0</kbd>
+plip0: flags=8810&lt;POINTOPOINT,SIMPLEX,MULTICAST&gt; mtu 1500
+</pre>
+
+<p>Plug the laplink cable into the parallel interface on both computers.</p>
+
+<p>Configure the network interface parameters on both sites as <tt
+class="USERNAME">root</tt>. For example, if you want to connect the host <tt
+class="HOSTID">host1</tt> with another machine <tt class="HOSTID">host2</tt>:</p>
+
+<pre class="PROGRAMLISTING">
+                 host1 &lt;-----&gt; host2
+IP Address    10.0.0.1      10.0.0.2
+</pre>
+
+<p>Configure the interface on <tt class="HOSTID">host1</tt> by doing:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">ifconfig plip0 10.0.0.1 10.0.0.2</kbd>
+</pre>
+
+<p>Configure the interface on <tt class="HOSTID">host2</tt> by doing:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">ifconfig plip0 10.0.0.2 10.0.0.1</kbd>
+</pre>
+
+<p>You now should have a working connection. Please read the manual pages <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=lp&amp;sektion=4"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">lp</span>(4)</span></a> and <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=lpt&amp;sektion=4"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">lpt</span>(4)</span></a> for more
+details.</p>
+
+<p>You should also add both hosts to <tt class="FILENAME">/etc/hosts</tt>:</p>
+
+<pre class="PROGRAMLISTING">
+127.0.0.1               localhost.my.domain localhost
+10.0.0.1                host1.my.domain host1
+10.0.0.2                host2.my.domain
+</pre>
+
+<p>To confirm the connection works, go to each host and ping the other. For example, on
+<tt class="HOSTID">host1</tt>:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">ifconfig plip0</kbd>
+plip0: flags=8851&lt;UP,POINTOPOINT,RUNNING,SIMPLEX,MULTICAST&gt; mtu 1500
+        inet 10.0.0.1 --&gt; 10.0.0.2 netmask 0xff000000
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">netstat -r</kbd>
+Routing tables
+
+Internet:
+Destination        Gateway          Flags     Refs     Use      Netif Expire
+host2              host1            UH          0       0       plip0
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">ping -c 4 host2</kbd>
+PING host2 (10.0.0.2): 56 data bytes
+64 bytes from 10.0.0.2: icmp_seq=0 ttl=255 time=2.774 ms
+64 bytes from 10.0.0.2: icmp_seq=1 ttl=255 time=2.530 ms
+64 bytes from 10.0.0.2: icmp_seq=2 ttl=255 time=2.556 ms
+64 bytes from 10.0.0.2: icmp_seq=3 ttl=255 time=2.714 ms
+
+--- host2 ping statistics ---
+4 packets transmitted, 4 packets received, 0% packet loss
+round-trip min/avg/max/stddev = 2.530/2.643/2.774/0.103 ms
+</pre>
+</div>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="network-natd.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="network-ipv6.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">Network Address Translation</td>
+<td width="34%" align="center" valign="top"><a href="advanced-networking.html"
+accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">IPv6</td>
+</tr>
+</table>
+</div>
+
+<p align="center"><small>本文及其他文件，可由此下載：<a
+href="ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/">ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/</a>。</small></p>
+
+<p align="center"><small>若有 FreeBSD 方面疑問，請先閱讀 <a
+href="http://www.FreeBSD.org/docs.html">FreeBSD 相關文件</a>，如不能解決的話，再洽詢
+&#60;<a href="mailto:questions@FreeBSD.org">questions@FreeBSD.org</a>&#62;。<br />
+關於本文件的問題，請洽詢 &#60;<a
+href="mailto:doc@FreeBSD.org">doc@FreeBSD.org</a>&#62;。</small></p>
+</body>
+</html>
+

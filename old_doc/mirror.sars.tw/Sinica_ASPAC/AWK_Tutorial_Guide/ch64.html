@@ -1,0 +1,155 @@
+<title>Changing Field Separator  & User Define Functions</title>
+<h1>改變 AWK 切割欄位的方式 & 使用者定義函數</h1>
+<pre><h4>       
+AWK不僅能自動分割欄位, 也允許使用者改變其欄位切割方式以
+適應各種格式之需要. 使用者也可自定函數, 若有需要可將該函數
+單獨寫成一個檔案,以供其它AWK程式叫用.
+
+範例 : 承接 6.2 的例子, 若八點為上班時間, 請加註 ``*''於遲到記錄
+之前, 並計算平均上班時間.
+
+分  析:
+<ol>
+<li>  因八點整到達者,不為遲到, 故僅以到達的小時數做判斷是不夠的;
+ 仍應參考到達時的分鐘數. 若 ``將到達時間轉換成以分鐘為單位'',
+不僅易於判斷是否遲到, 同時也易於計算到達平均時間.</li>
+
+<li>到達時間($2)的格式為 dd:dd 或 d:dd; 數字當中含有一個 ":". 
+但文數字交雜的資料AWK無法直接做數學運算. (註: AWK中字串
+"26"與數字26, 並無差異, 可直接做字串或數學運算, 這是AWK重要
+特色之一. 但AWK對文數字交雜的字串無法正確進行數學運算).</li>
+</ol>
+解決之方法 :
+<ul>
+<li>方法一.
+對到達時間($2) d:dd 或 dd:dd 進行字串運算,分別取出到達的小時數
+及分鐘數.
+           
+首先判斷到達小時數為一位或兩位字元,再呼叫函數分別截取分鐘數
+及小時數.
+
+此解法需使用下列AWK字串函數:
+
+length( 字串 ) : 傳回該字串之長度.
+substr( 字串,起始位置 ,長度 ) :傳回從起始位置起, 指定長度
+之子字串. 若未指定長度, 則傳回起始位置到自串末尾之子字串.
+所以:
+
+小時數 = substr( $2, 1,  length($2) - 3 )
+分鐘數 = substr( $2, length($2) - 2 )</li>
+
+<li>[方法二]  
+                 改變輸入列欄位的切割方式, 使AWK切割欄位後分別將
+                 小時數及分鐘數隔開於二個不同的欄位.
+                 欄位分隔字元 FS (field seperator) 是AWK的內建變數,
+                 其預設值是空白及tab. AWK每次切割欄位時都會先參考
+                  FS 的內容. 若把":"也當成分隔字元, 則AWK 便能自動把
+                 小時數及分鐘數分隔成不同的欄位.
+                 故令
+   FS = "[ \t:]+" (註 : [ \t:]+ 為一Regular Expression )
+<ol>
+<li>Regular Expression 中使用中括號 [ ...  ] 表一字元集合, 
+ 用以表示任意一個位於兩中括號間的字元.
+ 故可用``[ \t:]''表示 一個 空白 , tab 或 ``:''</li>
+<li>Regular Expression中使用 ``+'' 形容其前方的字元可出現一次
+或一次以上.
+故 ``[ \t:]+'' 表示由一個或多個 ``空白, tab 或 : '' 所組成的字串. </li>
+</ol>
+設定 FS =''[ \t:]+'' 後, 資料列如 : ``1034    7:26'' 將被分割成3個欄位.
+<table border=5>
+<center><tr><th>第一欄</th><th>第二欄</th><th>第三欄</th></tr>
+         <tr><th>$1</th><th>$2</th><th>$3</th></tr>      
+        <tr><th>1034</th><th>7</th><th>26</th></tr>
+</table></center>
+明顯地, AWK程式中使用方法一比方法二更簡潔方便. 本範例中採用
+方法二,也藉此示範改變欄位切割方式之用途.
+
+編寫AWK程式 <i>reformat3</i>, 如下 :
+awk '
+BEGIN  {
+            {<b>FS= "[ \t:]+"  #改變欄位切割的方式            
+            "date"  | getline  # Shell 執行 ``date''. getline 取得結果以$0紀錄 
+             print " Today is " ,$2, $3  > "today_rpt3"
+             print "=========================">"today_rpt3"
+             print `` ID  Number Arrival Time'' > ``today_rpt3''
+             close( "today_rpt3" )
+            }
+
+    {
+   #已更改欄位切割方式, $2表到達小時數, $3表分鐘數
+ arrival = HM_to_M($2, $3)
+ printf("  %s   %s:%s %s\n", $1,$2, $3
+ <b>, arrival  > 480 ? "*": " "  ) | "sort +0n>>today_rpt3"
+ total += arrival
+ END {
+            close("today_rpt3")   #參考本節說明 5
+            close("sort +0n  >> today_rpt3")
+           printf(" Average arrival time : %d:%d\n",
+                  total/NR/60, (total/NR)%60 ) >> "today_rpt3"
+         }
+      function HM_to_M( hour, min ){
+              return  hour*60 + min
+             }
+      ' $*
+ 並執行如下指令 :
+ $ reformat3  <i>arr.doc</i>
+   執行後,檔案 today_rpt3 的內容如下:
+        Today is  Sep 21
+     =========================
+      ID  Number Arrival Time
+          1005      8:12  * 
+          1006      7:45    
+          1008      8:01  * 
+          1012      7:46    
+          1025      7:27    
+          1028      7:49    
+          1029      7:57    
+          1034      7:26    
+          1042      7:59    
+          1051      7:51    
+          1052      8:05  * 
+          1101      7:32    
+      Average arrival time : 7:49
+{verbatim}  
+  說 明 :
+<ol>
+<li> AWK 中亦允許使用者自定函數. 函數定義方式請參考本程式,
+<b>function 為 AWK 的保留字.
+<i>HM_to_M</i>( ) 這函數負責將所傳入之小時及分鐘數轉換成
+以分鐘為單位.  使用者自定函數時, 還有許多細節須留心, 如 
+data scope,..
+( 請參考 第十節 Recursive Program)</li>
+
+<li> AWK中亦提供與 C 語言中相同的 Conditional Operator. 上式
+printf()中使用<i>arrival >480 ? "*" : " "}即為一例
+若 arrival 大於 480 則return "*" , 否則return " ".</li>
+<li>% 為AWK之運算子(operator), 其作用與 C 語言中之 % 相同
+(取餘數).</li>
+<li>NR(Number of  Record) 為AWK的內建變數. 表AWK執行該程式
+後所讀入的紀錄筆數.</li>
+<li>  AWK 中提供的 close( )指令, 語法如下(有二種) :
+<ol> 
+<li>close( filename )
+<li>close( 置於pipe之前的command )
+為何本程式使用了兩個 close( ) 指令 :
+<ul>
+<li>指令 close( "sort +2n >> today_rpt3" ), 其意思為 close 程式中
+置於 "sort +2n >> today_rpt3 " 之前的 Pipe, 並立刻呼叫 Shell 來
+執行"sort +2n  >> today_rpt3".
+(若未執行這指令, AWK必須於結束該程式時才會進行上述動作;
+則這12筆sort後的資料將被 append 到檔案 <i>today_rpt3</i> 中 
+"Average arrival time : ..." 的後方)</li>
+<li>因為 Shell 排序後的資料也要寫到 today_rpt3, 所以AWK必須
+先關閉使用中的<i>today_rpt3</i> 以利 Shell 正確將排序後的資料 
+append 到<i>today_rpt3</i>否則2個不同的 process 同時開啟一
+檔案進行輸出將會產生不可預期的結果.
+
+讀者應留心上述兩點,才可正確控制資料輸出到檔案中的順序.</li>
+
+<li>指令 close("sort +0n >> today_rpt3")中字串 "sort +0n >> today_rpt3"
+須與 pipe | 後方的 Shell Command 名稱一字不差, 否則AWK將視為
+二個不同的 pipe.
+讀者可於BEGIN{}中先令變數 Sys_call = "sort +0n  >> today_rpt3",
+程式中再一律以 Sys_call 代替該字串.</li>
+</ol>
+</h4></pre><hr>

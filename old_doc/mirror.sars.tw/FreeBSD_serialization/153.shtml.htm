@@ -1,0 +1,180 @@
+
+
+<!-- Vignette StoryServer 4 Sat Mar 11 15:43:24 2000 --> 
+<style type=text/css>
+<!--
+p,div {font-size:12pt; line-height:14pt; font-family:宋體;}
+.p1{font-size:12pt;font-family:宋體;}
+.p2{font-size:12pt;font-family:宋體;line-height:14pt;}
+.p3{font-size:14.8px;font-family:宋體;}
+.p4{font-size:14.8px;font-family:宋體;line-height:14pt;}
+.p5{font-size:1pt}
+a:hover{color:red;}
+a.t1:visited{color:red;}
+-->
+</style>
+<title>FreeBSD使用大全</title></head>
+
+<body bgcolor="#FFFFFF" text="#000000" link="#383098" vlink="#336699" alink="#FF0000" topmargin="0">
+<!-- Vignette StoryServer 4 Thu Mar 23 10:01:54 2000 --> <!-- Vignette StoryServer 4 Thu Mar 23 15:34:35 2000 --> 
+
+<!--開始：新聞內容-->
+<TABLE WIDTH=750 BORDER=0 CELLSPACING=0 CELLPADDING=0>
+
+<tr valign=top>
+
+
+
+<TD  valign=top>
+<CENTER><FONT COLOR=#000066 size=5><B>FreeBSD連載(52)：外掛式中文顯示與輸入軟體</B><br></FONT></CENTER>
+
+<HR  ALIGN="center" SIZE=1>
+<CENTER><FONT FACE="Arial" SIZE=2> 1999年12月24日 15:52 </FONT><FONT COLOR="#990000" SIZE=2>王波</FONT></CENTER><p>
+
+<h1 align=center>外掛式中文顯示與輸入軟體</h1>
+
+<P>　　對於支持中文的軟體，可以使用自己的方式處理中文的顯示與輸
+入。然而更一般的軟體中，都沒有直接提供中文支持，有些能夠部分識
+別中文但無法處理中文輸入，如Netscape Navigator。有些根本不能識
+別中文，有些甚至將8位字符作為非法字符來看待。對於最後一種過濾8
+位字符的情況，是沒有辦法能使其正常顯示、輸入中文，但對於前兩種
+情況，就有變通的方式使其正常顯示和輸入漢字。</P>
+
+<ul><h2><P><LI>動態連接庫的wrap技術</LI></P></h2></ul>
+
+<P>　　X Window下的客戶程序要顯示字符，需要調用libX11.so.6動態
+連接庫中的XDrawString()等函數進行具體處理顯示，如果這個函數能夠
+區分出中文字符，並自動使用合適的中文字體進行顯示，那麼客戶程序
+就能正常顯示中文。因而最基本的想法是修改X11R6中這些相關的顯示處
+理函數，使它們能正常顯示中文。當然這可以通過直接修改XFree86發行
+版本中這個函數的原始碼，並通過重新編譯、安裝庫函數來做到。然而
+這需要更改原有的正式發行版本，不是每個用戶都願意並且能夠重新編
+譯X系統的，並且這種方法對於不具備原始碼的商業X伺服器系統就不使
+用。而且更改libX11.so.6也不太安全，缺乏靈活性，因此最好不更改原
+有的連接庫，就能達到正確處理中文的目的。</P>
+
+<P>　　由於一般的應用程序使用動態連接的方式，在應用程序載入內存
+時，系統才將具體的動態連接庫連接上。因此如果在系統載入標準的庫
+之前，預先載入一個包含同樣名字函數的動態連接庫與應用程序連接，
+那麼程序會使用先連接的第一個庫中的同名函數庫，而非原有的標準庫
+函數，這種方式就稱為包裝（wrap）的方法。</P>
+
+<P>　　現代Unix都支持這種預連接動態連接庫的能力，系統在載入動態
+連接庫之前，首先查看LD_PRELOAD環境變量，如果這個變量定義了一個動
+態連接庫，那麼就在連接其他標準動態連接庫之前先連接這個變量定義的
+動態連接庫。因此如果這個預載入的動態庫中有XDrawString()等函數的
+定義，那麼它們就覆蓋了系統中libX11.so.6庫中的原有定義，而這個包
+裝庫可以通過直接訪問libX11.so.6庫來找到原有的標準函數，以真正處
+理顯示。</P>
+
+<P>　　出於系統安全的考慮，系統不允許SetUID或SetGID的程序載入LD
+PRELOAD變量設置的動態連接庫，這主要是避免用戶通過定義自己動態連
+接庫，在setuid等系統調用之後取得root權限。因此包裝技術不適合具有
+SetUID或SetGID屬性的二進制執行檔案。此外，靜態連接的執行程序在程
+序內部查找顯示函數，也不適合使用包裝技術（可以使用ldd命令來查看
+執行程序的動態連接關系，來判斷其連接類型），除了這兩種情況之外的
+其他X應用程序，就能支持中文包裝技術。</P>
+
+<P>　　在使用包裝技術時，另一個重要的問題是FreeBSD系統中存在兩種
+不同的執行檔案格式，a.out和ELF格式，它們分別使用a.out和ELF格式的
+動態連接庫。因此對於不同格式的執行檔案，必須使用相應格式的包裝庫
+來包裝不同的libX11.so動態連接庫，不同格式的庫不能相互連接。3.0版
+本以上，預設格式為ELF，預設庫也為ELF格式的動態連接庫。因此3.0版
+本以後要支持對a.out格式進行包裝，一方面包裝的動態連接庫的位置就
+改變為/usr/X11R6/lib/aout/libX11.so.6.1，同時也需要使用編譯器的
+-aout選項生成a.out格式的動態連接庫，以進行包裝。目前發行的標準
+Packages均已經轉向ELF，仍使用a.out格式主要是一些商業軟體，如
+Netscape Navigator。</P>
+
+<ul><h2><P><LI>Xcin AnyWhere</LI></P></h2></ul>
+
+<P>　　XA（Xcin AnyWhere）是一個較早的使用包裝技術的中文輸入軟體
+，它原來僅僅是用於中文輸入，為Xcin提供一個標準接口，後來被加入了
+中文顯示能力。具備中文顯示能力的XA被稱為XA+CV版本。</P>
+
+<P>　　XA是由台灣開發者開發的，目前版本為XA-0.4b，它具備GB顯示能
+力的國標版本為xa-1.04。它能夠在FreeBSD下編譯執行。對於這些包裝方
+式的外掛中文系統，可以使用它提供的shell腳本xa來啟動應用程序。</P>
+
+<P>　　$ Xcin&</P>
+
+<P>　　$ xa kvt&</P>
+
+<P>　　或者自己設置LD_PRELOAD變量為wrap動態庫的全路徑，再啟動相
+應的應用程序。</P>
+
+<P>　　$ LD_RELOAD=/usr/X11R6/lib/wrap.so; export LD_PRELOAD</P>
+
+<P>　　$ kvt&</P>
+
+<P>　　在啟動了它的輸入伺服器Xcin之後，那麼就能在xa啟動的程序中就
+能使用熱鍵切換Xcin的中英文輸入了。</P>
+
+<ul><h2><P><LI>Chinput與ZhXwin</LI></P></h2></ul>
+
+<P>　　Chinput是另一個使用了包裝技術的中文輸入和顯示軟體，它是使
+用了cxterm的輸入原始碼模塊在Linux下開發的，在FreeBSD下也能夠正常
+編譯運行。Chinput的作者在其正式發布1.4.1版本中包括了幾個與中文顯
+示和輸入無關的軟體，雖然單個軟體都還很有用，但是將幾個軟體捆在一
+起，使得應用程序管理比較混亂，還是應該將每個單獨的應用程序獨立出
+來，Chinput就專門用於中文的輸入和管理。FreeBSD中可以使用Packages
+的管理機制來管理應用程序之間的關系。</P>
+
+<P>　　Chinput使用資源檔案Chinput.ad，並需要Cxterm的輸入法，因此
+需要預先安裝Cxterm包。它還提供了一個腳本run來運行應用程序。但直接
+設置LD_PRELOAD變量的方法也不複雜（移植到FreeBSD後的package中的執
+行腳本被更名為crun），Chinput的輸入伺服器為chinput，因此可以使用
+下面的命令來啟動Chinput。</P>
+
+<P>　　$ chinput &</P>
+
+<P>　　$ crun kvt &</P>
+
+<P>　　ZhXWin的輸入伺服器也使用Chinput的chinput，並加上一個比較簡
+單卻有效的用於處理顯示的包裝庫，它可能是基於Chinput的一個早期版本
+發展的。ZhXWin的優點是簡單、有效，標準Chinput使用了幾種不同大小的
+字體進行顯示，而ZhXWin僅僅使用一種字體，然而除了一些字符間距的處理
+方面，其顯示效果還不錯。</P>
+
+<P>　　$ LD_RELOAD=/usr/X11R6/lib/libst.so; export LD_PRELOAD; kvt&</P>
+
+<ul><h2><P><LI>使用包裝軟體</LI></P></h2></ul>
+
+<P>　　每個包裝軟體由兩個部分組成，一個部分為輸入模塊，需要單獨運
+行。XA使用Xcin作輸入模塊，Chinput和ZhXwin使用chinput作輸入模塊。
+另一個部分為包裝庫，需要使用LD_PRELOAD環境變量進行設置。</P>
+
+<P>　　如果要讓視窗管理器，如KDE，也顯示中文，就需要在啟動這些視窗
+管理程序之前設置好包裝庫，這就需要在.xinitrc或.xsession檔案中的最前
+面增加LD_PRELOAD變量的定義：</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>$ mv ~/.xinitrc ~/.xinitrc.orig
+$ cat > ~/.xinitrc
+LD_PRELOAD=/usr/X11R6/lib/wrap.so
+export LD_PRELOAD
+chinput &
+^D
+$ cat ~/.xinitrc.orig >> ~/.xinitrc</td></pre></tr></table>
+
+<P>　　然而由於這些中文包裝軟體需要處理鍵碟，以用於輸入中文，直接讓包
+裝軟體接管視窗管理器，就使得它也影響視窗程序的鍵碟控制，就使得一些熱
+鍵不能正常使用。雖然通過包裝KDE，使KDE能顯示中文選單和中文提示，但為
+了使用正常的鍵碟操作，還是推荐對每個需要中文能力的軟體分別進行包裝，
+而不要直接對視窗管理器進行包裝。</P>
+
+<P>　　所有的這些中文包裝庫都比較新，沒有經過足夠的實踐考驗或測試，因
+此存在問題是難免的。當包裝了視窗管理器時，如果包裝庫出現問題，就可能造
+成X伺服器的鍵碟死鎖，對使用者的操作沒有反應。然而此時系統並沒有停止運
+行，可以使用網路連接上去，殺死X伺服器，更改包裝設置。</P>
+
+
+<BR>
+
+</TD>
+</TR></TABLE>
+
+
+
+</BODY>
+</HTML>

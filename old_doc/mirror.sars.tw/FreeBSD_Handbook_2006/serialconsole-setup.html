@@ -1,0 +1,832 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>Setting Up the Serial Console</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.79" />
+<link rel="HOME" title="FreeBSD 使用手冊" href="index.html" />
+<link rel="UP" title="Serial Communications" href="serialcomms.html" />
+<link rel="PREVIOUS" title="Dial-out Service" href="dialout.html" />
+<link rel="NEXT" title="PPP and SLIP" href="ppp-and-slip.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD 使用手冊</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="dialout.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 22 Serial Communications</td>
+<td width="10%" align="right" valign="bottom"><a href="ppp-and-slip.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="SERIALCONSOLE-SETUP" name="SERIALCONSOLE-SETUP">22.6 Setting Up
+the Serial Console</a></h1>
+
+<i class="AUTHORGROUP"><span class="CONTRIB">Contributed by</span> Kazutaka YOKOTA.</i>
+<i class="AUTHORGROUP"><span class="CONTRIB">Based on a document by</span> Bill Paul.</i>
+
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="SERIALCONSOLE-INTRO" name="SERIALCONSOLE-INTRO">22.6.1
+Introduction</a></h2>
+
+<p>FreeBSD has the ability to boot on a system with only a dumb terminal on a serial port
+as a console. Such a configuration should be useful for two classes of people: system
+administrators who wish to install FreeBSD on machines that have no keyboard or monitor
+attached, and developers who want to debug the kernel or device drivers.</p>
+
+<p>As described in <a href="boot.html">Chapter 12</a>, FreeBSD employs a three stage
+bootstrap. The first two stages are in the boot block code which is stored at the
+beginning of the FreeBSD slice on the boot disk. The boot block will then load and run
+the boot loader (<tt class="FILENAME">/boot/loader</tt>) as the third stage code.</p>
+
+<p>In order to set up the serial console you must configure the boot block code, the boot
+loader code and the kernel.</p>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="SERIALCONSOLE-HOWTO-FAST" name="SERIALCONSOLE-HOWTO-FAST">22.6.2
+Serial Console Configuration, Terse Version</a></h2>
+
+<p>This section assumes that you are using the default setup and just want a fast
+overview of setting up the serial console.</p>
+
+<div class="PROCEDURE">
+<ol type="1">
+<li class="STEP">
+<p>Connect the serial cable to COM1 and the controlling terminal.</p>
+</li>
+
+<li class="STEP">
+<p>To see all boot messages on the serial console, issue the following command while
+logged in as the superuser:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> echo 'console="comconsole"' &gt;&gt; /boot/loader.conf
+</pre>
+</li>
+
+<li class="STEP">
+<p>Edit <tt class="FILENAME">/etc/ttys</tt> and change <tt class="LITERAL">off</tt> to
+<tt class="LITERAL">on</tt> and <tt class="LITERAL">dialup</tt> to <tt
+class="LITERAL">vt100</tt> for the <tt class="LITERAL">ttyd0</tt> entry. Otherwise a
+password will not be required to connect via the serial console, resulting in a potential
+security hole.</p>
+</li>
+
+<li class="STEP">
+<p>Reboot the system to see if the changes took effect.</p>
+</li>
+</ol>
+</div>
+
+<p>If a different configuration is required, a more in depth configuration explanation
+exists in <a href="serialconsole-setup.html#SERIALCONSOLE-HOWTO">Section 22.6.3</a>.</p>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="SERIALCONSOLE-HOWTO" name="SERIALCONSOLE-HOWTO">22.6.3 Serial
+Console Configuration</a></h2>
+
+<div class="PROCEDURE">
+<ol type="1">
+<li class="STEP">
+<p>Prepare a serial cable.</p>
+
+<p>You will need either a null-modem cable or a standard serial cable and a null-modem
+adapter. See <a href="serial.html#SERIAL-CABLES-PORTS">Section 22.2.2</a> for a
+discussion on serial cables.</p>
+</li>
+
+<li class="STEP">
+<p>Unplug your keyboard.</p>
+
+<p>Most PC systems probe for the keyboard during the Power-On Self-Test (POST) and will
+generate an error if the keyboard is not detected. Some machines complain loudly about
+the lack of a keyboard and will not continue to boot until it is plugged in.</p>
+
+<p>If your computer complains about the error, but boots anyway, then you do not have to
+do anything special. (Some machines with Phoenix BIOS installed merely say “<tt
+class="ERRORNAME">Keyboard failed</tt>” and continue to boot normally.)</p>
+
+<p>If your computer refuses to boot without a keyboard attached then you will have to
+configure the BIOS so that it ignores this error (if it can). Consult your motherboard's
+manual for details on how to do this.</p>
+
+<div class="TIP">
+<blockquote class="TIP">
+<p><b>Tip:</b> Set the keyboard to “Not installed” in the BIOS setup. You will still be
+able to use your keyboard. All this does is tell the BIOS not to probe for a keyboard at
+power-on. Your BIOS should not complain if the keyboard is absent. You can leave the
+keyboard plugged in even with this flag set to “Not installed” and the keyboard will
+still work.</p>
+</blockquote>
+</div>
+
+<div class="NOTE">
+<blockquote class="NOTE">
+<p><b>Note:</b> If your system has a <span class="TRADEMARK">PS/2</span>&reg; mouse,
+chances are very good that you may have to unplug your mouse as well as your keyboard.
+This is because <span class="TRADEMARK">PS/2</span> mice share some hardware with the
+keyboard and leaving the mouse plugged in can fool the keyboard probe into thinking the
+keyboard is still there. It is said that a Gateway 2000 Pentium 90&nbsp;MHz system with
+an AMI BIOS that behaves this way. In general, this is not a problem since the mouse is
+not much good without the keyboard anyway.</p>
+</blockquote>
+</div>
+</li>
+
+<li class="STEP">
+<p>Plug a dumb terminal into <tt class="DEVICENAME">COM1</tt> (<tt
+class="DEVICENAME">sio0</tt>).</p>
+
+<p>If you do not have a dumb terminal, you can use an old PC/XT with a modem program, or
+the serial port on another <span class="TRADEMARK">UNIX</span>&reg; box. If you do not
+have a <tt class="DEVICENAME">COM1</tt> (<tt class="DEVICENAME">sio0</tt>), get one. At
+this time, there is no way to select a port other than <tt class="DEVICENAME">COM1</tt>
+for the boot blocks without recompiling the boot blocks. If you are already using <tt
+class="DEVICENAME">COM1</tt> for another device, you will have to temporarily remove that
+device and install a new boot block and kernel once you get FreeBSD up and running. (It
+is assumed that <tt class="DEVICENAME">COM1</tt> will be available on a
+file/compute/terminal server anyway; if you really need <tt class="DEVICENAME">COM1</tt>
+for something else (and you cannot switch that something else to <tt
+class="DEVICENAME">COM2</tt> (<tt class="DEVICENAME">sio1</tt>)), then you probably
+should not even be bothering with all this in the first place.)</p>
+</li>
+
+<li class="STEP">
+<p>Make sure the configuration file of your kernel has appropriate flags set for <tt
+class="DEVICENAME">COM1</tt> (<tt class="DEVICENAME">sio0</tt>).</p>
+
+<p>Relevant flags are:</p>
+
+<div class="VARIABLELIST">
+<dl>
+<dt><tt class="LITERAL">0x10</tt></dt>
+
+<dd>
+<p>Enables console support for this unit. The other console flags are ignored unless this
+is set. Currently, at most one unit can have console support; the first one (in config
+file order) with this flag set is preferred. This option alone will not make the serial
+port the console. Set the following flag or use the <code class="OPTION">-h</code> option
+described below, together with this flag.</p>
+</dd>
+
+<dt><tt class="LITERAL">0x20</tt></dt>
+
+<dd>
+<p>Forces this unit to be the console (unless there is another higher priority console),
+regardless of the <code class="OPTION">-h</code> option discussed below. The flag <tt
+class="LITERAL">0x20</tt> must be used together with the <code class="OPTION">0x10</code>
+flag.</p>
+</dd>
+
+<dt><tt class="LITERAL">0x40</tt></dt>
+
+<dd>
+<p>Reserves this unit (in conjunction with <tt class="LITERAL">0x10</tt>) and makes the
+unit unavailable for normal access. You should not set this flag to the serial port unit
+which you want to use as the serial console. The only use of this flag is to designate
+the unit for kernel remote debugging. See <a
+href="../../../../doc/zh_TW.Big5/books/developers-handbook/index.html" target="_top">The
+Developer's Handbook</a> for more information on remote debugging.</p>
+
+<div class="NOTE">
+<blockquote class="NOTE">
+<p><b>Note:</b> In FreeBSD&nbsp;4.0 or later the semantics of the flag <tt
+class="LITERAL">0x40</tt> are slightly different and there is another flag to specify a
+serial port for remote debugging.</p>
+</blockquote>
+</div>
+</dd>
+</dl>
+</div>
+
+<p>Example:</p>
+
+<pre class="PROGRAMLISTING">
+device sio0 at isa? port IO_COM1 flags 0x10 irq 4
+</pre>
+
+<p>See the <a href="http://www.FreeBSD.org/cgi/man.cgi?query=sio&amp;sektion=4"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">sio</span>(4)</span></a> manual page for
+more details.</p>
+
+<p>If the flags were not set, you need to run UserConfig (on a different console) or
+recompile the kernel.</p>
+</li>
+
+<li class="STEP">
+<p>Create <tt class="FILENAME">boot.config</tt> in the root directory of the <tt
+class="LITERAL">a</tt> partition on the boot drive.</p>
+
+<p>This file will instruct the boot block code how you would like to boot the system. In
+order to activate the serial console, you need one or more of the following options--if
+you want multiple options, include them all on the same line:</p>
+
+<div class="VARIABLELIST">
+<dl>
+<dt><code class="OPTION">-h</code></dt>
+
+<dd>
+<p>Toggles internal and serial consoles. You can use this to switch console devices. For
+instance, if you boot from the internal (video) console, you can use <code
+class="OPTION">-h</code> to direct the boot loader and the kernel to use the serial port
+as its console device. Alternatively, if you boot from the serial port, you can use the
+<code class="OPTION">-h</code> to tell the boot loader and the kernel to use the video
+display as the console instead.</p>
+</dd>
+
+<dt><code class="OPTION">-D</code></dt>
+
+<dd>
+<p>Toggles single and dual console configurations. In the single configuration the
+console will be either the internal console (video display) or the serial port, depending
+on the state of the <code class="OPTION">-h</code> option above. In the dual console
+configuration, both the video display and the serial port will become the console at the
+same time, regardless of the state of the <code class="OPTION">-h</code> option. However,
+note that the dual console configuration takes effect only during the boot block is
+running. Once the boot loader gets control, the console specified by the <code
+class="OPTION">-h</code> option becomes the only console.</p>
+</dd>
+
+<dt><code class="OPTION">-P</code></dt>
+
+<dd>
+<p>Makes the boot block probe the keyboard. If no keyboard is found, the <code
+class="OPTION">-D</code> and <code class="OPTION">-h</code> options are automatically
+set.</p>
+
+<div class="NOTE">
+<blockquote class="NOTE">
+<p><b>Note:</b> Due to space constraints in the current version of the boot blocks, the
+<code class="OPTION">-P</code> option is capable of detecting extended keyboards only.
+Keyboards with less than 101 keys (and without F11 and F12 keys) may not be detected.
+Keyboards on some laptop computers may not be properly found because of this limitation.
+If this is the case with your system, you have to abandon using the <code
+class="OPTION">-P</code> option. Unfortunately there is no workaround for this
+problem.</p>
+</blockquote>
+</div>
+</dd>
+</dl>
+</div>
+
+<p>Use either the <code class="OPTION">-P</code> option to select the console
+automatically, or the <code class="OPTION">-h</code> option to activate the serial
+console.</p>
+
+<p>You may include other options described in <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=boot&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">boot</span>(8)</span></a> as well.</p>
+
+<p>The options, except for <code class="OPTION">-P</code>, will be passed to the boot
+loader (<tt class="FILENAME">/boot/loader</tt>). The boot loader will determine which of
+the internal video or the serial port should become the console by examining the state of
+the <code class="OPTION">-h</code> option alone. This means that if you specify the <code
+class="OPTION">-D</code> option but not the <code class="OPTION">-h</code> option in <tt
+class="FILENAME">/boot.config</tt>, you can use the serial port as the console only
+during the boot block; the boot loader will use the internal video display as the
+console.</p>
+</li>
+
+<li class="STEP">
+<p>Boot the machine.</p>
+
+<p>When you start your FreeBSD box, the boot blocks will echo the contents of <tt
+class="FILENAME">/boot.config</tt> to the console. For example:</p>
+
+<pre class="SCREEN">
+/boot.config: -P
+Keyboard: no
+</pre>
+
+<p>The second line appears only if you put <code class="OPTION">-P</code> in <tt
+class="FILENAME">/boot.config</tt> and indicates presence/absence of the keyboard. These
+messages go to either serial or internal console, or both, depending on the option in <tt
+class="FILENAME">/boot.config</tt>.</p>
+
+<div class="INFORMALTABLE"><a id="AEN30832" name="AEN30832"></a>
+<table border="0" frame="void" width="100%" class="CALSTABLE">
+<col />
+<col />
+<thead>
+<tr>
+<th align="LEFT">Options</th>
+<th align="LEFT">Message goes to</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>none</td>
+<td>internal console</td>
+</tr>
+
+<tr>
+<td><code class="OPTION">-h</code></td>
+<td>serial console</td>
+</tr>
+
+<tr>
+<td><code class="OPTION">-D</code></td>
+<td>serial and internal consoles</td>
+</tr>
+
+<tr>
+<td><code class="OPTION">-Dh</code></td>
+<td>serial and internal consoles</td>
+</tr>
+
+<tr>
+<td><code class="OPTION">-P</code>, keyboard present</td>
+<td>internal console</td>
+</tr>
+
+<tr>
+<td><code class="OPTION">-P</code>, keyboard absent</td>
+<td>serial console</td>
+</tr>
+</tbody>
+</table>
+</div>
+
+<p>After the above messages, there will be a small pause before the boot blocks continue
+loading the boot loader and before any further messages printed to the console. Under
+normal circumstances, you do not need to interrupt the boot blocks, but you may want to
+do so in order to make sure things are set up correctly.</p>
+
+<p>Hit any key, other than <span class="KEYCODE">Enter</span>, at the console to
+interrupt the boot process. The boot blocks will then prompt you for further action. You
+should now see something like:</p>
+
+<pre class="SCREEN">
+&#62;&#62; FreeBSD/i386 BOOT
+Default: 0:ad(0,a)/boot/loader
+boot:
+</pre>
+
+<p>Verify the above message appears on either the serial or internal console or both,
+according to the options you put in <tt class="FILENAME">/boot.config</tt>. If the
+message appears in the correct console, hit <span class="KEYCODE">Enter</span> to
+continue the boot process.</p>
+
+<p>If you want the serial console but you do not see the prompt on the serial terminal,
+something is wrong with your settings. In the meantime, you enter <code
+class="OPTION">-h</code> and hit Enter/Return (if possible) to tell the boot block (and
+then the boot loader and the kernel) to choose the serial port for the console. Once the
+system is up, go back and check what went wrong.</p>
+</li>
+</ol>
+</div>
+
+<p>After the boot loader is loaded and you are in the third stage of the boot process you
+can still switch between the internal console and the serial console by setting
+appropriate environment variables in the boot loader. See <a
+href="serialconsole-setup.html#SERIALCONSOLE-LOADER">Section 22.6.6</a>.</p>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="SERIALCONSOLE-SUMMARY" name="SERIALCONSOLE-SUMMARY">22.6.4
+Summary</a></h2>
+
+<p>Here is the summary of various settings discussed in this section and the console
+eventually selected.</p>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="AEN30876" name="AEN30876">22.6.4.1 Case 1: You Set the Flags to
+0x10 for <tt class="DEVICENAME">sio0</tt></a></h3>
+
+<pre class="PROGRAMLISTING">
+device sio0 at isa? port IO_COM1 flags 0x10 irq 4
+</pre>
+
+<div class="INFORMALTABLE"><a id="AEN30880" name="AEN30880"></a>
+<table border="0" frame="void" width="100%" class="CALSTABLE">
+<col />
+<col />
+<col />
+<col />
+<thead>
+<tr>
+<th align="LEFT">Options in /boot.config</th>
+<th align="LEFT">Console during boot blocks</th>
+<th align="LEFT">Console during boot loader</th>
+<th align="LEFT">Console in kernel</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>nothing</td>
+<td>internal</td>
+<td>internal</td>
+<td>internal</td>
+</tr>
+
+<tr>
+<td><code class="OPTION">-h</code></td>
+<td>serial</td>
+<td>serial</td>
+<td>serial</td>
+</tr>
+
+<tr>
+<td><code class="OPTION">-D</code></td>
+<td>serial and internal</td>
+<td>internal</td>
+<td>internal</td>
+</tr>
+
+<tr>
+<td><code class="OPTION">-Dh</code></td>
+<td>serial and internal</td>
+<td>serial</td>
+<td>serial</td>
+</tr>
+
+<tr>
+<td><code class="OPTION">-P</code>, keyboard present</td>
+<td>internal</td>
+<td>internal</td>
+<td>internal</td>
+</tr>
+
+<tr>
+<td><code class="OPTION">-P</code>, keyboard absent</td>
+<td>serial and internal</td>
+<td>serial</td>
+<td>serial</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="AEN30924" name="AEN30924">22.6.4.2 Case 2: You Set the Flags to
+0x30 for sio0</a></h3>
+
+<pre class="PROGRAMLISTING">
+device sio0 at isa? port IO_COM1 flags 0x30 irq 4
+</pre>
+
+<div class="INFORMALTABLE"><a id="AEN30927" name="AEN30927"></a>
+<table border="0" frame="void" width="100%" class="CALSTABLE">
+<col />
+<col />
+<col />
+<col />
+<thead>
+<tr>
+<th align="LEFT">Options in /boot.config</th>
+<th align="LEFT">Console during boot blocks</th>
+<th align="LEFT">Console during boot loader</th>
+<th align="LEFT">Console in kernel</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>nothing</td>
+<td>internal</td>
+<td>internal</td>
+<td>serial</td>
+</tr>
+
+<tr>
+<td><code class="OPTION">-h</code></td>
+<td>serial</td>
+<td>serial</td>
+<td>serial</td>
+</tr>
+
+<tr>
+<td><code class="OPTION">-D</code></td>
+<td>serial and internal</td>
+<td>internal</td>
+<td>serial</td>
+</tr>
+
+<tr>
+<td><code class="OPTION">-Dh</code></td>
+<td>serial and internal</td>
+<td>serial</td>
+<td>serial</td>
+</tr>
+
+<tr>
+<td><code class="OPTION">-P</code>, keyboard present</td>
+<td>internal</td>
+<td>internal</td>
+<td>serial</td>
+</tr>
+
+<tr>
+<td><code class="OPTION">-P</code>, keyboard absent</td>
+<td>serial and internal</td>
+<td>serial</td>
+<td>serial</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="SERIALCONSOLE-TIPS" name="SERIALCONSOLE-TIPS">22.6.5 Tips for
+the Serial Console</a></h2>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="AEN30973" name="AEN30973">22.6.5.1 Setting a Faster Serial Port
+Speed</a></h3>
+
+<p>By default, the serial port settings are: 9600 baud, 8 bits, no parity, and 1 stop
+bit. If you wish to change the speed, you need to recompile at least the boot blocks. Add
+the following line to <tt class="FILENAME">/etc/make.conf</tt> and compile new boot
+blocks:</p>
+
+<pre class="PROGRAMLISTING">
+BOOT_COMCONSOLE_SPEED=19200
+</pre>
+
+<p>See <a href="serialconsole-setup.html#SERIALCONSOLE-COM2">Section 22.6.5.2</a> for
+detailed instructions about building and installing new boot blocks.</p>
+
+<p>If the serial console is configured in some other way than by booting with <code
+class="OPTION">-h</code>, or if the serial console used by the kernel is different from
+the one used by the boot blocks, then you must also add the following option to the
+kernel configuration file and compile a new kernel:</p>
+
+<pre class="PROGRAMLISTING">
+options CONSPEED=19200
+</pre>
+</div>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="SERIALCONSOLE-COM2" name="SERIALCONSOLE-COM2">22.6.5.2 Using
+Serial Port Other Than <tt class="DEVICENAME">sio0</tt> for the Console</a></h3>
+
+<p>Using a port other than <tt class="DEVICENAME">sio0</tt> as the console requires some
+recompiling. If you want to use another serial port for whatever reasons, recompile the
+boot blocks, the boot loader and the kernel as follows.</p>
+
+<div class="PROCEDURE">
+<ol type="1">
+<li class="STEP">
+<p>Get the kernel source. (See <a href="cutting-edge.html">Chapter 21</a>)</p>
+</li>
+
+<li class="STEP">
+<p>Edit <tt class="FILENAME">/etc/make.conf</tt> and set <tt
+class="LITERAL">BOOT_COMCONSOLE_PORT</tt> to the address of the port you want to use
+(0x3F8, 0x2F8, 0x3E8 or 0x2E8). Only <tt class="DEVICENAME">sio0</tt> through <tt
+class="DEVICENAME">sio3</tt> (<tt class="DEVICENAME">COM1</tt> through <tt
+class="DEVICENAME">COM4</tt>) can be used; multiport serial cards will not work. No
+interrupt setting is needed.</p>
+</li>
+
+<li class="STEP">
+<p>Create a custom kernel configuration file and add appropriate flags for the serial
+port you want to use. For example, if you want to make <tt class="DEVICENAME">sio1</tt>
+(<tt class="DEVICENAME">COM2</tt>) the console:</p>
+
+<pre class="PROGRAMLISTING">
+device sio1 at isa? port IO_COM2 flags 0x10 irq 3
+</pre>
+
+<p>or</p>
+
+<pre class="PROGRAMLISTING">
+device sio1 at isa? port IO_COM2 flags 0x30 irq 3
+</pre>
+
+<p>The console flags for the other serial ports should not be set.</p>
+</li>
+
+<li class="STEP">
+<p>Recompile and install the boot blocks and the boot loader:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">cd /sys/boot</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">make clean</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">make</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">make install</kbd>
+</pre>
+</li>
+
+<li class="STEP">
+<p>Rebuild and install the kernel.</p>
+</li>
+
+<li class="STEP">
+<p>Write the boot blocks to the boot disk with <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=disklabel&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">disklabel</span>(8)</span></a> and boot
+from the new kernel.</p>
+</li>
+</ol>
+</div>
+</div>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="SERIALCONSOLE-DDB" name="SERIALCONSOLE-DDB">22.6.5.3 Entering
+the DDB Debugger from the Serial Line</a></h3>
+
+<p>If you wish to drop into the kernel debugger from the serial console (useful for
+remote diagnostics, but also dangerous if you generate a spurious BREAK on the serial
+port!) then you should compile your kernel with the following options:</p>
+
+<pre class="PROGRAMLISTING">
+options BREAK_TO_DEBUGGER
+options DDB
+</pre>
+</div>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="AEN31030" name="AEN31030">22.6.5.4 Getting a Login Prompt on the
+Serial Console</a></h3>
+
+<p>While this is not required, you may wish to get a <span class="emphasis"><i
+class="EMPHASIS">login</i></span> prompt over the serial line, now that you can see boot
+messages and can enter the kernel debugging session through the serial console. Here is
+how to do it.</p>
+
+<p>Open the file <tt class="FILENAME">/etc/ttys</tt> with an editor and locate the
+lines:</p>
+
+<pre class="PROGRAMLISTING">
+ttyd0 "/usr/libexec/getty std.9600" unknown off secure
+ttyd1 "/usr/libexec/getty std.9600" unknown off secure
+ttyd2 "/usr/libexec/getty std.9600" unknown off secure
+ttyd3 "/usr/libexec/getty std.9600" unknown off secure
+</pre>
+
+<p><tt class="LITERAL">ttyd0</tt> through <tt class="LITERAL">ttyd3</tt> corresponds to
+<tt class="DEVICENAME">COM1</tt> through <tt class="DEVICENAME">COM4</tt>. Change <tt
+class="LITERAL">off</tt> to <tt class="LITERAL">on</tt> for the desired port. If you have
+changed the speed of the serial port, you need to change <tt
+class="LITERAL">std.9600</tt> to match the current setting, e.g. <tt
+class="LITERAL">std.19200</tt>.</p>
+
+<p>You may also want to change the terminal type from <tt class="LITERAL">unknown</tt> to
+the actual type of your serial terminal.</p>
+
+<p>After editing the file, you must <tt class="COMMAND">kill -HUP 1</tt> to make this
+change take effect.</p>
+</div>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="SERIALCONSOLE-LOADER" name="SERIALCONSOLE-LOADER">22.6.6
+Changing Console from the Boot Loader</a></h2>
+
+<p>Previous sections described how to set up the serial console by tweaking the boot
+block. This section shows that you can specify the console by entering some commands and
+environment variables in the boot loader. As the boot loader is invoked at the third
+stage of the boot process, after the boot block, the settings in the boot loader will
+override the settings in the boot block.</p>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="AEN31053" name="AEN31053">22.6.6.1 Setting Up the Serial
+Console</a></h3>
+
+<p>You can easily specify the boot loader and the kernel to use the serial console by
+writing just one line in <tt class="FILENAME">/boot/loader.rc</tt>:</p>
+
+<pre class="PROGRAMLISTING">
+set console="comconsole"
+</pre>
+
+<p>This will take effect regardless of the settings in the boot block discussed in the
+previous section.</p>
+
+<p>You had better put the above line as the first line of <tt
+class="FILENAME">/boot/loader.rc</tt> so as to see boot messages on the serial console as
+early as possible.</p>
+
+<p>Likewise, you can specify the internal console as:</p>
+
+<pre class="PROGRAMLISTING">
+set console="vidconsole"
+</pre>
+
+<p>If you do not set the boot loader environment variable <tt class="ENVAR">console</tt>,
+the boot loader, and subsequently the kernel, will use whichever console indicated by the
+<code class="OPTION">-h</code> option in the boot block.</p>
+
+<p>In versions 3.2 or later, you may specify the console in <tt
+class="FILENAME">/boot/loader.conf.local</tt> or <tt
+class="FILENAME">/boot/loader.conf</tt>, rather than in <tt
+class="FILENAME">/boot/loader.rc</tt>. In this method your <tt
+class="FILENAME">/boot/loader.rc</tt> should look like:</p>
+
+<pre class="PROGRAMLISTING">
+include /boot/loader.4th
+start
+</pre>
+
+<p>Then, create <tt class="FILENAME">/boot/loader.conf.local</tt> and put the following
+line there.</p>
+
+<pre class="PROGRAMLISTING">
+console=comconsole
+</pre>
+
+<p>or</p>
+
+<pre class="PROGRAMLISTING">
+console=vidconsole
+</pre>
+
+<p>See <a href="http://www.FreeBSD.org/cgi/man.cgi?query=loader.conf&amp;sektion=5"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">loader.conf</span>(5)</span></a> for
+more information.</p>
+
+<div class="NOTE">
+<blockquote class="NOTE">
+<p><b>Note:</b> At the moment, the boot loader has no option equivalent to the <code
+class="OPTION">-P</code> option in the boot block, and there is no provision to
+automatically select the internal console and the serial console based on the presence of
+the keyboard.</p>
+</blockquote>
+</div>
+</div>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="AEN31084" name="AEN31084">22.6.6.2 Using a Serial Port Other
+Than <tt class="DEVICENAME">sio0</tt> for the Console</a></h3>
+
+<p>You need to recompile the boot loader to use a serial port other than <tt
+class="DEVICENAME">sio0</tt> for the serial console. Follow the procedure described in <a
+href="serialconsole-setup.html#SERIALCONSOLE-COM2">Section 22.6.5.2</a>.</p>
+</div>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="SERIALCONSOLE-CAVEATS" name="SERIALCONSOLE-CAVEATS">22.6.7
+Caveats</a></h2>
+
+<p>The idea here is to allow people to set up dedicated servers that require no graphics
+hardware or attached keyboards. Unfortunately, while most systems will let you boot
+without a keyboard, there are quite a few that will not let you boot without a graphics
+adapter. Machines with AMI BIOSes can be configured to boot with no graphics adapter
+installed simply by changing the “graphics adapter” setting in the CMOS configuration
+to “Not installed.”</p>
+
+<p>However, many machines do not support this option and will refuse to boot if you have
+no display hardware in the system. With these machines, you will have to leave some kind
+of graphics card plugged in, (even if it is just a junky mono board) although you will
+not have to attach a monitor. You might also try installing an AMI BIOS.</p>
+</div>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="dialout.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="ppp-and-slip.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">Dial-out Service</td>
+<td width="34%" align="center" valign="top"><a href="serialcomms.html"
+accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">PPP and SLIP</td>
+</tr>
+</table>
+</div>
+
+<p align="center"><small>This, and other documents, can be downloaded from <a
+href="ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/">ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/</a>.</small></p>
+
+<p align="center"><small>For questions about FreeBSD, read the <a
+href="http://www.FreeBSD.org/docs.html">documentation</a> before contacting &#60;<a
+href="mailto:questions@FreeBSD.org">questions@FreeBSD.org</a>&#62;.<br />
+For questions about this documentation, e-mail &#60;<a
+href="mailto:doc@FreeBSD.org">doc@FreeBSD.org</a>&#62;.</small></p>
+</body>
+</html>
+

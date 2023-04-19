@@ -1,0 +1,559 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN">
+
+<html>
+
+<head>
+
+<meta http-equiv="content-type" content="text/html; charset=iso-8859-1">
+
+<title>Debian Reference - Version Control Systems</title>
+
+</head>
+
+<body>
+
+<p><a name="ch-vcs"></a></p>
+<hr>
+
+<p>
+[ <a href="ch-edit.en.html">previous</a> ]
+[ <a href="index.en.html#contents">Contents</a> ]
+[ <a href="ch-preface.en.html">1</a> ]
+[ <a href="ch-system.en.html">2</a> ]
+[ <a href="ch-install.en.html">3</a> ]
+[ <a href="ch-tutorial.en.html">4</a> ]
+[ <a href="ch-woody.en.html">5</a> ]
+[ <a href="ch-package.en.html">6</a> ]
+[ <a href="ch-kernel.en.html">7</a> ]
+[ <a href="ch-tips.en.html">8</a> ]
+[ <a href="ch-tune.en.html">9</a> ]
+[ <a href="ch-gateway.en.html">10</a> ]
+[ <a href="ch-edit.en.html">11</a> ]
+[ 12 ]
+[ <a href="ch-program.en.html">13</a> ]
+[ <a href="ch-gnupg.en.html">14</a> ]
+[ <a href="ch-support.en.html">15</a> ]
+[ <a href="ap-appendix.en.html">A</a> ]
+[ <a href="ch-program.en.html">next</a> ]
+</p>
+
+<hr>
+
+<h1>
+Debian Reference
+<br>Chapter 12 - Version Control Systems
+</h1>
+
+<hr>
+
+<h2><a name="s-cvs"></a>12.1 Concurrent Versions System (CVS)</h2>
+
+<p>
+Check <code>/usr/share/doc/cvs/html-cvsclient</code>,
+<code>/usr/share/doc/cvs/html-info</code>, <code>/usr/share/doc/cvsbook</code>
+with <code>lynx</code> or run <samp>info cvs</samp> and <samp>man cvs</samp>
+for detailed information.
+</p>
+
+<hr>
+
+<h3><a name="s-cvs-inst"></a>12.1.1 Installing a CVS server</h3>
+
+<p>
+The following setup will allow commits to the CVS repository only by a member
+of the &quot;src&quot; group, and administration of CVS only by a member of the
+&quot;staff&quot; group, thus reducing the chance of shooting oneself.
+</p>
+
+<pre>
+     # cd <var>/var/lib</var>; umask 002; mkdir <var>cvs</var> # [Woody] FSH
+     # apt-get install cvs cvs-doc cvsbook
+     # export CVSROOT=<var>/var/lib/cvs</var>
+     # cd $CVSROOT
+     # chown root:src .  # &quot;staff&quot; to restrict more for starting project.
+     # chmod 3775 .             # If above uses &quot;staff&quot;, use 2775
+     # cvs -d <var>/var/lib/cvs</var> init # safer to specify -d here explicitly!
+     # cd CVSROOT
+     # chown -R root:staff .
+     # chmod 2775 .
+     # touch val-tags 
+     # chmod 664 history val-tags
+     # chown root:src history val-tags
+</pre>
+
+<hr>
+
+<h3><a name="s-cvs-examples"></a>12.1.2 CVS session examples</h3>
+
+<p>
+The following will set up shell environments for CVS repository access.
+</p>
+
+<hr>
+
+<h4><a name="s12.1.2.1"></a>12.1.2.1 Anonymous CVS (download only)</h4>
+
+<p>
+Read-only remote access:
+</p>
+
+<pre>
+     $ export CVSROOT=:pserver:<var>anonymous@cvs.sf.net:/cvsroot/qref</var>
+     $ cvs login
+     $ cvs -z3 co <var>qref</var>
+</pre>
+
+<hr>
+
+<h4><a name="s12.1.2.2"></a>12.1.2.2 Use local CVS server</h4>
+
+<p>
+Local access from a shell on the same machine:
+</p>
+
+<pre>
+     $ export CVSROOT=<var>/var/lib/cvs</var>
+</pre>
+
+<hr>
+
+<h4><a name="s12.1.2.3"></a>12.1.2.3 Use remote CVS pserver</h4>
+
+<p>
+Remote access without SSH (use RSH protocol capability in <code>cvs</code>):
+</p>
+
+<pre>
+     $ export CVSROOT=:pserver:<var>account@cvs.foobar.com:/var/lib/cvs</var>
+     $ cvs login
+</pre>
+
+<p>
+This is prone to eavesdropping attack.
+</p>
+
+<hr>
+
+<h4><a name="s12.1.2.4"></a>12.1.2.4 Use remote CVS through <code>ssh</code></h4>
+
+<p>
+Remote access with SSH:
+</p>
+
+<pre>
+     $ export CVSROOT=:ext:<var>account@cvs.foobar.com:/var/lib/cvs</var>
+</pre>
+
+<p>
+or for SourceForge:
+</p>
+
+<pre>
+     $ export CVSROOT=:ext:<var>account@cvs.sf.net:/cvsroot/qref</var>
+</pre>
+
+<p>
+You can also use RSA authentication (<a
+href="ch-tune.en.html#s-ssh-rsa">Connecting with fewer passwords &ndash; RSA,
+Section 9.5.3</a>), which eliminates the password prompt.
+</p>
+
+<hr>
+
+<h4><a name="s12.1.2.5"></a>12.1.2.5 Create a new CVS archive</h4>
+
+<p>
+For,
+</p>
+
+<pre>
+     ITEM              VALUE               MEANING
+     source tree:      ~/<var>project-x</var>         All source codes
+     Project name:     <var>project-x</var>           Name for this project
+     Vendor Tag:       <var>Main-branch</var>         Tag for the entire branch
+     Release Tag:      <var>Release-initial</var>     Tag for a specific release
+</pre>
+
+<p>
+Then,
+</p>
+
+<pre>
+     $ cd ~/<var>project-x</var>                # dive into source directory
+      ... create a source tree ...
+     $ cvs import -m <var>&quot;Start project-x&quot; project-x Main-branch Release-initial</var>
+     $ cd ..; rm -R ~/<var>project-x</var>
+</pre>
+
+<hr>
+
+<h4><a name="s12.1.2.6"></a>12.1.2.6 Work with CVS</h4>
+
+<p>
+To work with <var>project-x</var> using the local CVS repository:
+</p>
+
+<pre>
+     $ cd                            # move to the work area
+     $ cvs co <var>project-x</var>              # get sources from CVS to local
+     $ cd <var>project-x</var>
+      ... make changes to the content ...
+     $ cvs diff -u                   # similar to diff -u repository/ local/
+     $ cvs up -C <var>modified_file</var>       # undo changes to a file
+     $ cvs ci -m &quot;<var>Describe change</var>&quot;   # save local sources to CVS
+     $ vi <var>newfile_added</var>
+     $ cvs add <var>newfile_added</var>
+     $ cvs ci -m &quot;<var>Added newfile_added</var>&quot;
+     $ cvs up                        # merge latest version from CVS
+      ... to create all newly created subdirectories from CVS, use 
+      ... &quot;cvs up -d -P&quot; instead
+      ... watch out for lines starting with &quot;C <var>filename</var>&quot;
+      ... unmodified code is moved to `.#<var>filename</var>.version'
+      ... search for &quot;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&quot; and &quot;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&quot; in <var>filename</var>
+     $ cvs tag <var>Release-1</var>             # add release tag
+      ... edit further ...
+     $ cvs tag -d <var>Release-1</var>          # remove release tag
+     $ cvs ci -m &quot;<var>more comments</var>&quot;
+     $ cvs tag <var>Release-1</var>             # re-add release tag
+     $ cd                            # move back to the work area
+     $ cvs co -r <var>Release-initial</var> -d <var>old</var> <var>project-x</var>
+      ... get original version to <var>old</var> directory
+     $ cd old
+     $ cvs tag -b <var>Release-initial-bugfixes</var> # create branch (-b) tag
+      ... now you can work on the old version (Tag=sticky)
+     $ cvs update -d -P              # don't create empty directories
+      ... source tree now has sticky tag &quot;Release-initial-bugfixes&quot;
+      ... work on this branch
+     $ cvs up -d -P # sync with files modified by others on this branch
+     $ cvs ci -m &quot;<var>check into this branch</var>&quot;
+     $ cvs update -kk -A -d -P
+      ... remove sticky tag and forget contents
+      ... update from main trunk without keyword expansion
+     $ cvs update -kk -d -P -j <var>Release-initial-bugfixes</var>
+      ... Merge from <var>Release-initial-bugfixes</var> branch into the main 
+      ... trunk without keyword expansion.  Fix conflicts with editor.
+     $ cvs ci -m &quot;<var>merge Release-initial-bugfixes</var>&quot;
+     $ cd
+     $ tar -cvzf <var>old-project-x.tar.gz</var> <var>old</var>  # make archive, -j for bz2
+     $ cvs release -d <var>old</var>            # remove local source (optional)
+</pre>
+
+<p>
+Nice options to remember (use as first argument(s) to <code>cvs</code>):
+</p>
+
+<pre>
+     -n      dry run, no effect
+     -t      display messages showing steps of cvs activity
+</pre>
+
+<hr>
+
+<h4><a name="s12.1.2.7"></a>12.1.2.7 Export files from CVS</h4>
+
+<p>
+To get the latest version from CVS, use &quot;tomorrow&quot;:
+</p>
+
+<pre>
+     $ cvs ex -D tomorrow <var>module_name</var>
+</pre>
+
+<hr>
+
+<h4><a name="s12.1.2.8"></a>12.1.2.8 Administer CVS</h4>
+
+<p>
+Add alias to a project (local server):
+</p>
+
+<pre>
+     $ su - admin           # a member of staff
+     $ export CVSROOT=<var>/var/lib/cvs</var>
+     $ cvs co CVSROOT/modules
+     $ cd CVSROOT
+     $ echo &quot;<var>px</var> -a <var>project-x</var>&quot; &gt;&gt;modules
+     $ cvs ci -m &quot;<var>Now px is an alias for project-x</var>&quot;
+     $ cvs release -d .
+     $ exit                 # or Ctrl-D to get back from su
+     $ cvs co -d <var>project</var> <var>px</var> 
+      ... check out <var>project-x</var> (alias:<var>px</var>) from CVS to directory project
+     $ cd project
+      ... make changes to the content ...
+</pre>
+
+<hr>
+
+<h3><a name="s-cvs-trouble"></a>12.1.3 Troubleshooting CVS</h3>
+
+<hr>
+
+<h4><a name="s12.1.3.1"></a>12.1.3.1 File permissions in repository</h4>
+
+<p>
+CVS will not overwrite the current repository file but replaces it with another
+one.  Thus, <em>write permission to the repository directory</em> is critical.
+For every new repository creation, run the following to ensure this condition
+if needed.
+</p>
+
+<pre>
+     # cd <var>/var/lib/cvs</var>
+     # chown -R root:src <var>repository</var>
+     # chmod -R ug+rwX   <var>repository</var>
+     # chmod    2775     <var>repository</var>  # if needed, this and subdirectory
+</pre>
+
+<hr>
+
+<h4><a name="s12.1.3.2"></a>12.1.3.2 Execution bit</h4>
+
+<p>
+A file's execution bit is retained when checked out.  Whenever you see
+execution permission problems in checked-out files, change permissions of the
+file in the CVS repository with the following command.
+</p>
+
+<pre>
+     # chmod ugo-x <var>filename</var>
+</pre>
+
+<hr>
+
+<h3><a name="s-cvs-short"></a>12.1.4 CVS commands</h3>
+
+<p>
+Here are CVS commands with their shortcuts.
+</p>
+
+<pre>
+     {add|ad|new} [-k kflag] [-m 'message'] files...
+     {admin|adm|rcs} [rcs-options] files...
+     {annotate|ann} [options] [files...]
+     {checkout|co|get} [options] modules...
+     {commit|ci|com}   [-lnR]  [-m  'log_message'  |  -f  file] \
+             [-r revision] [files...]
+     {diff|di|dif} [-kl] [rcsdiff_options] [[-r rev1 | -D date1] \
+             [-r rev2 |  -D date2]] [files...]
+     {export|ex|exp} [-flNn] -r rev|-D date [-d dir] [-k kflag] module...
+     {history|hi|his} [-report] [-flags] [-options args] [files...]
+     {import|im|imp} [-options] repository vendortag releasetag...
+     {login|logon|lgn}
+     {log|lo|rlog} [-l] rlog-options [files...]
+     {rdiff|patch|pa} [-flags] [-V vn] [-r t|-D d [-r t2|-D d2]] modules...
+     {release|re|rel} [-d] directories...
+     {remove|rm|delete} [-lR] [files...]
+     {rtag|rt|rfreeze} [-falnR]  [-b]  [-d]  [-r  tag  |  -D  date] \
+              symbolic_tag modules...
+     {status|st|stat} [-lR] [-v] [files...]
+     {tag|ta|freeze} [-lR] [-F] [-b] [-d] [-r tag | -D date]  [-f] \
+              symbolic_tag [files...]
+     {update|up|upd} [-AdflPpR] [-d] [-r tag|-D date] files...
+</pre>
+
+<hr>
+
+<h2><a name="s-svn"></a>12.2 Subversion</h2>
+
+<p>
+Subversion is a next-generation version control system that is intended to
+replace CVS.  The developers currently consider it to be in the
+&quot;alpha&quot; stage, but it is probably stable enough for most uses.  At
+the time of this writing, Subversion is only available in Debian
+<samp>unstable</samp>.
+</p>
+
+<hr>
+
+<h3><a name="s-svn-inst"></a>12.2.1 Installing a Subversion server</h3>
+
+<p>
+The <code>subversion</code> meta-package depends on the packages needed
+(<code>libapache2-svn</code> and <code>subversion-tools</code>) to set up a
+server.
+</p>
+
+<hr>
+
+<h4><a name="s12.2.1.1"></a>12.2.1.1 Setting up a repository</h4>
+
+<p>
+Currently, the <code>subversion</code> package does not set up a repository, so
+one must be set up manually.  One possible location for a repository is in
+<code>/var/local/repos</code>.
+</p>
+
+<p>
+Create the directory:
+</p>
+
+<pre>
+     # mkdir -p /var/local/repos
+</pre>
+
+<p>
+Create the repository database:
+</p>
+
+<pre>
+     # svnadmin create /var/local/repos
+</pre>
+
+<p>
+Make the repository writable by the WWW server:
+</p>
+
+<pre>
+     # chown -R www-data:www-data /var/local/repos
+</pre>
+
+<hr>
+
+<h4><a name="s12.2.1.2"></a>12.2.1.2 Configuring Apache2</h4>
+
+<p>
+To allow access to the repository via user authentication, add (or uncomment)
+the following in <code>/etc/apache2/mods-available/dav_svn.conf</code>:
+</p>
+
+<pre>
+     &lt;Location /repos&gt;
+       DAV svn
+       SVNPath /var/local/repos
+       AuthType Basic
+       AuthName &quot;Subversion repository&quot;
+       AuthUserFile /etc/subversion/passwd
+       &lt;LimitExcept GET PROPFIND OPTIONS REPORT&gt;
+         Require valid-user
+       &lt;/LimitExcept&gt;
+     &lt;/Location&gt;
+</pre>
+
+<p>
+Then, create a user authentication file with the command:
+</p>
+
+<pre>
+     htpasswd2 -c /etc/subversion/passwd some-username
+</pre>
+
+<p>
+Restart Apache2, and your new Subversion repository will be accessible with the
+URL http://<var>hostname</var>/repos.
+</p>
+
+<hr>
+
+<h3><a name="s-svn-cvs"></a>12.2.2 Moving a CVS repository to Subversion</h3>
+
+<hr>
+
+<h3><a name="s-svn-usage"></a>12.2.3 Subversion usage examples</h3>
+
+<p>
+The following sections teach you how to use different commands in Subversion.
+</p>
+
+<hr>
+
+<h4><a name="s12.2.3.1"></a>12.2.3.1 Create a new Subversion archive</h4>
+
+<p>
+To create a new Subversion archive, type the following:
+</p>
+
+<pre>
+     $ cd ~/<var>your-project</var>         # go to your source directory
+     $ svn import http://localhost/repos <var>your-project</var> \
+       <var>project-name</var> -m &quot;initial project import&quot;
+</pre>
+
+<p>
+This creates a directory named <var>project-name</var> in your Subversion
+repository which contains your project files.  Look at http://localhost/repos/
+to see if it's there.
+</p>
+
+<hr>
+
+<h4><a name="s12.2.3.2"></a>12.2.3.2 Working with Subversion</h4>
+
+<p>
+Working with <var>project-y</var> using Subversion:
+</p>
+
+<pre>
+     $ cd                            # move to the work area
+     $ svn co http://localhost/repos/<var>project-y</var>  # Check out sources
+     $ cd <var>project-y</var>
+      ... do some work ...
+     $ svn diff                      # similar to diff -u repository/ local/  
+     $ svn revert <var>modified_file</var>      # undo changes to a file
+     $ svn ci -m &quot;<var>Describe changes</var>&quot;  # check in your changes to the repository
+     $ vi <var>newfile_added</var>
+     $ svn add <var>newfile_added</var>
+     $ svn add <var>new_dir</var>               # recursively add all files in new_dir
+     $ svn add -N <var>new_dir2</var>           # nonrecursively add the directory
+     $ svn ci -m &quot;Added <var>newfile_added</var>, <var>new_dir</var>, <var>new_dir2</var>&quot;
+     $ svn up                        # merge in latest version from repository
+     $ svn log                       # shows all changes committed
+     $ svn copy http://localhost/repos/<var>project-y</var> \
+           http://localhost/repos/<var>project-y-branch</var> \
+           -m &quot;creating my branch of <var>project-y</var>&quot;  # branching <var>project-y</var>
+     $ svn copy http://localhost/repos/<var>project-y</var> \
+           http://localhost/repos/<var>proj-y_release1.0</var> \
+           -m &quot;<var>project-y</var> 1.0 release&quot;    # added release tag
+      ... note that branching and tagging are the same. The only difference
+      ... is that branches get committed whereas tags do not.
+     
+      ... make changes to branch ...
+     
+     $ # merge branched copy back to main copy
+     $ svn merge http://localhost/repos/<var>project-y</var> \
+        http://localhost/repos/<var>project-y-branch</var>
+     $ svn co -r 4 http://localhost/repos/<var>project-y</var> # get revision 4
+</pre>
+
+<hr>
+
+<p>
+[ <a href="ch-edit.en.html">previous</a> ]
+[ <a href="index.en.html#contents">Contents</a> ]
+[ <a href="ch-preface.en.html">1</a> ]
+[ <a href="ch-system.en.html">2</a> ]
+[ <a href="ch-install.en.html">3</a> ]
+[ <a href="ch-tutorial.en.html">4</a> ]
+[ <a href="ch-woody.en.html">5</a> ]
+[ <a href="ch-package.en.html">6</a> ]
+[ <a href="ch-kernel.en.html">7</a> ]
+[ <a href="ch-tips.en.html">8</a> ]
+[ <a href="ch-tune.en.html">9</a> ]
+[ <a href="ch-gateway.en.html">10</a> ]
+[ <a href="ch-edit.en.html">11</a> ]
+[ 12 ]
+[ <a href="ch-program.en.html">13</a> ]
+[ <a href="ch-gnupg.en.html">14</a> ]
+[ <a href="ch-support.en.html">15</a> ]
+[ <a href="ap-appendix.en.html">A</a> ]
+[ <a href="ch-program.en.html">next</a> ]
+</p>
+
+<hr>
+
+<p>
+Debian Reference
+</p>
+
+<address>
+CVS, Mon Jun 16 21:20:26 UTC 2008<br>
+<br>
+Osamu Aoki <code><a href="mailto:osamu#at#debian.org">osamu#at#debian.org</a></code><br>
+<a href="ap-appendix.en.html#s-authors">Authors, Section A.1</a><br>
+<br>
+</address>
+<hr>
+
+</body>
+
+</html>
+

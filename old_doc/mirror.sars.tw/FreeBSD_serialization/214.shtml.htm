@@ -1,0 +1,97 @@
+
+
+<!-- Vignette StoryServer 4 Sat Mar 11 15:43:24 2000 --> 
+<style type=text/css>
+<!--
+p,div {font-size:12pt; line-height:14pt; font-family:宋體;}
+.p1{font-size:12pt;font-family:宋體;}
+.p2{font-size:12pt;font-family:宋體;line-height:14pt;}
+.p3{font-size:14.8px;font-family:宋體;}
+.p4{font-size:14.8px;font-family:宋體;line-height:14pt;}
+.p5{font-size:1pt}
+a:hover{color:red;}
+a.t1:visited{color:red;}
+-->
+</style>
+<title>FreeBSD使用大全</title></head>
+
+<body bgcolor="#FFFFFF" text="#000000" link="#383098" vlink="#336699" alink="#FF0000" topmargin="0">
+<!-- Vignette StoryServer 4 Thu Mar 23 10:01:54 2000 --> <!-- Vignette StoryServer 4 Thu Mar 23 15:34:35 2000 --> 
+
+<!--開始：新聞內容-->
+<TABLE WIDTH=750 BORDER=0 CELLSPACING=0 CELLPADDING=0>
+
+<tr valign=top>
+
+
+
+<TD  valign=top>
+<CENTER><FONT COLOR=#000066 size=5><B>FreeBSD連載(91)：提升靜態網頁服務能力的綜合方式</B><br></FONT></CENTER>
+
+<HR  ALIGN="center" SIZE=1>
+<CENTER><FONT FACE="Arial" SIZE=2> 2000年2月1日 13:24 </FONT><FONT COLOR="#990000" SIZE=2>王波</FONT></CENTER><p>
+
+<h1 align=center>提升靜態網頁服務能力的綜合方式</h1>
+
+<p>　　由於真正的HTTP請求常常是混合了靜態請求和動態頁面請求，那麼很難調整Apache的設置使其既能適合靜
+態網頁請求，又能適合動態網頁請求。為了提升Web服務的性能，還可以使用多個伺服器，來幫助提升伺服器性能。</p>
+
+<ul><h2><P><LI>代理伺服器的加速模式</LI></P></h2></ul>
+
+<p>　　由於Apache伺服器不能夠特別高效的提供靜態網頁服務，那麼就可以使用一些輔助手段來幫助Apache服
+務器來高效的實現靜態網頁服務。一個有效的方法為使用代理伺服器Squid，Squid具備一種加速模式，這個模式下
+Squid能將所有的HTTP請求轉發給內部的真正Web伺服器。然而由於Squid是單進程的伺服器，這樣就不會因
+為並發訪問而產生大負載，並且它具備對靜態網頁的緩存功能，使得Squid不必每次都需要訪問後端Web伺服器。因此
+使用Squid能明顯減輕對靜態網頁頻繁訪問造成的負載問題。</p>
+
+<p>　　由於Squid不會帶來很大的CPU負載，因此不必要讓Squid單獨運行在一台伺服器上，可以讓Squid
+和Apache伺服器同時運行在一台伺服器上，這樣通過對磁碟I/O產生一些額外的負載，但能有效的增加靜態網頁的服
+務能力。</p>
+
+<p>　　請查看Squid的手冊以得到如何設置加速模式的方法，Squid軟體包含在FreeBSD的Packages Collection中。</p>
+
+<ul><h2><P><LI>分離靜態網頁伺服器和動態網頁伺服器</LI></P></h2></ul>
+
+<p>　　由於Apache提供靜態網頁的服務能力不佳，那麼可以將靜態請求交給效率較高的伺服器軟體，如thttpd
+，而動態請求較給Apache伺服器來執行處理。這樣的缺點就是其他的簡易Web伺服器不能提供Apache伺服器一
+樣的豐富功能，因此雖然這樣做會提升效率，但一般並不建議這樣設置伺服器。</p>
+
+<p>　　考慮到Apache伺服器的設置因素，如果設置合適，Apache伺服器本身就能提供高效的靜態頁面服務，只
+是當靜態頁面和動態頁面混合的時候，就無法決定最優設置。尤其是當Apache支持了一些特定模塊的時候，這些模塊將
+使用大量的內存（例如一個mod_perl可能占據10M以上的內存空間），使得即使這個伺服器是提供靜態網頁服務時
+，也要占用那麼多內存，這樣就使得為動態網頁定制的設置完全不適合靜態網頁。</p>
+
+<p>　　因此為了解決伺服器的不同情況下的優化設置不同的問題，就可以在一台電腦同時運行兩個Apache伺服器，
+一個比較純粹，沒有支持額外的模塊，只是為了和第二個伺服器協作，需要支持proxy模塊，用於支持靜態網頁，同時提
+供對第二個Apache伺服器的代理請求，第二個Apache伺服器可以載入複雜的模塊，以支持動態網頁。</p>
+
+<p>　　兩個Apache伺服器可以根據不同的需要，進行不同的參數調整。第一個Apache伺服器只進行靜態網頁服
+務和代理服務，因此可以將MaxClients設置的較大，而第二個Apache伺服器要提供消耗處理器能力的動態網
+頁服務，因此就要將MaxClients設置的較小。此時在第一個Apache伺服器上設置其代理功能，雖然Apache
+的代理能力比不上Squid優秀，然而這簡化了伺服器的種類，並能使用同一的訪問控制手段。</p>
+
+<p>　　此時代理伺服器是用於代理動態網頁請求，和前面使用Squid代理靜態網頁請求的目的不同。但是也可以適用
+Squid，在外部訪問靜態網頁的時候，它代理訪問第一個Web伺服器，訪問動態網頁的時候，代理訪問第二個Web服務
+器。</p>
+
+<p>　　當使用這種設置方式的時候，為了使得外部客戶訪問第一個伺服器時能自動代理到第二個伺服器上，就需要在第一個
+Apache上使用ProxyPass參數進行設置，將用於動態網頁的CGI請求轉發給第二個伺服器。此時就有不同的
+選擇，可以使用兩個電腦各自運行一個Web伺服器，也可以在一台電腦上安裝兩個Apache伺服器，第一個伺服器
+監聽普通的80端口，而第二個伺服器監聽其他端口，例如3456，在第一個伺服器的httpd.conf中設置ProxyPass：</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>ProxyPass /cgi-/bin/ http://localhost:3456/cgi-bin/</td></pre></tr></table>
+
+<p>　　當在一個電腦上安裝兩個Apache伺服器的時候，必須注意安裝路徑的問題。至少有一個伺服器不能使用
+Ports Collection直接安裝，應該更改過路徑設置編譯安裝。</p>
+
+
+<BR>
+
+</TD>
+</TR></TABLE>
+
+
+
+</BODY>
+</HTML>

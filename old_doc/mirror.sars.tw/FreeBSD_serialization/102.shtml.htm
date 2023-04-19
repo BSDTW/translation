@@ -1,0 +1,117 @@
+
+
+<!-- Vignette StoryServer 4 Sat Mar 11 15:43:24 2000 --> 
+<style type=text/css>
+<!--
+p,div {font-size:12pt; line-height:14pt; font-family:宋體;}
+.p1{font-size:12pt;font-family:宋體;}
+.p2{font-size:12pt;font-family:宋體;line-height:14pt;}
+.p3{font-size:14.8px;font-family:宋體;}
+.p4{font-size:14.8px;font-family:宋體;line-height:14pt;}
+.p5{font-size:1pt}
+a:hover{color:red;}
+a.t1:visited{color:red;}
+-->
+</style>
+<title>FreeBSD使用大全</title></head>
+
+<body bgcolor="#FFFFFF" text="#000000" link="#383098" vlink="#336699" alink="#FF0000" topmargin="0">
+<!-- Vignette StoryServer 4 Thu Mar 23 10:01:54 2000 --> <!-- Vignette StoryServer 4 Thu Mar 23 15:34:35 2000 --> 
+
+<!--開始：新聞內容-->
+<TABLE WIDTH=750 BORDER=0 CELLSPACING=0 CELLPADDING=0>
+
+<tr valign=top>
+
+
+
+<TD  valign=top>
+<CENTER><FONT COLOR=#000066 size=5><B>FreeBSD連載(26)：進程的權限</B><br></FONT></CENTER>
+
+<HR  ALIGN="center" SIZE=1>
+<CENTER><FONT FACE="Arial" SIZE=2> 1999年11月28日 18:31 </FONT><FONT COLOR="#990000" SIZE=2>王波</FONT></CENTER><p>
+
+<h1 align=center>進程的權限</h1>
+
+<p>　　由於FreeBSD是多用戶系統，因此進程必須要受到權限的控制和保護。出於安全性的考慮，一個用戶不可能殺
+死其他用戶啟動的進程，一個進程也不能非法存取其他用戶的檔案數據。只有超級用戶和超級用戶啟動的進程才有最大的權限
+，普通進程就只與進程的執行者相關，只具有這個用戶的權限。</p>
+
+<p>　　一些情況下（特別是執行系統維護任務時），要求普通用戶也能完成特殊權限的任務，那麼就必須在進程執行過程中
+改變進程的身份。改變進程的身份則必須同時具備兩個要求：程序檔案本身具有SetUID或SetGID屬性，同時程序
+中需要相應調用setuid()或setgid()系統調用，這兩個系統調用能夠檢查檔案的屬性，並完成更改進程權限
+的操作。</p>
+
+<p>　　通常只有系統程序才需要利用這兩個屬性，例如系統程序su允許普通用戶成為root用戶，就使用的是這個能力
+。
+</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>$ ls -l a*
+<br>-rwxr-xr-x   1 user  wheel  3212 Dec  4 12:36 a1
+<br>-rwxr-xr-x   1 user  wheel  3212 Dec  4 12:36 a2
+<br>$ chmod u+s a1
+<br>$ ls -l a*
+<br>-rwsr-xr-x   1 user  wheel  3212 Dec  4 12:36 a1
+<br>-rwxr-xr-x   1 user  wheel  3212 Dec  4 12:36 a2
+<br>$ chmod g+s a2
+<br>$ ls -l a*
+<br>-rwsr-xr-x   1 user  wheel  3212 Dec  4 12:36 a1
+<br>-rwxr-sr-x   1 user  wheel  3212 Dec  4 12:36 a2</td></pre></tr></table>
+
+<p>　　上面第一個chmod（chmod u+s a.out）為a.out增加設置屬主身份權限，然後列表中對應
+屬主的執行權限位的 “x” 標志將改變為 “s” （檔案屬性顯示為rw<B>s</B>r-xr-x）。第二個c
+hmod （chmod g+s a.out）為a.out增加設置組身份權限，則列表中對應組的執行權限位的 “x
+” 標志將改變為 “s” （檔案屬性顯示為rwxr-<B>s</B>r-x）。同樣，SetUID和SetGID
+屬性也都有相應的八進制表示方式，SetUID為04000，後面的三個八進制位屬於檔案的讀寫訪問屬性設置，相應S
+etGID為02000，它們兩個屬性位處於讀寫屬性位之前。下面是一個更改屬性設置的例子：
+</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># ls -l /bin/ps
+<br>-r-xr-sr-x  1 bin  kmem 163840 May  6 06:02 /bin/ps
+<br># chmod a=r /bin/ps
+<br># su user
+<br>$ ps
+<br>bash: ps: Permission denied
+<br>$ ^D
+<br># chmod a+x /bin/ps
+<br># su user
+<br>$ ps
+<br>ps: /dev/mem: Permission denied
+<br>$ ^D
+<br># chmod g+s /bin/ps
+<br># su user
+<br>$ ps
+<br>  PID  TT  STAT      TIME COMMAND
+<br>  226  p2  S      0:00.56 bash
+<br>  239  p2  R+     0:00.02 ps
+<br>$</td></pre></tr></table>
+
+
+<p>　　第一次以user身份執行ps時，ps的檔案屬性被改為對所有用戶只有讀權限，因此不能執行，shell報告
+Permission denied﹔第二次以user身份執行ps時，ps報告不能打開/dev/mem檔案，這是
+因為普通用戶無權存取內存映象檔案。而第三次執行ps時，由於設置了setgid位，和kmem同組的進程就能夠打開
+/dev/mem檔案，從而正確執行了ps程序。</p>
+
+<p>　　具有SetUID或SetGID屬性的程序，能夠在進程執行中調用系統調用setuid()或setgid()
+，調用成功後這個進程就具有了程序檔案屬主和組的權限，就可以完成以前改變身份之前不能完成的任務。因為通過它們程
+序可以改變進程的用戶標識，繞過系統的權限設置，因此這兩個屬性對於系統安全非常重要。尤其是屬於root的檔案，並
+設置了SetUID屬性的程序，更是系統安全中值得注意的地方。為了保証系統安全，必須保証沒有非法的SetUID或
+SetGID程序的存在，通常管理員可以使用find命令來完成這個任務，例如查找具有SetUID的程序，則執行：</p>
+
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># find / -perm 4000 -print</td></pre></tr></table>
+
+
+
+<BR>
+
+</TD>
+</TR></TABLE>
+
+
+
+</BODY>
+</HTML>

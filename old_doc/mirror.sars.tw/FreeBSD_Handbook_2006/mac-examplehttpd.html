@@ -1,0 +1,195 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>Another Example: Using MAC to Constrain a Web Server</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.79" />
+<link rel="HOME" title="FreeBSD 使用手冊" href="index.html" />
+<link rel="UP" title="Mandatory Access Control" href="mac.html" />
+<link rel="PREVIOUS" title="Implementing a Secure Environment with MAC"
+href="mac-implementing.html" />
+<link rel="NEXT" title="Troubleshooting the MAC Framework"
+href="mac-troubleshoot.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD 使用手冊</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="mac-implementing.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 15 Mandatory Access Control</td>
+<td width="10%" align="right" valign="bottom"><a href="mac-troubleshoot.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="MAC-EXAMPLEHTTPD" name="MAC-EXAMPLEHTTPD">15.15 Another Example:
+Using MAC to Constrain a Web Server</a></h1>
+
+<p>A separate location for the web data which users must be capable of accessing will be
+appointed. This will permit <tt class="LITERAL">biba/high</tt> processes access rights to
+the web data.</p>
+
+<p>Begin by creating a directory to store the web data in:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">mkdir /usr/home/cvs</kbd>
+</pre>
+
+<p>Now initialize it with <tt class="COMMAND">cvs</tt>:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">cvs -d /usr/home/cvs init</kbd>
+</pre>
+
+<p>The first goal is to enable the <tt class="LITERAL">biba</tt> policy, thus the <tt
+class="LITERAL">mac_biba_enable="YES"</tt> should be placed in <tt
+class="FILENAME">/boot/loader.conf</tt>. This assumes that support for <acronym
+class="ACRONYM">MAC</acronym> has been enabled in the kernel.</p>
+
+<p>From this point on everything in the system should be set at <tt
+class="LITERAL">biba/high</tt> by default.</p>
+
+<p>The following modification must be made to the <tt class="FILENAME">login.conf</tt>
+file, under the default user class:</p>
+
+<pre class="PROGRAMLISTING">
+:ignoretime@:\
+    :umask=022:\
+    :label=biba/high:
+</pre>
+
+<p>Every user should now be placed in the default class; a command such as:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">for x in `awk -F: '($3 &#62;= 1001) &#38;&#38; ($3 != 65534) { print $1 }' \</kbd>
+    <kbd class="USERINPUT">/etc/passwd`; do pw usermod $x -L default; done;</kbd>
+</pre>
+
+<p>will accomplish this task in a few moments.</p>
+
+<p>Now create another class, web, a copy of default, with the label setting of <tt
+class="LITERAL">biba/low</tt>.</p>
+
+<p>Create a user who will be used to work with the main web data stored in a <b
+class="APPLICATION">cvs</b> repository. This user must be placed in our new login class,
+<tt class="USERNAME">web</tt>.</p>
+
+<p>Since the default is <tt class="LITERAL">biba/high</tt> everywhere, the repository
+will be the same. The web data must also be the same for users to have read/write access
+to it; however, since our web server will be serving data that <tt
+class="LITERAL">biba/high</tt> users must access, we will need to downgrade the data as a
+whole.</p>
+
+<p>The perfect tools for this are <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=sh&amp;sektion=1"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">sh</span>(1)</span></a> and <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=cron&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">cron</span>(8)</span></a> and are
+already provided in FreeBSD. The following script should do everything we want:</p>
+
+<pre class="PROGRAMLISTING">
+PATH=/bin:/usr/bin:/usr/local/bin; export PATH;
+CVSROOT=/home/repo; export CVSROOT;
+cd /home/web;
+cvs -qR checkout -P htdocs;
+exit;
+</pre>
+
+<div class="NOTE">
+<blockquote class="NOTE">
+<p><b>Note:</b> In many cases the <tt class="COMMAND">cvs</tt> Id tags must be placed
+into the web site data files.</p>
+</blockquote>
+</div>
+
+<p>This script may now be placed into <tt class="USERNAME">web</tt>'s home directory and
+the following <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=crontab&amp;sektion=1"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">crontab</span>(1)</span></a> entry
+added:</p>
+
+<pre class="PROGRAMLISTING">
+# Check out the web data as biba/low every twelve hours:
+0       */12       *       *       *       web    /home/web/checkout.sh
+</pre>
+
+<p>This will check out the <acronym class="ACRONYM">HTML</acronym> sources every twelve
+hours on the machine.</p>
+
+<p>The default startup method for the web server must also be modified to start the
+process as <tt class="LITERAL">biba/low</tt>. This can be done by making the following
+modification to the <tt class="FILENAME">/usr/local/etc/rc.d/apache.sh</tt> script:</p>
+
+<pre class="PROGRAMLISTING">
+command="setpmac biba/low /usr/local/sbin/httpd"
+</pre>
+
+<p>The <b class="APPLICATION">Apache</b> configuration must be altered to work with the
+<tt class="LITERAL">biba/low</tt> policy. In this case the software must be configured to
+append to the log files in a directory set at <tt class="LITERAL">biba/low</tt> or else
+“<tt class="ERRORNAME">access denied</tt>” errors will be returned.</p>
+
+<div class="NOTE">
+<blockquote class="NOTE">
+<p><b>Note:</b> Following this example requires that the <tt class="LITERAL">docroot</tt>
+directive be set to <tt class="FILENAME">/home/web/htdocs</tt>; otherwise, <b
+class="APPLICATION">Apache</b> will fail when trying to locate the directory to serve
+documents from.</p>
+</blockquote>
+</div>
+
+<p>Other configuration variables must be altered as well, including the <acronym
+class="ACRONYM">PID</acronym> file, <tt class="LITERAL">Scoreboardfile</tt>, <tt
+class="LITERAL">DocumentRoot</tt>, log file locations, or any other variable which
+requires write access. When using <tt class="LITERAL">biba</tt>, all write access will be
+denied to the server in areas <span class="emphasis"><i class="EMPHASIS">not</i></span>
+set at <tt class="LITERAL">biba/low</tt>.</p>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="mac-implementing.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="mac-troubleshoot.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">Implementing a Secure Environment with MAC</td>
+<td width="34%" align="center" valign="top"><a href="mac.html" accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">Troubleshooting the MAC Framework</td>
+</tr>
+</table>
+</div>
+
+<p align="center"><small>This, and other documents, can be downloaded from <a
+href="ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/">ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/</a>.</small></p>
+
+<p align="center"><small>For questions about FreeBSD, read the <a
+href="http://www.FreeBSD.org/docs.html">documentation</a> before contacting &#60;<a
+href="mailto:questions@FreeBSD.org">questions@FreeBSD.org</a>&#62;.<br />
+For questions about this documentation, e-mail &#60;<a
+href="mailto:doc@FreeBSD.org">doc@FreeBSD.org</a>&#62;.</small></p>
+</body>
+</html>
+

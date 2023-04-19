@@ -1,0 +1,340 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<HTML
+><HEAD
+><TITLE
+>14. 大量刪帳號</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="網路管理語言 Perl 入門與實作"
+HREF="book1.html"><LINK
+REL="PREVIOUS"
+TITLE="13. 系統記錄檔分析"
+HREF="c1174.html"><LINK
+REL="NEXT"
+TITLE="15. 過濾求職信病毒"
+HREF="c1185.html"></HEAD
+><BODY
+CLASS="CHAPTER"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>網路管理語言 Perl 入門與實作: </TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="c1174.html"
+ACCESSKEY="P"
+>&#60;&#60;&#60; Previous</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="c1185.html"
+ACCESSKEY="N"
+>Next &#62;&#62;&#62;</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="CHAPTER"
+><H1
+><A
+NAME="CHE"
+></A
+>14. 大量刪帳號</H1
+><P
+>ols3scandir.pl</P
+><P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+>#! /usr/bin/perl
+######################################################################
+# 臥龍小三大量刪除帳號工具      Version 1.0.1 [for RedHat Linux]     #
+# Copyright 1999 OLS3           mskuo@ms9.hinet.net                  #
+# 程式名稱: ols3delact.pl  及  ols3scandir.pl [臥龍小三工具箱系列]   #
+# 初版 11/01/99                 最後修改日期 11/23/99                #
+# 發行站台: http://www.ols3-cgi.com/ 臥龍小三CGI天堂                 #
+######################################################################
+# 版權宣告:                                                          #
+# Copyright 1999 OLS3 All Rights Reserved.                           #
+# 本工具程式意旨供 RedHat Linux 愛好者使用,                          #
+# 願以 GPL (GNU General Public Licence) 發行.                        #
+######################################################################
+# 注意事項:                                                          #
+# 您必須審慎評估使用本程式是否會對您的軟硬體造成損害，若有任何意     #
+# 外，本人不負任何責任。(換言之, 使用本程式要有不怕死的精神! ^_^)    #
+######################################################################
+# 使用方法:                                                          #
+# 1. 以 root 身份登入主機, 然後將程式放入 /root 中, 並給予執行權!    #
+# 如下所示:                                                          #
+#          chmod u+x ols3scandir.pl 及 chmod u+x ols3delact.pl       #
+#                                                                    #
+# 2. 執行 ./ols3scandir.pl /home ?                                   #
+#                                                                    #
+# 這個步驟用來掃瞄 /home 之下有那些帳號目錄, 如果, 您的主機中, 帳號  #
+# 是建置於 /home/users, 那麼, 就要執行 ./ols3scandir.pl /home/users  #
+#                                                                    #
+# 之後, 它會將帳號目錄名稱寫入 dir_list 這個記錄檔中, 您可以用 vi 來 #
+# 編輯它, 將不想要刪除的帳號名稱去除.                                #
+#                                                                    #
+# 3. 執行 ./ols3delact.pl , 即可刪除大量帳號.(根據 dir_list 的記錄)  #
+#                                                                    #
+# 本程式會保護: /home/ftp, /home/httpd, /home/lost+found, /home/adm  #
+# /home/webadm, /home/webmaster 等目錄及帳號, 不會予以刪除.          #
+#                                                                    #
+# 本程式完成以下幾件事:                                              #
+#     a. 刪除自家目錄(Home Directory)                                #
+#     b. 備份 /etc/passwd , /etc/shadow 及 /etc/group                #
+#     c. 將帳號自 /etc/passwd , /etc/shadow, /etc/group 去除.        #
+#                                                                    #
+# 注意: 各個帳號的信包 "/var/spool/mail/帳號", 並沒有刪除!           #
+# 一般而言, 新建的帳號大都沒有信包檔. 如果您要此一功能, 請自行增添.  #
+#                                                                    #
+# 4. 本程式自動幫您備份 /etc/passwd, /etc/shadow, /etc/group         #
+#                                                                    #
+# 備份檔名格式為:                                                    #
+#    /etc/passwd-YYYYMMDDhhmmss 及 /etc/shadow-YYYYMMDDhhmmss        #
+#    (如:/etc/passwd-19991101093217  /etc/shadow-19991101093217)     #
+######################################################################
+use strict;
+my $dir=$ARGV[0];
+if (!$ARGV[0]) {
+  print "Hey! Notice!\n";
+  print "*** Usage: ./scandir.pl Directory\n";
+  print "*** Example: ./scandir.pl /home\n";
+  exit;
+}
+
+opendir (DIR, $dir) || die "$!\n";
+my @file=readdir(DIR);
+closedir(DIR);
+
+open(FHD, "&#62; dir_list") || die "$!\n";
+my $file;  
+foreach $file (@file) {
+  unless (($file eq '.')||($file eq '..')) {
+    if (-d "$dir/$file") {print FHD "$dir/$file\n";}
+  }
+}
+close(FHD);
+
+print qq(Please check the file: "dir_list"\n);
+print qq(and run ./delact.pl\n);</PRE
+></TD
+></TR
+></TABLE
+></P
+><P
+>ols3delact.pl</P
+><P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+>#!/usr/bin/perl
+
+use strict;
+use File::Copy;
+use File::Basename;
+
+$|=1;
+
+open(FHD, "dir_list") || die "$!\n";
+my @dir=&#60;FHD&#62;;
+close(FHD);
+
+my $time=get_time();
+my $backup_pwd="/etc/passwd"."-$time";
+my $backup_shadow="/etc/shadow"."-$time";
+my $backup_group="/etc/group"."-$time";
+copy("/etc/passwd", $backup_pwd);
+copy("/etc/shadow", $backup_shadow);
+copy("/etc/group", $backup_group);
+
+chmod 0400 , $backup_shadow;
+
+system("/usr/sbin/pwunconv");
+my $dir;
+foreach $dir (@dir) {
+  chomp $dir;
+  unless (($dir eq '/home/ftp')||
+          ($dir eq '/home/httpd')||
+          ($dir eq '/home/lost+find')||
+          ($dir eq '/home/webadm')||
+          ($dir eq '/home/adm')||
+          ($dir eq '/home/webmaster')||
+          ($dir eq '/home/ols3')
+          ) 
+  { system("rm -Rf $dir");}
+}
+
+open(PWD, "/etc/passwd") || die "$!\n";
+my @act=&#60;PWD&#62;;
+close(PWD);
+
+open(PWD, "&#62; /etc/passwd") || die "$!\n";
+my $line; my ($f1, $f2);
+foreach $line (@act) {
+  ($f1, $f2)=split(/:/, $line);
+  unless (killit($f1, \@dir)) {
+    print PWD $line;
+  }
+}
+close(PWD);
+system("/usr/sbin/pwconv");
+
+open(GRP, "/etc/group") || die "$!\n";
+my @grp=&#60;GRP&#62;;
+close(GRP);
+
+open(GRP, "&#62; /etc/group") || die "$!\n";
+foreach $line (@grp) {
+  ($f1, $f2)=split(/:/, $line);
+  unless (killit($f1, \@dir)) {
+    print GRP $line;
+  }
+}
+close(GRP);
+
+print "Done!\n";
+
+sub killit {
+  my ($name, $harray)=@_;
+  my ($dir,$account);
+  if (
+      ($name eq 'ftp')||
+      ($name eq 'httpd')||
+      ($name eq 'lost+found')||
+      ($name eq 'webadm')||
+      ($name eq 'adm')||
+      ($name eq 'webmaster')||
+      ($name eq 'ols3')
+     )
+  { return 0;}
+  foreach $dir (@$harray) {
+    $account=basename($dir);
+    if ($name eq $account) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
+sub get_time {
+  my ($sec,$min,$hour,$day,$mon,$year)=localtime(time);
+  $mon++;
+  if (length ($mon) == 1) {$mon = '0'.$mon;}
+  if (length ($day) == 1) {$day = '0'.$day;}
+  if (length ($hour) == 1) {$hour = '0'.$hour;}
+  if (length ($min) == 1) {$min = '0'.$min;}
+  if (length ($sec) == 1) {$sec = '0'.$sec;}
+  $year=$year+1900;
+  my $alltime="$year$mon$day$hour$min$sec";
+  return $alltime;
+}</PRE
+></TD
+></TR
+></TABLE
+></P
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="c1174.html"
+ACCESSKEY="P"
+>&#60;&#60;&#60; Previous</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="book1.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="c1185.html"
+ACCESSKEY="N"
+>Next &#62;&#62;&#62;</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>13. 系統記錄檔分析</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>15. 過濾求職信病毒</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

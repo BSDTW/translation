@@ -1,0 +1,699 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>Chapter 38. Threads</title>
+    <link rel="stylesheet" type="text/css" href="docbook-xsl-mymods.css" />
+    <meta name="generator" content="DocBook XSL Stylesheets V1.76.0" />
+    <link rel="home" href="index.html" />
+    <link rel="up" href="pt07.html" />
+    <link rel="prev" href="ch37.html" />
+    <link rel="next" href="ch39.html" />
+  </head>
+  <body>
+    <div class="mattnotice">
+      <p>As a courtesy, this is a <b>full free</b> rendering of my book, <i>Programming iOS 6</i>, by Matt Neuburg. Copyright 2013 Matt Neuburg. Please note that this book has now been completely superseded by two more recent books, <a href="http://shop.oreilly.com/product/0636920032465.do">iOS 7 Fundamentals</a> and <a href="http://shop.oreilly.com/product/0636920031017.do">Programming iOS 7</a>. If my work has been of help to you, please <b>consider purchasing</b> one or both of them. Thank you!
+	</p>
+    </div>
+    <div class="navfooter">
+      <table width="100%" summary="Navigation footer">
+        <tr>
+          <td width="40%" align="left"><a accesskey="p" href="ch37.html">Prev</a> </td>
+          <td width="20%" align="center">
+            <a accesskey="u" href="pt07.html">Up</a>
+          </td>
+          <td width="40%" align="right"> <a accesskey="n" href="ch39.html">Next</a></td>
+        </tr>
+        <tr>
+          <td width="40%" align="left" valign="top">Chapter 37. Basic Networking </td>
+          <td width="20%" align="center">
+            <a accesskey="h" href="index.html">Table of Contents</a>
+          </td>
+          <td width="40%" align="right" valign="top"> Chapter 39. Undo</td>
+        </tr>
+      </table>
+    </div>
+    <div class="chapter">
+      <div class="titlepage">
+        <div>
+          <div>
+            <h2 class="title"><a id="chap_id38"></a>Chapter 38. Threads</h2>
+          </div>
+        </div>
+      </div>
+      <p>A <span class="emphasis"><em>thread</em></span> is, simply put, a subprocess of your app that can execute even while other subprocesses are also executing. Such simultaneous execution is called <span class="emphasis"><em>concurrency</em></span>. The iOS frameworks use threads all the time; if they didn’t, your app would be less responsive to the user — perhaps even completely unresponsive. The genius of the frameworks, though, is that, for the most part, they use threads precisely so that you don’t have to.<a id="idm441639653312" class="indexterm"></a>
+<a id="idxthreads" class="indexterm"></a></p>
+      <p>For example, suppose your app is downloading something from the network (<a class="xref" href="ch37.html">Chapter 37</a>). This download doesn’t happen all by itself; somewhere, someone is running code that interacts with the network and obtains data. Similarly, how does Core Motion work (<a class="xref" href="ch35.html">Chapter 35</a>)? The data from the sensors is being gathered and processed constantly, with extra calculations to separate gravity from user-induced acceleration and to account for bias and scaling in the gyroscope. Yet none of that prevents your code from running; none of that prevents the user from tapping and swiping things in your interface. That’s concurrency in action.</p>
+      <p>It is a testament to the ingenuity of the iOS frameworks that this book has proceeded so far with so little mention of threads. Indeed, it would have been nice to avoid the topic altogether. Threads are difficult and dangerous, and if at all possible you should avoid them. But sometimes that <span class="emphasis"><em>isn’t</em></span> possible. So this chapter introduces threads, along with a warning: threads entail complications and subtle pitfalls, and can make your code hard to debug. There is much more to threading, and especially to making your threaded code safe, than this chapter can possibly touch on. For detailed information about the topics introduced in this chapter, read Apple’s <span class="emphasis"><em>Concurrency Programming Guide</em></span> and <span class="emphasis"><em>Threading Programming Guide</em></span>.</p>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_the_main_thread"></a>The Main Thread</h2>
+            </div>
+          </div>
+        </div>
+        <p>You are always using <span class="emphasis"><em>some</em></span> thread. All your code must run somewhere; “somewhere” means a thread. When code calls a method, that method normally runs on the same thread as the code that called it. Your code is called through events (<a class="xref" href="ch11.html">Chapter 11</a>); those events normally call your code on the <span class="emphasis"><em>main thread</em></span>. The main thread has certain special properties:<a id="idm441639641696" class="indexterm"></a>
+<a id="idm441639640400" class="indexterm"></a></p>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+The main thread automatically has a run loop.
+</span>
+            </dt>
+            <dd>
+A <span class="emphasis"><em>run loop</em></span> is a recipient of events.<a id="idm441639637392" class="indexterm"></a> It is how your code is notified that something is happening; without a run loop, a thread can’t receive events. Cocoa events normally arrive on the main thread’s run loop; that’s why your code, called by those events, executes on the main thread.
+</dd>
+            <dt>
+              <span class="term">
+The main thread is the interface thread.
+</span>
+            </dt>
+            <dd>
+When the <span class="emphasis"><em>user</em></span> interacts with the interface, those interactions are reported as events — on the main thread. When <span class="emphasis"><em>your code</em></span> interacts with the interface, it too must do so on the main thread. Of course that will normally happen automatically, because your code normally runs on the main thread.<a id="idm441639632880" class="indexterm"></a>
+<a id="idm441639631632" class="indexterm"></a>
+</dd>
+          </dl>
+        </div>
+        <div class="sidebar">
+          <div class="titlepage">
+            <div>
+              <div>
+                <p class="title">What Is Concurrency, Really?</p>
+              </div>
+            </div>
+          </div>
+          <p>Part of the power of threads is that they implement concurrency without your having to worry about precisely how they do it. On a Mac Pro with eight cores, you could theoretically run eight threads truly <span class="emphasis"><em>simultaneously</em></span>, one on each core. A recent model iPhone or iPad has two cores; but earlier iOS devices have just one core. Nevertheless, an iOS app is multithreaded. How can this be? Basically, the processor performs a little code from one thread, then a little code from another, then a little code from yet another, and so on; it switches its attention between threads so quickly that they seem to run at the same time. But this is still concurrency. Also, all iOS devices have a second processor, the graphics card (or <span class="emphasis"><em>GPU</em></span>); certain graphics-related operations are performed by the GPU, leaving the main processor free.</p>
+        </div>
+        <p>The main thread thus has a very great deal of work to do. Here’s how life goes in your app:</p>
+        <div class="orderedlist">
+          <ol class="orderedlist" type="1">
+            <li class="listitem">
+An event arrives on the main thread; the user has tapped a button, for example, and this is reported to your app as a UIEvent and to the button through the touch delivery mechanism (<a class="xref" href="ch18.html">Chapter 18</a>) — on the main thread.
+</li>
+            <li class="listitem">
+The control event causes your code (the action handler) to be called — on the main thread. Your code now runs — on the main thread. While your code runs, nothing else can happen on the main thread. Your code might command some changes in the interface; this is safe, because your code is running on the main thread.
+</li>
+            <li class="listitem">
+Your code finishes. The main thread’s run loop is now free to report more events, and the user is free to interact with the interface once again.
+</li>
+          </ol>
+        </div>
+        <p>The bottleneck here is obviously step 2, the running of your code. Your code runs on the main thread. That means the main thread can’t do anything else while your code is running. No events can arrive while your code is running. The user can’t interact with the interface while your code is running. But this is usually no problem, because:</p>
+        <div class="itemizedlist">
+          <ul class="itemizedlist" type="disc">
+            <li class="listitem">
+Your code executes really fast. It’s true that the user can’t interact with the interface while your code runs, but this is such a tiny interval of time that the user will probably never even notice.
+</li>
+            <li class="listitem">
+Your code, as it runs, blocks the user from interacting with the interface. But that’s not bad: it’s good! Your code, in response to what the user does, might update the interface; it would be insane if the user could do something else in the interface while you’re in the middle of updating it.
+</li>
+          </ul>
+        </div>
+        <p>On the other hand, as I’ve already mentioned, the frameworks operate in secondary threads all the time. The reason this doesn’t affect you is that they usually talk to <span class="emphasis"><em>your</em></span> code on the <span class="emphasis"><em>main</em></span> thread. You have seen many examples of this in the preceding chapters. For example:</p>
+        <div class="itemizedlist">
+          <ul class="itemizedlist" type="disc">
+            <li class="listitem">
+During an animation (<a class="xref" href="ch17.html">Chapter 17</a>), the interface remains responsive to the user, and it is possible for your code to run. The Core Animation framework is running the animation and updating the presentation layer on a background thread. But your delegate methods or completion blocks are called on the main thread.
+</li>
+            <li class="listitem">
+A UIWebView’s fetching and loading of its content is asynchronous (<a class="xref" href="ch24.html">Chapter 24</a>); that means the work is done in a background thread. But your delegate methods are called on the main thread. The same is normally true of downloading a resource from the network with NSURLConnection (<a class="xref" href="ch37.html">Chapter 37</a>).
+</li>
+            <li class="listitem">
+Sounds are played asynchronously (<a class="xref" href="ch27.html">Chapter 27</a>, <a class="xref" href="ch29.html">Chapter 29</a>). But your delegate methods are called on the main thread. Similarly, loading, preparation, and playing of movies happens asynchronously (<a class="xref" href="ch28.html">Chapter 28</a>). But your delegate methods are called on the main thread.
+</li>
+            <li class="listitem">
+Saving a movie file takes time (<a class="xref" href="ch28.html">Chapter 28</a> and <a class="xref" href="ch30.html">Chapter 30</a>). So the saving takes place on a background thread. Similarly, UIDocument saves and reads on a background thread (<a class="xref" href="ch36.html">Chapter 36</a>). But your delegate methods or completion blocks are called on the main thread.
+</li>
+          </ul>
+        </div>
+        <p>Thus, you can (and should) usually ignore threads and just keep plugging away on the main thread. However, there are two kinds of situation in which your code will need to be explicitly aware of threading issues:</p>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+Your code is called back, but not on the main thread.
+</span>
+            </dt>
+            <dd>
+              <p class="simpara">
+Some frameworks explicitly inform you in their documentation that callbacks are not guaranteed to take place on the main thread. For example, the documentation on CATiledLayer (<a class="xref" href="ch20.html">Chapter 20</a>) warns that <code class="literal">drawLayer:inContext:</code> is called in a background thread. By implication, our <code class="literal">drawRect:</code> code, triggered by CATiledLayer to update tiles, is running in a background thread. Fortunately, the UIKit drawing-related classes are thread-safe, and so is accessing the current context. Nevertheless, we cannot completely ignore the fact that this code is not running on the main thread.
+</p>
+              <p class="simpara">Similarly, the documentation on AV Foundation (<a class="xref" href="ch28.html">Chapter 28</a>, <a class="xref" href="ch30.html">Chapter 30</a>) warns that its blocks and notifications can arrive on a background thread. So if you intend to update the user interface, or use a value that might also be used by your main-thread code, you’ll need to be thread-conscious.</p>
+            </dd>
+            <dt>
+              <span class="term">
+Your code takes significant time.
+</span>
+            </dt>
+            <dd>
+              <p class="simpara">
+If your code takes significant time to run, you might need to run that code on a background thread, rather than letting it block the main thread and prevent anything else from happening there. For example:
+</p>
+              <div class="variablelist">
+                <dl>
+                  <dt>
+                    <span class="term">
+During startup
+</span>
+                  </dt>
+                  <dd>
+You want your app to launch as quickly as possible. In <a class="xref" href="ch36.html">Chapter 36</a>, I called <code class="literal">URLForUbiquityContainerIdentifier:</code> during app launch. The documentation told me to call this method on a background thread, because it can take some time to return; we don’t want to block the main thread waiting for it, because the app is trying to launch on the main thread, and the user won’t see our interface until the launch process is over.
+</dd>
+                  <dt>
+                    <span class="term">
+When the user can see or interact with the app
+</span>
+                  </dt>
+                  <dd>
+In <a class="xref" href="ch32.html">Chapter 32</a>, I called <code class="literal">enumerateEventsMatchingPredicate:</code> on a background thread in order to prevent the user interface from freezing up in case the enumeration took a long time. If I hadn’t done this, then when the user taps the button that triggers this call, the button will stay highlighted for a significant amount of time, during which the interface will be completely frozen.
+</dd>
+                </dl>
+              </div>
+              <p class="simpara">Similarly, when your app is in the process of being suspended into the background, or resumed from the background, your app should not block the main thread for too long; it must act quickly and get out of the way. This isn’t just a matter of aesthetics or politeness; the system “watchdog” will summarily kill your app if it discovers that the main thread is blocked for too long.</p>
+            </dd>
+          </dl>
+        </div>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_why_threading_is_hard"></a>Why Threading Is Hard</h2>
+            </div>
+          </div>
+        </div>
+        <p>The one certain thing about computer code is that it just clunks along the path of execution, one statement at a time. Lines of code, in effect, are performed in the order in which they appear. With threading, that certainty goes right out the window. If you have code that can be performed on a background thread, then you don’t know when it will be performed in relation to the code being performed on any other thread. For example, any line of your background-thread code could be interleaved between any two lines of your main-thread code.</p>
+        <p>You also might not know <span class="emphasis"><em>how many times</em></span> a piece of your background-thread code might be running simultaneously. Unless you take steps to prevent it, the same code could be spawned off as a thread even while it’s already running in a thread. So any line of your background-thread code could be interleaved between any two lines of <span class="emphasis"><em>itself</em></span>.</p>
+        <p>This situation is particularly threatening with regard to <span class="emphasis"><em>shared data</em></span>. Suppose two threads were to get hold of the same object and change it. Who knows what horrors might result? Objects in general have state, adding up to the state of your app as a whole. If multiple threads are permitted to access your objects, they and your entire app can be put into an indeterminate or nonsensical state.<a id="idm441639565728" class="indexterm"></a>
+<a id="idm441639564480" class="indexterm"></a><a id="idm441639563600" class="indexterm"></a></p>
+        <p>This problem cannot be solved by simple logic. For example, suppose you try to make data access safe with a condition, as in this pseudo-code:</p>
+        <pre class="screen">if (no other thread is touching this data)
+    do something to the data...</pre>
+        <p>Such logic cannot succeed. Suppose the condition succeeds; no other thread is touching this data. But between the time when that condition is evaluated and the time when the next line executes and you start to do something to the data, another thread can come along and start touching the data!</p>
+        <p>It is possible to request assistance at a deeper level to ensure that a section of code is not run by two threads simultaneously. For example, you can implement a <span class="emphasis"><em>lock</em></span> around a section of code. But locks generate an entirely new level of potential pitfalls. In general, a lock is an invitation to forget to use the lock, or to forget to remove the lock after you’ve set it. And threads can end up contending for a lock in a way that permits neither thread to proceed.<a id="idm441639559216" class="indexterm"></a>
+<a id="idm441639557968" class="indexterm"></a></p>
+        <p>Another problem is that the lifetime of a thread is independent of the lifetimes of other objects in your app. When an object is about to go out of existence and its <code class="literal">dealloc</code> has been called and executed, you are guaranteed that none of your code in that object will ever run again. But a thread might still be running, and might try to talk to your object, even after your object has gone out of existence. You cannot solve this problem by having the thread retain your object, because then there is the danger that the thread might be the <span class="emphasis"><em>last</em></span> code retaining your object, so that when the thread releases your object, your object’s <code class="literal">dealloc</code> is called on that thread rather than the main thread, which could be a disaster.<a id="idm441639554368" class="indexterm"></a>
+<a id="idm441639553088" class="indexterm"></a></p>
+        <p>Not only is threaded code hard to get right; it’s also hard to test and hard to debug. It introduces indeterminacy, so you can easily make a mistake that never appears in your testing, but that does appear for some user. The real danger is that the user’s experience will consist only of distant consequences of your mistake, long after the point where you made it, making the real cause of the problem extraordinarily difficult to track down.</p>
+        <p>Perhaps you think I’m trying to scare you away from using threads. You’re right! For an excellent (and suitably frightening) account of some of the dangers and considerations that threading involves, see Apple’s tech note TN2109. If terms like <span class="emphasis"><em>race condition</em></span> and <span class="emphasis"><em>deadlock</em></span> don’t strike fear into your veins, look them up on Wikipedia.</p>
+        <div class="note" style="margin-left: 0; margin-right: 10%;">
+          <h3 class="title">Note</h3>
+          <p>When you call NSLog in your multithreaded code, the output in the console displays a number (in square brackets, after the colon) identifying the thread on which it was called. This is unbelievably helpful.</p>
+        </div>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_three_ways_of_threading"></a>Three Ways of Threading</h2>
+            </div>
+          </div>
+        </div>
+        <p>Without pretending to completeness or even safety, this section will illustrate three approaches to threading, progressing from worst to best. To give the examples a common base, we envision an app that draws the Mandelbrot set. (The actual code, not all of which is shown here, is adapted from a small open source project I downloaded from the Internet.) All it does is draw the basic Mandelbrot set in black and white, but that’s enough crunching of numbers to introduce a significant delay. The idea is then to see how we can get that delay off the main thread.</p>
+        <p>The app contains a UIView subclass, MyMandelbrotView, which has one instance variable, a CGContextRef called <code class="literal">_bitmapContext</code>. Here’s the structure of MyMandelbrotView’s implementation:</p>
+        <pre class="screen">// jumping-off point: draw the Mandelbrot set
+- (void) drawThatPuppy {
+    [self makeBitmapContext: self.bounds.size];
+    CGPoint center =
+        CGPointMake(CGRectGetMidX(self.bounds), CGRectGetMidY(self.bounds));
+    [self drawAtCenter: center zoom: 1];
+    [self setNeedsDisplay];
+}
+
+// create (and memory manage) instance variable
+- (void) makeBitmapContext:(CGSize)size {
+    if (self-&gt;_bitmapContext)
+        CGContextRelease(self-&gt;_bitmapContext);
+    // ... configure arguments ...
+    CGContextRef context = CGBitmapContextCreate(nil, /* ... */);
+    self-&gt;_bitmapContext = context;
+}
+
+// draw pixels of self-&gt;_bitmapContext
+- (void) drawAtCenter:(CGPoint)center zoom:(CGFloat)zoom {
+    // .... do stuff to self-&gt;_bitmapContext
+}
+
+// turn pixels of self-&gt;_bitmapContext into CGImage, draw into ourselves
+- (void) drawRect:(CGRect)rect {
+    CGContextRef context = UIGraphicsGetCurrentContext();
+    CGImageRef im = CGBitmapContextCreateImage(self-&gt;_bitmapContext);
+    CGContextDrawImage(context, self.bounds, im);
+    CGImageRelease(im);
+}
+
+// final memory managment
+- (void) dealloc {
+    if (self-&gt;_bitmapContext)
+        CGContextRelease(self-&gt;_bitmapContext);
+}</pre>
+        <p>(I haven’t discussed creating a bitmap context from scratch; see “Graphics Contexts” in the <span class="emphasis"><em>Quartz 2D Programming Guide</em></span> for example code. In this case, we take advantage of a feature that lets us pass nil as the first argument to <code class="literal">CGBitmapContextCreate</code>, which relieves us of the responsibility for creating and memory-managing a data buffer associated with the graphics context.)</p>
+        <p>The <code class="literal">drawAtCenter:zoom:</code> method, which calculates the pixels of the instance variable <code class="literal">_bitmapContext</code>, is time-consuming, and we can see this by running the app on a device. If the entire process is kicked off by tapping a button whose action handler calls <code class="literal">drawThatPuppy</code>, there is a significant delay before the Mandelbrot graphic appears in the interface, during which time the button remains highlighted. That is a sure sign that we are blocking the main thread. We will consider three ways of moving this work off onto a background thread: with an old-fashioned manual thread, with NSOperation, and with Grand Central Dispatch.</p>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_manual_threads"></a>Manual Threads</h3>
+              </div>
+            </div>
+          </div>
+          <p>The simple way to create a thread manually is to send <code class="literal">performSelectorInBackground:withObject:</code> to some object containing a method to be performed on a background thread. Even with this simple approach, there is additional work to do:<a id="idm441639537104" class="indexterm"></a>
+<a id="idm441639535792" class="indexterm"></a></p>
+          <div class="variablelist">
+            <dl>
+              <dt>
+                <span class="term">
+Pack the arguments.
+</span>
+              </dt>
+              <dd>
+The method designated by the first argument to <code class="literal">performSelectorInBackground:withObject:</code> can take only one parameter, whose value you supply as the second argument. So, if you want to pass more than one piece of information into the thread, or if the information you want to pass isn’t an object, you’ll need to pack it into a single object. Typically, this will be an NSDictionary.
+</dd>
+              <dt>
+                <span class="term">
+Set up an autorelease pool.
+</span>
+              </dt>
+              <dd>
+Secondary threads don’t participate in the global autorelease pool. So the first thing you must do in your threaded code is to wrap everything in an autorelease pool. Otherwise, you’ll probably leak memory as autoreleased objects are created behind the scenes and are never released.<a id="idm441639530016" class="indexterm"></a><a id="idm441639529152" class="indexterm"></a>
+</dd>
+            </dl>
+          </div>
+          <p>We’ll rewrite MyMandelbrotView to use manual threading. Our <code class="literal">drawAtCenter:zoom:</code> method takes two parameters (and neither is an object), so we’ll have to pack the argument that we pass into the thread, as a dictionary. Once inside the thread, we’ll set up our autorelease pool and unpack the dictionary. This will all be made much easier if we interpose a trampoline method between <code class="literal">drawThatPuppy</code> and <code class="literal">drawAtCenter:zoom:</code>. So our implementation now looks like this (ignoring the parts that haven’t changed):</p>
+          <pre class="screen">- (void) drawThatPuppy {
+    [self makeBitmapContext: self.bounds.size];
+    CGPoint center =
+        CGPointMake(CGRectGetMidX(self.bounds), CGRectGetMidY(self.bounds));
+    NSDictionary* d =
+        @{@"center": [NSValue valueWithCGPoint:center], @"zoom": @1};
+    [self performSelectorInBackground:@selector(reallyDraw:) withObject:d];
+    // [self setNeedsDisplay];
+}
+
+// trampoline, background thread entry point
+- (void) reallyDraw: (NSDictionary*) d {
+    @autoreleasepool {
+        [self drawAtCenter: [d[@"center"] CGPointValue]
+                      zoom: [d[@"zoom"] intValue]];
+    }
+}</pre>
+          <p>So far so good, but we haven’t yet figured out how to draw our view. We have commented out the call to <code class="literal">setNeedsDisplay</code> in <code class="literal">drawThatPuppy</code>, because it’s too soon; the call to <code class="literal">performSelectorInBackground:withObject:</code> launches the thread and returns immediately, so our <code class="literal">_bitmapContext</code> instance variable isn’t ready yet. Clearly, we need to call <code class="literal">setNeedsDisplay</code> <span class="emphasis"><em>after</em></span> <code class="literal">drawAtCenter:zoom:</code> finishes generating the pixels of the graphics context. We can do this at the end of our trampoline method <code class="literal">reallyDraw:</code>, but we must remember that we’re now in a background thread. Because <code class="literal">setNeedsDisplay</code> is a form of communication with the interface, we should call it on the main thread. We can do that with easily with <code class="literal">performSelectorOnMainThread:withObject:waitUntilDone:</code>. For maximum flexibility, it will probably be best to implement a second trampoline method:</p>
+          <pre class="screen">// trampoline, background thread entry point
+- (void) reallyDraw: (NSDictionary*) d {
+    @autoreleasepool {
+        [self drawAtCenter: [[d objectForKey:@"center"] CGPointValue]
+                      zoom: [[d objectForKey:@"zoom"] intValue]];
+        [self performSelectorOnMainThread:@selector(allDone)
+                               withObject:nil waitUntilDone:NO];
+    }
+}
+
+// called on main thread! background thread exit point
+- (void) allDone {
+    [self setNeedsDisplay];
+}</pre>
+          <p>This code is specious; the seeds of nightmare are already sown. We now have a single object, MyMandelbrotView, some of whose methods are to be called on the main thread and some on a background thread; this invites us to become confused at some later time. Even worse, the main thread and the background thread are constantly sharing a piece of data, the instance variable <code class="literal">_bitmapContext</code>;
+what’s to stop some other code from coming along and triggering <code class="literal">drawRect:</code> while <code class="literal">drawAtCenter:zoom:</code> is in the middle of filling <code class="literal">_bitmapContext</code>?</p>
+          <p>To solve these problems, we might need to use locks, and we would probably have to manage the thread more explicitly. For instance, we might use the <a id="idm441639510928" class="indexterm"></a>NSThread class, which lets us retain our thread as an instance and query it from outside (with <code class="literal">isExecuting</code> and similar). Such code can become quite elaborate and difficult to understand, even with an extremely basic implementation. It will be easier and safer at this point to use NSOperation, the subject of the next threading approach.</p>
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_nsoperation"></a>NSOperation</h3>
+              </div>
+            </div>
+          </div>
+          <p>The essence of NSOperation is that it encapsulates a task, not a thread. The operation described by an NSOperation object may be performed on a background thread, but you don’t have to concern yourself with that directly. You describe the operation and add the NSOperation to an NSOperationQueue to set it going. When the operation finishes, you are notified, typically by the NSOperation posting a notification. You can query both the queue and its operations from outside with regard to their state.<a id="idm441639507472" class="indexterm"></a>
+<a id="idm441639506176" class="indexterm"></a><a id="idm441639505280" class="indexterm"></a><a id="idm441639504368" class="indexterm"></a><a id="idm441639503456" class="indexterm"></a></p>
+          <p>We’ll rewrite MyMandelbrotView to use NSOperation. We need a property, an NSOperationQueue; we’ll call it <code class="literal">queue</code>. And we have a new class, MyMandelbrotOperation, an NSOperation subclass. It is possible to take advantage of a built-in NSOperation subclass such as NSInvocationOperation or NSBlockOperation, but I’m deliberately illustrating the more general case by subclassing NSOperation itself.</p>
+          <p>Our implementation of <code class="literal">drawThatPuppy</code> makes sure that the queue exists; it then creates an instance of MyMandelbrotOperation, configures it, registers for its notification, and adds it to the queue:</p>
+          <pre class="screen">- (void) drawThatPuppy {
+    CGPoint center =
+        CGPointMake(CGRectGetMidX(self.bounds), CGRectGetMidY(self.bounds));
+    if (!self.queue) {
+        NSOperationQueue* q = [NSOperationQueue new];
+        self.queue = q; // retain policy
+    }
+    MyMandelbrotOperation* op =
+        [[MyMandelbrotOperation alloc] initWithSize:self.bounds.size
+                                             center:center zoom:1];
+    [[NSNotificationCenter defaultCenter] addObserver:self
+        selector:@selector(operationFinished:)
+        name:@"MyMandelbrotOperationFinished"
+        object:op];
+    [self.queue addOperation:op];
+}</pre>
+          <p>Our time-consuming calculations are performed by MyMandelbrotOperation. An NSOperation subclass, such as MyMandelbrotOperation, will typically have at least two methods:</p>
+          <div class="variablelist">
+            <dl>
+              <dt>
+                <span class="term">
+A designated initializer
+</span>
+              </dt>
+              <dd>
+The NSOperation may need some configuration data. Once the NSOperation is added to a queue, it’s too late to talk to it, so you’ll usually hand it this configuration data as you create it, in its designated initializer.
+</dd>
+              <dt>
+                <span class="term">
+A <code class="literal">main</code> method
+</span>
+              </dt>
+              <dd>
+This method will be called (with no parameters) automatically by the NSOperationQueue when it’s time for the NSOperation to start.
+</dd>
+            </dl>
+          </div>
+          <p>MyMandelbrotOperation has three instance variables for configuration (<code class="literal">_size</code>, <code class="literal">_center</code>, and <code class="literal">_zoom</code>), to be set in its initializer; it must be told MyMandelbrotView’s geometry explicitly because it is completely separate from MyMandelbrotView. MyMandelbrotOperation also has its own CGContextRef instance variable, <code class="literal">_bitmapContext</code>,
+along with an accessor so MyMandelbrotView can retrieve a reference to this graphics context when the operation has finished. Note that this is different from MyMandelbrotView’s <code class="literal">_bitmapContext</code>; one of the benefits of using NSOperation is that we are no longer sharing data so promiscuously between threads.</p>
+          <p>Here’s the implementation for MyMandelbrotOperation. All the calculation work has been transferred from MyMandelbrotView to MyMandelbrotOperation without change; the only difference is that <code class="literal">_bitmapContext</code> now means MyMandelbrotOperation’s instance variable:</p>
+          <pre class="screen">- (id) initWithSize: (CGSize) sz center: (CGPoint) c zoom: (CGFloat) z {
+    self = [super init];
+    if (self) {
+        self-&gt;_size = sz;
+        self-&gt;_center = c;
+        self-&gt;_zoom = z;
+    }
+    return self;
+}
+
+- (void) dealloc {
+    if (self-&gt;_bitmapContext)
+        CGContextRelease(self-&gt;_bitmapContext);
+}
+
+- (CGContextRef) bitmapContext {
+    return self-&gt;_bitmapContext;
+}
+
+- (void)makeBitmapContext:(CGSize)size {
+   // ... same as before ...
+}
+
+- (void)drawAtCenter:(CGPoint)center zoom:(CGFloat)zoom {
+    // ... same as before ...
+}
+
+- (void) main {
+    if ([self isCancelled])
+        return;
+    [self makeBitmapContext: self-&gt;_size];
+    [self drawAtCenter: self-&gt;_center zoom: self-&gt;_zoom];
+    if (![self isCancelled])
+        [[NSNotificationCenter defaultCenter]
+            postNotificationName:@"MyMandelbrotOperationFinished" object:self];
+}</pre>
+          <p>The only method of interest is <code class="literal">main</code>. First, we call the NSOperation method <code class="literal">isCancelled</code> to make sure we haven’t been cancelled while sitting in the queue; this is good practice. Then, we do exactly what <code class="literal">drawThatPuppy</code> used to do, initializing our graphics context and drawing into its pixels.</p>
+          <p>When the operation is over, we need to notify MyMandelbrotView to come and fetch our data. There are two ways to do this; either <code class="literal">main</code> can post a notification through the NSNotificationCenter, or MyMandelbrotView can use key–value observing (<a class="xref" href="ch13.html">Chapter 13</a>) to be notified when our <code class="literal">isFinished</code> key path changes. We’ve chosen the former approach; observe that we check one more time to make sure we haven’t been cancelled.</p>
+          <p>Now we are back in MyMandelbrotView, hearing that MyMandelbrotOperation has finished. We must immediately pick up any required data, because the NSOperationQueue is about to release this NSOperation. However, we must be careful; the notification may have been posted on a background thread, in which case our method for responding to it will also be called on a background thread. We are about to set our own graphics context and tell ourselves to redraw; those are things we want to do on the main thread. So we immediately trampoline ourselves out to the main thread:</p>
+          <pre class="screen">// warning! called on background thread
+- (void) operationFinished: (NSNotification*) n {
+    [self performSelectorOnMainThread:@selector(redrawWithOperation:)
+                           withObject:[n object] waitUntilDone:NO];
+}</pre>
+          <p>As we set MyMandelbrotView’s <code class="literal">_bitmapContext</code> by reading MyMandelbrotOperation’s <code class="literal">_bitmapContext</code>, we must concern ourselves with the memory management of a CGContext obtained from an object that may be about to release that context:</p>
+          <pre class="screen">// now we're back on the main thread
+- (void) redrawWithOperation: (MyMandelbrotOperation*) op {
+    [[NSNotificationCenter defaultCenter]
+        removeObserver:self
+        name:@"MyMandelbrotOperationFinished"
+        object:op];
+    CGContextRef context = [op bitmapContext];
+    if (self-&gt;_bitmapContext)
+        CGContextRelease(self-&gt;_bitmapContext);
+    self-&gt;_bitmapContext = (CGContextRef) context;
+    CGContextRetain(self-&gt;_bitmapContext);
+    [self setNeedsDisplay];
+}</pre>
+          <p>Using NSOperation instead of manual threading may not seem like any reduction in work, but it is a tremendous reduction in headaches:</p>
+          <div class="variablelist">
+            <dl>
+              <dt>
+                <span class="term">
+The operation is encapsulated.
+</span>
+              </dt>
+              <dd>
+Because MyMandelbrotOperation is an object, we’ve been able to move all the code having to do with drawing the pixels of the Mandelbrot set into it. No longer does MyMandelbrotView contain some code to be called on the main thread and some code to be called on a background thread. The <span class="emphasis"><em>only</em></span> MyMandelbrotView method that can be called in the background is <code class="literal">operationFinished:</code>, and that’s a method we’d never call explicitly ourselves, so we won’t misuse it accidentally.
+</dd>
+              <dt>
+                <span class="term">
+The data sharing is rationalized.
+</span>
+              </dt>
+              <dd>
+Because MyMandelbrotOperation is an object, it has its own <code class="literal">_bitmapContext</code>. The only moment of data sharing comes in <code class="literal">redrawWithOperation:</code>, when we must set MyMandelbrotView’s <code class="literal">_bitmapContext</code>
+to MyMandelbrotOperation’s <code class="literal">_bitmapContext</code>.
+Even if multiple MyMandelbrotOperation objects are added to the queue, the moments when we set MyMandelbrotView’s <code class="literal">_bitmapContext</code> all occur on the main thread, so they cannot conflict with one another.
+</dd>
+            </dl>
+          </div>
+          <p>The coherence of MyMandelbrotView’s <code class="literal">_bitmapContext</code> does depend upon our obedience to an implicit contract not to set it or write into it anywhere except a few specific moments in MyMandelbrotView’s code. But this is always a problem with data sharing in a multithreaded world, and we have done all we can to simplify the situation.</p>
+          <p>If we are concerned with the possibility that more than one instance of MyMandelbrotOperation might be added to the queue and executed concurrently, we have a further defense — we can set the NSOperationQueue’s maximum concurrency level to 1:</p>
+          <pre class="screen">NSOperationQueue* q = [NSOperationQueue new];
+[q setMaxConcurrentOperationCount:1];
+self.queue = q;</pre>
+          <p>This turns the NSOperationQueue into a true serial queue;<a id="idm441639461008" class="indexterm"></a><a id="idm441639460128" class="indexterm"></a> every operation on the queue must be completely executed before the next can begin. This might cause an operation added to the queue to take longer to execute, if it must wait for another operation to finish before it can even get started; however, this delay might not be important. What <span class="emphasis"><em>is</em></span> important is that by executing the operations on this queue completely separately, we guarantee that only one operation at a time can do any data sharing. A serial queue is thus a form of data locking.<a id="idm441639458208" class="indexterm"></a></p>
+          <p>Because MyMandelbrotView can be destroyed (if, for example, its view controller is destroyed), there is still a risk that it will create an operation that will outlive it and will try to access it after it has been destroyed. We can reduce that risk by canceling all operations in our queue before releasing it:</p>
+          <pre class="screen">- (void)dealloc {
+    // release the bitmap context
+    if (self-&gt;_bitmapContext)
+        CGContextRelease(self-&gt;_bitmapContext);
+    [self-&gt;_queue cancelAllOperations];
+}</pre>
+          <p>In our code, we are still using the potentially confusing trampoline technique. Our <code class="literal">operationFinished:</code> method is called by a notification on what may be a background thread, so it calls <code class="literal">redrawWithOperation:</code> on the main thread. By a neat trick involving a block, we can actually eliminate the trampoline and both of those methods.</p>
+          <p>Recall, from <a class="xref" href="ch11.html">Chapter 11</a>, the NSNotificationCenter method <code class="literal">addObserverForName:object:queue:usingBlock:</code>. The <code class="literal">queue:</code> argument here is an NSOperationQueue — the queue on which we’d like our block to be called. I said in <a class="xref" href="ch11.html">Chapter 11</a> that this will usually be nil, signifying the same thread that posted the notification, which will usually be the main thread. In this case, though, the thread that posted the notification might <span class="emphasis"><em>not</em></span> be the main thread, so we can request <span class="emphasis"><em>explicitly</em></span> that the block be called on the main thread. In other words, NSNotificationCenter will perform the trampolining for us.</p>
+          <p>As I said in <a class="xref" href="ch12.html">Chapter 12</a>, we have to take precautions to avoid a retain cycle; <code class="literal">addObserverForName:object:queue:usingBlock:</code> returns an observer which retains us, so we mustn’t retain it in turn. We don’t want to keep our observer as an instance variable because there might be multiple conflicting simultaneous observers. So we declare it as <code class="literal">__weak</code> to prevent the retain cycle, and we declare it as <code class="literal">__block</code> so that we can see its future value (the value it will have after the call to <code class="literal">addObserverForName:object:queue:usingBlock:</code> returns) inside the block and use it to deregister when the notification arrives:</p>
+          <pre class="screen">MyMandelbrotOperation* op =
+    [[MyMandelbrotOperation alloc] initWithSize:self.bounds.size
+                                         center:center zoom:1];
+__block __weak id observer = [[NSNotificationCenter defaultCenter]
+    addObserverForName:@"MyMandelbrotOperationFinished"
+    object:op queue:[NSOperationQueue mainQueue]
+    usingBlock:^(NSNotification *note) {
+        MyMandelbrotOperation* op2 = note.object;
+        CGContextRef context = [op2 bitmapContext];
+        if (self-&gt;_bitmapContext)
+            CGContextRelease(self-&gt;_bitmapContext);
+        self-&gt;_bitmapContext = (CGContextRef) context;
+        CGContextRetain(self-&gt;_bitmapContext);
+        [self setNeedsDisplay];
+        [[NSNotificationCenter defaultCenter]
+            removeObserver:observer
+            name:@"MyMandelbrotOperationFinished"
+            object:op2];
+}];
+[self.queue addOperation:op];</pre>
+          <p>That’s pretty elegant, but in the next section we’ll go even further — we’ll effectively eliminate data sharing entirely by using Grand Central Dispatch.</p>
+          <div class="note" style="margin-left: 0; margin-right: 10%;">
+            <h3 class="title">Note</h3>
+            <p>A number of useful methods mentioned earlier in this book expect an NSOperationQueue argument; see <a class="xref" href="ch35.html">Chapter 35</a> (<code class="literal">startDeviceMotionUpdatesToQueue:withHandler:</code>, and similarly for the other sensors) and <a class="xref" href="ch37.html">Chapter 37</a> (<code class="literal">sendAsynchronousRequest:queue:completionHandler:</code>).</p>
+          </div>
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_grand_central_dispatch"></a>Grand Central Dispatch</h3>
+              </div>
+            </div>
+          </div>
+          <p>Grand Central Dispatch, or <span class="emphasis"><em>GCD</em></span>, is a sort of low-level analogue to NSOperation and NSOperationQueue (in fact, NSOperationQueue uses GCD under the hood). When I say GCD is low-level, I’m not kidding; it’s effectively baked into the operating system kernel. Thus it can be used by any code whatsoever and is tremendously efficient.<a id="idm441639437968" class="indexterm"></a>
+<a id="idm441639436656" class="indexterm"></a><a id="idm441639435744" class="indexterm"></a></p>
+          <p>Using GCD is like a mixture of the manual threading approach with the NSOperationQueue approach. It’s like the manual threading approach because code to be executed on one thread appears together with code to be executed on another; however, you have a much better chance of keeping the threads and data management straight, because GCD uses Objective-C blocks. It’s like the NSOperationQueue approach because it uses queues; you express a task and add it to a queue, and the task is executed on a thread as needed. Moreover, by default these queues are serial queues, with each task on a queue finishing before the next is started, which, as we’ve already seen, is a form of data locking.</p>
+          <p>We’ll rewrite MyMandelbrotView to use GCD. The structure of its interface is very slightly changed from the original, nonthreaded version. Our <code class="literal">makeBitmapContext:</code> method now returns a graphics context rather than setting an instance variable directly; and our <code class="literal">drawAtCenter:zoom:</code> method now takes an additional parameter, the graphics context to draw into. Also, we have a new instance variable to hold our queue, which is a <span class="emphasis"><em>dispatch queue</em></span>; a dispatch queue is a lightweight opaque pseudo-object consisting essentially of a list of blocks to be executed:<a id="idm441639430880" class="indexterm"></a><a id="idm441639430000" class="indexterm"></a></p>
+          <pre class="screen">@implementation MyMandelbrotView {
+    CGContextRef _bitmapContext;
+    dispatch_queue_t _draw_queue;
+}</pre>
+          <p>In MyMandelbrotView’s implementation, we create our dispatch queue as the view is created:</p>
+          <pre class="screen">- (id)initWithCoder:(NSCoder *)aDecoder {
+    self = [super initWithCoder: aDecoder];
+    if (self) {
+        self-&gt;_draw_queue =
+            dispatch_queue_create("com.neuburg.mandeldraw", nil);
+    }
+    return self;
+}</pre>
+          <p>A call to <code class="literal">dispatch_queue_create</code> must be balanced by a call to <code class="literal">dispatch_release</code>. New in iOS 6, however, ARC understands GCD pseudo-objects and will take care of this for us (and in fact calling <code class="literal">dispatch_release</code> explicitly is forbidden).<a id="idm441639423856" class="indexterm"></a>
+<a id="idm441639422512" class="indexterm"></a><a id="idm441639421584" class="indexterm"></a>
+<a id="idm441639420272" class="indexterm"></a></p>
+          <p>Now for the implementation of <code class="literal">drawThatPuppy</code>. Here it is:</p>
+          <pre class="screen">- (void) drawThatPuppy {
+    CGPoint center = <a id="CO9-1"></a>❶
+        CGPointMake(CGRectGetMidX(self.bounds), CGRectGetMidY(self.bounds));
+    dispatch_async(self-&gt;_draw_queue, ^{ <a id="CO9-2"></a>❷
+        CGContextRef bitmap = [self makeBitmapContext: self.bounds.size];
+        [self drawAtCenter: center zoom: 1 context:bitmap];
+        dispatch_async(dispatch_get_main_queue(), ^{ <a id="CO9-3"></a>❸
+            if (self-&gt;_bitmapContext)
+                CGContextRelease(self-&gt;_bitmapContext);
+            self-&gt;_bitmapContext = bitmap;
+            [self setNeedsDisplay];
+        });
+    });
+}</pre>
+          <p>That’s all there is to it. No trampoline methods. No <code class="literal">performSelector...</code>. No packing arguments into a dictionary. No autorelease pools. No instance variables. No notifications. And effectively no sharing of data across threads. That’s the beauty of blocks.</p>
+          <div class="calloutlist">
+            <table border="0" summary="Callout list">
+              <tr>
+                <td width="5%" valign="top" align="left">
+                  <p><a href="#CO9-1">❶</a> </p>
+                </td>
+                <td valign="top" align="left">
+                  <p>
+We begin by calculating our <code class="literal">center</code>, as before. This value will be visible within the blocks, because blocks can see their surrounding context.
+</p>
+                </td>
+              </tr>
+              <tr>
+                <td width="5%" valign="top" align="left">
+                  <p><a href="#CO9-2">❷</a> </p>
+                </td>
+                <td valign="top" align="left">
+                  <p>
+Now comes our task to be performed in a background thread on our queue, <code class="literal">_draw_queue</code>. We specify this task with the <code class="literal">dispatch_async</code> function. GCD has a lot of functions, but this is the one you’ll use 99 percent of the time; it’s the most important thing you need to know about GCD. We specify a queue and we provide a block saying what we’d like to do. Thanks to the block, we don’t need any trampoline methods. In the block, we begin by declaring <code class="literal">bitmap</code> as a variable <span class="emphasis"><em>local to the block</em></span>. We then call <code class="literal">makeBitmapContext:</code> to create the graphics context <code class="literal">bitmap</code>, and <code class="literal">drawAtCenter:zoom:context:</code> to set its pixels; we make these calls <span class="emphasis"><em>directly</em></span>, just as we would do if we weren’t threading in the first place.
+</p>
+                </td>
+              </tr>
+              <tr>
+                <td width="5%" valign="top" align="left">
+                  <p><a href="#CO9-3">❸</a> </p>
+                </td>
+                <td valign="top" align="left">
+                  <p>
+Now we need to get back onto the main thread. How do we do that? With <code class="literal">dispatch_async</code> again! We specify the main queue (which is effectively the main thread) with a function provided for this purpose and describe what we want to do in <span class="emphasis"><em>another</em></span> block. This second block is nested inside the first, so it isn’t performed until the preceding commands in the first block have finished; moreover, because the first block is part of the second block’s surrounding context, the second block can see our block-local <code class="literal">bitmap</code> variable! We set our <code class="literal">_bitmapContext</code> instance variable (with no need for further memory management, because <code class="literal">makeBitmapContext</code> has returned a retained graphics context), and call <code class="literal">setNeedsDisplay</code>.
+</p>
+                </td>
+              </tr>
+            </table>
+          </div>
+          <div class="note" style="margin-left: 0; margin-right: 10%;">
+            <h3 class="title">Note</h3>
+            <p>I used this same technique in <a class="xref" href="ch36.html">Chapter 36</a>, to call <code class="literal">URLForUbiquityContainerIdentifier:</code> on a background thread (so as not to block the main thread and the app launch process) and then to set an instance variable on the main thread (so as not to conflict with any other access to that instance variable).</p>
+          </div>
+          <p>The benefits and elegance of GCD as a form of concurrency management are stunning. The <code class="literal">bitmap</code> variable is not shared; it is local to each specific call to <code class="literal">drawThatPuppy</code>. The nested blocks are executed in succession, so any instance of <code class="literal">bitmap</code> must be completely filled with pixels before being used to set the <code class="literal">_bitmapContext</code> instance variable. Moreover, the <span class="emphasis"><em>entire</em></span> operation is performed on a serial queue, and <code class="literal">_bitmapContext</code> is touched only from code running on the main thread; thus there is no data sharing and no possibility of conflict. Our code is also highly maintainable, because the entire task on all threads is expressed within the single <code class="literal">drawThatPuppy</code> method, thanks to the use of blocks; indeed, the code is only very slightly modified from the original, nonthreaded version.</p>
+          <p>You might object that we still have methods <code class="literal">makeBitmapContext:</code> and <code class="literal">drawAtCenter:zoom:context:</code> hanging around MyMandelbrotView, and that we must therefore still be careful not to call them on the main thread, or indeed from anywhere except from within <code class="literal">drawThatPuppy</code>. If that were true, we could at this point destroy <code class="literal">makeBitmapContext:</code> and <code class="literal">drawAtCenter:zoom:context:</code> and move their functionality completely into <code class="literal">drawThatPuppy</code>. But it <span class="emphasis"><em>isn’t</em></span> true, because these methods are now <span class="emphasis"><em>thread-safe</em></span>: they are self-contained utilities that touch no instance variables or persistent objects, so it doesn’t matter what thread they are called on. Still, I’ll demonstrate in a moment how we can intercept an accidental attempt to call a method on the wrong thread.</p>
+          <p>The two most important GCD functions are:</p>
+          <div class="variablelist">
+            <dl>
+              <dt>
+                <span class="term">
+<code class="literal">dispatch_async</code>
+</span>
+              </dt>
+              <dd>
+                <p class="simpara">
+Push a block onto the end of a queue for later execution, and proceed immediately with our own code. Thus, we can finish our own execution without waiting for the block to execute.
+</p>
+                <p class="simpara">Examples of using <code class="literal">dispatch_async</code> as a way of getting back onto the main thread (<code class="literal">dispatch_get_main_queue</code>) in order to talk to the interface from inside a block that might be executed on a background thread have appeared in <a class="xref" href="ch29.html">Chapter 29</a> and <a class="xref" href="ch30.html">Chapter 30</a>. Also, in <a class="xref" href="ch11.html">Chapter 11</a> I described a technique for using <code class="literal">dispatch_async</code> to step onto the main thread even though you’re already on the main thread, as a way of waiting for the run loop to complete and for the interface to settle down — a minimal form of delayed performance.<a id="idm441639376800" class="indexterm"></a> I used that technique in <a class="xref" href="ch19.html">Chapter 19</a>, <a class="xref" href="ch21.html">Chapter 21</a>, <a class="xref" href="ch28.html">Chapter 28</a>, and <a class="xref" href="ch36.html">Chapter 36</a>.</p>
+              </dd>
+              <dt>
+                <span class="term">
+<code class="literal">dispatch_sync</code>
+</span>
+              </dt>
+              <dd>
+                <p class="simpara">
+Push a block onto the end of a queue for later execution, and wait until the block has executed before proceeding with our own code — because, for example, you intend to use a result that the block is to provide. The purpose of the queue would be, once again, as a lightweight, reliable version of a lock, mediating access to a shared resource. Here’s a case in point, from Apple’s own code:
+</p>
+                <pre class="screen">- (AVAsset*)asset {
+    __block AVAsset *theAsset = nil;
+    dispatch_sync(assetQueue, ^(void) {
+        theAsset = [[self getAssetInternal] copy];
+    });
+    return theAsset;
+}</pre>
+                <p class="simpara">Any thread might call the <code class="literal">asset</code> method; to avoid problems, we require that only blocks run from a particular queue (<code class="literal">assetQueue</code>) may touch an AVAsset. But we need the result that this block returns; hence the call to <code class="literal">dispatch_sync</code>.</p>
+              </dd>
+            </dl>
+          </div>
+          <p>Examples in this book have also made use of <code class="literal">dispatch_after</code> (<a class="xref" href="ch11.html">Chapter 11</a>, <a class="xref" href="ch15.html">Chapter 15</a>, <a class="xref" href="ch20.html">Chapter 20</a>, <a class="xref" href="ch23.html">Chapter 23</a>) as an alternative to <code class="literal">performSelector:withObject:afterDelay:</code>.</p>
+          <p>Another useful GCD function is <code class="literal">dispatch_once</code>, a thread-safe way of assuring that a block is called only once; it’s often used to vend a singleton. I showed an example in <a class="xref" href="ch03.html">Chapter 3</a>.</p>
+          <p>Besides serial dispatch queues, there are also concurrent dispatch queues. A concurrent queue’s blocks are started in the order in which they were submitted to the queue, but a block is allowed to start while another block is still executing. Obviously, you wouldn’t want to submit to a concurrent queue a task that touches a shared resource — that would be throwing away the entire point of serial queues. The advantage of concurrent queues is a possible speed boost when you don’t care about the order in which multiple tasks are finished — for example, when you want to do something in response to every <span class="keep-together">element of</span> an array. The built-in global queues (available by calling <code class="literal">dispatch_get_global_queue</code>) are concurrent; you can also create a concurrent queue by passing <code class="literal">DISPATCH_QUEUE_CONCURRENT</code> as the second argument to <code class="literal">dispatch_queue_create</code>.</p>
+          <p>An interesting tweak is that you can queue up a <span class="emphasis"><em>barrier block</em></span> on a concurrent queue; a barrier block has the property that it won’t be dequeued until all the blocks preceding it on the queue have been not only dequeued but fully executed, and that no blocks following it in the queue will be dequeued until it itself has fully executed (rather like Benjamin Britten’s “curlew sign,” signifying that every musician must wait here until all the other musicians have reached the same point).</p>
+          <p>A frequent use of concurrent queues is with <code class="literal">dispatch_apply</code>. This function is like <code class="literal">dispatch_sync</code> (the caller pauses until the block has finished executing), but the block is called multiple times with an iterator argument. Thus, <code class="literal">dispatch_apply</code> on a concurrent queue is like a for loop whose iterations are multithreaded; on a device with multiple cores, this could result in a speed improvement. (Of course, this technique is applicable only if the iterations do not depend on one another.)</p>
+          <p>Arbitrary context data can be attached to a queue in the form of key–value <span class="keep-together">pairs (</span><code class="literal">dispatch_queue_set_specific</code>) and retrieved by key. The <code class="literal">dispatch_queue_get_specific</code> function retrieves a key’s value for a queue to which we already have a valid reference;  <code class="literal">dispatch_get_specific</code> retrieves a key’s value for the <span class="emphasis"><em>current</em></span> queue, the one in whose thread we are actually running. In fact, <code class="literal">dispatch_get_specific</code> is the <span class="emphasis"><em>only</em></span> valid way to identify the current queue (a function formerly used for this purpose, <code class="literal">dispatch_get_current_queue</code>, has been shown to be potentially unsafe and is now deprecated).</p>
+          <p>We can use this technique, for example, to make certain that a method is called only on the correct queue. Recall that in our Mandelbrot-drawing example, we may be concerned that a method such as <code class="literal">makeBitmapContext:</code> might be called on some other queue than the background queue that we created for this purpose. If this is really a worry, we can attach an identifying key–value pair to that queue when we create it. Both key and value should be pointers, so let’s start by defining some static C strings:</p>
+          <pre class="screen">static char* QKEY = "label";
+static char* QVAL = "com.neuburg.mandeldraw";</pre>
+          <p>We then create the queue like this:</p>
+          <pre class="screen">self-&gt;_draw_queue = dispatch_queue_create(QVAL, nil);
+dispatch_queue_set_specific(self-&gt;_draw_queue, QKEY, QVAL, nil);</pre>
+          <p>Later, we can examine that identifying key–value pair for the queue on which a particular method is called:</p>
+          <pre class="screen">- (CGContextRef) makeBitmapContext:(CGSize)size {
+    NSAssert(dispatch_get_specific(QKEY) == QVAL, @"Wrong thread");</pre>
+          <p>Note that we are comparing the values purely as pointers; the fact that either one of them is a C string is irrelevant. A common device, where threads generated by different instances of the same class need to be distinguished, is to attach to a queue a key–value pair whose value is the instance itself.</p>
+        </div>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_threads_and_app_backgrounding"></a>Threads and App Backgrounding</h2>
+            </div>
+          </div>
+        </div>
+        <p>When your app is backgrounded and suspended (<a class="xref" href="ch11.html">Chapter 11</a>), a problem arises if your code is running. The system doesn’t want to kill your code while it’s executing; on the other hand, some other app may need to be given the bulk of the device’s resources now. So as your app goes into the background, the system waits a short time for your app to finish doing whatever it may be doing, but it then suspends your app and stops it by force.<a id="idm441639337504" class="indexterm"></a><a id="idm441639336640" class="indexterm"></a></p>
+        <p>This shouldn’t be a problem from your main thread’s point of view, because your app shouldn’t have any time-consuming code on the main thread in the first place; you now know that you can avoid this by using a background thread. On the other hand, it could be a problem for lengthy background operations, including asynchronous tasks performed by the frameworks. You can request time to complete a lengthy task (or at to least abort it yourself, coherently) in case your app is backgrounded, by wrapping it in calls to UIApplication’s <code class="literal">beginBackgroundTaskWithExpirationHandler:</code> and <code class="literal">endBackgroundTask:</code>.</p>
+        <p>You call <code class="literal">beginBackgroundTaskWithExpirationHandler:</code> to announce that a lengthy task is beginning; it returns an identification number. At the end of your lengthy task, you call <code class="literal">endBackgroundTask:</code>, passing in that same identification number. This tells the application that your lengthy task is over and that, if your app has been backgrounded while the task was in progress, it is now okay to suspend you.</p>
+        <p>The argument to <code class="literal">beginBackgroundTaskWithExpirationHandler:</code> is a block, but this block does <span class="emphasis"><em>not</em></span> express the lengthy task. It expresses what you will do <span class="emphasis"><em>if your extra time expires</em></span> before you finish your lengthy task. At the very least, your expiration handler must call <code class="literal">endBackgroundTask:</code>, just as your lengthy task would have done; otherwise, your app won’t just be suspended — it will be killed.</p>
+        <div class="note" style="margin-left: 0; margin-right: 10%;">
+          <h3 class="title">Note</h3>
+          <p>If your expiration handler block <span class="emphasis"><em>is</em></span> called, you should make no assumptions about what thread it is running on.</p>
+        </div>
+        <p>Let’s use MyMandelbrotView, from the preceding section, as an example. Let’s say that if <code class="literal">drawThatPuppy</code> is started, we’d like it to be allowed to finish, even if the app is suspended in the middle of it, so that our <code class="literal">_bitmapContext</code> instance variable is updated as requested. To try to ensure this, we call <code class="literal">beginBackgroundTaskWithExpirationHandler:</code> beforehand and call <code class="literal">endBackgroundTask:</code> at the end of the innermost block:</p>
+        <pre class="screen">- (void) drawThatPuppy {
+    CGPoint center =
+        CGPointMake(CGRectGetMidX(self.bounds), CGRectGetMidY(self.bounds));
+    __block UIBackgroundTaskIdentifier bti =
+        [[UIApplication sharedApplication]
+            beginBackgroundTaskWithExpirationHandler: ^{
+                [[UIApplication sharedApplication] endBackgroundTask:bti];
+            }];
+    if (bti == UIBackgroundTaskInvalid)
+        return;
+    dispatch_async(self-&gt;_draw_queue, ^{
+        CGContextRef bitmap = [self makeBitmapContext: self.bounds.size];
+        [self drawAtCenter: center zoom: 1 context:bitmap];
+        dispatch_async(dispatch_get_main_queue(), ^{
+            if (self-&gt;_bitmapContext)
+                CGContextRelease(self-&gt;_bitmapContext);
+            self-&gt;_bitmapContext = bitmap;
+            [self setNeedsDisplay];
+            [[UIApplication sharedApplication] endBackgroundTask:bti];
+        });
+    });
+}</pre>
+        <p>If our app is backgrounded while <code class="literal">drawThatPuppy</code> is in progress, it will (we hope) be given enough time to live that it can run all the way to the end. Thus, the instance variable <code class="literal">_bitmapContext</code> will be updated, and <code class="literal">setNeedsDisplay</code> will be called, before we are actually suspended. Our <code class="literal">drawRect:</code> will not be called until our app is brought back to the front, but there’s nothing wrong with that.</p>
+        <p>The <code class="literal">__block</code> qualifier on the declaration of <code class="literal">bti</code> is like the <code class="literal">__block</code> qualifier in the <code class="literal">addObserverForName:object:queue:usingBlock:</code> example earlier: it allows us to see, inside the block, the value that <code class="literal">bti</code> <span class="emphasis"><em>will</em></span> have when the call to <code class="literal">beginBackgroundTaskWithExpirationHandler:</code> returns (<a class="xref" href="ch03.html">Chapter 3</a>). The check against <code class="literal">UIBackgroundTaskInvalid</code> can do no harm, and there may be situations or devices where our request to complete this task in the background will be denied.</p>
+        <p>It’s good policy to use a similar technique when you’re notified that your app is being backgrounded. You might respond to the app delegate message <code class="literal">applicationDidEnterBackground:</code> (or the corresponding <code class="literal">UIApplicationDidEnterBackgroundNotification</code>) by saving data and reducing memory usage, but this can take time, whereas you’d like to return from <code class="literal">applicationDidEnterBackground:</code> as quickly as possible. A reasonable solution is to implement <code class="literal">applicationDidEnterBackground:</code> very much like <code class="literal">drawThatPuppy</code> in the example I just gave: call <code class="literal">beginBackgroundTaskWithExpirationHandler:</code> and then call <code class="literal">dispatch_async</code> to get off the main thread, and do your saving and so forth in its block.</p>
+        <p>What about lengthy asynchronous operations such as networking (<a class="xref" href="ch37.html">Chapter 37</a>)? As far as I can tell, it might not strictly be necessary to use <code class="literal">beginBackgroundTaskWithExpirationHandler:</code> with NSURLConnection; it appears that NSURLConnection has the ability to resume automatically after an interruption when your app is suspended. Still, it might be better not to rely on that behavior (or on an assumption that, just because the network is present now, it will be present when the app awakes from suspension), so you might like to integrate <code class="literal">beginBackgroundTaskWithExpirationHandler:</code> into your use of NSURLConnection.</p>
+        <p>Such integration can be just a little tricky, because <code class="literal">beginBackgroundTaskWithExpirationHandler:</code> and <code class="literal">endBackgroundTask:</code> rely on a shared piece of information, the UIBackgroundTaskIdentifier — but the downloading operation begins in one place (when the NSURLConnection is created, or when it is told to <code class="literal">start</code>) and ends in one of two other places (the NSURLConnection’s delegate is informed that the download has failed or succeeded), so information is not so easily shared. However, with something like our MyDownloader class, an entire single downloading operation is encapsulated, and we can give the class a UIBackgroundTaskIdentifier instance variable. So, we would set this instance variable with a call to <code class="literal">beginBackgroundTaskWithExpirationHandler:</code> just before telling the connection to <code class="literal">start</code>, and then both <code class="literal">connection:didFailWithError:</code> and <code class="literal">connectionDidFinishLoading:</code> would use the value stored in that instance variable to call <code class="literal">endBackgroundTask:</code> as their last action.
+<a id="idm441639298208" class="indexterm"></a></p>
+      </div>
+    </div>
+    <div class="navfooter">
+      <table width="100%" summary="Navigation footer">
+        <tr>
+          <td width="40%" align="left"><a accesskey="p" href="ch37.html">Prev</a> </td>
+          <td width="20%" align="center">
+            <a accesskey="u" href="pt07.html">Up</a>
+          </td>
+          <td width="40%" align="right"> <a accesskey="n" href="ch39.html">Next</a></td>
+        </tr>
+        <tr>
+          <td width="40%" align="left" valign="top">Chapter 37. Basic Networking </td>
+          <td width="20%" align="center">
+            <a accesskey="h" href="index.html">Table of Contents</a>
+          </td>
+          <td width="40%" align="right" valign="top"> Chapter 39. Undo</td>
+        </tr>
+      </table>
+    </div>
+  </body>
+</html>

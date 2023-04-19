@@ -1,0 +1,157 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>Perl 中文程式設計</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.7" />
+<link rel="HOME" title="FreeBSD Chinese HOWTO" href="index.html" />
+<link rel="UP" title="中文程式設計" href="devel.html" />
+<link rel="PREVIOUS" title="Java 中文程式設計" href="java.html" />
+<link rel="NEXT" title="MySQL Localisation and International Usage" href="mysql.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD Chinese HOWTO</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="java.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 14. 中文程式設計</td>
+<td width="10%" align="right" valign="bottom"><a href="mysql.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="PERL" name="PERL">14.12. Perl 中文程式設計</a></h1>
+
+<p>如何排除 Perl 程式處理中文資料的障礙？</p>
+
+<p>在 CGI Perl 程式中，有許多符號字元是有特殊用途的，
+而不幸的有某些這樣的字元卻與中文字的第二個位元組互相衝突，
+以至於會有中文字顯示或比對不正確，甚至是產生錯誤結果的現象， 尤其是 | 及 \
+這兩個字元，所幸我們還有個 quotemeta 指令可以使用，
+這個指令可以將指定的字串中每個字元的前面都再多加上一個 \
+這個字元，使得字串內的特殊字元在處理時被視為單純的字碼， 請參考下列的範例：</p>
+
+<p>假設 $str 是一個要做搜尋比對的中文字串，而 $line 是逐行讀入的資料檔內容：</p>
+
+<pre class="PROGRAMLISTING">
+$restr = quotemeta $str;
+if ($line !~ m/$restr/i) { ......
+}
+</pre>
+
+<p>另外若不是以變數來處理的字串，通常我們會使用雙引號來標示及處理，
+然而這也是會發生上述的障礙，但是當您直接對雙引號括住的字串使用 quotemeta
+來處理時卻又會怪怪的，那怎麼辦呢？很間單！
+將雙引號改為單引號就可以囉～因為單引號不會對其內的字元作特殊處理，
+換句話講在單引號之內的文字資料將會原原本本的呈現出來， 不會去解譯變數也不會處理 escape
+字元 ，例如原來的敘述是：</p>
+
+<pre class="PROGRAMLISTING">
+print "測試成功的$msg訊息！\n";
+</pre>
+
+<p>應改為：</p>
+
+<pre class="PROGRAMLISTING">
+print '測試成功的訊息！';
+</pre>
+
+<p>請特別注意 \n 換行符號及 $msg 變數也需拿掉，因為單引號並不處理 escape
+字元及變數，如果不將 \n 符號及 $msg 變數拿掉， 那麼顯示出來的字樣將會是</p>
+
+<pre class="SCREEN">
+成功的$msg訊息！\n
+</pre>
+
+<p>，如果您仍希望顯示成原來包含變數及換行的效果，
+那就必須將單引號與雙引號資料併用，同時以 . 符號來連結成完整的輸出敘述：</p>
+
+<pre class="PROGRAMLISTING">
+print '成功的'.$msg.'訊息！'."\n";
+</pre>
+
+<p>上述結論就是當印出 成功的 與 訊息！ 字樣是使用單引號， 而換行的 \n 則是用雙引號。</p>
+
+<p>以下是一個將檔案中所有的中文字移除的程式範例：</p>
+
+<pre class="PROGRAMLISTING">
+#!/usr/bin/perl -w
+# ./bg5rm.pl filename
+# and it's will generate a filename.bg5rm
+$ifname=$ARGV[0];
+open(IF,"$ifname");
+open(OF,"&gt;${ifname}.bg5rm");
+$big5 = "[\xA1-\xF9][\x40-\x7E\xA1-\xFE]";
+while(&lt;IF&gt;) {
+  s/$big5//g;
+  print OF $_;
+  print $_;
+}
+close(IF);
+close(OF);
+</pre>
+
+<p>以下是一個將文章中的中英文 word split 進 list：</p>
+
+<pre class="PROGRAMLISTING">
+my $big5 = q{
+    [\xA1-\xF9][\x40-\x7E\xA1-\xFE]
+};
+my $big5plus = q{
+    [\x81-\xFE][\x40-\x7E\x80-\xFE]
+};
+my @chars = /$big5|$ascii+/gox;
+my @charsplus = /$big5plus|$ascii+/gox;
+</pre>
+
+<p>MPX 的 <a href="http://www.hkln.net/perl/technique/chinese.htm" target="_top">解決
+Perl 處理中文字的問題</a></p>
+
+<p>CJKV Information Processing 這本書有些不錯的 perl 程式 <a
+href="ftp://ftp.oreilly.com/pub/examples/nutshell/cjkv/perl/"
+target="_top">範例</a>，其中 *.pdf 是一些討論 perl 下處理 multibyte 的 papers。</p>
+
+<p>Erik Peterson 寫了一些有用的 <a href="http://www.mandarintools.com/"
+target="_top">Perl 程式</a>， 可處理中文轉換。</p>
+
+<p>WWW: <a href="http://www.perl.org/" target="_top">http://www.perl.org/</a></p>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="java.html" accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="mysql.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">Java 中文程式設計</td>
+<td width="34%" align="center" valign="top"><a href="devel.html"
+accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">MySQL Localisation and International
+Usage</td>
+</tr>
+</table>
+</div>
+</body>
+</html>
+

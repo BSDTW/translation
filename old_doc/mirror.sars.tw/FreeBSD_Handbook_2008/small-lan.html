@@ -1,0 +1,149 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>Tracking for Multiple Machines</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.79" />
+<link rel="HOME" title="FreeBSD 使用手冊" href="index.html" />
+<link rel="UP" title="更新、升級 FreeBSD" href="cutting-edge.html" />
+<link rel="PREVIOUS" title="重新編譯 world" href="makeworld.html" />
+<link rel="NEXT" title="網路通訊" href="network-communication.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD 使用手冊</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="makeworld.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 23 更新、升級 FreeBSD</td>
+<td width="10%" align="right" valign="bottom"><a href="network-communication.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="SMALL-LAN" name="SMALL-LAN">23.5 Tracking for Multiple
+Machines</a></h1>
+
+<i class="AUTHORGROUP"><span class="CONTRIB">Contributed by</span> Mike Meyer.</i> 
+
+<p>If you have multiple machines that you want to track the same source tree, then having
+all of them download sources and rebuild everything seems like a waste of resources: disk
+space, network bandwidth, and CPU cycles. It is, and the solution is to have one machine
+do most of the work, while the rest of the machines mount that work via NFS. This section
+outlines a method of doing so.</p>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="SMALL-LAN-PRELIMINARIES" name="SMALL-LAN-PRELIMINARIES">23.5.1
+Preliminaries</a></h2>
+
+<p>First, identify a set of machines that is going to run the same set of binaries, which
+we will call a <span class="emphasis"><b class="EMPHASIS">build set</b></span>. Each
+machine can have a custom kernel, but they will be running the same userland binaries.
+From that set, choose a machine to be the <span class="emphasis"><b
+class="EMPHASIS">build machine</b></span>. It is going to be the machine that the world
+and kernel are built on. Ideally, it should be a fast machine that has sufficient spare
+CPU to run <tt class="COMMAND">make buildworld</tt> and <tt class="COMMAND">make
+buildkernel</tt>. You will also want to choose a machine to be the <span
+class="emphasis"><b class="EMPHASIS">test machine</b></span>, which will test software
+updates before they are put into production. This <span class="emphasis"><b
+class="EMPHASIS">must</b></span> be a machine that you can afford to have down for an
+extended period of time. It can be the build machine, but need not be.</p>
+
+<p>All the machines in this build set need to mount <tt class="FILENAME">/usr/obj</tt>
+and <tt class="FILENAME">/usr/src</tt> from the same machine, and at the same point.
+Ideally, those are on two different drives on the build machine, but they can be NFS
+mounted on that machine as well. If you have multiple build sets, <tt
+class="FILENAME">/usr/src</tt> should be on one build machine, and NFS mounted on the
+rest.</p>
+
+<p>Finally make sure that <tt class="FILENAME">/etc/make.conf</tt> on all the machines in
+the build set agrees with the build machine. That means that the build machine must build
+all the parts of the base system that any machine in the build set is going to install.
+Also, each build machine should have its kernel name set with <tt
+class="MAKEVAR">KERNCONF</tt> in <tt class="FILENAME">/etc/make.conf</tt>, and the build
+machine should list them all in <tt class="MAKEVAR">KERNCONF</tt>, listing its own kernel
+first. The build machine must have the kernel configuration files for each machine in <tt
+class="FILENAME">/usr/src/sys/<tt class="REPLACEABLE"><i>arch</i></tt>/conf</tt> if it is
+going to build their kernels.</p>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN29579" name="AEN29579">23.5.2 The Base System</a></h2>
+
+<p>Now that all that is done, you are ready to build everything. Build the kernel and
+world as described in <a href="makeworld.html#MAKE-BUILDWORLD">Section 23.4.7.2</a> on
+the build machine, but do not install anything. After the build has finished, go to the
+test machine, and install the kernel you just built. If this machine mounts <tt
+class="FILENAME">/usr/src</tt> and <tt class="FILENAME">/usr/obj</tt> via NFS, when you
+reboot to single user you will need to enable the network and mount them. The easiest way
+to do this is to boot to multi-user, then run <tt class="COMMAND">shutdown now</tt> to go
+to single user mode. Once there, you can install the new kernel and world and run <tt
+class="COMMAND">mergemaster</tt> just as you normally would. When done, reboot to return
+to normal multi-user operations for this machine.</p>
+
+<p>After you are certain that everything on the test machine is working properly, use the
+same procedure to install the new software on each of the other machines in the build
+set.</p>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN29588" name="AEN29588">23.5.3 Ports</a></h2>
+
+<p>The same ideas can be used for the ports tree. The first critical step is mounting <tt
+class="FILENAME">/usr/ports</tt> from the same machine to all the machines in the build
+set. You can then set up <tt class="FILENAME">/etc/make.conf</tt> properly to share
+distfiles. You should set <tt class="MAKEVAR">DISTDIR</tt> to a common shared directory
+that is writable by whichever user <tt class="USERNAME">root</tt> is mapped to by your
+NFS mounts. Each machine should set <tt class="MAKEVAR">WRKDIRPREFIX</tt> to a local
+build directory. Finally, if you are going to be building and distributing packages, you
+should set <tt class="MAKEVAR">PACKAGES</tt> to a directory similar to <tt
+class="MAKEVAR">DISTDIR</tt>.</p>
+</div>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="makeworld.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="network-communication.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">重新編譯 “world”</td>
+<td width="34%" align="center" valign="top"><a href="cutting-edge.html"
+accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">網路通訊</td>
+</tr>
+</table>
+</div>
+
+<p align="center"><small>本文及其他文件，可由此下載：<a
+href="ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/">ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/</a>。</small></p>
+
+<p align="center"><small>若有 FreeBSD 方面疑問，請先閱讀 <a
+href="http://www.FreeBSD.org/docs.html">FreeBSD 相關文件</a>，如不能解決的話，再洽詢
+&#60;<a href="mailto:questions@FreeBSD.org">questions@FreeBSD.org</a>&#62;。<br />
+關於本文件的問題，請洽詢 &#60;<a
+href="mailto:doc@FreeBSD.org">doc@FreeBSD.org</a>&#62;。</small></p>
+</body>
+</html>
+

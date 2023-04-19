@@ -1,0 +1,129 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+
+<!--Converted with LaTeX2HTML 2002-2-1 (1.71)
+original version by:  Nikos Drakos, CBLU, University of Leeds
+* revised and updated by:  Marcus Hennecke, Ross Moore, Herb Swan
+* with significant contributions from:
+  Jens Lippmann, Marek Rouchal, Martin Wilck and others -->
+<HTML>
+<HEAD>
+<TITLE>7.13 我該如何動態分配多維數組 ？</TITLE>
+<META NAME="description" CONTENT="7.13 我該如何動態分配多維數組 ？">
+<META NAME="keywords" CONTENT="ccfaq">
+<META NAME="resource-type" CONTENT="document">
+<META NAME="distribution" CONTENT="global">
+
+<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=utf-8">
+<META NAME="Generator" CONTENT="LaTeX2HTML v2002-2-1">
+<META HTTP-EQUIV="Content-Style-Type" CONTENT="text/css">
+
+<LINK REL="STYLESHEET" HREF="ccfaq.css">
+
+<LINK REL="next" HREF="node89.html">
+<LINK REL="previous" HREF="node87.html">
+<LINK REL="up" HREF="node75.html">
+<LINK REL="next" HREF="node89.html">
+</HEAD>
+
+<BODY >
+
+<DIV CLASS="navigation"><table width=100%> <COLGROUP><COL width="25%"><COL width="25%"><col width="25%"><col width="25%"></colgroup><tr><td align=left>
+<A NAME="tex2html1642"
+  HREF="node87.html">
+<IMG WIDTH="62" HEIGHT="25" ALIGN="BOTTOM" BORDER="0" ALT="previous" SRC="prev.png"></A></td><td align=center>
+<A NAME="tex2html1648"
+  HREF="node75.html">
+<IMG WIDTH="61" HEIGHT="25" ALIGN="BOTTOM" BORDER="0" ALT="up" SRC="up.png"></A></td><td align=center>&nbsp;
+<A NAME="tex2html1650"
+  HREF="node1.html">
+<IMG WIDTH="63" HEIGHT="25" ALIGN="BOTTOM" BORDER="0" ALT="contents" SRC="contents.png"></A>&nbsp;</td><td align=right>
+<A NAME="tex2html1652"
+  HREF="node89.html">
+<IMG WIDTH="62" HEIGHT="25" ALIGN="BOTTOM" BORDER="0" ALT="next" SRC="next.png"></A></td></tr></table>
+</DIV>
+<!--End of Navigation Panel-->
+
+<H1><A NAME="SECTION008130000000000000000"></A>
+<A NAME="q:6.16"></A>
+<BR>
+<SPAN CLASS="arabic">7</SPAN>.<SPAN CLASS="arabic">13</SPAN> 我該如何動態分配多維數組 ？
+</H1>
+傳統的解決方案是分配一個指針數組, 然後把每個指針初始化為動態分配的&nbsp;``列"。 以下為
+一個二維的例子:
+<PRE>
+    #include &lt;stdlib.h&gt;
+
+	int **array1 = malloc(nrows * sizeof(int *));
+	for(i = 0; i &lt; nrows; i++)
+	    array1[i] = malloc(ncolumns * sizeof(int));
+</PRE>
+當然, 在真實代碼中, 所有的&nbsp;malloc&nbsp;返回值都必須檢查。你也可以使用&nbsp;sizeof(*array1)&nbsp;
+和&nbsp;sizeof(**array1)&nbsp;代替&nbsp;sizeof(int *)&nbsp;和&nbsp;sizeof(int)。
+
+<P>
+你可以讓數組的內容連續, 但在後來重新分配列的時候會比較困難, 得使用一點指針算術:
+<PRE>
+	int **array2 = malloc(nrows * sizeof(int *));
+	array2[0] = malloc(nrows * ncolumns * sizeof(int));
+	for(i = 1; i &lt; nrows; i++)
+	    array2[i] = array2[0] + i * ncolumns;
+</PRE>
+在兩種情況下, 動態數組的成員都可以用正常的數組下標&nbsp;arrayx[i][j]&nbsp;來訪問
+&nbsp;(for 0 &lt;= i &lt;nrows&nbsp;和&nbsp;0 &lt;= j &lt;ncolumns)。
+
+<P>
+如果上述方案的兩次間接因為某種原因不能接受, 你還可以同一個單獨的動態分配
+的一維數組來模擬二維數組:
+<PRE>
+    int *array3 = malloc(nrows * ncolumns * sizeof(int));
+</PRE>
+
+<P>
+但是, 你現在必須手工計算下標, 用&nbsp;array3[i * ncolumns + j]&nbsp;訪問第&nbsp;i, j&nbsp;個成員。
+使用宏可以隱藏顯示的計算, 但是調用它的時候要使用括號和逗號, 這看起來不太像
+多維數組語法, 而且宏需要至少訪問一維。參見問題&nbsp;<A HREF="node91.html#q:6.19">6.16</A>。
+
+<P>
+另一種選擇是使用數組指針:
+<PRE>
+    int (*array4)[NCOLUMNS] = malloc(nrows * sizeof(*array4));
+</PRE>
+但是這個語法變得可怕而且運行時最多只能確定一維。
+
+<P>
+當然, 使用這些技術, 你都必須記住在不用的時候釋放數組&nbsp;(這可能需要多個步驟;
+參見問題&nbsp;<A HREF="node114.html#q:7.23">7.20</A>)。 而且你可能不能混用動態數組和傳統的靜態分配數組。
+參見問題&nbsp;<A HREF="node92.html#q:6.20">6.17</A>&nbsp;和&nbsp;<A HREF="node90.html#q:6.18">6.15</A>。
+
+<P>
+最後, 在&nbsp;C99&nbsp;中你可以使用變長數組。
+
+<P>
+所有這些技術都可以延伸到三維或更多的維數。
+
+<P>
+參考資料: [<A
+ HREF="node388.html#c9x">C9X</A>, Sec. 6.5.5.2]。
+
+<P>
+
+<DIV CLASS="navigation"><HR> <table width=100%> <COLGROUP><COL width="25%"><COL width="25%"><col width="25%"><col width="25%"></colgroup><tr><td align=left>
+<A NAME="tex2html1642"
+  HREF="node87.html">
+<IMG WIDTH="62" HEIGHT="25" ALIGN="BOTTOM" BORDER="0" ALT="previous" SRC="prev.png"></A></td><td align=center>
+<A NAME="tex2html1648"
+  HREF="node75.html">
+<IMG WIDTH="61" HEIGHT="25" ALIGN="BOTTOM" BORDER="0" ALT="up" SRC="up.png"></A></td><td align=center>&nbsp;
+<A NAME="tex2html1650"
+  HREF="node1.html">
+<IMG WIDTH="63" HEIGHT="25" ALIGN="BOTTOM" BORDER="0" ALT="contents" SRC="contents.png"></A>&nbsp;</td><td align=right>
+<A NAME="tex2html1652"
+  HREF="node89.html">
+<IMG WIDTH="62" HEIGHT="25" ALIGN="BOTTOM" BORDER="0" ALT="next" SRC="next.png"></A></td></tr></table>
+</DIV>
+<!--End of Navigation Panel-->
+<ADDRESS>
+<small>翻譯朱群英、孫雲, LaTeX2HTML 編譯 朱群英 (2005-06-23)</small>
+</ADDRESS>
+</BODY>
+</HTML>

@@ -1,0 +1,153 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>Using Mail with a Dialup Connection</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.79" />
+<link rel="HOME" title="FreeBSD 使用手冊" href="index.html" />
+<link rel="UP" title="Electronic Mail" href="mail.html" />
+<link rel="PREVIOUS" title="Setting Up to Send Only" href="outgoing-only.html" />
+<link rel="NEXT" title="SMTP Authentication" href="smtp-auth.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD 使用手冊</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="outgoing-only.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 24 Electronic Mail</td>
+<td width="10%" align="right" valign="bottom"><a href="smtp-auth.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="SMTP-DIALUP" name="SMTP-DIALUP">24.9 Using Mail with a Dialup
+Connection</a></h1>
+
+<p>If you have a static IP address, you should not need to adjust anything from the
+defaults. Set your host name to your assigned Internet name and <b
+class="APPLICATION">sendmail</b> will do the rest.</p>
+
+<p>If you have a dynamically assigned IP number and use a dialup PPP connection to the
+Internet, you will probably have a mailbox on your ISPs mail server. Let's assume your
+ISP's domain is <tt class="HOSTID">example.net</tt>, and that your user name is <tt
+class="USERNAME">user</tt>, you have called your machine <tt
+class="HOSTID">bsd.home</tt>, and your ISP has told you that you may use <tt
+class="HOSTID">relay.example.net</tt> as a mail relay.</p>
+
+<p>In order to retrieve mail from your mailbox, you must install a retrieval agent. The
+<b class="APPLICATION">fetchmail</b> utility is a good choice as it supports many
+different protocols. This program is available as a package or from the Ports Collection
+(<a href="http://www.FreeBSD.org/cgi/url.cgi?ports/mail/fetchmail/pkg-descr"><tt
+class="FILENAME">mail/fetchmail</tt></a>). Usually, your <acronym
+class="ACRONYM">ISP</acronym> will provide <acronym class="ACRONYM">POP</acronym>. If you
+are using user <acronym class="ACRONYM">PPP</acronym>, you can automatically fetch your
+mail when an Internet connection is established with the following entry in <tt
+class="FILENAME">/etc/ppp/ppp.linkup</tt>:</p>
+
+<pre class="PROGRAMLISTING">
+MYADDR:
+!bg su user -c fetchmail
+</pre>
+
+<p>If you are using <b class="APPLICATION">sendmail</b> (as shown below) to deliver mail
+to non-local accounts, you probably want to have <b class="APPLICATION">sendmail</b>
+process your mailqueue as soon as your Internet connection is established. To do this,
+put this command after the <tt class="COMMAND">fetchmail</tt> command in <tt
+class="FILENAME">/etc/ppp/ppp.linkup</tt>:</p>
+
+<pre class="PROGRAMLISTING">
+  !bg su user -c "sendmail -q"
+</pre>
+
+<p>Assume that you have an account for <tt class="USERNAME">user</tt> on <tt
+class="HOSTID">bsd.home</tt>. In the home directory of <tt class="USERNAME">user</tt> on
+<tt class="HOSTID">bsd.home</tt>, create a <tt class="FILENAME">.fetchmailrc</tt>
+file:</p>
+
+<pre class="PROGRAMLISTING">
+poll example.net protocol pop3 fetchall pass MySecret
+</pre>
+
+<p>This file should not be readable by anyone except <tt class="USERNAME">user</tt> as it
+contains the password <tt class="LITERAL">MySecret</tt>.</p>
+
+<p>In order to send mail with the correct <tt class="LITERAL">from:</tt> header, you must
+tell <b class="APPLICATION">sendmail</b> to use <code
+class="EMAIL">&#60;user@example.net&#62;</code> rather than <code
+class="EMAIL">&#60;user@bsd.home&#62;</code>. You may also wish to tell <b
+class="APPLICATION">sendmail</b> to send all mail via <tt
+class="HOSTID">relay.example.net</tt>, allowing quicker mail transmission.</p>
+
+<p>The following <tt class="FILENAME">.mc</tt> file should suffice:</p>
+
+<pre class="PROGRAMLISTING">
+VERSIONID(`bsd.home.mc version 1.0')
+OSTYPE(bsd4.4)dnl
+FEATURE(nouucp)dnl
+MAILER(local)dnl
+MAILER(smtp)dnl
+Cwlocalhost
+Cwbsd.home
+MASQUERADE_AS(`example.net')dnl
+FEATURE(allmasquerade)dnl
+FEATURE(masquerade_envelope)dnl
+FEATURE(nocanonify)dnl
+FEATURE(nodns)dnl
+define(`SMART_HOST', `relay.example.net')
+Dmbsd.home
+define(`confDOMAIN_NAME',`bsd.home')dnl
+define(`confDELIVERY_MODE',`deferred')dnl
+</pre>
+
+<p>Refer to the previous section for details of how to turn this <tt
+class="FILENAME">.mc</tt> file into a <tt class="FILENAME">sendmail.cf</tt> file. Also,
+do not forget to restart <b class="APPLICATION">sendmail</b> after updating <tt
+class="FILENAME">sendmail.cf</tt>.</p>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="outgoing-only.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="smtp-auth.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">Setting Up to Send Only</td>
+<td width="34%" align="center" valign="top"><a href="mail.html" accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">SMTP Authentication</td>
+</tr>
+</table>
+</div>
+
+<p align="center"><small>This, and other documents, can be downloaded from <a
+href="ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/">ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/</a>.</small></p>
+
+<p align="center"><small>For questions about FreeBSD, read the <a
+href="http://www.FreeBSD.org/docs.html">documentation</a> before contacting &#60;<a
+href="mailto:questions@FreeBSD.org">questions@FreeBSD.org</a>&#62;.<br />
+For questions about this documentation, e-mail &#60;<a
+href="mailto:doc@FreeBSD.org">doc@FreeBSD.org</a>&#62;.</small></p>
+</body>
+</html>
+

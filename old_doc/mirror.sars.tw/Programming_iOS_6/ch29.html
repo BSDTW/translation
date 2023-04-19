@@ -1,0 +1,625 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>Chapter 29. Music Library</title>
+    <link rel="stylesheet" type="text/css" href="docbook-xsl-mymods.css" />
+    <meta name="generator" content="DocBook XSL Stylesheets V1.76.0" />
+    <link rel="home" href="index.html" />
+    <link rel="up" href="pt06.html" />
+    <link rel="prev" href="ch28.html" />
+    <link rel="next" href="ch30.html" />
+  </head>
+  <body>
+    <div class="mattnotice">
+      <p>As a courtesy, this is a <b>full free</b> rendering of my book, <i>Programming iOS 6</i>, by Matt Neuburg. Copyright 2013 Matt Neuburg. Please note that this book has now been completely superseded by two more recent books, <a href="http://shop.oreilly.com/product/0636920032465.do">iOS 7 Fundamentals</a> and <a href="http://shop.oreilly.com/product/0636920031017.do">Programming iOS 7</a>. If my work has been of help to you, please <b>consider purchasing</b> one or both of them. Thank you!
+	</p>
+    </div>
+    <div class="navfooter">
+      <table width="100%" summary="Navigation footer">
+        <tr>
+          <td width="40%" align="left"><a accesskey="p" href="ch28.html">Prev</a> </td>
+          <td width="20%" align="center">
+            <a accesskey="u" href="pt06.html">Up</a>
+          </td>
+          <td width="40%" align="right"> <a accesskey="n" href="ch30.html">Next</a></td>
+        </tr>
+        <tr>
+          <td width="40%" align="left" valign="top">Chapter 28. Video </td>
+          <td width="20%" align="center">
+            <a accesskey="h" href="index.html">Table of Contents</a>
+          </td>
+          <td width="40%" align="right" valign="top"> Chapter 30. Photo Library and Image Capture</td>
+        </tr>
+      </table>
+    </div>
+    <div class="chapter">
+      <div class="titlepage">
+        <div>
+          <div>
+            <h2 class="title"><a id="chap_id29"></a>Chapter 29. Music Library</h2>
+          </div>
+        </div>
+      </div>
+      <p>An iOS device can be used for the same purpose as the original iPod — to hold and play music and podcasts. These items constitute the device’s <span class="emphasis"><em>music library</em></span>; the user can play them with the Music app (formerly called the iPod app on some devices).<a id="idm441641937408" class="indexterm"></a><a id="idm441641936496" class="indexterm"></a><a id="idm441641935600" class="indexterm"></a><a id="idm441641934704" class="indexterm"></a> iOS provides the programmer with various forms of access to the device’s music library; you can:</p>
+      <div class="itemizedlist">
+        <ul class="itemizedlist" type="disc">
+          <li class="listitem">
+Explore the music library
+</li>
+          <li class="listitem">
+Play an item from the music library
+</li>
+          <li class="listitem">
+Learn and control what the Music app’s music player is doing
+</li>
+          <li class="listitem">
+Present a standard interface for allowing the user to select a music library item
+</li>
+        </ul>
+      </div>
+      <p>These abilities are provided by the Media Player framework. You’ll need to link to <span class="emphasis"><em>MediaPlayer.framework</em></span> and import <code class="literal">&lt;MediaPlayer/MediaPlayer.h&gt;</code>.<a id="idm441641928064" class="indexterm"></a>
+<a id="idm441641926768" class="indexterm"></a></p>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_exploring_the_music_library"></a>Exploring the Music Library</h2>
+            </div>
+          </div>
+        </div>
+        <p>Everything in the music library, as seen by your code, is an <a id="idm441641924320" class="indexterm"></a>MPMediaEntity. This is an abstract class that endows its subclasses with the ability to describe themselves through key–value pairs called <span class="emphasis"><em>properties</em></span>. (This use of the word “properties” has nothing to do with the Objective-C properties discussed in <a class="xref" href="ch12.html">Chapter 12</a>; these properties are more like entries in an NSDictionary.) The repertoire of properties depends on the sort of entity you’re looking at; many of them will be intuitively familiar from your use of iTunes. For example, a media item has a title, an album title, a track number, an artist, a composer, and so on; a playlist has a title, a flag indicating whether it is a “smart” playlist, and so on. The property keys have names like <code class="literal">MPMediaItemPropertyTitle</code>.</p>
+        <p>To fetch a property’s value, call <code class="literal">valueForProperty:</code> with its key. You can fetch multiple properties with <code class="literal">enumerateValuesForProperties:usingBlock:</code>.</p>
+        <p>An individual item in the music library is an MPMediaItem, an MPMediaEntity subclass. It has a type, according to the value of its <code class="literal">MPMediaItemPropertyMediaType</code> property: it might, for example, be music, a podcast, an audiobook, or a video. Different types of item have slightly different properties; for example, a podcast, in addition to its normal title, has a podcast title.</p>
+        <p>An item’s artwork image is an instance of the MPMediaItemArtwork class, from which you are supposed to be able to get the image itself scaled to a specified size by calling <code class="literal">imageWithSize:</code>; my experience is that in reality you’ll receive an image of any old size the system cares to give you, so you may have to scale it further yourself. This, for example, is what my Albumen app does:</p>
+        <pre class="screen">MPMediaItemArtwork* art = //...
+UIImage* im = [art imageWithSize:CGSizeMake(36,36)];
+// but it probably *isn't* 36 by 36; scale it so that it is
+if (im) {
+    CGFloat scalew = 36.0/im.size.width;
+    CGFloat scaleh = 36.0/im.size.height;
+    CGFloat scale = (scalew &lt; scaleh) ? scalew : scaleh;
+    CGSize sz = CGSizeMake(im.size.width*scale, im.size.height*scale);
+    UIGraphicsBeginImageContextWithOptions(sz, NO, 0);
+    [im drawInRect:CGRectMake(0,0,sz.width,sz.height)];
+    im = UIGraphicsGetImageFromCurrentImageContext();
+    UIGraphicsEndImageContext();
+}</pre>
+        <p>A playlist is an MPMediaPlaylist. As you would expect, it has <code class="literal">items</code> and a <code class="literal">count</code> of those items. It inherits those properties from its superclass, MPMediaItemCollection, which is the other MPMediaEntity subclass. I’ll talk more about MPMediaItemCollection in a moment.</p>
+        <p>Obtaining actual information from the music library requires a <span class="emphasis"><em>query</em></span>, an MPMediaQuery. First, you <span class="emphasis"><em>form</em></span> the query. There are two main ways to do this:</p>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+With a convenience constructor
+</span>
+            </dt>
+            <dd>
+              <p class="simpara">
+MPMediaQuery provides several class methods that form a query ready to ask the music library for all of its songs, or all of its podcasts, and so on. Here’s the complete list:
+</p>
+              <div class="itemizedlist">
+                <ul class="itemizedlist" type="disc">
+                  <li class="listitem">
+<code class="literal">songsQuery</code>
+</li>
+                  <li class="listitem">
+<code class="literal">podcastsQuery</code>
+</li>
+                  <li class="listitem">
+<code class="literal">audiobooksQuery</code>
+</li>
+                  <li class="listitem">
+<code class="literal">playlistsQuery</code>
+</li>
+                  <li class="listitem">
+<code class="literal">albumsQuery</code>
+</li>
+                  <li class="listitem">
+<code class="literal">artistsQuery</code>
+</li>
+                  <li class="listitem">
+<code class="literal">composersQuery</code>
+</li>
+                  <li class="listitem">
+<code class="literal">genresQuery</code>
+</li>
+                  <li class="listitem">
+<code class="literal">compilationsQuery</code>
+</li>
+                </ul>
+              </div>
+            </dd>
+            <dt>
+              <span class="term">
+With filter predicates
+</span>
+            </dt>
+            <dd>
+              <p class="simpara">
+You can attach to the query one or more MPMediaPropertyPredicate instances, forming a set (NSSet) of predicates. These predicates filter the music library according to criteria you specify; to be included in the result, a media item must successfully pass through all the filters (in other words, the predicates are combined using logical-and). A predicate is a simple comparison. It has two, or possibly three, aspects:
+</p>
+              <div class="variablelist">
+                <dl>
+                  <dt>
+                    <span class="term">
+A property
+</span>
+                  </dt>
+                  <dd>
+The key to the property you want to compare against. Not every property can be used in a filter predicate; the documentation makes the distinction clear (and you can get additional help from an MPMediaEntity class method, <code class="literal">canFilterByProperty:</code>).
+</dd>
+                  <dt>
+                    <span class="term">
+A value
+</span>
+                  </dt>
+                  <dd>
+The value that the specified property must have in order to pass through the filter.
+</dd>
+                  <dt>
+                    <span class="term">
+A comparison type (optional)
+</span>
+                  </dt>
+                  <dd>
+In order to pass through the filter, a media item’s property value can either <span class="emphasis"><em>match</em></span> the value you provide (<code class="literal">MPMediaPredicateComparisonEqualTo</code>, the default) or <span class="emphasis"><em>contain</em></span> the value you provide (<code class="literal">MPMediaPredicateComparisonContains</code>).
+</dd>
+                </dl>
+              </div>
+            </dd>
+          </dl>
+        </div>
+        <p>These two ways of forming a query are actually the same; a convenience constructor is just a quick way of obtaining a query already endowed with a filter predicate.</p>
+        <p>A query also <span class="emphasis"><em>groups</em></span> its results, according to its <code class="literal">groupingType</code>. Your choices are:</p>
+        <div class="itemizedlist">
+          <ul class="itemizedlist" type="disc">
+            <li class="listitem">
+<code class="literal">MPMediaGroupingTitle</code>
+</li>
+            <li class="listitem">
+<code class="literal">MPMediaGroupingAlbum</code>
+</li>
+            <li class="listitem">
+<code class="literal">MPMediaGroupingArtist</code>
+</li>
+            <li class="listitem">
+<code class="literal">MPMediaGroupingAlbumArtist</code>
+</li>
+            <li class="listitem">
+<code class="literal">MPMediaGroupingComposer</code>
+</li>
+            <li class="listitem">
+<code class="literal">MPMediaGroupingGenre</code>
+</li>
+            <li class="listitem">
+<code class="literal">MPMediaGroupingPlaylist</code>
+</li>
+            <li class="listitem">
+<code class="literal">MPMediaGroupingPodcastTitle</code>
+</li>
+          </ul>
+        </div>
+        <p>The query convenience constructors all supply a <code class="literal">groupingType</code> in addition to a filter predicate. Indeed, the grouping is often the salient aspect of the query. For example, an <code class="literal">albumsQuery</code> is in fact merely a <code class="literal">songsQuery</code> with the added feature that its results are grouped by album.</p>
+        <p>The groups resulting from a query are <span class="emphasis"><em>collections</em></span>; that is, each is an MPMediaItemCollection. This class, you will recall, is the superclass of MPMediaPlaylist, and is an MPMediaEntity subclass. So, a collection has properties; it also has items and a count. It also has a <code class="literal">representativeItem</code> property, which gives you just one item from the collection. The reason you need this is that properties of a collection are often embodied in its items rather than in the collection itself. For example, an album has no title; rather, its items have album titles that are all the same. So to learn the title of an album, you ask for the album title of a representative item.</p>
+        <div class="warning" style="margin-left: 0; margin-right: 10%;">
+          <h3 class="title">Warning</h3>
+          <p>Unfortunately, in iOS 6, asking for a <code class="literal">representativeItem</code> can result in some nasty-looking log messages: “Attempting a write transaction on a read-only database,” and “BEGIN IMMEDIATE could unexpectedly not be stepped.” A possible workaround is to use <code class="literal">items[0]</code> instead of <code class="literal">representativeItem</code> (even though they are not quite the same thing).<a id="idm441641862320" class="indexterm"></a>
+<a id="idm441641861008" class="indexterm"></a></p>
+        </div>
+        <p>After you form the query, you <span class="emphasis"><em>perform</em></span> the query. You do this simply by asking for the query’s results. You can ask either for its <code class="literal">collections</code> (if you care about the groups returned from the query) or for its <code class="literal">items</code>. Here, I’ll discover the titles of all the albums:</p>
+        <pre class="screen">MPMediaQuery* query = [MPMediaQuery albumsQuery];
+NSArray* result = [query collections];
+// prove we've performed the query, by logging the album titles
+for (MPMediaItemCollection* album in result)
+    NSLog(@"%@", [album.representativeItem // or album.items[0]
+        valueForProperty:MPMediaItemPropertyAlbumTitle]);
+/*
+Output starts like this on my device:
+Beethoven Concertos
+Beethoven Overtures Etc
+Beethoven Piano Duet
+Beethoven Piano Other
+Beethoven Piano Sonatas
+...
+*/</pre>
+        <p>Now let’s make our query more elaborate; we’ll get the titles of all the albums whose name contains “Sonata”. Observe that what we really do is to ask for all songs whose album title contains “Sonata”, grouped by album:</p>
+        <pre class="screen">MPMediaQuery* query = [MPMediaQuery albumsQuery];
+MPMediaPropertyPredicate* hasSonata =
+    [MPMediaPropertyPredicate predicateWithValue:@"Sonata"
+        forProperty:MPMediaItemPropertyAlbumTitle
+     comparisonType:MPMediaPredicateComparisonContains];
+[query addFilterPredicate:hasSonata];
+NSArray* result = [query collections];
+for (MPMediaItemCollection* album in result)
+    NSLog(@"%@", [album.representativeItem // or album.items[0]
+        valueForProperty:MPMediaItemPropertyAlbumTitle]);
+/*
+Output starts like this on my device:
+Beethoven Piano Sonatas
+Beethoven Violin Sonatas
+Schubert Piano Sonatas
+Brahms Sonatas
+Mozart Church Sonatas
+...
+*/</pre>
+        <p>Because the results of that query are actually songs (MPMediaItems), we can immediately access any song in any of those albums. Let’s modify the output from our previous query to print the titles of all the songs in the first album returned, which happens to be the Beethoven Piano Sonatas album. We don’t have to change our query, so I’ll start at the point where we perform it:</p>
+        <pre class="screen">// ... same as before ...
+NSArray* result = [query collections];
+MPMediaItemCollection* album = result[0];
+for (MPMediaItem* song in album.items)
+    NSLog(@"%@", [song valueForProperty:MPMediaItemPropertyTitle]);
+/*
+Output starts like this on my device:
+Piano Sonata #1 In F Minor, Op. 2/1 - 1. Allegro
+Piano Sonata #1 In F Minor, Op. 2/1 - 2. Adagio
+Piano Sonata #1 In F Minor, Op. 2/1 - 3. Menuetto: Allegretto
+Piano Sonata #1 In F Minor, Op. 2/1 - 4. Prestissimo
+Piano Sonata #2 In A Minor, Op. 2/2 - 1. Allegro Vivace
+...
+*/</pre>
+        <p>One of the properties of an MPMediaEntity is its <span class="emphasis"><em>persistent ID</em></span>, which uniquely identifies this song (<code class="literal">MPMediaItemPropertyPersistentID</code>) or playlist (<code class="literal">MPMediaPlaylistPropertyPersistentID</code>). No other means of identification is guaranteed unique; two songs or two playlists can have the same title, for example. Using the persistent ID, you can retrieve again at a later time the same song or playlist you retrieved earlier, even across launches of your app. All sorts of things have persistent IDs — entities in general (<code class="literal">MPMediaEntityPropertyPersistentID</code>), albums, artists, composers, and more.</p>
+        <p>While you are maintaining the results of a search, the contents of the music library may themselves change. For example, the user might connect the device to a computer and add or delete music with iTunes. This can put your results out of date. For this reason, the library’s own modified state is available through the <a id="idm441641848000" class="indexterm"></a>MPMediaLibrary class. Call the class method <code class="literal">defaultMediaLibrary</code> to get the actual library instance; now you can ask it for its <code class="literal">lastModifiedDate</code>. You can also register to receive a notification, <code class="literal">MPMediaLibraryDidChangeNotification</code>, when the music library is modified; this notification is not emitted unless you first send the library <code class="literal">beginGeneratingLibraryChangeNotifications</code>. You should eventually balance this with <code class="literal">endGeneratingLibraryChangeNotifications</code>.</p>
+        <p>New in iOS 6, a song has a property <code class="literal">MPMediaItemPropertyIsCloudItem</code>, allowing you to ask whether it lives in the cloud (thanks to iTunes Match) or on the device. The distinction is clearer in than it was in iOS 5, because a song can now be played from the cloud without downloading it, and the user can manually download a song from the cloud or delete it from the device. Such changes in a song’s cloud status do <span class="emphasis"><em>not</em></span> count as a change in the library.<a id="idm441641840864" class="indexterm"></a>
+<a id="idm441641839552" class="indexterm"></a><a id="idm441641838656" class="indexterm"></a>
+<a id="idm441641837616" class="indexterm"></a>
+<a id="idm441641836576" class="indexterm"></a></p>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_the_music_player"></a>The Music Player</h2>
+            </div>
+          </div>
+        </div>
+        <p>The Media Player framework class for playing an MPMediaItem is <a id="idm441641834160" class="indexterm"></a>MPMusicPlayerController. It comes in two flavors, depending on which class method you use to get an instance:<a id="idm441641833280" class="indexterm"></a></p>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+<code class="literal">applicationMusicPlayer</code>
+</span>
+            </dt>
+            <dd>
+Plays an MPMediaItem from the music library within your application. The song being played by the <code class="literal">applicationMusicPlayer</code> can be different from the Music app’s current song. This player stops when your app is not in the foreground.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">iPodMusicPlayer</code>
+</span>
+            </dt>
+            <dd>
+The global music player — the very same player used by the Music app. This might already be playing an item, or might be paused with a current item, at any time while your app runs; you can learn or change what item this is. The global music player continues playing independently of the state of your app, and the user can at any time alter what it is doing.<a id="idm441641826112" class="indexterm"></a>
+</dd>
+          </dl>
+        </div>
+        <div class="warning" style="margin-left: 0; margin-right: 10%;">
+          <h3 class="title">Warning</h3>
+          <p>An <code class="literal">applicationMusicPlayer</code> is not really inside your app. It is actually the global music player behaving differently. It has its own audio session. You cannot play its audio when your app is in the background. You cannot make it the target of remote control events. If these limitations prove troublesome, use the <code class="literal">iPodMusicPlayer</code> (or AVPlayer, discussed later in this chapter).</p>
+        </div>
+        <p>A music player doesn’t merely play an item; it plays from a <span class="emphasis"><em>queue</em></span> of items. This behavior is familiar from iTunes and the Music app. For example, in iTunes, when you switch to a playlist and double-click the first song to start playing, when iTunes comes to the end of that song, it proceeds by default to the next song in the playlist. So at that moment, its queue is the totality of songs in the playlist. The music player behaves the same way; when it reaches the end of a song, it proceeds to the next song in its queue.</p>
+        <p>Your methods for controlling playback also reflect this queue-based orientation. In addition to the expected <code class="literal">play</code>, <code class="literal">pause</code>, and <code class="literal">stop</code> commands, there’s a <code class="literal">skipToNextItem</code> and <code class="literal">skipToPreviousItem</code> command. Anyone who has ever used iTunes or the Music app (or, for that matter, an old-fashioned iPod) will have an intuitive grasp of this and everything else a music player does. For example, you can also set a music player’s <code class="literal">repeatMode</code> and <code class="literal">shuffleMode</code>, just as in iTunes.</p>
+        <p>You provide a music player with its queue in one of two ways:</p>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+With a query
+</span>
+            </dt>
+            <dd>
+You hand the music player an MPMediaQuery. The query’s <code class="literal">items</code> are the items of the queue.
+</dd>
+            <dt>
+              <span class="term">
+With a collection
+</span>
+            </dt>
+            <dd>
+You hand the music player an MPMediaItemCollection. This might be obtained from a query you performed, but you can also assemble your own collection of MPMediaItems in any way you like, putting them into an array and calling <code class="literal">collectionWithItems:</code> or <code class="literal">initWithItems:</code>.
+</dd>
+          </dl>
+        </div>
+        <p>In this example, we collect all songs in the library shorter than 30 seconds into a queue and set the queue playing in random order using the application-internal music player:</p>
+        <pre class="screen">MPMediaQuery* query = [MPMediaQuery songsQuery];
+NSMutableArray* marr = [NSMutableArray array];
+MPMediaItemCollection* queue = nil;
+for (MPMediaItem* song in query.items) {
+    NSNumber* dur =
+        [song valueForProperty:MPMediaItemPropertyPlaybackDuration];
+    if ([dur floatValue] &lt; 30)
+        [marr addObject: song];
+}
+if ([marr count] == 0)
+    NSLog(@"No songs that short!");
+else
+    queue = [MPMediaItemCollection collectionWithItems:marr];
+if (queue) {
+    MPMusicPlayerController* player =
+        [MPMusicPlayerController applicationMusicPlayer];
+    [player setQueueWithItemCollection:queue];
+    player.shuffleMode = MPMusicShuffleModeSongs;
+    [player play];
+}</pre>
+        <p>If a music player is currently playing, setting its queue will stop it; restarting play is up to you.</p>
+        <p>You can ask a music player for its <code class="literal">nowPlayingItem</code>, and since this is an MPMediaItem, you can learn all about it through its properties. Unfortunately, you can’t query a music player as to its queue, but you can keep your own pointer to the MPMediaItemCollection constituting the queue when you hand it to the music player, and you can ask the music player for which song within the queue is currently playing (<code class="literal">indexOfNowPlayingItem</code>). The user can completely change the queue of an <code class="literal">iPodMusicPlayer</code>, so if control over the queue is important to you, use the <code class="literal">applicationMusicPlayer</code>.</p>
+        <p>A music player has a <code class="literal">playbackState</code> that you can query to learn what it’s doing (whether it is playing, paused, stopped, or seeking). It also emits notifications so you can hear about changes in its state:</p>
+        <div class="itemizedlist">
+          <ul class="itemizedlist" type="disc">
+            <li class="listitem">
+<code class="literal">MPMusicPlayerControllerPlaybackStateDidChangeNotification</code>
+</li>
+            <li class="listitem">
+<code class="literal">MPMusicPlayerControllerNowPlayingItemDidChangeNotification</code>
+</li>
+            <li class="listitem">
+<code class="literal">MPMusicPlayerControllerVolumeDidChangeNotification</code>
+</li>
+          </ul>
+        </div>
+        <p>These notifications are not emitted until you tell the music player to <code class="literal">beginGeneratingPlaybackNotifications</code>. This is an instance method, so you can arrange to receive notifications from just one particular music player if you like. If you do receive notifications from both, you can distinguish them by examining the NSNotification’s <code class="literal">object</code> and comparing it to each player. You should eventually balance this call with <code class="literal">endGeneratingPlaybackNotifications</code>.</p>
+        <p>To illustrate, I’ll extend the previous example to set a UILabel in our interface every time a different song starts playing. Before we start the player playing, we insert these lines to generate the notifications:</p>
+        <pre class="screen">[player beginGeneratingPlaybackNotifications];
+[[NSNotificationCenter defaultCenter] addObserver:self
+    selector:@selector(changed:)
+    name:MPMusicPlayerControllerNowPlayingItemDidChangeNotification
+    object:player];
+self.q = queue; // retain a pointer to the queue</pre>
+        <p>And here’s how we respond to those notifications:</p>
+        <pre class="screen">- (void) changed: (NSNotification*) n {
+    MPMusicPlayerController* player =
+        [MPMusicPlayerController applicationMusicPlayer];
+    if ([n object] == player) { // just playing safe
+        NSString* title =
+            [player.nowPlayingItem valueForProperty:MPMediaItemPropertyTitle];
+        NSUInteger ix = player.indexOfNowPlayingItem;
+        [self-&gt;label setText: [NSString stringWithFormat:@"%i of %i: %@",
+                               ix+1, [self.q count], title]];
+    }
+}</pre>
+        <p>There’s no periodic notification as a song plays and the current playhead position advances. To get this information, you’ll have to resort to polling. This is not objectionable as long as your polling interval is reasonably sparse; your display may occasionally fall a little behind reality, but this won’t usually matter. To illustrate, let’s add to our existing example a UIProgressView (<code class="literal">p</code>) showing the current percentage of the current song played by the global player. There’s no notification, so I’ll use an NSTimer and poll the state of the player every 2 seconds:</p>
+        <pre class="screen">self.timer = [NSTimer scheduledTimerWithTimeInterval:2
+                 target:self selector:@selector(timerFired:)
+                 userInfo:nil repeats:YES];</pre>
+        <p>When the timer fires (<code class="literal">timerFired:</code>), the progress view displays the state of the currently playing item:</p>
+        <pre class="screen">MPMusicPlayerController* mp =
+    [MPMusicPlayerController applicationMusicPlayer];
+MPMediaItem* item = mp.nowPlayingItem;
+if (!item || mp.playbackState == MPMusicPlaybackStateStopped) {
+    self.p.hidden = YES;
+    return;
+}
+self.p.hidden = NO;
+NSTimeInterval current = mp.currentPlaybackTime;
+NSTimeInterval total =
+[[item valueForProperty:MPMediaItemPropertyPlaybackDuration] doubleValue];
+self.p.progress = current / total;</pre>
+        <p>The <code class="literal">applicationMusicPlayer</code> has no user interface, unless you count the remote playback controls (<a class="xref" href="ch27.html#FIGremote">Figure 27.1</a>); if you want the user to have controls for playing and stopping a song, you’ll have to create them yourself. The <code class="literal">iPodMusicPlayer</code> has its own natural interface — the Music app.</p>
+        <p>The Media Player framework does offer a slider for setting the system output volume, along with an AirPlay route button if appropriate; this is an <a id="idm441641780320" class="indexterm"></a>MPVolumeView. An MPVolumeView works only on a device — not in the Simulator.<a id="idm441641779424" class="indexterm"></a>
+<a id="idm441641778144" class="indexterm"></a><a id="idm441641777232" class="indexterm"></a><a id="idm441641776336" class="indexterm"></a> Starting in iOS 6, it is customizable similarly to a UISlider; you can set the images for the two halves of the track, the thumb, and even the AirPlay route button, for both the Normal and the Highlighted state (while the user is touching the thumb). A nice feature is that you can retrieve the MPVolumeView’s default images, so that you can base the modified images upon them. In this example, we make the left half of the track black and the right half red, and we make the thumb larger:</p>
+        <pre class="screen">CGSize sz = CGSizeMake(20,20);
+UIGraphicsBeginImageContextWithOptions(
+    CGSizeMake(sz.height,sz.height), NO, 0);
+[[UIColor blackColor] setFill];
+[[UIBezierPath bezierPathWithOvalInRect:
+    CGRectMake(0,0,sz.height,sz.height)] fill];
+UIImage* im1 = UIGraphicsGetImageFromCurrentImageContext();
+[[UIColor redColor] setFill];
+[[UIBezierPath bezierPathWithOvalInRect:
+    CGRectMake(0,0,sz.height,sz.height)] fill];
+UIImage* im2 = UIGraphicsGetImageFromCurrentImageContext();
+UIGraphicsEndImageContext();
+
+[self.vv setMinimumVolumeSliderImage:
+    [im1 resizableImageWithCapInsets:UIEdgeInsetsMake(9,9,9,9)
+                        resizingMode:UIImageResizingModeStretch]
+                            forState:UIControlStateNormal];
+[self.vv setMaximumVolumeSliderImage:
+    [im2 resizableImageWithCapInsets:UIEdgeInsetsMake(9,9,9,9)
+                        resizingMode:UIImageResizingModeStretch]
+                            forState:UIControlStateNormal];
+
+UIImage* thumb = [self.vv volumeThumbImageForState:UIControlStateNormal];
+sz = thumb.size;
+sz.width +=10; sz.height += 10;
+UIGraphicsBeginImageContextWithOptions(sz, NO, 0);
+[thumb drawInRect:CGRectMake(0,0,sz.width,sz.height)];
+UIImage* im3 = UIGraphicsGetImageFromCurrentImageContext();
+UIGraphicsEndImageContext();
+
+[self.vv setVolumeThumbImage:im3 forState:UIControlStateNormal];</pre>
+        <p>MPMusicPlayerController is convenient and simple, but it’s also simple-minded. Its audio session isn’t your audio session; the music player doesn’t really belong to you. An MPMediaItem, however, has an <code class="literal">MPMediaItemPropertyAssetURL</code> key whose value is a URL suitable for forming an <a id="idm441641772592" class="indexterm"></a>AVAsset. Thus, another way to play an MPMediaItem is through AV Foundation (<a class="xref" href="ch28.html">Chapter 28</a>).<a id="idm441641771216" class="indexterm"></a>
+<a id="idm441641769920" class="indexterm"></a> This approach puts playback of the song into your app’s audio session and allows you to control it in response to remote control events and to play it while your app is in the background. (Of course, you can do a lot more with AV Foundation than merely to <span class="emphasis"><em>play</em></span> a song from the music library. For example, you could incorporate a song, or part of a song, as the sound track to a movie.)</p>
+        <p>In this simple example, we start with an array of MPMediaItems and initiate play of those items in an <a id="idm441641767168" class="indexterm"></a>AVQueuePlayer:<a id="idm441641766432" class="indexterm"></a></p>
+        <pre class="screen">NSArray* arr = // array of MPMediaItem;
+NSMutableArray* assets = [NSMutableArray array];
+for (MPMediaItem* item in arr) {
+    AVPlayerItem* pi = [[AVPlayerItem alloc] initWithURL:
+        [item valueForProperty:MPMediaItemPropertyAssetURL]];
+    [assets addObject:pi];
+}
+self.qp = [AVQueuePlayer queuePlayerWithItems:assets];
+[self.qp play];</pre>
+        <p>That’s easy enough, but I have the impression, based on something said in one of the WWDC 2011 videos, that it’s not what you’re supposed to do. Instead of adding a whole batch of AVPlayerItems to an AVQueuePlayer all at once, you should add just a few AVPlayerItems to start with and then add each additional AVPlayerItem when an item finishes playing. So I’ll start out by adding just three AVPlayerItems, and use KVO to observe the AVQueuePlayer’s <code class="literal">@"currentItem"</code> key:</p>
+        <pre class="screen">NSArray* arr = // array of MPMediaItem;
+self.assets = [NSMutableArray array];
+for (MPMediaItem* item in arr) {
+    AVPlayerItem* pi = [[AVPlayerItem alloc] initWithURL:
+        [item valueForProperty:MPMediaItemPropertyAssetURL]];
+    [self.assets addObject:pi];
+}
+self-&gt;_curnum = 0; // we'll need this later
+self-&gt;_total = [self.assets count]; // ditto
+self.qp = [AVQueuePlayer queuePlayerWithItems:
+    [self.assets objectsAtIndexes:
+        [NSIndexSet indexSetWithIndexesInRange:NSMakeRange(0,3)]]];
+[self.assets removeObjectsAtIndexes:
+        [NSIndexSet indexSetWithIndexesInRange:NSMakeRange(0,3)]];
+[self.qp addObserver:self forKeyPath:@"currentItem" options:0 context:nil];
+[self.qp play];</pre>
+        <p>The implementation of <code class="literal">observeValueForKeyPath:...</code> looks like this:</p>
+        <pre class="screen">AVPlayerItem* item = self.qp.currentItem;
+NSArray* arr = item.asset.commonMetadata;
+arr = [AVMetadataItem metadataItemsFromArray:arr
+                                     withKey:AVMetadataCommonKeyTitle
+                                    keySpace:AVMetadataKeySpaceCommon];
+AVMetadataItem* met = arr[0];
+[met loadValuesAsynchronouslyForKeys:@[@"value"]
+                   completionHandler:^{
+    dispatch_async(dispatch_get_main_queue(), ^{
+        self.label.text = [NSString stringWithFormat:@"%i of %i: %@",
+                            ++self-&gt;_curnum, self-&gt;_total,
+                            [met valueForKey:@"value"]];
+    });
+}];
+if (![self.assets count])
+    return;
+AVPlayerItem* newItem = self.assets[0];
+[self.qp insertItem:newItem afterItem:[self.qp.items lastObject]];
+[self.assets removeObjectAtIndex:0];</pre>
+        <p>That code illustrates how to extract metadata from an AVAsset by way of an AVMetadataItem; in this case, we fetch the AVMetadataCommonKeyTitle and get its value, as the equivalent of fetching an MPMediaItem’s MPMediaItemPropertyTitle property in our earlier code. <code class="literal">loadValuesAsynchronouslyForKeys:completionHandler:</code> is the way to retrieve a property from various AV Foundation classes, including AVMetadataItem. There are no guarantees about what thread the completion handler will be called on, so to set the label’s text, I step out to the main thread (more about that in <a class="xref" href="ch38.html">Chapter 38</a>).</p>
+        <p>In the last three lines, we pull an AVPlayerItem off the front of our <code class="literal">assets</code> mutable array and add it to the end of the AVQueuePlayer’s queue. The AVQueuePlayer itself deletes an item from the start of its queue after playing it, so this way the queue never exceeds three items in length.</p>
+        <p>Just as in the previous example, where we updated a progress view in response to the firing of a timer to reflect an MPMusicPlayerController’s current item’s time and duration, we can do the same thing with the currently playing AVPlayerItem. Here’s the code that runs when our timer fires:</p>
+        <pre class="screen">if (self.qp.rate &lt; 0.01)
+    self.p.hidden = YES;
+else {
+    self.p.hidden = NO;
+    AVPlayerItem* item = self.qp.currentItem;
+    CMTime cur = self.qp.currentTime;
+    CMTime dur = item.duration;
+    self.p.progress = CMTimeGetSeconds(cur)/CMTimeGetSeconds(dur);
+}</pre>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_the_music_picker"></a>The Music Picker</h2>
+            </div>
+          </div>
+        </div>
+        <p>The music picker (MPMediaPickerController) is a view controller (UIViewController) whose view is a self-contained navigation interface in which the user can select a media item. This interface looks very much like the Music app. You have no access to the actual view; you are expected to present the view controller (or, on the iPad, to use a popover).<a id="idm441641750912" class="indexterm"></a><a id="idm441641750016" class="indexterm"></a><a id="idm441641749120" class="indexterm"></a></p>
+        <p>You can limit the type of media items displayed by creating the controller using <code class="literal">initWithMediaTypes:</code>. You can make a prompt appear at the top of the navigation bar (<code class="literal">prompt</code>). And you can govern whether the user can choose multiple media items or just one, with the <code class="literal">allowsPickingMultipleItems</code> property. New in iOS 6, you can filter out items stored in the cloud (through iTunes Match) by setting <code class="literal">showsCloudItems</code> to NO. That’s all there is to it.<a id="idm441641744672" class="indexterm"></a><a id="idm441641743808" class="indexterm"></a></p>
+        <p>While the view is showing, you learn what the user is doing through two delegate methods (MPMediaPickerControllerDelegate):</p>
+        <div class="itemizedlist">
+          <ul class="itemizedlist" type="disc">
+            <li class="listitem">
+<code class="literal">mediaPicker:didPickMediaItems:</code>
+</li>
+            <li class="listitem">
+<code class="literal">mediaPickerDidCancel:</code>
+</li>
+          </ul>
+        </div>
+        <p>How you use these depends on the value of the controller’s <code class="literal">allowsPickingMultipleItems</code>:</p>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+The controller’s <code class="literal">allowsPickingMultipleItems</code> is NO (the default)
+</span>
+            </dt>
+            <dd>
+Every time the user taps a media item, your <code class="literal">mediaPicker:didPickMediaItems:</code> is called, handing you an MPMediaItemCollection consisting of all items the user has tapped so far (including the same item multiple times if the user taps the same item more than once). When the user taps Cancel, your <code class="literal">mediaPickerDidCancel:</code> is called.
+</dd>
+            <dt>
+              <span class="term">
+The controller’s <code class="literal">allowsPickingMultipleItems</code> is YES
+</span>
+            </dt>
+            <dd>
+The interface has Plus buttons at the right end of every media item, similar to the Music app interface for creating a playlist. When the user taps Done, <code class="literal">mediaPicker:didPickMediaItems:</code> is called, handing you an MPMediaItemCollection consisting of all items for which the user has tapped the Plus button (including the same item multiple times if the user taps the same item’s Plus button more than once). Your <code class="literal">mediaPickerDidCancel:</code> is <span class="emphasis"><em>never</em></span> called.
+</dd>
+          </dl>
+        </div>
+        <p>The view is <span class="emphasis"><em>not</em></span> automatically dismissed; it is up to you to dismiss the presented view controller.</p>
+        <p>In this example, we put up the music picker, allowing the user to choose one media item; we then play that media item with the application’s music player:</p>
+        <pre class="screen">- (void) presentPicker {
+    MPMediaPickerController* picker = [MPMediaPickerController new];
+    picker.delegate = self;
+    [self presentViewController:picker animated:YES completion:nil];
+}
+
+- (void) mediaPicker: (MPMediaPickerController*) mediaPicker
+        didPickMediaItems: (MPMediaItemCollection*) mediaItemCollection {
+    MPMusicPlayerController* player =
+        [MPMusicPlayerController applicationMusicPlayer];
+    [player setQueueWithItemCollection:mediaItemCollection];
+    [player play];
+    [self dismissViewControllerAnimated:YES completion:nil];
+}
+
+- (void) mediaPickerDidCancel: (MPMediaPickerController*) mediaPicker {
+    [self dismissViewControllerAnimated:YES completion:nil];
+}</pre>
+        <p>On the iPad, the music picker can be displayed as a presented view, but it also works very well in a popover. I’ll use this opportunity to provide a complete example (<a class="xref" href="ch29.html#EXmodalOrPop">Example 29.1</a>) of managing a single view controller as either a presented view or a popover. <a id="idm441641725536" class="indexterm"></a><a id="idm441641724672" class="indexterm"></a><a id="idm441641723792" class="indexterm"></a><a id="idm441641722880" class="indexterm"></a> The <code class="literal">presentPicker</code> method is now a button’s control event action handler, so that we can point the popover’s arrow to the button. How we summon the picker depends on the device; we use <code class="literal">UI_USER_INTERFACE_IDIOM</code> to distinguish the two cases. If it’s an iPad, we create a popover and set an instance variable to retain it (as discussed in <a class="xref" href="ch22.html">Chapter 22</a>). Two methods dismiss the picker, so that operation is factored out into a utility method (<code class="literal">dismissPicker:</code>) that does one thing if there’s a popover and another if there’s a presented view controller.</p>
+        <div class="example">
+          <a id="EXmodalOrPop"></a>
+          <p class="title">Example 29.1. A presented view on the iPhone, a popover on the iPad</p>
+          <div class="example-contents">
+            <pre class="screen">- (void) presentPicker: (id) sender {
+    MPMediaPickerController* picker = [MPMediaPickerController new];
+    picker.delegate = self;
+    if (UI_USER_INTERFACE_IDIOM() == UIUserInterfaceIdiomPhone)
+        [self presentViewController:picker animated:YES completion:nil];
+    else {
+        UIPopoverController* pop =
+            [[UIPopoverController alloc] initWithContentViewController:picker];
+        self.currentPop = pop;
+        [pop presentPopoverFromRect:[sender bounds] inView:sender
+            permittedArrowDirections:UIPopoverArrowDirectionAny animated:YES];
+        pop.passthroughViews = nil;
+    }
+}
+
+- (void) dismissPicker: (MPMediaPickerController*) mediaPicker {
+    if (self.currentPop &amp;&amp; self.currentPop.popoverVisible) {
+        [self.currentPop dismissPopoverAnimated:YES];
+    } else {
+        [self dismissViewControllerAnimated:YES completion:nil];
+    }
+}
+
+- (void)mediaPicker: (MPMediaPickerController *)mediaPicker
+        didPickMediaItems:(MPMediaItemCollection *)mediaItemCollection {
+    MPMusicPlayerController* player =
+        [MPMusicPlayerController applicationMusicPlayer];
+    [player setQueueWithItemCollection:mediaItemCollection];
+    [player play];
+    [self dismissPicker: mediaPicker];
+}
+
+- (void)mediaPickerDidCancel:(MPMediaPickerController *)mediaPicker {
+    [self dismissPicker: mediaPicker];
+}
+
+- (void)popoverControllerDidDismissPopover:(UIPopoverController*)popoverController {
+    self.currentPop = nil;
+}</pre>
+          </div>
+        </div>
+        <br class="example-break" />
+      </div>
+    </div>
+    <div class="navfooter">
+      <table width="100%" summary="Navigation footer">
+        <tr>
+          <td width="40%" align="left"><a accesskey="p" href="ch28.html">Prev</a> </td>
+          <td width="20%" align="center">
+            <a accesskey="u" href="pt06.html">Up</a>
+          </td>
+          <td width="40%" align="right"> <a accesskey="n" href="ch30.html">Next</a></td>
+        </tr>
+        <tr>
+          <td width="40%" align="left" valign="top">Chapter 28. Video </td>
+          <td width="20%" align="center">
+            <a accesskey="h" href="index.html">Table of Contents</a>
+          </td>
+          <td width="40%" align="right" valign="top"> Chapter 30. Photo Library and Image Capture</td>
+        </tr>
+      </table>
+    </div>
+  </body>
+</html>

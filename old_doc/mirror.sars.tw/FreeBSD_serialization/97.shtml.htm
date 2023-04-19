@@ -1,0 +1,248 @@
+
+
+<!-- Vignette StoryServer 4 Sat Mar 11 15:43:24 2000 --> 
+<style type=text/css>
+<!--
+p,div {font-size:12pt; line-height:14pt; font-family:宋體;}
+.p1{font-size:12pt;font-family:宋體;}
+.p2{font-size:12pt;font-family:宋體;line-height:14pt;}
+.p3{font-size:14.8px;font-family:宋體;}
+.p4{font-size:14.8px;font-family:宋體;line-height:14pt;}
+.p5{font-size:1pt}
+a:hover{color:red;}
+a.t1:visited{color:red;}
+-->
+</style>
+<title>FreeBSD使用大全</title></head>
+
+<body bgcolor="#FFFFFF" text="#000000" link="#383098" vlink="#336699" alink="#FF0000" topmargin="0">
+<!-- Vignette StoryServer 4 Thu Mar 23 10:01:54 2000 --> <!-- Vignette StoryServer 4 Thu Mar 23 15:34:35 2000 --> 
+
+<!--開始：新聞內容-->
+<TABLE WIDTH=750 BORDER=0 CELLSPACING=0 CELLPADDING=0>
+
+<tr valign=top>
+
+
+
+<TD  valign=top>
+<CENTER><FONT COLOR=#000066 size=5><B>FreeBSD連載(22)：調整控制台設置</B><br></FONT></CENTER>
+
+<HR  ALIGN="center" SIZE=1>
+<CENTER><FONT FACE="Arial" SIZE=2> 1999年11月24日 17:43 </FONT><FONT COLOR="#990000" SIZE=2>王波</FONT></CENTER><p>
+
+<h1 align=center>調整系統設置</h1>
+
+<p>　　在FreeBSD系統中，很多設置都需要直接更改設置檔案，例如系統啟動腳本rc.conf，控制終端設置文
+件/etc/ttys等。雖然大部分很多系統的參數可以通過安裝程序Sysinstall來設置，但是改動配置檔案更
+為直接。並且對於管理員來講，只有了解配置檔案是如何控制系統的表現，才能從根本上解決在實際操作中遇到的各種問題。</p>
+
+<ul><P><LI><h2>調整控制台設置</h2></LI></P></ul>
+
+<p>　　控制台是個人用FreeBSD系統使用者最常進行操作的位置，因此應該調整控制台設置，使其最適合使用者的習
+慣。可以在控制台上調整顯示使用的字體、鍵碟映射、螢幕保護、虛擬終端等設置。其中一些設置可以通過安裝程序sysinstall
+來進行，然而有的設置必須通過命令方式或更改配置檔案來完成，而且命令行方式具有更大的靈活性。
+</p>
+
+<ul><B><P><LI>虛擬終端與ttys設置</LI></P></B></ul>
+
+<p>　　FreeBSD的控制台上有多個虛擬終端，可以在系統啟動之後使用Alt鍵加上功能鍵來切換虛擬終端。系統缺
+省只激活四個虛擬終端，這已經滿足絕大多數的需要。其中第四個虛擬終端在預設情況下沒有運行登錄程序，這是因為X Server
+運行時也需要一個虛擬終端，因此必須將一個沒有進程占據的控制台終端留給X Window使用。</p>
+
+<p>　　而通過更改核心的設置，FreeBSD可以支持16個虛擬終端設備，由於通常個人電腦只有F1-F12共12
+個功能鍵，事實上只能使用12個虛擬終端。其設備檔案從ttyv0到ttyv15，可以使用MAKEDEV來創建這
+些設備檔案。為了增加虛擬終端的數量，除了更改核心設置、創建設備檔案之外，還需要編輯系統檔案/etc/ttys。
+這個檔案中有下面的內容是與此相關的：
+</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre><font size=2># name  getty                           type    status          comments
+<br>#
+<br># This entry needed for asking password when init goes to single-user mode
+<br># If you want to be asked for password, change "secure" to "insecure" here
+<br>console none                            unknown off secure
+<br>#
+<br>ttyv0     "/usr/libexec/getty Pc"       cons25    on  secure
+<br>ttyv1     "/usr/libexec/getty Pc"       cons25    on  secure
+<br>ttyv2     "/usr/libexec/getty Pc"       cons25    on  secure
+<br>ttyv3     "/usr/libexec/getty Pc"       cons25    off secure
+</font></td></pre></tr></table>
+
+<p>　　ttyv3對應的行的第四列為 “off” ，這說明這個終端並沒有運行getty程序，不會出現登錄提示。
+增加虛擬終端就意味著在這個檔案中增加相應的設置行，例如要增加一個虛擬終端，就應該修改這個檔案中的相應項為：
+</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>ttyv3  "/usr/libexec/getty Pc"   cons25  on  secure
+<br>ttyv4  "/usr/libexec/getty Pc"   cons25  off secure</td></pre></tr></table>
+
+<p>　　修改完這個檔案之後需要重起系統，在核心支持的條件下，系統將增加一個虛擬終端。</p>
+
+<p>　　如果用戶在控制台上運行了X Window，由於X Server也需要控制Alt加功能鍵這樣的組合鍵，因
+此控制台將這類組合鍵留給X Window，不再使用它們來切換到其他虛擬終端。此時切換到其他虛擬終端的熱鍵為Ctrl
+加Alt再加上相應功能鍵，而從其他虛擬終端切換回X Window仍然為Alt+功能鍵F4。這樣的方式甚至不
+限於X Server，也適用於其他直接使用控制台、截留鍵碟的程序。</p>
+
+<p>　　在/etc/ttys檔案中，可以看到每個虛擬終端最後一個參數為 “secure” ，這表示這個終端位於
+安全可信賴的物理位置上，因此在這個終端上可以允許直接使用root帳號登錄，如果將其改為 “insecure” 
+，那麼root用戶將不能在這個終端上直接登錄。由於控制台為系統最基本的終端設備，一般只有管理員或其他可信賴的用
+戶才能使用，因此對應於這些虛擬終端，設置都為 “secure” 。</p>
+
+<p>　　這樣一旦控制台的物理安全受到危害，系統安全就受到嚴重的影響。正由於系統信賴控制台，當系統使用單用戶模式
+啟動時，不會詢問root的密碼，這個設置是由ttys檔案中的console項來進行控制的，可以將ttys檔案中
+的console項中對應的 “secure” 改為 “insecure” ，就表示控制台是不能信賴的，那麼系統
+在進入單用戶狀態時，將驗証root的密碼。在控制台的物理訪問控制不能保証的情況下，這個設置雖然不能完全保証非法
+使用者不能進入單用戶狀態並獲得系統的控制權，但提供了相當重要的保護能力。</p>
+
+<p>　　ttys檔案中，除了針對虛擬終端的設置之外，還對串行終端ttys0等，用於網路連接的偽終端ttyp0等
+，提供了設置。要增加相應終端，與控制台虛擬終端類似，除了更改系統核心、設備檔案之外，還需要在ttys檔案為相應
+設備提供入口。
+</p>
+
+<ul><B><P><LI>控制台鍵碟設置</LI></P></B></ul>
+
+<p>　　kbdcontrol命令就用於更改鍵碟設置，包括鍵碟的映射方式、擊鍵的重復率等，鍵碟的映射檔案保存在
+/usr/share/syscons/keymaps/目錄下，通常的標準101/102鍵碟可以使用us.iso.kbd檔案。以下例子中使用 “-l” 
+參數指定鍵碟映射檔案，使用 “-r” 參數指定鍵碟速度。
+</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># kbdcontrol -l /usr/share/syscons/keymaps/us.iso.kbd
+<br># kbdcontrol -r fast</td></pre></tr></table>
+
+<p>　　除了可以用fast來表示鍵碟速度之外，還可以精確指定鍵碟擊鍵的間隔和重復時間，例如fast模式就等同於
+250.34，表示擊鍵間隔為250ms，重復時間為34ms，normal模式對應於500.126，slow對應
+於1000.504。</p>
+
+<p>　　指定鍵碟映射檔案的好處是可以自己定義鍵碟的映射方式，例如可以使用更改鍵碟配置檔案的方法來屏蔽Ctrl-Alt-Del
+熱鍵，就可以使用編輯器打開us.iso.kbd檔案，將Ctrl-Alt-Del對應的功能由boo
+t改為nop，表示輸入這個擊鍵序列時不進行任何操作。或者可以為boot功能定義其他組合鍵。
+</p>
+
+<ul><B><P><LI>控制台顯示設置</LI></P></B></ul>
+
+<P>　　控制台的字體檔案均保存在/usr/share/syscons/fonts目錄下，通常使用的字體有8x8大小、8x14大小和8x16大
+小，可以指定使用那些字體檔案作為系統使用的這些大小的字體。將這些字體檔案載入需要使用vidcontrol命令：</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># vidcontrol -f 8x8 /usr/share/syscons/fonts/cp437-8x8.fnt</td></pre></tr></table>
+
+<P>其中cp437指的是字體代碼頁為437，這是英文編碼，中文編碼為Code Page 936（GB）。由於中文為雙字節文字，控
+制台驅動程序處理起來比較困難，還沒有對應中文編碼的控制台字體檔案。</P>
+
+<P>vidcontrol不僅用於載入字體檔案，還可以改變螢幕的模式，例如可以將螢幕更改為80x50大小：</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># vidcontrol 80x50</td></pre></tr></table>
+
+<p>　　由於80x50模式需要使用8x8字體，因此這需要首先載入8x8字體。如果核心編譯時選擇了VESA支持選
+項，並且使用的顯示卡也兼容VESA顯示模式，還可以將螢幕模式設置為132x60大小，充分利用電腦系統大螢幕顯
+示器的優勢。可以使用vidcontrol -i mode來查看目前硬體支持的顯示模式。由於不同的顯示模式使用的
+不同大小的字體，必須載入必要大小的字體才能改換到相應模式下。</p>
+
+<p>　　vidcontrol還可以用於設置控制台下激活螢幕保護的時間間隔，使用 “-t” 參數指定激活時間。</p>
+
+<p>　　而控制台螢幕保護則是通過一個載入可加載模塊的方式設置的，在/modules目錄中已經安裝了幾個不同的屏
+幕保護模塊，如black_saver_mod.ko、green_saver_mod.ko、daemon_saver_mod.ko、logo_saver_mod.ko等，這些
+模塊可以使用kldload命令載入內存，kldstat查看各個核心模塊的狀態，或者kldunload命令將其卸載。載入不同的
+螢幕保護模塊，就將激活不同的螢幕保
+護。在系統啟動時Boot Loader的提示下，可以使用load命令載入模塊，也可以通過Boot Loader
+的資源檔案/boot/loader.rc，用於指定在啟動時應該自動執行那些操作。</p>
+
+<p>　　通常，可以使用logo_saver_mod作螢幕保護，這是一個FreeBSD吉祥物的圖標。</p>
+
+<p>　　在FreeBSD 3.0-Release之前，FreeBSD使用/lkm目錄下，後綴為.o的可加載模塊
+，而管理模塊的命令相應為modload、modstat和modunload。這些模塊為a.out格式核心使用的
+可加載模塊，而.ko為ELF核心使用的模塊。使用那種格式的核心，就應該載入那種格式的可加載模塊，3.1之後如果
+仍然使用a.out格式的核心，也可以仍然使用這些模塊。</p>
+
+<p>　　在3.1-Release之後，FreeBSD引入了系統啟動時顯示啟動圖標的能力，如同Windows系統
+在啟動時顯示藍天白云圖案一樣，FreeBSD系統也能夠在啟動時顯示一個預設的圖像檔案，而啟動時產生的檢測信息隱
+藏在圖象後面，這個功能稱為splash。這個系統啟動標志是和新版本的控制台螢幕保護能力是緊密相結合的，當載入這
+個splash模塊而使得啟動顯示相應的圖標之後，每當空閑時間到達而螢幕保護被激活時，就會顯示這個圖像作為螢幕保
+護。</p>
+
+<p>　　為了設置啟動標志及其螢幕保護，首先要核心支持splash偽設備（需要pseudo-device&#9;splash配置行），再
+生成一個小於640x480，256色的非壓縮的bmp圖象檔案，然後將其復制到/boot目錄下，更改/boot目錄下的loader.rc文
+件，設置boot loader載入處理圖象檔案的模塊splash_bmp。</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># cp logo.bmp /boot
+<br># cat  /boot/loader.rc
+<br>load kernel
+<br>load -t splash_image_data logo.bmp
+<br>load splash_bmp</td></pre></tr></table>
+
+<P>這也是使用boot loader的資源檔案loader.rc的一個例子，可以定制這個資源檔案，指定boot loader自
+動載入相關模塊，以及執行其他boot loader的命令。</P>
+
+<ul><B><P><LI>控制台滑鼠設置</LI></P></B></ul>
+
+<p>　　FreeBSD使用一個守護進程moused來接管對滑鼠的控制，它可以通過sysinstall很方便的進
+行設置。moused就能將滑鼠的輸入傳遞給控制台驅動程序，這樣就可以在文本狀態下使用滑鼠進行操作，例如在普通情
+況下可以進行粘貼操作，在應用程序支持的條件下，還能和應用程序進行交互。預設條件下僅有第一個虛擬控制台支持這種鼠
+標操作，在這個控制台上使用 “vidcontrol -m off” 就能關閉滑鼠指針，禁止這種操作，以後仍然可
+以使用 “vidcontrol -m on” 許可滑鼠的操作能力。</p>
+
+<p>　　系統預設只在第一個控制台虛擬終端設備上打開滑鼠指針，因此為了在其他虛擬終端上使用滑鼠，必須在相應的控制
+台上使用vidcontrol -m on命令。</p>
+
+<p>　　執行moused，必須要指定滑鼠連接的端口和類型，這樣moused才能和滑鼠通信。常用的滑鼠有連接到串
+口的滑鼠，它使用的設備為串口設備/dev/cuaa0（串口1）或/dev/cuaa1（串口2），如果使用ps/2接口的滑鼠，使
+用的設備為/dev/psm0，如果使用總線類型接口的滑鼠，使用的設備為/dev/mse0。為了
+使用相應的端口，首先要保証相應的設備被核心正確探測，這可以使用dmesg來查看系統的硬體檢測信息，檢查設備驅動
+sio0,sio1（串口設備），psm0,或者mse0等是否被核心檢測到。然後就能啟動moused了：
+</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># vidcontrol -m on
+<br># moused -p /dev/cuaa0 -t auto</td></pre></tr></table>
+
+<p>　　使用auto作為滑鼠類型的參數，讓moused來決定滑鼠使用的協議，一般情況下moused能夠偵測出正
+確的協議。一般ps/2滑鼠使用ps/2協議，普通總線滑鼠使用busmouse協議，串口滑鼠使用的協議類型較多，
+通常標記為MS-2key兩鍵的滑鼠使用microsoft協議，PC-3key三鍵滑鼠使用mouse syste
+m協議，此外還有intellimouse等不同的協議。</p>
+
+<p>　　由於Unix下習慣使用三鍵滑鼠進行操作，因此個人電腦上常用的兩鍵滑鼠就有些不合適，此時可以使用同時按
+下左右兩鍵來模擬第三個鍵，對於moused，這需要使用參數 “-3” 支持，這是全螢幕的moused設置程序不
+能進行設置的。moused還能更改滑鼠的另一些屬性，例如滾動速度、點按速度等。</p>
+
+<p>　　此外在使用了moused之後，moused將維護一個偽設備檔案/dev/sysmouse，這個設備檔案
+行為就如同一個滑鼠端口設備，能被其他要使用滑鼠的程序，如X Server所使用，簡化了這些程序的設置任務。</p>
+
+<p>　　一些Linux二進制格式的程序與這個設備檔案不兼容，如果需要使用Linux的訪問滑鼠的應用程序，如X 
+Server，就不能使用moused，而要讓Linux程序直接訪問物理滑鼠設備檔案。</p>
+
+<p>　　如果要保留這些鍵碟、顯示、滑鼠設置，就需要更改系統啟動配置檔案rc.conf中的相關參數設置，這樣每次
+啟動系統將自動使用必要的命令載入正確的設置，以下為與這些設置相關的項，這些項均被被作為參數傳遞給上述的設置命令
+，因此需要根據具體設置更改下列選項。
+</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>keymap="NO"&#9;&#9;# keymap in /usr/share/syscons/keymaps/* (or NO).
+<br>keyrate="NO"&#9;&#9;# keyboard rate to: slow, normal, fast (or NO).
+<br>keybell="NO"&#9;&#9;# bell to duration.pitch or normal or visual (or NO).
+<br>keychange="NO"&#9;&#9;# function keys default values (or NO).
+<br>cursor="NO"&#9;&#9;# cursor type {normal|blink|destructive} (or NO).
+<br>scrnmap="NO"&#9;&#9;# screen map in /usr/share/syscons/scrnmaps/* (or NO).
+<br>font8x16="NO"&#9;&#9;# font 8x16 from /usr/share/syscons/fonts/* (or NO).
+<br>font8x14="NO"&#9;&#9;# font 8x14 from /usr/share/syscons/fonts/* (or NO).
+<br>font8x8="NO"&#9;&#9;# font 8x8 from /usr/share/syscons/fonts/* (or NO).
+<br>blanktime="NO"&#9;&#9;# blank time (in seconds) or "NO" to turn it off.
+<br>saver="NO"&#9;&#9;# screen saver: blank/daemon/green/snake/star/logo/NO.
+<br>moused_enable="NO"&#9;# Run the mouse daemon.
+<br>moused_type="auto"&#9;# See man page for rc.conf(5) for available settings.
+<br>moused_port="/dev/cuaa0" # Set to your mouse port.
+<br>moused_flags="-3"&#9;&#9;# Any additional flags to moused.</td></pre></tr></table>
+
+
+
+<BR>
+
+</TD>
+</TR></TABLE>
+
+
+</BODY>
+</HTML>

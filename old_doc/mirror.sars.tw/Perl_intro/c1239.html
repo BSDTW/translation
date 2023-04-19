@@ -1,0 +1,282 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<HTML
+><HEAD
+><TITLE
+>23. 連接MySQL</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="網路管理語言 Perl 入門與實作"
+HREF="book1.html"><LINK
+REL="PREVIOUS"
+TITLE="22. 圖型介面"
+HREF="c1230.html"><LINK
+REL="NEXT"
+TITLE="24. 樂彩號碼產生器"
+HREF="c1251.html"></HEAD
+><BODY
+CLASS="CHAPTER"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>網路管理語言 Perl 入門與實作: </TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="c1230.html"
+ACCESSKEY="P"
+>&#60;&#60;&#60; Previous</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="c1251.html"
+ACCESSKEY="N"
+>Next &#62;&#62;&#62;</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="CHAPTER"
+><H1
+><A
+NAME="CHO"
+></A
+>23. 連接MySQL</H1
+><P
+>本章介紹 Perl 搭配 MySQL 的方法</P
+><P
+>Perl 要搭配資料庫，必須安裝以下模組：</P
+><P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+>1. DBI : Perl 的 DataBase Interface 的簡稱，
+
+請至 
+
+ftp2.tnc.edu.tw/pub/unix/perl/CPAN/modules/by-module/DBI
+
+抓取：DBI-1.37.tar.gz
+
+tar xvzf DBI-1.37.tar.gz
+
+cd DBI-1.37
+
+perl Makefile.PL
+make
+make test
+make install
+
+2. Data-ShowTable
+
+請至 
+
+ftp2.tnc.edu.tw/pub/unix/perl/CPAN/modules/by-module/Data 
+
+抓取：Data-ShowTable-3.3.tar.gz
+
+安裝方法同 DBI。
+
+3. DBD::資料庫driver
+
+因為我想和 MySQL 搭配，所以必須安裝 DBD::mysql 的驅動程式
+
+請至 
+
+ftp2.tnc.edu.tw/pub/unix/perl/CPAN/modules/by-module/DBD
+
+抓取：Msql-Mysql-modules-1.2219.tar.gz 或 DBD-mysql*.tar.gz
+
+安裝方法同 DBI。&#13;</PRE
+></TD
+></TR
+></TABLE
+></P
+><P
+>至此，Perl 即可和 MySQL 一起運作了! 注意：通常，若您使用的是套件版的 Perl/MySQL，通常系統中已有相關的 DBI/DBD 了，比如：perl-DBI-1.32*.rpm (即 DBI)/ perl-Mysql-1.22_19*.rpm(即 DBD::mysql)，因此，您不一定要安裝上面這些 tarbll 模組。</P
+><P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+>#! /usr/bin/perl
+
+use DBI;
+use strict;
+
+my $db="test";
+my $host='localhost';
+my $user='root';
+my $password='ppp123';
+
+my $dbh = DBI-&#62;connect("DBI:mysql:database=$db;host=$host",
+                     $user, $password, {RaiseError =&#62; 1});
+
+open(FHD, "stu.csv") or die;
+while (my $line=&#60;FHD&#62;) {
+	chomp($line);
+    my ($f1, $f2, $f3, $f4, $f5)=split(/\,/,$line);
+    if ($f1) {
+ 	my $q=qq[ INSERT INTO stu_table VALUES ("$f1", "$f2", "$f3", "$f4", "$f5") ];
+    	my $sth=$dbh-&#62;prepare($q);
+    	unless($sth-&#62;execute) {die "$!\n";}
+    }
+}
+close(FHD);</PRE
+></TD
+></TR
+></TABLE
+></P
+><P
+>實例：</P
+><P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+>&#13;我在 test 這個資料庫中開了一個 table 叫 aaa，其結構如下：
+
+CREATE TABLE `aaa` (
+  `no` varchar(10) NOT NULL default '',
+  `name` varchar(12) NOT NULL default ''
+)
+
+其中 no 代表身份證字號，name 代表姓名。
+
+我準備用它來儲存 studdemo.csv 中的學生身份證及姓名!
+
+程式如下：
+
+#! /usr/bin/perl
+
+use DBI;
+use strict;
+
+my $db="test";
+my $host='localhost';
+my $user='root';
+my $password='1234';
+
+my $dbh = DBI-&#62;connect("DBI:mysql:database=$db;host=$host",
+                     $user, $password, {RaiseError =&#62; 1});
+
+open(FHD, "stu.csv") or die;
+while (my $line=&#60;FHD&#62;) {
+	chomp($line);
+    my ($f1, $name, $f3, $f4, $f5, $f6, $f7, $pslno, $f9)=split(/\,/,$line);
+    if ($f1) {
+ 	my $q=qq[ INSERT INTO aaa VALUES ("$pslno", "$name") ];
+    	my $sth=$dbh-&#62;prepare($q);
+    	unless($sth-&#62;execute) {die "$!\n";}
+    }
+}
+close(FHD);</PRE
+></TD
+></TR
+></TABLE
+></P
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="c1230.html"
+ACCESSKEY="P"
+>&#60;&#60;&#60; Previous</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="book1.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="c1251.html"
+ACCESSKEY="N"
+>Next &#62;&#62;&#62;</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>22. 圖型介面</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>24. 樂彩號碼產生器</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

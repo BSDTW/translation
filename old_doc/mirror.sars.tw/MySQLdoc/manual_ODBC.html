@@ -1,0 +1,220 @@
+<html>
+
+<head>
+<meta HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=big5">
+<style type="text/css">
+<!--
+.p14{font-size:14.8px;font-family:宋體;line-height:14pt;}
+.p5{ border: 1px solid rgb(146,201,201) }
+.a:hover{color:red;}
+a.t1:visited{color:red;}
+-->
+</style>
+<title>MySQL中文參考手冊-16 MySQL的ODBC支援</title>
+</head>
+
+<body BGCOLOR="#FFFFFF" TEXT="#000000" LINK="#101090" VLINK="#7030B0" class="p4">
+
+<h1><img src="Img/mysql-logo.gif" alt="mysql-logo.gif (3082 bytes)" WIDTH="127" HEIGHT="60"><font color="#FF0000">MySQL中文參考手冊</font></h1>
+
+<p>譯者：晏子 <a href="mailto:(clyan@sohu.com">(clyan@sohu.com</a>）<br>
+GB 碼主頁：<a href="http://linuxdb.yeah.net">http://linuxdb.yeah.net</a></p>
+
+<p>Big5 轉碼者：statue <a href="mailto:statue.bbs@bbs.yzu.edu.tw">
+(statue@bbs.yzu.edu.tw</a>） <br>
+詞彙轉換：彭武興 (<a href="mailto:wilson@mailbox.com.tw">wilson@mailbox.com.tw</a>)<br>
+Big5 碼主頁：
+<a href="http://cnpa.yzu.edu.tw/~cfc/docs/mysqldoc_big5/manual_toc.html">
+http://cnpa.yzu.edu.tw/~cfc/docs/mysqldoc_big5/manual_toc.html</a><br>
+Big5 碼分站：
+<a href="http://php.wilson.gs/mysqldoc/big5/manual_toc.html">
+http://php.wilson.gs/mysqldoc/big5/manual_toc.html
+</p>
+<hr>
+
+<p><a HREF="manual_Introduction.html">第一章</a>, <a HREF="manual_Adding_procedures.html">前一章</a>, <a HREF="manual_Common_programs.html">下一章</a>, 
+<a HREF="manual_Concept_Index.html">最後一章</a>，<a HREF="manual_toc.html">目錄</a>. 
+</p>
+
+<hr>
+
+<h1><a NAME="ODBC" HREF="manual_toc.html#ODBC">16 MySQL對ODBC的支援</a></h1>
+
+<p><strong>MySQL</strong>利用<strong>MyODBC</strong>程式為ODBC提供支援。</p>
+
+<h2><a NAME="Which_ODBC_OS" HREF="manual_toc.html#Which_ODBC_OS">16.1 MyODBC支援的作業系統</a></h2>
+
+<p><strong>MyODBC</strong>是在Windows95和Windows NT上的一個32位ODBC(2.50) level 0驅動程式。我們希望誰能將它移植到Windows 
+3.x。</p>
+
+<h2><a NAME="ODBC_Problems" HREF="manual_toc.html#ODBC_Problems">16.2 怎樣報告MyODBC的問題</a></h2>
+
+<p><strong>MyODBC</strong>已經用Acess、Admndemo.exe、C++ Builder、Centura Team 
+Developer(早先是Gupta SQL/Windows)、ColdFusion(在Solaris和用Server Pack 5的NT上)、Crystal 
+Reports、DataJunction、Notes 4.5/4.6、SBSS、Perl DBD-ODBC、Paradox、Powerbuilder、Powerdesigner 
+32位、VC++和Visual Basic。 </p>
+
+<p>如果你聽說有任何其他的應用程式用<strong>MyODBC</strong>一起工作，請把它寄到<a HREF="mailto:myodbc@lists.mysql.com">myodbc@lists.mysql.com</a>！ </p>
+
+<h2><a NAME="MyODBC_clients" HREF="manual_toc.html#MyODBC_clients">16.3 已知可用MyODBC工作的程式</a></h2>
+
+<p>大多數程式應該可用<strong>MyODBC</strong>工作，但對下面列出的每一個，我們自己測試了它或從它運行的一些用戶得到了証實： 
+
+<dl COMPACT="MyODBC_clients">
+  <dt><strong>程式</strong> </dt>
+  <dd><strong>說明</strong> </dd>
+  <dt>Access</dt>
+  <dd>為使Access工作：<ul>
+      <li>你應該在桌中有主鍵。 </li>
+      <li>你應該在所有你想要能被修改的表中有一個時間戳記。</li>
+      <li>僅使用雙精度浮點數的字段。當用單精度浮點數進行比較時，Access失敗。</li>
+      <li>當與<strong>MySQL</strong>連接時，設置“Return matching rows”（返回匹配的行）選項域。 
+      </li>
+      <li>在NT上的Access將報告<code>BLOB</code>列為<code>OLE OBJECTS</code>。如果你想要有<code>MEMO</code>列，你應該用<code>ALTER 
+        TABLE</code>把列改成<code>TEXT</code>。</li>
+      <li>Access不能總是正確地處理<code>DATE</code>列。如果你對此有一個問題，把列改為<code>DATETIME</code>。</li>
+      <li>在一些情況下，Access可以產生不合法的SQL查詢，而<strong>MySQL</strong>不能理解。你可以通過從Access菜單<code>&quot;Query|SQLSpecific|Pass-Through&quot;</code>來修正它。</li>
+    </ul>
+  </dd>
+  <dt>DataJunction</dt>
+  <dd>你必須改變它來輸出<code>VARCHAR</code>而非<code>ENUM</code>，因為它以能引起<strong>MySQL</strong>困惑的方式導出後者。</dd>
+  <dt>Execl</dt>
+  <dd>工作。一些建議：<ul>
+      <li>如果你對日期有問題，試著使用<code>CONCAT()</code>函數作為字符串選擇他們。例如：<pre>select CONCAT(rise_time), CONCAT(set_time)
+    from sunrise_sunset;
+</pre>
+        <p>這種方式作為字符串檢索出的值應該被Excel97識別為時間值，例子中<code>CONCAT()</code>的目的是欺騙ODBC認為列是“字符串類型”。沒有<code>CONCAT()</code>，ODBC知道列是時間類型，而Excel不理解它。注意這是Excel的一個錯誤，因為它自動將一個字符串轉換為一個時間。如果數據源是一個文本文件，這問題將很大，但是當數據源是對每列報告準確類型的一個ODBC連接時，只是有點傻。</p>
+      </li>
+    </ul>
+  </dd>
+  <dt>odbcadmin</dt>
+  <dd>為ODBC的測試程式。 </dd>
+  <dt>Delphi</dt>
+  <dd>你必須使用DBE 3.2或更新。當與<strong>MySQL</strong>連接時，設置“Don't 
+    optimize column width”（不最佳化列寬度）選項域。另外，有一些潛在有用的delphi代碼安裝一個ODBC入口和針對MyODBC的一個BDE的入口(BDE入口需要一個BDE 
+    Alias Editor，可以到Delphi Super Page上免費擁有)：（感謝Bryan Brunton <a HREF="mailto:bryan@flesherfab.com">bryan@flesherfab.com</a>）<pre>fReg:= TRegistry.Create;
+  fReg.OpenKey('\Software\ODBC\ODBC.INI\DocumentsFab', True);
+  fReg.WriteString('Database', 'Documents');
+  fReg.WriteString('Description', ' ');
+  fReg.WriteString('Driver', 'C:\WINNT\System32\myodbc.dll');
+  fReg.WriteString('Flag', '1');
+  fReg.WriteString('Password', '');
+  fReg.WriteString('Port', ' ');
+  fReg.WriteString('Server', 'xmark');
+  fReg.WriteString('User', 'winuser');
+  fReg.OpenKey('\Software\ODBC\ODBC.INI\ODBC Data Sources', True);
+  fReg.WriteString('DocumentsFab', 'MySQL');
+  fReg.CloseKey;
+  fReg.Free;
+
+  Memo1.Lines.Add('DATABASE NAME=');
+  Memo1.Lines.Add('USER NAME=');
+  Memo1.Lines.Add('ODBC DSN=DocumentsFab');
+  Memo1.Lines.Add('OPEN MODE=READ/WRITE');
+  Memo1.Lines.Add('BATCH COUNT=200');
+  Memo1.Lines.Add('LANGDRIVER=');
+  Memo1.Lines.Add('MAX ROWS=-1');
+  Memo1.Lines.Add('SCHEMA CACHE DIR=');
+  Memo1.Lines.Add('SCHEMA CACHE SIZE=8');
+  Memo1.Lines.Add('SCHEMA CACHE TIME=-1');
+  Memo1.Lines.Add('SQLPASSTHRU MODE=SHARED AUTOCOMMIT');
+  Memo1.Lines.Add('SQLQRYMODE=');
+  Memo1.Lines.Add('ENABLE SCHEMA CACHE=FALSE');
+  Memo1.Lines.Add('ENABLE BCD=FALSE');
+  Memo1.Lines.Add('ROWSET SIZE=20');
+  Memo1.Lines.Add('BLOBS TO CACHE=64');
+  Memo1.Lines.Add('BLOB SIZE=32');
+
+  AliasEditor.Add('DocumentsFab','MySQL',Memo1.Lines);
+</pre>
+  </dd>
+  <dt>C++Builder</dt>
+  <dd>用BDE 3.0測試過。唯一知道的問題是，當表框架改變時，差詢字段不被更新。然而BDE似乎認不出主鍵，只是索引PRIMARY，盡管這已經不是個問題。</dd>
+  <dt>Visual Basic </dt>
+  <dd>為了能更新一張表，你必須為表定義一個主鍵。 </dd>
+</dl>
+
+<h2><a NAME="ODBC_administrator" HREF="manual_toc.html#ODBC_administrator">16.4 
+怎樣填寫ODBC管理程式的各種域</a></h2>
+
+<p>在Windows95上，有3種可能性來指定伺服器名： 
+
+<ul>
+  <li>使用伺服器的IP地址。 </li>
+  <li>增加一個文件<tt>“lmhosts”</tt>，具有下列資訊：<pre>ip hostname
+</pre>
+    <p>例如： </p>
+    <pre>
+194.216.84.21 my</pre>
+  </li>
+  <li>設置PC以使用DNS。 </li>
+</ul>
+
+<p>怎麼填寫“ODBC設置”的例子：</p>
+
+<pre>Windows DSN name:   test
+Description:        This is my test database
+MySql Database:     test
+Server:             194.216.84.21
+User:               monty
+Password:           my_password
+Port:
+</pre>
+
+<p>對<code>Windows DSN name</code>域的值是在你的Windows ODBC設置中唯一的任何名字。</p>
+
+<p>你不必為在ODBC設置屏的<code>Server</code>, <code>User</code>, <code>Password</code>或<code>Port</code>域指定值。然而如果你這樣做，當你試圖做一個連接時，這些值將在以後作為內定值使用，那時你有改變值的選擇。</p>
+
+<p>如果沒給出端口號，使用內定端口(3306)。 </p>
+
+<p>如果你指定選項<code>Read options from C:\my.cnf</code>，組<code>client</code>和<code>odbc</code>將從<tt>“C:\my.cnf”</tt>文件中讀出。你可以使用可用於<code>mysql_options()</code>的所有選項。見<a HREF="manual_Clients.html#mysql_options">20.4.37<code> mysql_options()</code></a>。</p>
+
+<h2><a NAME="ODBC_and_last_insert_id" HREF="manual_toc.html#ODBC_and_last_insert_id">16.5 
+怎樣在ODBC中獲得一個<code>AUTO_INCREMENT</code>列的值</a></h2>
+
+<p>一個常見的問題是怎樣得到一個自動從一個<code>INSERT</code>產生的ID值，用ODBC，你可以這樣做(假定<code>auto</code>是一個<code>AUTO_INCREMENT</code>字段)：</p>
+
+<pre>INSERT INTO foo (auto,text) VALUES(NULL,'text');
+SELECT LAST_INSERT_ID();
+</pre>
+
+<p>或，如果你是只是想把ID插入到另外一個表中，你可以這樣做：</p>
+
+<pre>INSERT INTO foo (auto,text) VALUES(NULL,'text');
+INSERT INTO foo2 (id,text) VALUES(LAST_INSERT_ID(),'text');
+</pre>
+
+<p>得益於一些ODBC應用程式(至少Delphi和Access)，下列查詢可被用來找出最新插入的行：</p>
+
+<pre>SELECT * FROM tbl_name WHERE auto IS NULL;
+</pre>
+
+<h2><a NAME="MyODBC_bug_report" HREF="manual_toc.html#MyODBC_bug_report">16.6 報告MyODBC的問題</a></h2>
+
+<p>如果你碰到MyODBC困難，你應該通過ODBC管理器制作一個日誌文件(當從ODBCADMIN要求日誌時，你獲得的日誌文件)和一個<strong>MyODBC</strong>日誌文件來開始。為了獲得一個<strong>MyODBC</strong>日誌文件，在<strong>MyODBC</strong>連接/配置屏幕上標注“Trace 
+MyODBC”選項標誌。日誌文件將被寫入文件<tt>“C:\myodbc.log”</tt>。注意為了此選項起作用，你必須使用<code>MYSQL.DLL</code>而不是<code>MYSQL2.DLL</code>！</p>
+
+<p>檢查MyODBC發給<strong>MySQL</strong>伺服器的查詢﹔你應該可以通過在<tt>“myodbc.log”</tt>文件中尋找字符串<code>&gt;mysql_real_query</code>找到它。</p>
+
+<p>你也應該試著在<code>mysql</code>監視器或<code>admndemo</code>中重複查詢以找出是MyODBC出錯還是<strong>MySQL</strong>出錯。 
+</p>
+
+<p>如果你發現某些東西是錯的，請值將相關的行(最大40排)發到<a HREF="mailto:myodbc@lists.mysql.com">myodbc@lists.mysql.com</a>。請決不要發送整個MyODBC或ODBC日誌文件！</p>
+
+<p>如果你不能找出是什麼錯誤，最後的選擇制作一個檔案(tar或zip)，包含一個MyODBC日誌文件，ODBC日誌文件和一個解釋這個問題的 
+README文件。你可以把這發到<a HREF="ftp://www.mysql.com/pub/mysql/secret">ftp://www.mysql.com/pub/mysql/secret</a>。至於在TCX的我們能訪問你上載的文件並且我們將分離數據！</p>
+
+<p>如果你能創造一個也顯示出這個問題的程式，請也上載它！</p>
+
+<p>如果程式與一些其他SQL伺服器一起工作，你應該制作一個 ODBC 
+日誌文件，在哪兒你在其他SQL伺服器做完全一樣的事情。</p>
+
+<p>記住，你能提供我們越多的資訊，我們越可能解決這個問題！</p>
+
+<hr>
+
+<p><a HREF="manual_Introduction.html">第一章</a>, <a HREF="manual_Adding_procedures.html">前一章</a>, <a HREF="manual_Common_programs.html">下一章</a>, 
+<a HREF="manual_Concept_Index.html">最後一章</a>，<a HREF="manual_toc.html">目錄</a>. 
+</p>
+</body>
+</html>

@@ -1,0 +1,81 @@
+<title>Execute AWK Programs</title>
+<h1>執行 AWK 程式的幾種方式</h1>
+<pre><h4>
+本小節中描述如何將AWK程式直接寫在 shell script 之中. 此後
+使用者執行 AWK 程式時, 就不需要每次都鍵入 
+<center>`` awk -f program  datafile''</center>
+script 中還可包含其它 Shell 命令, 如此更可增加執行過程的自動化.<p>
+建立一個簡單的AWK程式 mydump.awk, 如下 :
+                  {print}
+這個程式執行時會把資料檔的內容 print 到螢幕上( 與cat功用類似 ).
+print 之後未接任何參數時, 表示 ``print $0''.
+若欲執行該AWK程式, 來印出檔案 today_rpt1 及 today_rpt2 的內容時,
+必須於 UNIX 的命令列上執行下列命令 :
+<ul>
+<li>方式一 awk   -f  mydump.awk  today_rpt1 today_rpt2</li><p>
+<li>方式二 awk ' print '  today_rpt1  today_rpt2第二種方式係將AWK
+程式直接寫在 Shell 的命令列上, 這種方式僅適合較短的AWK程式.</li><p>
+<li>方式三 建立如下之 shell script, 並取名為<i> mydisplay,</i>
+            <b>awk '     # 注意 , awk 與 ' 之間須有空白隔開
+                 {print}                                   
+            <b>     ' $*  # 注意 , ' 與 $* 之間須有空白隔開
+
+執行<i> mydisplay</i> 之前, 須先將它改成可執行的檔案(此步驟
+往後不再贅述). 請執行如下命令:
+$ chmod  +x <i>mydisplay</i>
+往後使用者就可直接把 <i>mydisplay</i> 當成指令, 來display任何檔案.
+例如 :
+
+         $ mydisplay  today_rpt1 today_rpt2
+</ul>
+ 說 明 :
+<ol>
+<li> 在script檔案<i> mydisplay</i> 中, 指令``awk''與第一個  '
+ 之間須有空格(Shell中並無`` awk' ''指令).
+ 第一個  ' 用以通知 Shell 其後為AWK程式. 
+ 第二個  ' 則表示 AWK 程式結束.
+ 故AWK程式中一律以"括住字串或字元, 而不使用 ' ,
+ 以免Shell混淆.</li>
+
+<li> $* 為 shell script中之用法, 它可用以代表命令列上 ``mydisplay
+ 之後的所有參數''.
+ 例如執行 : 
+           $ mydisplay<i> today_rpt1 today_rpt2</i>
+ 事實上 Shell 已先把該指令轉換成 :
+    awk '
+             { print} 
+        '   today_rpt1  today_rpt2 
+本例中, $* 用以代表 ``today_rpt1 today_rpt2''. 在Shell的語法中,
+可用 $1 代表第一個參數, $2 代表第二個參數. 當不確定命令列上的
+參數個數時, 可使用 $* 表之.</li>
+<li>AWK命令列上可同時指定多個資料檔.  
+  以awk  -f dump.awk  today_rpt1 today_rpt2hf 為例
+  AWK會先處理today_rpt1, 再處理 today_rpt2. 此時若檔案
+  無法開啟, 將造成錯誤. <p>
+  例如: 未存在檔案"file_no_exist", 則執行 :
+  awk  -f dump.awk  file_no_exit
+  將產生Runtime Error(無法開啟檔案).
+  但某些AWK程式 ``僅'' 包含以 BEGIN 為Pattern的指令. 執行這種
+  AWK程式時, AWK並不須開啟任何資料檔.此時命令列上若指定
+ 一個不存在的資料檔,並不會產生 ``無法開啟檔案''的錯誤.(事實上
+ AWK並未開啟該檔案)
+ 例如執行:
+ awk <i>'BEGIN {print "Hello,World!!"} ' file_no_exist</i>
+ 該程式中僅包含以 BEGIN 為 Pattern 之 Pattern {actions}, AWK
+ 執行時並不會開啟任何資料檔; 故不會因不存在檔案file_no_exit而
+產生 `` 無法開啟檔案''的錯誤. </li> 
+<li>AWK會將 Shell 命令列上AWK程式(或 -f 程式檔名)之後的所有
+字串, 視為將輸入AWK進行處理的資料檔檔名.<p>
+若執行AWK的命令列上 ``未指定任何資料檔檔名'', 則將stdin視為
+輸入之資料來源, 直到輸入end of file( Ctrl-D )為止.
+讀者可以下列程式自行測試, 執行如下命令 :
+       $awk  -f dump.awk   (未接任何資料檔檔名)
+ 或
+       $ mydisplay         (未接任何資料檔檔名)
+將會發現 : 此後鍵入的任何資料將逐行複印一份於螢幕上. 這情況
+不是機器當機 ! 是因為AWK程式正處於執行中. 它正按程式指示,
+將讀取資料並重新dump一次; 只因執行時未指定資料檔檔名, 故AWK
+便以stdin(鍵盤上的輸入)為資料來源.<p>
+讀者可利用這個特點, 設計可與AWK程式interactive talk的程式.</li>
+</ol>
+</h4></pre><hr>

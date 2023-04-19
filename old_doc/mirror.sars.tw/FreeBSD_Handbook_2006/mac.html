@@ -1,0 +1,226 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>Mandatory Access Control</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.79" />
+<link rel="HOME" title="FreeBSD 使用手冊" href="index.html" />
+<link rel="UP" title="系統管理" href="system-administration.html" />
+<link rel="PREVIOUS" title="Process Accounting" href="security-accounting.html" />
+<link rel="NEXT" title="Key Terms in this Chapter" href="mac-inline-glossary.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="CHAPTER" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD 使用手冊</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="security-accounting.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom"></td>
+<td width="10%" align="right" valign="bottom"><a href="mac-inline-glossary.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="CHAPTER">
+<h1><a id="MAC" name="MAC"></a>Chapter 15 Mandatory Access Control</h1>
+
+<div class="TOC">
+<dl>
+<dt><b>Table of Contents</b></dt>
+
+<dt>15.1 <a href="mac.html#MAC-SYNOPSIS">Synopsis</a></dt>
+
+<dt>15.2 <a href="mac-inline-glossary.html">Key Terms in this Chapter</a></dt>
+
+<dt>15.3 <a href="mac-initial.html">Explanation of MAC</a></dt>
+
+<dt>15.4 <a href="mac-understandlabel.html">Understanding MAC Labels</a></dt>
+
+<dt>15.5 <a href="mac-modules.html">Module Configuration</a></dt>
+
+<dt>15.6 <a href="mac-bsdextended.html">The MAC bsdextended Module</a></dt>
+
+<dt>15.7 <a href="mac-ifoff.html">The MAC ifoff Module</a></dt>
+
+<dt>15.8 <a href="mac-portacl.html">The MAC portacl Module</a></dt>
+
+<dt>15.9 <a href="mac-labelingpolicies.html">MAC Policies with Labeling Features</a></dt>
+
+<dt>15.10 <a href="mac-partition.html">The MAC partition Module</a></dt>
+
+<dt>15.11 <a href="mac-mls.html">The MAC Multi-Level Security Module</a></dt>
+
+<dt>15.12 <a href="mac-biba.html">The MAC Biba Module</a></dt>
+
+<dt>15.13 <a href="mac-lomac.html">The MAC LOMAC Module</a></dt>
+
+<dt>15.14 <a href="mac-implementing.html">Implementing a Secure Environment with
+MAC</a></dt>
+
+<dt>15.15 <a href="mac-examplehttpd.html">Another Example: Using MAC to Constrain a Web
+Server</a></dt>
+
+<dt>15.16 <a href="mac-troubleshoot.html">Troubleshooting the MAC Framework</a></dt>
+</dl>
+</div>
+
+<i class="AUTHORGROUP"><span class="CONTRIB">Written by</span> Tom Rhodes.</i> 
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="MAC-SYNOPSIS" name="MAC-SYNOPSIS">15.1 Synopsis</a></h1>
+
+<p>FreeBSD&nbsp;5.X introduced new security extensions from the TrustedBSD project based
+on the <span class="TRADEMARK">POSIX</span>&reg;.1e draft. Two of the most significant
+new security mechanisms are file system Access Control Lists (<acronym
+class="ACRONYM">ACLs</acronym>) and Mandatory Access Control (<acronym
+class="ACRONYM">MAC</acronym>) facilities. Mandatory Access Control allows new access
+control modules to be loaded, implementing new security policies. Some provide
+protections of a narrow subset of the system, hardening a particular service, while
+others provide comprehensive labeled security across all subjects and objects. The
+mandatory part of the definition comes from the fact that the enforcement of the controls
+is done by administrators and the system, and is not left up to the discretion of users
+as is done with discretionary access control (<acronym class="ACRONYM">DAC</acronym>, the
+standard file and System V <acronym class="ACRONYM">IPC</acronym> permissions on
+FreeBSD).</p>
+
+<p>This chapter will focus on the Mandatory Access Control Framework (MAC Framework), and
+a set of pluggable security policy modules enabling various security mechanisms.</p>
+
+<p>After reading this chapter, you will know:</p>
+
+<ul>
+<li>
+<p>What <acronym class="ACRONYM">MAC</acronym> security policy modules are currently
+included in FreeBSD and their associated mechanisms.</p>
+</li>
+
+<li>
+<p>What <acronym class="ACRONYM">MAC</acronym> security policy modules implement as well
+as the difference between a labeled and non-labeled policy.</p>
+</li>
+
+<li>
+<p>How to efficiently configure a system to use the <acronym
+class="ACRONYM">MAC</acronym> framework.</p>
+</li>
+
+<li>
+<p>How to configure the different security policy modules included with the <acronym
+class="ACRONYM">MAC</acronym> framework.</p>
+</li>
+
+<li>
+<p>How to implement a more secure environment using the <acronym
+class="ACRONYM">MAC</acronym> framework and the examples shown.</p>
+</li>
+
+<li>
+<p>How to test the <acronym class="ACRONYM">MAC</acronym> configuration to ensure the
+framework has been properly implemented.</p>
+</li>
+</ul>
+
+<p>Before reading this chapter, you should:</p>
+
+<ul>
+<li>
+<p>Understand <span class="TRADEMARK">UNIX</span>&reg; and FreeBSD basics (<a
+href="basics.html">Chapter 3</a>).</p>
+</li>
+
+<li>
+<p>Be familiar with the basics of kernel configuration/compilation (<a
+href="kernelconfig.html">Chapter 8</a>).</p>
+</li>
+
+<li>
+<p>Have some familiarity with security and how it pertains to FreeBSD (<a
+href="security.html">Chapter 14</a>).</p>
+</li>
+</ul>
+
+<div class="WARNING">
+<blockquote class="WARNING">
+<p><b>Warning:</b> The improper use of the information in this chapter may cause loss of
+system access, aggravation of users, or inability to access the features provided by X11.
+More importantly, <acronym class="ACRONYM">MAC</acronym> should not be relied upon to
+completely secure a system. The <acronym class="ACRONYM">MAC</acronym> framework only
+augments existing security policy; without sound security practices and regular security
+checks, the system will never be completely secure.</p>
+
+<p>It should also be noted that the examples contained within this chapter are just that,
+examples. It is not recommended that these particular settings be rolled out on a
+production system. Implementing the various security policy modules takes a good deal of
+thought. One who does not fully understand exactly how everything works may find him or
+herself going back through the entire system and reconfiguring many files or
+directories.</p>
+</blockquote>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN21985" name="AEN21985">15.1.1 What Will Not Be
+Covered</a></h2>
+
+<p>This chapter covers a broad range of security issues relating to the <acronym
+class="ACRONYM">MAC</acronym> framework; however, the development of new <acronym
+class="ACRONYM">MAC</acronym> security policy modules will not be covered. A number of
+security policy modules included with the <acronym class="ACRONYM">MAC</acronym>
+framework have specific characteristics which are provided for both testing and new
+module development. These include the <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=mac_test&amp;sektion=4"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">mac_test</span>(4)</span></a>, <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=mac_stub&amp;sektion=4"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">mac_stub</span>(4)</span></a> and <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=mac_none&amp;sektion=4"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">mac_none</span>(4)</span></a>. For more
+information on these security policy modules and the various mechanisms they provide,
+please review the manual pages.</p>
+</div>
+</div>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="security-accounting.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="mac-inline-glossary.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">Process Accounting</td>
+<td width="34%" align="center" valign="top"><a href="system-administration.html"
+accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">Key Terms in this Chapter</td>
+</tr>
+</table>
+</div>
+
+<p align="center"><small>This, and other documents, can be downloaded from <a
+href="ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/">ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/</a>.</small></p>
+
+<p align="center"><small>For questions about FreeBSD, read the <a
+href="http://www.FreeBSD.org/docs.html">documentation</a> before contacting &#60;<a
+href="mailto:questions@FreeBSD.org">questions@FreeBSD.org</a>&#62;.<br />
+For questions about this documentation, e-mail &#60;<a
+href="mailto:doc@FreeBSD.org">doc@FreeBSD.org</a>&#62;.</small></p>
+</body>
+</html>
+

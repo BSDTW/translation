@@ -1,0 +1,110 @@
+
+
+<!-- Vignette StoryServer 4 Sat Mar 11 15:43:24 2000 --> 
+<style type=text/css>
+<!--
+p,div {font-size:12pt; line-height:14pt; font-family:宋體;}
+.p1{font-size:12pt;font-family:宋體;}
+.p2{font-size:12pt;font-family:宋體;line-height:14pt;}
+.p3{font-size:14.8px;font-family:宋體;}
+.p4{font-size:14.8px;font-family:宋體;line-height:14pt;}
+.p5{font-size:1pt}
+a:hover{color:red;}
+a.t1:visited{color:red;}
+-->
+</style>
+<title>FreeBSD使用大全</title></head>
+
+<body bgcolor="#FFFFFF" text="#000000" link="#383098" vlink="#336699" alink="#FF0000" topmargin="0">
+<!-- Vignette StoryServer 4 Thu Mar 23 10:01:54 2000 --> <!-- Vignette StoryServer 4 Thu Mar 23 15:34:35 2000 --> 
+
+<!--開始：新聞內容-->
+<TABLE WIDTH=750 BORDER=0 CELLSPACING=0 CELLPADDING=0>
+
+<tr valign=top>
+
+
+
+<TD  valign=top>
+<CENTER><FONT COLOR=#000066 size=5><B>FreeBSD連載(69)：使用smbclient訪問Windows資源</B><br></FONT></CENTER>
+
+<HR  ALIGN="center" SIZE=1>
+<CENTER><FONT FACE="Arial" SIZE=2> 2000年1月10日 14:29 </FONT><FONT COLOR="#990000" SIZE=2>王波</FONT></CENTER><p>
+
+<h1 align=center>訪問Windows系統資源</h1>
+
+<p>　　通過配置Samba伺服器，可以提供Windows客戶機來訪問FreeBSD系統上共享的資源。也能夠在
+FreeBSD上通過SMB協議訪問Windows系統上的共享資源。只是習慣上Unix電腦用做伺服器，Windows
+電腦用做客戶機，很少有讓Unix訪問Windows電腦的需要。但是越來越多的電腦使用者不但使用
+Unix作伺服器，也使用Unix來處理很多其他任務，那麼就可能會需要訪問其他Windows電腦上的資源。</p>
+
+</ul><P><LI><h2>使用smbclient訪問Windows資源</h2></LI></P></ul>
+
+<p>　　samba軟體中用於訪問網路上其他SMB資源的軟體為smbclient，它是一個類似於ftp操作方式，
+通過遠程操作的方式進行檔案傳遞的軟體。為了獲得網路上可以訪問的電腦列表，首先需要使用
+smbclient來獲得一個Windows電腦共享出來的資源，這需要使用-L參數訪問IPC$資源，對於使用用
+戶級認証的Windows NT或Samba伺服器，可以使用-N參數指定使用空密碼登錄，或者使用-U%參數，使
+用空用戶名和空密碼訪問伺服器：</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>$ smbclient -L windows_host -N</td></pre></tr></table>
+
+<p>　　如果沒有使用-N或-U%，smbclient將提示密碼，一般可以直接回車，也可以給予正確的密碼。因為一
+般電腦均允許匿名瀏覽IPC$資源，即能給所有的電腦提供自己所了解的瀏覽數據。smbclient將顯示一個瀏
+覽數據列表和該機的共享資源列表。</p>
+
+<p>　　如果不清楚一個Windows電腦的NetBIOS名字，可以使用-I加要訪問電腦的IP地址來代替-L
+參數及使用的NetBIOS名字。或者可以使用nmblookup先來解析NetBIOS名字。</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>$ nmblookup fbsdsrv
+Sending queries to 192.168.3.255
+192.168.3.1 fbsdsrv<00></td></pre></tr></table>
+
+<P>　　要想使用smbclient來訪問windows時，也需要使用UNC來標識Windows資源的位置。此時就需要了解
+Windows UNC在Unix下進行表示的不同之處。不同之處在於Unix的shell下反斜線為特殊字符，它被定義為
+轉義恢復字符，表示將一些轉義字符恢復為其本身字符的意義。因此必須使用兩個反斜線才能等同於一個
+反斜線。因此一個UNC實際使用時應使用雙倍的反斜線。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre><font size=2>$ smbclient \\\\localhost\\wb -U wb
+Added interface ip=192.168.3.1 bcast=192.168.3.255 nmask=255.255.255.0
+Password:
+Domain=[MYGROUP] OS=[Unix] Server=[Samba 2.0.2]
+smb: \> help
+ls             dir            du             lcd            cd
+pwd            get            mget           put            mput
+rename         more           mask           del            rm
+mkdir          md             rmdir          rd             prompt
+recurse        translate      lowercase      print          printmode
+queue          cancel         quit           q              exit
+newer          archive        tar            blocksize      tarmode
+setmode        help           ?              !
+smb: \> quit</font></td></pre></tr></table>
+
+<p>　　然後就可以使用與ftp相似的命令，如dir，cd，get，put等命令來傳輸檔案。</p>
+
+<p>　　Samba可以用於幫助備份Windows系統，除了使用smbclient之外，Samba還提供了一個
+shell腳本smbtar，它使用smbclient以及tar，直接將Windows系統中的檔案備份到FreeBSD
+系統中的磁帶設備中。</p>
+
+<p>　　要使用Windows下的印表機資源，要首先使用smbclient以將打印文檔發送給Windows電腦
+，並執行print命令。samba軟體包中提供了一個shell腳本smbprint用來使用合適的命令幫助FreeBSD
+將打印檔案發送給Windows印表機。FreeBSD下這個腳本被安裝到/usr/local/share/examples/samba/printing
+目錄下，可以根據需要將這個腳本復制到/usr/local/bin或其他目錄下，提供給用戶使用。</p>
+
+<p>　　對於經常使用的Windows印表機，還可以在printcap檔案中為它增加一個入口，使用smbprint
+作過濾器，這樣就將打印輸出直接交給smbprint，用戶不必手工進行控制，而是直接使用FreeBSD系統的打
+印系統lpr等命令進行打印和管理。這樣還可以將這台FreeBSD電腦用做一個打印網關，所有的支持LPD方式打
+印的Unix均可通過這台伺服器的smbprint印表機入口，將打印文檔發送給Windows印表機。</p>
+
+
+<BR>
+
+</TD>
+</TR></TABLE>
+
+
+
+</BODY>
+</HTML>

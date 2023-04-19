@@ -1,0 +1,129 @@
+<title>Using getline to Input File</title>
+<h1>使用 getline 來讀取資料</h1>
+<pre><h4>
+範 例 : 承上題,從檔案中讀取當月遲到次數, 並根據當日出勤狀況
+更新遲到累計數.(按不同的月份累計於不同的檔案)
+
+分 析：
+<ol>
+<li>   程式中自動抓取系統日期的月份名稱, 連接上``late.dat'',
+ 形成累計遲到次數的檔案名稱(如 : <i>Jullate.dat</i>,...), 並以變數
+<i>late_file</i>紀錄該檔名.
+
+<li>累計遲到次數的檔案中的資料格式為 :
+                         員工代號(ID) 遲到次數
+      例如, 執行本程式前檔案 <i>Auglate.dat</i> 的內容為 :
+
+                 1012 0
+                 1006 1
+                 1052 2
+                 1034 0
+                 1005 0
+                 1029 2
+                 1042 0
+                 1051 0
+                 1008 0
+                 1101 0
+                 1025 1
+                 1028 0    
+
+<ol>
+
+ 編寫程式 reformat4.awk 如下:
+   awk '
+BEGIN {
+           Sys_Sort = "sort +0n >> today_rpt4"
+           Result = "today_rpt4"
+           # 改變欄位切割的方式
+          # 令 Shell執行``date''; getline 讀取結果,並以$0紀錄               
+           FS = "[\t:]+"  
+          "date" |  getline      
+          print " Today is " , $2, $3 >Result
+          print "=========================" > Result
+          print `` ID  Number Arrival Time'' > Result
+          close( Result )
+# 從檔按中讀取遲到資料, 並用陣列cnt[ ]記錄. 陣列cnt[ ]中以
+員工代號為# 註標, 所對應的值為該員工之遲到次數.
+late_file = $2 "late.dat"<p>            
+while( getline  < late_file >0 )  cnt[$1] = $2<p> 
+close( late_file ) <p>
+}
+{  
+  # 已更改欄位切割方式, $2表小時數,$3表分鐘數
+  arrival = HM_to_M($2, $3)<p>  
+  if( arrival > 480 ){<p>
+  mark = "*"  # 若當天遲到,應再增加其遲到次數, 且令 
+  mark 為''*''.cnt[$1]++ }   
+  else   mark = " "
+           
+ # message 用以顯示該員工的遲到累計數, 若未曾遲到 
+message 為空字串 
+message = cnt[$1] ? cnt[$1] " times" : "" 
+   printf("%s%2d:%2d %5s %s\n", $1, $2, $3, mark, 
+ message ) | Sys_Sort
+         total += arrival
+    }
+ END  {
+           close( Result )
+           close( Sys_Sort )
+           printf(" Average arrival time : %d:%d\n", total/NR/60,
+       (total/NR)%60 ) >> Result
+           #將陣列cnt[ ]中新的遲到資料寫回檔案中
+           for( any in cnt )
+                 print any, cnt[any] > late_file
+          }
+   function HM_to_M( hour, min ){
+                 return hour*60 + min
+           }
+  ' $*
+ 執行後, <i>today_rpt4</i> 之內容如下 :
+
+          Today is  Aug 17
+    ================================
+      ID Number  Arrival Time
+         1005        8:12       * 1 times
+         1006        7:45         1 times
+         1008        8: 1       * 1 times
+         1012        7:46         
+         1025        7:27         1 times
+         1028        7:49         
+         1029        7:57         2 times
+         1034        7:26         
+         1042        7:59         
+         1051        7:51         
+         1052        8: 5       * 3 times
+         1101        7:32         
+     Average arrival time : 7:49 
+
+*
+ 說  明 :
+<ol>
+<li><i>latefile</i> 是一變數, 用以記錄遲到次數的檔案之檔名. 
+<i>latefile</i>之值由兩部分構成, 前半部是當月月份名稱(由呼叫
+"date"取得)後半部固定為"late.dat" 如 : <i>Junlate.dat</i>.</li>
+
+<li>指令 getline <<i>latefile</i> 表由<i>latefile</i>所代表的檔案中
+讀取一筆紀錄, 並存放於$0.
+若使用者可自行把資料放入$0, AWK會自動對這新置入 $0 的資料
+進行欄位分割. 之後程式中可用$1, $2,..來表示該筆資料的第一欄,
+第二欄,.., 
+              
+(註: 有少數AWK版本不容許使用者自行將資料置於 $0, 遇此情況可改
+ 用gawk或nawk)
+
+ 執行getline指令時, 若成功讀取紀錄,它會傳回1. 若遇到檔案結束,
+ 它傳回0; 無法開啟檔案則傳回-1.</li>
+
+<li>利用 while( getline  < <i>filename</i> >0 ) {....}可讀入檔案中
+的每一筆資料並予處理. 這是AWK中user自行讀取檔案資料的
+一個重要模式.</li>
+
+<li>陣列 late_cnt[ ] 以員工ID. 當註標(index), 其對應值表其遲到的
+次數.</li>
+
+<li>執行結束後, 利用 for(Variable in array ){..}之語法
+<i>for( any in late_cnt ) print any, late_cnt[any]> latefile</i>
+將更新過的遲到資料重新寫回記錄遲到次數之檔案. 該語法於第5節
+中曾有說明.
+</ol>
+</h4></pre><hr>

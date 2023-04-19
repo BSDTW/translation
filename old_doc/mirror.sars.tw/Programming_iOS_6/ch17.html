@@ -1,0 +1,2394 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>Chapter 17. Animation</title>
+    <link rel="stylesheet" type="text/css" href="docbook-xsl-mymods.css" />
+    <meta name="generator" content="DocBook XSL Stylesheets V1.76.0" />
+    <link rel="home" href="index.html" />
+    <link rel="up" href="pt04.html" />
+    <link rel="prev" href="ch16.html" />
+    <link rel="next" href="ch18.html" />
+  </head>
+  <body>
+    <div class="mattnotice">
+      <p>As a courtesy, this is a <b>full free</b> rendering of my book, <i>Programming iOS 6</i>, by Matt Neuburg. Copyright 2013 Matt Neuburg. Please note that this book has now been completely superseded by two more recent books, <a href="http://shop.oreilly.com/product/0636920032465.do">iOS 7 Fundamentals</a> and <a href="http://shop.oreilly.com/product/0636920031017.do">Programming iOS 7</a>. If my work has been of help to you, please <b>consider purchasing</b> one or both of them. Thank you!
+	</p>
+    </div>
+    <div class="navfooter">
+      <table width="100%" summary="Navigation footer">
+        <tr>
+          <td width="40%" align="left"><a accesskey="p" href="ch16.html">Prev</a> </td>
+          <td width="20%" align="center">
+            <a accesskey="u" href="pt04.html">Up</a>
+          </td>
+          <td width="40%" align="right"> <a accesskey="n" href="ch18.html">Next</a></td>
+        </tr>
+        <tr>
+          <td width="40%" align="left" valign="top">Chapter 16. Layers </td>
+          <td width="20%" align="center">
+            <a accesskey="h" href="index.html">Table of Contents</a>
+          </td>
+          <td width="40%" align="right" valign="top"> Chapter 18. Touches</td>
+        </tr>
+      </table>
+    </div>
+    <div class="chapter">
+      <div class="titlepage">
+        <div>
+          <div>
+            <h2 class="title"><a id="chap_id17"></a>Chapter 17. Animation</h2>
+          </div>
+        </div>
+      </div>
+      <p>Animation is the visible change of an attribute over time. The changing attribute might be positional, but not necessarily. For example, a view’s background color might change from red to green, not instantly, but perceptibly fading from one to the other. Or a view’s opacity might change from opaque to transparent, not instantly, but perceptibly fading away.
+<a id="idxanimation" class="indexterm"></a></p>
+      <p>Without help, most of us would find animation beyond our reach. There are just too many complications — complications of calculation, of timing, of screen refresh, of threading, and many more. Fortunately, help is provided. You don’t perform an animation yourself; you describe it, you order it, and it is performed for you. You get <span class="emphasis"><em>animation on demand</em></span>.</p>
+      <p>Asking for an animation can be as simple as setting a property value; under some circumstances, a single line of code will result in animation:</p>
+      <pre class="screen">myLayer.backgroundColor = [[UIColor redColor] CGColor]; // animate to red</pre>
+      <p>And this is no coincidence. Apple wants to facilitate your use of animation. Animation is crucial to the character of the iOS interface. It isn’t just cool and fun; it clarifies that something is changing or responding. For example, one of my first apps was based on a Mac OS X game in which the user clicks cards to select them. In the Mac OS X version, a card was highlighted to show it was selected, and the computer would beep to indicate a click on an ineligible card. On iOS, these indications were insufficient: the highlighting felt weak, and you can’t use a sound warning in an environment where the user might have the volume turned off or be listening to music. So in the iOS version, animation is the indicator for card selection (a selected card waggles eagerly) and for tapping on an ineligible card (the whole interface shudders, as if to shrug off the tap).</p>
+      <p>Recall from <a class="xref" href="ch16.html">Chapter 16</a> that CALayer requires the Quartz Core framework; so do the other “CA” (Core Animation) classes discussed here, such as CAAnimation. To use them, you’ll link your target to <span class="emphasis"><em>QuartzCore.framework</em></span> and import <code class="literal">&lt;QuartzCore/QuartzCore.h&gt;</code>.<a id="idm441650185424" class="indexterm"></a>
+<a id="idm441650184176" class="indexterm"></a><a id="idm441650183264" class="indexterm"></a></p>
+      <div class="note" style="margin-left: 0; margin-right: 10%;">
+        <h3 class="title">Note</h3>
+        <p>The Simulator’s Debug → Toggle Slow Animations menu item helps you inspect animations by making them run more slowly.<a id="idm441650181536" class="indexterm"></a>
+<a id="idm441650180256" class="indexterm"></a><a id="idm441650179360" class="indexterm"></a>
+<a id="idm441650178048" class="indexterm"></a></p>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_drawing_animation_and_threading"></a>Drawing, Animation, and Threading</h2>
+            </div>
+          </div>
+        </div>
+        <p>When you change a visible view property, even <span class="emphasis"><em>without</em></span> animation, that change does <span class="emphasis"><em>not</em></span> visibly take place there and then. Rather, the system records that this is a change you would like to make, and marks the view as needing to be redrawn. You can change many visible view properties, but these changes are all just accumulated for later. Later, when all your code has run to completion and the system has, as it were, a free moment, then it redraws all views that need redrawing, applying their new visible property features. Let’s call this the <span class="emphasis"><em>redraw moment</em></span>. (I’ll explain what the redraw moment really is later in this chapter.)<a id="idm441650173280" class="indexterm"></a><a id="idm441650172416" class="indexterm"></a></p>
+        <p>You can see that this is true simply by changing some visible aspect of a view and changing it back again, in the same code: on the screen, nothing happens. For example, suppose a view’s background color is green. Suppose your code changes it to red, and then later changes it back to green:</p>
+        <pre class="screen">// view starts out green
+view.backgroundColor = [UIColor redColor];
+// ... time-consuming code goes here ...
+view.backgroundColor = [UIColor greenColor];
+// code ends, redraw moment arrives</pre>
+        <p>The system accumulates all the desired changes until the redraw moment happens, and the redraw moment doesn’t happen until after your code has finished, so when the redraw moment does happen, the last accumulated change in the view’s color is to green — which is its color already. Thus, no matter how much time-consuming code lies between the change from green to red and the change from red to green, the user won’t see any color change at all.</p>
+        <p>That’s why you don’t order a view to be redrawn; rather, you tell it that it <span class="emphasis"><em>needs</em></span> redrawing — <code class="literal">setNeedsDisplay</code> — at the next redraw moment. It’s also why I used delayed performance in the <code class="literal">contentMode</code> example in <a class="xref" href="ch15.html">Chapter 15</a>: by calling <code class="literal">dispatch_after</code>, I give the redraw moment a chance to happen, thus giving the view some content, <span class="emphasis"><em>before</em></span> resizing the view. This use of delayed performance to let a redraw moment happen is quite common; later in this chapter I’ll suggest another way of accomplishing the same goal.</p>
+        <p>Similarly, when you ask for an animation to be performed, the animation doesn’t start happening on the screen until the next redraw moment. (You can force an animation to be performed immediately, but this is unusual.)</p>
+        <p>While the animation lasts, it is effectively in charge of the screen. Pretend that the animation is a kind of movie, a cartoon, interposed between the user and the “real” screen.<a id="idm441650162080" class="indexterm"></a> When the animation is finished, this movie is removed, revealing the state of the “real” screen behind it. The user is unaware of this, because (if you’ve done things correctly) at the time that it starts, the movie’s first frame looks just like the state of the “real” screen at that moment, and at the time that it ends, the movie’s last frame looks just like the state of the “real” screen at <span class="emphasis"><em>that</em></span> moment.</p>
+        <p>So, when you reposition a view from position 1 to position 2 with animation, you can envision a typical sequence of events like this:</p>
+        <div class="orderedlist">
+          <ol class="orderedlist" type="1">
+            <li class="listitem">
+The view is set to position 2, but there has been no redraw moment, so it is still portrayed at position 1.
+</li>
+            <li class="listitem">
+The rest of your code runs to completion.
+</li>
+            <li class="listitem">
+The redraw moment arrives. If there were no animation, the view would now be portrayed at position 2. But there <span class="emphasis"><em>is</em></span> an animation, and it (the “animation movie”) starts with the view portrayed at position 1, so that is still what the user sees.
+</li>
+            <li class="listitem">
+The animation proceeds, portraying the view at intermediate positions between position 1 and position 2. The documentation describes the animation as now <span class="emphasis"><em>in-flight</em></span>.
+</li>
+            <li class="listitem">
+The animation ends, portraying the view ending up at position 2.
+</li>
+            <li class="listitem">
+The “animation movie” is removed, revealing the view indeed at position 2.
+</li>
+          </ol>
+        </div>
+        <p>Animation takes place on an independent thread. Multithreading is generally rather tricky and complicated, but the system makes it easy in this case. Nevertheless, you can’t completely ignore the threaded nature of animation. Awareness of threading issues, and having a mental picture of how animation is performed, will help you to ask yourself the right questions and thus to avoid confusion and surprises. For example:</p>
+        <div class="orderedlist">
+          <ol class="orderedlist" type="1">
+            <li class="listitem">
+              <p class="simpara">
+<span class="emphasis"><em>The time when an animation starts is somewhat indefinite (because you don’t know exactly when the next redraw moment will be). The time when an animation ends is also somewhat indefinite (because the animation happens on another thread, so your code cannot just wait for it to end). So what if your code needs to do something in response to an animation beginning or ending?</em></span>
+</p>
+              <p class="simpara">The Powers That Be have anticipated these needs. Most ways of animating allow you to arrange to be sent a message before or after the animation ends, and there’s a general way of being sent a message when all animations end.</p>
+            </li>
+            <li class="listitem">
+              <p class="simpara">
+<span class="emphasis"><em>Since animation happens on its own thread, something might cause code of yours to start running while an animation is still in-flight.<a id="idm441650146608" class="indexterm"></a> What happens if your code now changes a property that is currently being animated? What happens if your code asks for another animation?</em></span>
+</p>
+              <p class="simpara">If you ask for an animation when an animation is already scheduled for the next redraw moment or already in-flight, there might be no problem; both animations can take place simultaneously. But if both animations attempt to animate <span class="emphasis"><em>the same property</em></span>, the first animation may be forced to end instantly. Similarly, changing a property directly (without animation) while that property is being animated might kill the animation. You might do this intentionally as a way of effectively canceling an in-flight animation. To chain animations, you can wait until one animation ends before ordering the next one, or you can create a single animation combining multiple changes starting at different times. There is also a way to “blend” a new animation with an existing animation.</p>
+            </li>
+            <li class="listitem">
+              <p class="simpara">
+<span class="emphasis"><em>While an animation is in-flight, if your code is not running, the interface is responsive to the user.<a id="idm441650142144" class="indexterm"></a> What happens if the user tries to touch a view whose position is currently being animated?</em></span>
+</p>
+              <p class="simpara">It’s your job to prevent the user from doing that. During animation, a view is not really where it appears to be on the screen, so the user can easily touch the wrong thing. The usual solution is to turn off the app’s responsiveness to touches, or at least an animated view’s responsiveness to touches, while an animation is in-flight. (I’ll talk more in <a class="xref" href="ch18.html">Chapter 18</a> about restricting user touches, as well as how to let the user touch a view while it’s in animated motion; it’s a difficult problem to solve.)</p>
+            </li>
+            <li class="listitem">
+              <p class="simpara">
+<span class="emphasis"><em>In a multitasking world, the user can suspend my app without quitting it.<a id="idm441650138368" class="indexterm"></a> What happens if an animation is in-flight at that moment?</em></span>
+</p>
+              <p class="simpara">If your app is suspended (<a class="xref" href="ch11.html">Chapter 11</a>) during animation, the animation is removed. This simply means that the “animation movie” is cancelled. Any animation, whether in-flight or scheduled, is simply a slowed-down visualization of a property change; that property is still changed, and indeed was probably changed before the animation even started. If your app is resumed, therefore, no animations will be running, and properties that were changed remain changed, and are shown as changed.</p>
+            </li>
+          </ol>
+        </div>
+        <div class="sidebar">
+          <div class="titlepage">
+            <div>
+              <div>
+                <p class="title">Presentation Layer</p>
+              </div>
+            </div>
+          </div>
+          <p>There isn’t really an “animation movie” in front of the screen — though the effect is much the same. In reality, it is not a layer itself that is portrayed on the screen; it’s a derived layer called the <span class="emphasis"><em>presentation layer</em></span>.<a id="idm441650133760" class="indexterm"></a> Thus, when you animate the change of a view’s position or a layer’s position from position 1 to position 2, its nominal position changes immediately; meanwhile, the presentation layer’s position remains unchanged until the redraw moment, and then changes over time, and because that’s what’s actually drawn on the screen, that’s what the user sees.</p>
+          <p>A layer’s presentation layer can be accessed through its <code class="literal">presentationLayer</code> property (and the layer itself is the presentation layer’s <code class="literal">modelLayer</code>). It is typed as an <code class="literal">id</code>, so in order to work with it as a layer, you will probably want to typecast it to a <code class="literal">CALayer*</code>. Accessing the <code class="literal">presentationLayer</code> is not a common thing to do, but it might come in handy if your code needs to learn the current state of an in-flight animation.</p>
+        </div>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_uiimageview_and_uiimage_animation"></a>UIImageView and UIImage Animation</h2>
+            </div>
+          </div>
+        </div>
+        <p>UIImageView provides a form of animation that is so simple and crude as to be scarcely deserving of the name. Nevertheless, sometimes this form of animation is all you need — a trivial solution to what might otherwise be a tricky problem.<a id="idm441650125824" class="indexterm"></a>
+<a id="idm441650124576" class="indexterm"></a> Supply the UIImageView with an array of UIImages, as the value of its <code class="literal">animationImages</code> or <code class="literal">highlightedAnimationImages</code> property; this causes the <code class="literal">image</code> or <code class="literal">highlightedImage</code> to be hidden. This array represents the “frames” of a simple cartoon; when you send the <code class="literal">startAnimating</code> message, the images are displayed in turn, at a frame rate determined by the <code class="literal">animationDuration</code> property, repeating as many times as specified by the <code class="literal">animationRepeatCount</code> property (the default is <code class="literal">0</code>, meaning to repeat forever, or until the <code class="literal">stopAnimating</code> message is received).</p>
+        <p>For example, suppose we want an image of Mars to appear out of nowhere and flash three times on the screen. This might seem to require some sort of NSTimer-based solution (see <a class="xref" href="ch11.html">Chapter 11</a>), but it’s far simpler to use an animating UIImageView:</p>
+        <pre class="screen">UIImage* mars = [UIImage imageNamed: @"mars.png"];
+UIGraphicsBeginImageContextWithOptions(mars.size, NO, 0);
+UIImage* empty = UIGraphicsGetImageFromCurrentImageContext();
+UIGraphicsEndImageContext();
+NSArray* arr = @[mars, empty, mars, empty, mars];
+UIImageView* iv =
+    [[UIImageView alloc] initWithFrame:CGRectMake(56, 63, 208, 208)];
+[self.window.rootViewController.view addSubview: iv];
+iv.animationImages = arr;
+iv.animationDuration = 2;
+iv.animationRepeatCount = 1;
+[iv startAnimating];</pre>
+        <p>You can combine UIImageView animation with other kinds of animation. For example, you could flash the image of Mars while at the same time sliding the UIImageView rightward, using view animation as described in the next section.</p>
+        <p>In addition, UIImage supplies a simple form of animation parallel to what UIImageView provides. An image can itself be an <span class="emphasis"><em>animated image</em></span>. Just as with UIImageView, this really means that you’ve multiple images that form a sequence serving as the “frames” of a simple cartoon. You can designate an image as an animated image with one of two UIImage class methods:<a id="idm441650112912" class="indexterm"></a>
+<a id="idm441650111632" class="indexterm"></a><a id="idm441650110736" class="indexterm"></a><a id="idm441650109824" class="indexterm"></a></p>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+<code class="literal">animatedImageWithImages:duration:</code>
+</span>
+            </dt>
+            <dd>
+As with UIImageView’s <code class="literal">animationImages</code>, you supply an array of UIImages. You also supply the duration for the whole animation.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">animatedImageNamed:duration:</code>
+</span>
+            </dt>
+            <dd>
+              <p class="simpara">
+You supply the name of a single image file at the top level of your app bundle, as with <code class="literal">imageNamed:</code> — except that you omit the file extension, and the system does not look for an image file by this name. Instead, it appends <code class="literal">@"0"</code> to the name you supply (and then, I presume, several different possible file extensions) and looks for <span class="emphasis"><em>that</em></span> image file, and makes it the first image in the animation sequence. Then it appends <code class="literal">@"1"</code> to the name you supply and looks for <span class="emphasis"><em>that</em></span> image file. And so on, until it fails to find any more image files with any of these constructed names, up through <code class="literal">@"1024"</code>. It is fine if image files for some constructed names don’t exist; for example, <code class="literal">animatedImageNamed:@"moi"</code> works even if the only “moi” image files are <span class="emphasis"><em>moi101.png</em></span> and <span class="emphasis"><em>moi293.png</em></span>.
+</p>
+              <p class="simpara">A third method, <code class="literal">animatedResizableImageNamed:capInsets:resizingMode:duration:</code>, combines an animated image with a resizable image (<a class="xref" href="ch15.html">Chapter 15</a>).</p>
+            </dd>
+          </dl>
+        </div>
+        <p>You do not tell an animated image to start animating, nor are you able to tell it how long you want the animation to repeat. Rather, an animated image is <span class="emphasis"><em>always animating</em></span>, so long as it appears in your interface; to control the animation, add the image to your interface or remove it from the interface, possibly exchanging it for a similar image that isn’t animated. Moreover, an animated image can appear in the interface <span class="emphasis"><em>anywhere a UIImage can appear</em></span> as a property of some interface object. So, it can appear in a UIImageView, but it can also appear as the background of a UIButton or a UINavigationBar, and so forth.</p>
+        <p>In this example, I construct a sequence of red circles of different sizes, in code, and build an animated image which I then display in a UIButton to the left of its title:</p>
+        <pre class="screen">NSMutableArray* arr = [NSMutableArray array];
+float w = 18;
+for (int i = 0; i &lt; 6; i++) {
+    UIGraphicsBeginImageContextWithOptions(CGSizeMake(w,w), NO, 0);
+    CGContextRef con = UIGraphicsGetCurrentContext();
+    CGContextSetFillColorWithColor(con, [UIColor redColor].CGColor);
+    CGContextAddEllipseInRect(con, CGRectMake(0+i,0+i,w-i*2,w-i*2));
+    CGContextFillPath(con);
+    UIImage* im = UIGraphicsGetImageFromCurrentImageContext();
+    UIGraphicsEndImageContext();
+    [arr addObject:im];
+}
+UIImage* im = [UIImage animatedImageWithImages:arr duration:0.5];
+UIButton* b = [UIButton buttonWithType:UIButtonTypeRoundedRect];
+[b setTitle:@"Howdy" forState:UIControlStateNormal];
+[b setImage:im forState:UIControlStateNormal];
+b.center = CGPointMake(100,100);
+[b sizeToFit];
+[self.window.rootViewController.view addSubview:b];</pre>
+        <p>But please, use your mighty powers for good, not evil. I do <span class="emphasis"><em>not</em></span> want to see any apps that overuse animated images!</p>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_view_animation"></a>View Animation</h2>
+            </div>
+          </div>
+        </div>
+        <p>Animation is ultimately layer animation. However, for a limited range of attributes, you can animate a UIView directly: these are its <code class="literal">alpha</code>, <code class="literal">backgroundColor</code>, <code class="literal">bounds</code>, <code class="literal">center</code>, <code class="literal">frame</code>, and <code class="literal">transform</code>. You can also animate a UIView’s change of contents.<a id="idm441650069776" class="indexterm"></a>
+<a id="idm441650068480" class="indexterm"></a><a id="idm441650067584" class="indexterm"></a>
+<a id="idm441650066304" class="indexterm"></a> Despite the brevity of the list, UIView animation is an excellent way to become acquainted with animation and to experiment with the various parameters you can use to determine how an animation behaves; in many cases it will prove quite sufficient.</p>
+        <p>There are actually two ways to ask for UIView animation: the old way using animation blocks (before iOS 4.0, and still available), and the new way using Objective-C blocks (<a class="xref" href="ch03.html">Chapter 3</a>). I’ll describe the old way first; the documentation describes this approach as “discouraged,” but it is not officially deprecated and it does still work, and it may offer some advantages over the newer block-based animation.</p>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_animation_blocks"></a>Animation Blocks</h3>
+              </div>
+            </div>
+          </div>
+          <p>To animate a change to an animatable UIView property the old way, wrap the change in calls to the UIView class methods <code class="literal">beginAnimations:context:</code> and <code class="literal">commitAnimations</code>. The region between these calls is referred to as an <span class="emphasis"><em>animation block</em></span>, even though it is <span class="emphasis"><em>not</em></span> a block in the syntactical Objective-C sense.<a id="idm441650059408" class="indexterm"></a></p>
+          <p>So, animating a change to a view’s background color could be as simple as this:</p>
+          <pre class="screen">[UIView beginAnimations:nil context:nil];
+v.backgroundColor = [UIColor yellowColor];
+[UIView commitAnimations];</pre>
+          <p>Any animatable change made within an animation block will be animated, so we can animate a change both to the view’s color and its position simultaneously:</p>
+          <pre class="screen">[UIView beginAnimations:nil context:nil];
+v.backgroundColor = [UIColor yellowColor];
+CGPoint p = v.center;
+p.y -= 100;
+v.center = p;
+[UIView commitAnimations];</pre>
+          <p>We can also animate changes to multiple views. For example, suppose we want to make one view dissolve into another. We start with the second view present in the view hierarchy, but with an <code class="literal">alpha</code> of <code class="literal">0</code>, so that it is invisible. Then we animate the change of the first view’s <code class="literal">alpha</code> to <code class="literal">0</code> and the second view’s <code class="literal">alpha</code> to <code class="literal">1</code>, simultaneously. This might be a way, for example, to make the text of a label or the title of a button appear to dissolve while changing.</p>
+          <p>The two parameters to <code class="literal">beginAnimations:context:</code> are an NSString and a pointer-to-void that are completely up to you; the idea is that an animation can have a delegate (so that you can be notified when the animation starts and ends), and you can supply values here that will be passed along in the delegate messages, helping you identify the animation and so forth. (On memory management of a pointer-to-void <code class="literal">context:</code> value, see <a class="xref" href="ch12.html">Chapter 12</a>.)</p>
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_modifying_an_animation_block"></a>Modifying an Animation Block</h3>
+              </div>
+            </div>
+          </div>
+          <p>An animation has various characteristics that you can modify, and an animation block provides a way to make such modifications: within the animation block, you call a UIView class method whose name begins with <code class="literal">setAnimation...</code>.</p>
+          <div class="warning" style="margin-left: 0; margin-right: 10%;">
+            <h3 class="title">Warning</h3>
+            <p>Some of the <code class="literal">setAnimation...</code> method calls are oddly picky as to whether they precede or follow the actual property value changes within the animation block. If a call seems to be having no effect, try moving it to the beginning or end of the animation block. I find that in general these calls work best if they <span class="emphasis"><em>precede</em></span> the value changes.</p>
+          </div>
+          <p>Animation blocks can be nested. The result is a single animation, whose description is not complete until the outermost animation block is terminated with <code class="literal">commitAnimations</code>. Therefore, by using <code class="literal">setAnimation...</code> method calls in the different nested animation blocks, you can give the parts of the animation different characteristics. Within each animation block, the animation for any property changes will have the default characteristics unless you change them.</p>
+          <div class="note" style="margin-left: 0; margin-right: 10%;">
+            <h3 class="title">Note</h3>
+            <p>Nested animation blocks are different from successive top-level animation blocks; successive top-level animation blocks are different animations, which, as I mentioned earlier, can have undesirable effects, possibly causing the earlier animation to be cancelled abruptly.</p>
+          </div>
+          <p>Here are the <code class="literal">setAnimation...</code> UIView class methods:</p>
+          <div class="variablelist">
+            <dl>
+              <dt>
+                <span class="term">
+<code class="literal">setAnimationDuration:</code>
+</span>
+              </dt>
+              <dd>
+Sets the “speed” of the animation, by dictating (in seconds) how long it takes to run from start to finish. Obviously, if two views are told to move different distances in the same time, the one that must move further must move faster.
+</dd>
+              <dt>
+                <span class="term">
+<code class="literal">setAnimationRepeatAutoreverses:</code>
+</span>
+              </dt>
+              <dd>
+If YES, the animation will run from start to finish (in the given duration time), and will then run from finish to start (also in the given duration time).
+</dd>
+              <dt>
+                <span class="term">
+<code class="literal">setAnimationRepeatCount:</code>
+</span>
+              </dt>
+              <dd>
+Sets how many times the animation should be repeated. Unless the animation also autoreverses, the animation will “jump” from its end to its start to begin the next repetition. The value is a float, so it is possible to end the repetition at some midpoint of the animation.
+</dd>
+              <dt>
+                <span class="term">
+<code class="literal">setAnimationCurve:</code>
+</span>
+              </dt>
+              <dd>
+                <p class="simpara">
+Describes how the animation changes speed during its course. Your options are:
+</p>
+                <div class="itemizedlist">
+                  <ul class="itemizedlist" type="disc">
+                    <li class="listitem">
+<code class="literal">UIViewAnimationCurveEaseInOut</code> (the default)
+</li>
+                    <li class="listitem">
+<code class="literal">UIViewAnimationCurveEaseIn</code>
+</li>
+                    <li class="listitem">
+<code class="literal">UIViewAnimationCurveEaseOut</code>
+</li>
+                    <li class="listitem">
+<code class="literal">UIViewAnimationCurveLinear</code>
+</li>
+                  </ul>
+                </div>
+                <p class="simpara">The term “ease” means that there is a gradual acceleration or deceleration between the animation’s central speed and the zero speed at its start or end.</p>
+              </dd>
+              <dt>
+                <span class="term">
+<code class="literal">setAnimationDelay:</code>
+</span>
+              </dt>
+              <dd>
+Postpones the start of the animation. (An alternative method, <code class="literal">setAnimationStartDate:</code>, is and always has been broken, as far as I can tell.)
+</dd>
+              <dt>
+                <span class="term">
+<code class="literal">setAnimationDelegate:</code>
+</span>
+              </dt>
+              <dd>
+                <p class="simpara">
+Arranges for your code to be notified as the animation starts or ends; the methods to be called on the delegate are specified as follows:<a id="idm441650017152" class="indexterm"></a>
+<a id="idm441650015840" class="indexterm"></a>
+</p>
+                <div class="variablelist">
+                  <dl>
+                    <dt>
+                      <span class="term">
+<code class="literal">setAnimationWillStartSelector:</code>
+</span>
+                    </dt>
+                    <dd>
+The “start” method must take two parameters; these are the values passed into <code class="literal">beginAnimations:context:</code>, namely an identifying NSString and a pointer-to-void. This method is not called unless something within the animation block triggers an actual animation.
+</dd>
+                    <dt>
+                      <span class="term">
+<code class="literal">setAnimationDidStopSelector:</code>
+</span>
+                    </dt>
+                    <dd>
+The “stop” method must take three parameters: the second parameter is a BOOL wrapped as an NSNumber, indicating whether the animation completed successfully, and the other two are like the “start” method parameters. This method is called, with the second parameter representing YES, even if nothing within the animation block triggers any animations.
+</dd>
+                  </dl>
+                </div>
+              </dd>
+              <dt>
+                <span class="term">
+<code class="literal">setAnimationsEnabled:</code>
+</span>
+              </dt>
+              <dd>
+Call this with a NO argument to perform subsequent animatable property changes within the animation block without making them part of the animation.
+</dd>
+              <dt>
+                <span class="term">
+<code class="literal">setAnimationBeginsFromCurrentState:</code>
+</span>
+              </dt>
+              <dd>
+If YES, and if this animation animates a property already being animated by an animation that is previously ordered or in-flight, then instead of canceling the previous animation (completing the requested change instantly), this animation will use the presentation layer to decide where to start, and will “blend” its animation with the previous animation if possible.
+</dd>
+            </dl>
+          </div>
+          <p>If an animation autoreverses, and if, when the animation ends, the view’s actual property is still at the finish value, the view will appear to jump as the “animation movie” is removed.<a id="idm441650001648" class="indexterm"></a> So, for example, suppose we want a view to animate its position to the right and then back to its original position. This code causes the view to animate right, animate left, and then (unfortunately) jump right:</p>
+          <pre class="screen">[UIView beginAnimations:nil context:nil];
+[UIView setAnimationRepeatAutoreverses:YES];
+CGPoint p = v.center;
+p.x += 100;
+v.center = p;
+[UIView commitAnimations];</pre>
+          <p>How can we prevent this? We want the view to stay at the start value after the animation reverses and ends. If we try to eliminate the jump at the end by setting the view’s position back to its starting point after the animation block, there is no animation at all (because when the redraw moment arrives, there is no property change):</p>
+          <pre class="screen">[UIView beginAnimations:nil context:nil];
+[UIView setAnimationRepeatAutoreverses:YES];
+CGPoint p = v.center;
+p.x += 100;
+v.center = p;
+[UIView commitAnimations];
+p = v.center;
+p.x -= 100;
+v.center = p;</pre>
+          <p>The coherent solution is to use the “stop” delegate method to set the view’s position back to its starting point when the animation ends:</p>
+          <pre class="screen">[UIView beginAnimations:nil context:nil];
+[UIView setAnimationRepeatAutoreverses:YES];
+[UIView setAnimationDelegate:self];
+[UIView setAnimationDidStopSelector:@selector(stopped:fin:context:)];
+CGPoint p = v.center;
+p.x += 100;
+v.center = p;
+[UIView commitAnimations];
+
+// ...</pre>
+          <pre class="screen">- (void) stopped:(NSString *)anim fin:(NSNumber*)fin context:(void *)context {
+    CGPoint p = v.center;
+    p.x -= 100;
+    v.center = p;
+}</pre>
+          <p>In that example, we happened to know how the animation had changed the view’s position, so we could hard-code the instructions for reversing the change. To be more general, we could take advantage of our ability to pass information into the animation block and retrieve this same information in the delegate method. Or, we could store the view’s original position in its layer (recall that a CALayer is a dictionary-like container):</p>
+          <pre class="screen">[UIView beginAnimations:nil context:nil];
+[UIView setAnimationRepeatAutoreverses:YES];
+[UIView setAnimationDelegate:self];
+[UIView setAnimationDidStopSelector:@selector(stopped:fin:context:)];
+CGPoint p = v.center;
+[v.layer setValue:[NSValue valueWithCGPoint:p] forKey:@"origCenter"];
+p.x += 100;
+v.center = p;
+[UIView commitAnimations];
+// ...
+- (void) stopped:(NSString *)anim fin:(NSNumber*)fin context:(void *)context {
+    v.center = [[v.layer valueForKey:@"origCenter"] CGPointValue];
+}</pre>
+          <p>Here’s an example to illustrate use of the “stop” delegate method parameters. We pop a view out of existence by shrinking it as we remove it from its superview. The removal from the superview needs to come after the animation, so we put it in the “stop” delegate method. We can generalize this by using the <code class="literal">context:</code> parameter to say which view to remove:</p>
+          <pre class="screen">[UIView beginAnimations:@"removeThisView" context:(__bridge void*)v];
+[UIView setAnimationDelegate:self];
+[UIView setAnimationDidStopSelector:@selector(stopped:fin:context:)];
+v.transform = CGAffineTransformMakeScale(0,0);
+[UIView commitAnimations];
+// ...
+-(void)stopped:(NSString*)identifier fin:(BOOL)fin context:(void*) context {
+    if ([identifier isEqualToString:@"removeThisView"]) {
+        UIView* v = (__bridge id)context;
+        [v removeFromSuperview];
+    }
+}</pre>
+          <p>To illustrate <code class="literal">setAnimationBeginsFromCurrentState:</code>, consider the following:</p>
+          <pre class="screen">[UIView beginAnimations:nil context:nil];
+[UIView setAnimationDuration:1];
+CGPoint p = v.center;
+p.x += 100;
+v.center = p;
+[UIView commitAnimations];
+
+[UIView beginAnimations:nil context:nil];
+// uncomment the next line to fix the problem
+//[UIView setAnimationBeginsFromCurrentState:YES];
+[UIView setAnimationDuration:1];
+CGPoint p2 = v.center;
+p2.x = 0;
+v.center = p2;
+[UIView commitAnimations];</pre>
+          <p>The result is that the view jumps 100 points rightward, and then animates leftward. That’s because the second animation caused the first animation to be thrown away; the move 100 points rightward was performed instantly, instead of being animated. But if we uncomment the call to <code class="literal">setAnimationBeginsFromCurrentState:</code>, the result is that the view animates leftward from its current position, with no jump.</p>
+          <p>Even more interesting is what happens when we change <code class="literal">x</code> to <code class="literal">y</code> in the second animation. If we uncomment the call to <code class="literal">setAnimationBeginsFromCurrentState:</code>, both the <span class="keep-together">x-component</span> and the y-component of the view’s position are animated together, as if we had ordered one animation instead of two.</p>
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_transition_animations"></a>Transition Animations</h3>
+              </div>
+            </div>
+          </div>
+          <p>A <span class="emphasis"><em>transition</em></span> is a sort of animated redrawing of a view.<a id="idm441649980960" class="indexterm"></a>
+<a id="idm441649979696" class="indexterm"></a><a id="idm441649978800" class="indexterm"></a>
+<a id="idm441649977488" class="indexterm"></a> The usual reason for a transition animation is that you are making some change in the view’s appearance, and you want to emphasize this by animating the view. To order a transition animation using an animation block, call <code class="literal">setAnimationTransition:forView:cache:</code>.</p>
+          <div class="itemizedlist">
+            <ul class="itemizedlist" type="disc">
+              <li class="listitem">
+                <p class="simpara">
+The first parameter describes how the animation should behave; your choices are:
+</p>
+                <div class="itemizedlist">
+                  <ul class="itemizedlist" type="circle">
+                    <li class="listitem">
+<code class="literal">UIViewAnimationTransitionFlipFromLeft</code>
+</li>
+                    <li class="listitem">
+<code class="literal">UIViewAnimationTransitionFlipFromRight</code>
+</li>
+                    <li class="listitem">
+<code class="literal">UIViewAnimationTransitionCurlUp</code>
+</li>
+                    <li class="listitem">
+<code class="literal">UIViewAnimationTransitionCurlDown</code>
+</li>
+                  </ul>
+                </div>
+              </li>
+              <li class="listitem">
+The second parameter is the view.
+</li>
+              <li class="listitem">
+The third parameter is whether to cache the view’s contents right now, effectively taking a “snapshot” of those contents at the moment and as they will be after the contents change, and using these snapshots throughout the transition. The alternative is to redraw the contents repeatedly throughout the transition. You’ll want to say YES wherever possible.
+</li>
+            </ul>
+          </div>
+          <p>Here’s a simple example that flips a UIImageView while changing its image. The result is that the UIImageView appears to flip over, like a piece of paper being rotated to show its reverse side — a piece of paper with Mars on its front and Saturn on its back:</p>
+          <pre class="screen">[UIView beginAnimations:nil context:nil];
+[UIView setAnimationTransition:UIViewAnimationTransitionFlipFromLeft
+                       forView:iv cache:YES];
+// iv is a UIImageView whose image is Mars.png
+iv.image = [UIImage imageNamed:@"Saturn.gif"];
+[UIView commitAnimations];</pre>
+          <p>The example is a little misleading, because the change in the image does not necessarily have to be inside the animation block. The animation described by <code class="literal">setAnimationTransition:...</code> will be performed in any case. The change of image will be performed in any case as well. They will both happen at the redraw moment, so they are performed together. Thus, we could have written the same example this way:</p>
+          <pre class="screen">iv.image = [UIImage imageNamed:@"Saturn.gif"];
+[UIView beginAnimations:nil context:nil];
+[UIView setAnimationTransition:UIViewAnimationTransitionFlipFromLeft
+                       forView:iv cache:YES];
+[UIView commitAnimations];</pre>
+          <p>Nevertheless, it is customary to order the changes in the view from inside the animation block, and I’ll continue to do so in subsequent examples.</p>
+          <p>You can do the same sort of thing with any built-in view subclass. Here’s a button that seems to be labeled “Start” on one side and “Stop” on the other:</p>
+          <pre class="screen">[UIView beginAnimations:nil context:nil];
+// b is a UIButton; _stopped is a BOOL ivar
+[UIView setAnimationTransition:UIViewAnimationTransitionFlipFromLeft
+                       forView:b cache:YES];
+[b setTitle:(_stopped ? @"Start" : @"Stop") forState:UIControlStateNormal];
+[UIView commitAnimations];</pre>
+          <p>To do the same thing with a custom UIView subclass that knows how to draw itself in its <code class="literal">drawRect:</code>, call <code class="literal">setNeedsDisplay</code> to cause a redraw. For example, imagine a UIView subclass with a <code class="literal">reverse</code> BOOL property, which draws an ellipse if <code class="literal">reverse</code> is YES and a square if <code class="literal">reverse</code> is NO. Then we can animate the square flipping over and becoming an ellipse (or <span class="emphasis"><em>vice versa</em></span>):</p>
+          <pre class="screen">v.reverse = !v.reverse;
+[UIView beginAnimations:nil context:nil];
+[UIView setAnimationTransition:UIViewAnimationTransitionFlipFromLeft
+                       forView:v cache:YES];
+[v setNeedsDisplay];
+[UIView commitAnimations];</pre>
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="SECblockbasedviewanimation"></a>Block-Based View Animation</h3>
+              </div>
+            </div>
+          </div>
+          <p>A UIView can also be animated using a syntax involving Objective-C blocks. This is intended to replace the old animation block syntax I’ve just been describing. In the new syntax:<a id="idm441649950864" class="indexterm"></a>
+<a id="idm441649949584" class="indexterm"></a></p>
+          <div class="itemizedlist">
+            <ul class="itemizedlist" type="disc">
+              <li class="listitem">
+The behavior to be animated is a block.
+</li>
+              <li class="listitem">
+The code to be run when the animation ends is also a block. Thus, there is no need for the two-part structure involving an animation block and a separate delegate method.
+</li>
+              <li class="listitem">
+Options describing the animation are part of the original animation method call, not separate calls as with an animation block.
+</li>
+              <li class="listitem">
+Transition animations have more options than with animation blocks.
+</li>
+              <li class="listitem">
+User touch interactions with an animated view are disabled, by default. This is not the case with an animation block (or with layer-based animation, described later in this chapter). The option <code class="literal">UIViewAnimationOptionAllowUserInteraction</code> permits user touch interaction with the animated view.<a id="idm441649942912" class="indexterm"></a>
+</li>
+            </ul>
+          </div>
+          <p>The basis of the new syntax is the UIView class method <code class="literal">animateWithDuration:delay:options:animations:completion:</code>. There are also two reduced calls, the first letting you omit the <code class="literal">delay:</code> and <code class="literal">options:</code> parameters and the second letting you also omit the <code class="literal">completion:</code> parameter. The parameters of the full form are:</p>
+          <div class="variablelist">
+            <dl>
+              <dt>
+                <span class="term">
+<code class="literal">duration</code>
+</span>
+              </dt>
+              <dd>
+The duration of the animation.
+</dd>
+              <dt>
+                <span class="term">
+<code class="literal">delay</code>
+</span>
+              </dt>
+              <dd>
+The delay before the animation starts. The default, in the reduced forms, is no delay.
+</dd>
+              <dt>
+                <span class="term">
+<code class="literal">options</code>
+</span>
+              </dt>
+              <dd>
+                <p class="simpara">
+A bitmask stating additional options. The default is <code class="literal">UIViewAnimationOptionCurveEaseInOut</code> (which is also the default animation curve for animation blocks). For an ordinary animation (not a transition), the chief options are:
+</p>
+                <div class="variablelist">
+                  <dl>
+                    <dt>
+                      <span class="term">
+Animation curve
+</span>
+                    </dt>
+                    <dd>
+                      <p class="simpara">
+Your choices are:
+</p>
+                      <div class="itemizedlist">
+                        <ul class="itemizedlist" type="disc">
+                          <li class="listitem">
+<code class="literal">UIViewAnimationOptionCurveEaseInOut</code>
+</li>
+                          <li class="listitem">
+<code class="literal">UIViewAnimationOptionCurveEaseIn</code>
+</li>
+                          <li class="listitem">
+<code class="literal">UIViewAnimationOptionCurveEaseOut</code>
+</li>
+                          <li class="listitem">
+<code class="literal">UIViewAnimationOptionCurveLinear</code>
+</li>
+                        </ul>
+                      </div>
+                    </dd>
+                    <dt>
+                      <span class="term">
+Repetition and autoreverse
+</span>
+                    </dt>
+                    <dd>
+                      <p class="simpara">
+Your options are:
+</p>
+                      <div class="itemizedlist">
+                        <ul class="itemizedlist" type="disc">
+                          <li class="listitem">
+<code class="literal">UIViewAnimationOptionRepeat</code>
+</li>
+                          <li class="listitem">
+<code class="literal">UIViewAnimationOptionAutoreverse</code>
+</li>
+                        </ul>
+                      </div>
+                      <p class="simpara">There is no way to specify a certain number of repetitions; you either repeat forever or not at all. This feels like an oversight (a serious oversight); I’ll suggest a workaround in a moment. The documentation’s claim that you can autoreverse only if you also repeat is incorrect; you can use either or both (or neither).</p>
+                    </dd>
+                  </dl>
+                </div>
+              </dd>
+              <dt>
+                <span class="term">
+<code class="literal">animations</code>
+</span>
+              </dt>
+              <dd>
+The block containing view property changes to be animated.
+</dd>
+              <dt>
+                <span class="term">
+<code class="literal">completion</code>
+</span>
+              </dt>
+              <dd>
+The block to run when the animation ends. It takes one BOOL parameter indicating whether the animation ran to completion. (There is no way to specify a notification when the animation starts, but this should not be needed, as the animation code is itself a block.) It’s fine for this block to order a further animation. The block is called, with a parameter indicating YES, even if nothing in the <code class="literal">animations:</code> block triggers any animations.
+</dd>
+            </dl>
+          </div>
+          <p>Here’s an example, recasting an earlier example to use Objective-C blocks instead of animation blocks. We move a view rightward and reverse it back into place. With animation blocks, we used a delegate so that we could set the view back to its original position, and we stored that position in the layer so as to be able to retrieve it in the delegate method. With blocks, however, the original position can live in a variable that remains in scope, so things are much simpler (to increase readability, I’ve expressed the blocks and the options as named variables):</p>
+          <pre class="screen">CGPoint p = v.center;
+CGPoint pOrig = p;
+p.x += 100;
+void (^anim) (void) = ^{
+    v.center = p;
+};
+void (^after) (BOOL) = ^(BOOL f) {
+    v.center = pOrig;
+};
+NSUInteger opts = UIViewAnimationOptionAutoreverse;
+[UIView animateWithDuration:1 delay:0 options:opts
+                 animations:anim completion:after];</pre>
+          <p>Working around the inability to specify a finite number of repetitions is not easy. Here’s one approach using recursion:</p>
+          <pre class="screen">- (void) animate: (int) count {
+    CGPoint p = v.center;
+    CGPoint pOrig = p;
+    p.x += 100;
+    void (^anim) (void) = ^{
+        v.center = p;
+    };
+    void (^after) (BOOL) = ^(BOOL f) {
+        v.center = pOrig;
+        if (count)
+            [self animate: count-1];
+    };
+    NSUInteger opts = UIViewAnimationOptionAutoreverse;
+    [UIView animateWithDuration:1 delay:0 options:opts
+                     animations:anim completion:after];
+}</pre>
+          <p>If we call the <code class="literal">animate:</code> method with an argument of <code class="literal">2</code>, our animation takes place three times and stops. There is always a danger, with recursion, of filling up the stack and running out of memory, but I think we’re safe if we start with a small <code class="literal">count</code> value.</p>
+          <p>There are also some options saying what should happen if another animation is already ordered or in-flight:</p>
+          <div class="variablelist">
+            <dl>
+              <dt>
+                <span class="term">
+<code class="literal">UIViewAnimationOptionBeginFromCurrentState</code>
+</span>
+              </dt>
+              <dd>
+Similar to <code class="literal">setAnimationBeginsFromCurrentState:</code>.
+</dd>
+              <dt>
+                <span class="term">
+<code class="literal">UIViewAnimationOptionOverrideInheritedDuration</code>
+</span>
+              </dt>
+              <dd>
+Prevents inheriting the duration from an already ordered or in-flight animation (the default is to inherit it).
+</dd>
+              <dt>
+                <span class="term">
+<code class="literal">UIViewAnimationOptionOverrideInheritedCurve</code>
+</span>
+              </dt>
+              <dd>
+Prevents inheriting the animation curve from an already ordered or in-flight animation (the default is to inherit it).
+</dd>
+            </dl>
+          </div>
+          <p>A widely used technique for canceling a repeating animation is to start another animation of the same property of the same view.<a id="idm441649894848" class="indexterm"></a>
+<a id="idm441649893552" class="indexterm"></a> (Reread the first section of this chapter if you don’t understand why that would work.) This example builds on our previous examples; we have an autoreversing animation of our view’s <code class="literal">center</code> that repeats, nominally infinitely. To stop it, we animate the same <code class="literal">center</code> property of the same view back to its original position. This is a great opportunity to use <code class="literal">UIViewAnimationOptionBeginFromCurrentState</code>; without it, the animation ends abruptly. Two different methods need access to the view’s original <code class="literal">center</code>, so I’ve put it in an instance variable:</p>
+          <pre class="screen">- (void) animate {
+    CGPoint p = v.center;
+    self-&gt;_pOrig = p;
+    p.x += 100;
+    void (^anim) (void) = ^{
+        v.center = p;
+    };
+    void (^after) (BOOL) = ^(BOOL f) {
+        v.center = self-&gt;_pOrig;
+    };
+    NSUInteger opts = UIViewAnimationOptionAutoreverse |
+                      UIViewAnimationOptionRepeat;
+    [UIView animateWithDuration:1 delay:0 options:opts
+                     animations:anim completion:after];
+}
+
+- (void) cancelAnimation {
+    void (^anim) (void) = ^{
+        v.center = self-&gt;_pOrig;
+    };
+    NSUInteger opts = UIViewAnimationOptionBeginFromCurrentState;
+    [UIView animateWithDuration:0.2 delay:0 options:opts
+                     animations:anim completion:nil];
+}</pre>
+          <p>There is also a layout option, <code class="literal">UIViewAnimationOptionLayoutSubviews</code>. This is useful if the view that you are about to animate does its layout manually through an override of <code class="literal">layoutSubviews</code> (<a class="xref" href="ch14.html">Chapter 14</a>). In that case, if you supply this option, <code class="literal">layoutSubviews</code> is called while we are still within the animation block; the changes ordered by your <code class="literal">layoutSubviews</code> implementation will thus be part of the animation. If you don’t supply this option, the changes ordered by your <code class="literal">layoutSubviews</code> implementation will appear as a sudden jump as the animation begins.<a id="idm441649883536" class="indexterm"></a>
+<a id="idm441649882208" class="indexterm"></a></p>
+          <p>Transitions are ordered using one of two methods.<a id="idm441649880896" class="indexterm"></a>
+<a id="idm441649879600" class="indexterm"></a><a id="idm441649878704" class="indexterm"></a>
+<a id="idm441649877392" class="indexterm"></a> The one that’s parallel to <code class="literal">setAnimationTransition...</code>, described earlier in connection with animation blocks, is <code class="literal">transitionWithView:duration:options:animations:completion:</code>. The transition animation types are expressed as part of the <code class="literal">options:</code> bitmask; the last three have no parallel in the older animation block syntax:</p>
+          <div class="itemizedlist">
+            <ul class="itemizedlist" type="disc">
+              <li class="listitem">
+<code class="literal">UIViewAnimationOptionTransitionFlipFromLeft</code>
+</li>
+              <li class="listitem">
+<code class="literal">UIViewAnimationOptionTransitionFlipFromRight</code>
+</li>
+              <li class="listitem">
+<code class="literal">UIViewAnimationOptionTransitionCurlUp</code>
+</li>
+              <li class="listitem">
+<code class="literal">UIViewAnimationOptionTransitionCurlDown</code>
+</li>
+              <li class="listitem">
+<code class="literal">UIViewAnimationOptionTransitionCrossDissolve</code>
+</li>
+              <li class="listitem">
+<code class="literal">UIViewAnimationOptionTransitionFlipFromBottom</code>
+</li>
+              <li class="listitem">
+<code class="literal">UIViewAnimationOptionTransitionFlipFromTop</code>
+</li>
+            </ul>
+          </div>
+          <p>Here’s a recasting, using <code class="literal">transitionWithView...</code>, of the earlier example where we flip a rectangle into an ellipse by means of a custom UIView subclass whose <code class="literal">drawRect:</code> behavior depends on its <code class="literal">reverse</code> property:</p>
+          <pre class="screen">v.reverse = !v.reverse;
+void (^anim) (void) = ^{
+    [v setNeedsDisplay];
+};
+NSUInteger opts = UIViewAnimationOptionTransitionFlipFromLeft;
+[UIView transitionWithView:v duration:1 options:opts
+                animations:anim completion:nil];</pre>
+          <p>During a transition, by default, a snapshot of the view’s final appearance is used; this is parallel to what happens when you supply YES as the <code class="literal">cache:</code> argument to <code class="literal">setAnimationTransition:forView:cache:</code>. If that isn’t what you want, use <code class="literal">UIViewAnimationOptionAllowAnimatedContent</code> in the <code class="literal">options</code> bitmask. For example, suppose <code class="literal">v</code> is the view to be animated using a transition, and <code class="literal">v2</code> is a subview of <code class="literal">v</code> that currently occupies part of its width. In this block, to be used as the animation during the transition, we increase the width of <code class="literal">v2</code> to occupy the entire width of <code class="literal">v</code>:</p>
+          <pre class="screen">void (^anim) (void) = ^{
+    CGRect f = v2.frame;
+    f.size.width = v.frame.size.width;
+    f.origin.x = 0;
+    v2.frame = f;
+};</pre>
+          <p>Without <code class="literal">UIViewAnimationOptionAllowAnimatedContent</code>, that change in the frame of <code class="literal">v2</code> takes place in a jump after the transition is over. With <code class="literal">UIViewAnimationOptionAllowAnimatedContent</code>, it is seen to happen smoothly as part of the transition animation.</p>
+          <p>The second transition method is <code class="literal">transition⁠From⁠View:to⁠View:⁠du⁠ra⁠ti⁠on:⁠opt⁠io⁠ns:​completion:</code>.<a id="idm441649848368" class="indexterm"></a>
+<a id="idm441649847120" class="indexterm"></a> It names two views; the first is replaced by the second, while their superview undergoes the transition animation. This has no parallel in the older animation block syntax. There are actually two possible configurations, depending on the options you provide:</p>
+          <div class="variablelist">
+            <dl>
+              <dt>
+                <span class="term">
+Remove one subview, add the other
+</span>
+              </dt>
+              <dd>
+If <code class="literal">UIViewAnimationOptionShowHideTransitionViews</code> is <span class="emphasis"><em>not</em></span> one of the options, then the second subview is not in the view hierarchy when we start; the transition removes the first subview from its superview and adds the second subview to that same superview.
+</dd>
+              <dt>
+                <span class="term">
+Hide one subview, show the other
+</span>
+              </dt>
+              <dd>
+If <code class="literal">UIViewAnimationOptionShowHideTransitionViews</code> <span class="emphasis"><em>is</em></span> one of the options, then both subviews are in the view hierarchy when we start; the <code class="literal">hidden</code> of the first is NO, the <code class="literal">hidden</code> of the second is YES, and the transition reverses these values.
+</dd>
+            </dl>
+          </div>
+          <p>So, for example, this code causes the superview of <code class="literal">v1</code> to rotate like a piece of paper being turned over, while at the same <code class="literal">v1</code> is removed from it and <code class="literal">v2</code> is added to it:</p>
+          <pre class="screen">NSUInteger opts = UIViewAnimationOptionTransitionFlipFromLeft;
+[UIView transitionFromView:v1 toView:v2
+                  duration:1 options:opts completion:nil];</pre>
+          <p>It’s up to you to make sure beforehand that <code class="literal">v2</code> has the desired position, so that it will appear in the right place in its superview.</p>
+        </div>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_implicit_layer_animation"></a>Implicit Layer Animation</h2>
+            </div>
+          </div>
+        </div>
+        <p>If a layer is not a view’s underlying layer, animating it can be as simple as setting a property. A change in what the documentation calls an <span class="emphasis"><em>animatable property</em></span> is automatically interpreted as a request to animate that change.<a id="idm441649831008" class="indexterm"></a>
+<a id="idm441649829696" class="indexterm"></a> In other words, animation of layer property changes is the default! Multiple property changes are considered part of the same animation. This mechanism is called <span class="emphasis"><em>implicit animation</em></span>.<a id="idm441649828064" class="indexterm"></a>
+<a id="idm441649826752" class="indexterm"></a><a id="idm441649825840" class="indexterm"></a>
+<a id="idm441649824528" class="indexterm"></a></p>
+        <div class="note" style="margin-left: 0; margin-right: 10%;">
+          <h3 class="title">Note</h3>
+          <p>You cannot use implicit animation on the underlying layer of a UIView. You can animate a UIView’s underlying layer directly, but you must use explicit layer animation (discussed later in this chapter).<a id="idm441649822192" class="indexterm"></a></p>
+        </div>
+        <p>For example, in <a class="xref" href="ch16.html">Chapter 16</a> we constructed a compass out of layers. The compass itself is a CompassView that does no drawing of its own; its underlying layer is a CompassLayer that also does no drawing, serving only as a superlayer for the layers that constitute the drawing. None of the layers that constitute the actual drawing is the underlying layer of a view, so a property change to any of them is animated automatically.</p>
+        <p>So, presume that we have a reference to the arrow layer, a property <code class="literal">arrow</code> of the CompassLayer, and also a reference to the CompassView, a property <code class="literal">compass</code> of the app delegate, which is <code class="literal">self</code>. If we rotate the arrow by changing its <code class="literal">transform</code> property, that rotation is animated:</p>
+        <pre class="screen">CompassLayer* c = (CompassLayer*)self.compass.layer;
+// the next line is an implicit animation
+c.arrow.transform = CATransform3DRotate(c.arrow.transform, M_PI/4.0, 0, 0, 1);</pre>
+        <p>CALayer properties listed in the documentation as animatable in this way are <code class="literal">anchorPoint</code> and <code class="literal">anchorPointZ</code>, <code class="literal">backgroundColor</code>, <code class="literal">borderColor</code>, <code class="literal">borderWidth</code>, <code class="literal">bounds</code>, <code class="literal">contents</code>, <code class="literal">contentsCenter</code>, <code class="literal">contentsRect</code>, <code class="literal">cornerRadius</code>, <code class="literal">doubleSided</code>, <code class="literal">hidden</code>, <code class="literal">masksToBounds</code>, <code class="literal">opacity</code>, <code class="literal">position</code> and <code class="literal">zPosition</code>, <code class="literal">rasterizationScale</code> and <code class="literal">shouldRasterize</code>, <code class="literal">shadowColor</code>, <code class="literal">shadowOffset</code>, <code class="literal">shadowOpacity</code>, <code class="literal">shadowRadius</code>, and <code class="literal">sublayerTransform</code> and <code class="literal">transform</code> (but <span class="emphasis"><em>not</em></span> <code class="literal">affineTransform</code>!). In addition, a CAShapeLayer’s <code class="literal">path</code>, <code class="literal">fillColor</code>, <code class="literal">strokeColor</code>, <code class="literal">lineWidth</code>, <code class="literal">lineDashPhase</code>, and <code class="literal">miterLimit</code> are animatable; so are a CATextLayer’s <code class="literal">fontSize</code> and <code class="literal">foregroundColor</code>. (See <a class="xref" href="ch16.html">Chapter 16</a> for discussion of those properties.)<a id="idm441649793200" class="indexterm"></a>
+<a id="idm441649791888" class="indexterm"></a></p>
+        <p>Basically, a property is animatable because there’s some sensible way to interpolate the intermediate values between one value and another. The nature of the animation attached to each property is therefore just what you would intuitively expect. When you change a layer’s <code class="literal">hidden</code> property, it fades out of view (or into view). When you change a layer’s <code class="literal">contents</code>, the old contents are dissolved into the new contents. And so forth.</p>
+        <div class="warning" style="margin-left: 0; margin-right: 10%;">
+          <h3 class="title">Warning</h3>
+          <p>Observe that I didn’t say <code class="literal">frame</code> was an animatable property. That’s because it isn’t an animatable property! To animate the changing of a layer’s frame, you’ll change other properties such as its <code class="literal">bounds</code> and <code class="literal">position</code>. Trying to animate a layer’s frame is a common beginner error.<a id="idm441649785248" class="indexterm"></a>
+<a id="idm441649784000" class="indexterm"></a> This is a feature, not a bug; a CALayer’s frame is a purely derived value, and in any case there needs to be a way to position or resize a layer without triggering implicit animation, and <code class="literal">frame</code> is it.</p>
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_animation_transactions"></a>Animation Transactions</h3>
+              </div>
+            </div>
+          </div>
+          <p>Implicit animation operates with respect to a <span class="emphasis"><em>transaction</em></span> (a CATransaction), which groups animation requests into a single animation.<a id="idm441649779968" class="indexterm"></a>
+<a id="idm441649778672" class="indexterm"></a><a id="idm441649777776" class="indexterm"></a> Every animation request takes place in the context of a transaction. You can make this explicit by wrapping your animation requests in calls to the CATransaction class methods <code class="literal">begin</code> and <code class="literal">commit</code>; the result is a <span class="emphasis"><em>transaction block</em></span>. But additionally there is already an <span class="emphasis"><em>implicit transaction</em></span> surrounding all your code, and you can operate on this implicit transaction without any <code class="literal">begin</code> and <code class="literal">commit</code>.</p>
+          <p>To modify the characteristics of an implicit animation, you modify its transaction. Typically, you’ll use these CATransaction class methods:</p>
+          <div class="variablelist">
+            <dl>
+              <dt>
+                <span class="term">
+<code class="literal">setAnimationDuration:</code>
+</span>
+              </dt>
+              <dd>
+The duration of the animation.
+</dd>
+              <dt>
+                <span class="term">
+<code class="literal">setAnimationTimingFunction:</code>
+</span>
+              </dt>
+              <dd>
+A CAMediaTimingFunction; timing functions are discussed in the next section.
+</dd>
+              <dt>
+                <span class="term">
+<code class="literal">setCompletionBlock:</code>
+</span>
+              </dt>
+              <dd>
+A block to be called when the animation ends. The block takes no parameters. The block is called even if no animation is triggered during this transaction.
+</dd>
+            </dl>
+          </div>
+          <p>By nesting transaction blocks, you can apply different animation characteristics to different elements of an animation. But you can also use transaction commands outside of any transaction block to modify the implicit transaction.</p>
+          <p>So, in our previous example, we could slow down the animation of the arrow like this:</p>
+          <pre class="screen">CompassLayer* c = (CompassLayer*)self.compass.layer;
+[CATransaction setAnimationDuration:0.8];
+c.arrow.transform = CATransform3DRotate(c.arrow.transform, M_PI/4.0, 0, 0, 1);</pre>
+          <p>Another useful feature of animation transactions is to turn implicit animation <span class="emphasis"><em>off</em></span>. It’s important to be able to do this, because implicit animation is the default, and can be unwanted (and a performance drag). To do so, call the CATransaction class method <code class="literal">setDisableActions:</code> with argument YES. There are other ways to turn off implicit animation (discussed later in this chapter), but this is the simplest.<a id="idm441649760848" class="indexterm"></a>
+<a id="idm441649759568" class="indexterm"></a></p>
+          <p><code class="literal">setCompletionBlock:</code> is an extraordinarily useful and probably underutilized tool. The transaction’s completion block signals the end, not only of the implicit layer property animations you yourself have ordered as part of this transaction, but of <span class="emphasis"><em>all</em></span> animations ordered during this transaction, including Cocoa’s own animations. For example, consider what happens when you explicitly dismiss a popover with animation:</p>
+          <pre class="screen">[myPopoverController dismissPopoverAnimated: YES];</pre>
+          <p>There’s no completion block, and this isn’t your animation, so how can you learn when the animation is over and the popover is well and truly gone? A transaction completion block solves the problem.</p>
+          <p>CATransaction implements KVC to allow you set and retrieve a value for an arbitrary key, similar to CALayer. An example appears later in this chapter.</p>
+          <div class="warning" style="margin-left: 0; margin-right: 10%;">
+            <h3 class="title">Warning</h3>
+            <p>An explicit transaction block that orders an animation to a layer, if the block is <span class="emphasis"><em>not preceded by any other changes to the layer</em></span>, can cause animation to begin immediately when the CATransaction class method <code class="literal">commit</code> is called, without waiting for the redraw moment, while your code continues running. In my experience, this can cause confusion (for example, animation delegate messages cannot arrive, and the presentation layer can’t be queried properly) and should be avoided.<a id="idm441649755152" class="indexterm"></a>
+<a id="idm441649750368" class="indexterm"></a></p>
+          </div>
+          <div class="sidebar">
+            <div class="titlepage">
+              <div>
+                <div>
+                  <p class="title">The Truth About Transactions</p>
+                </div>
+              </div>
+            </div>
+            <p>All my hand-waving in this and earlier chapters about when drawing, layout, layer property settings, and animation take place is resolved now that you know about transactions.<a id="idm441649748224" class="indexterm"></a><a id="idm441649747328" class="indexterm"></a><a id="idm441649746416" class="indexterm"></a> You ask to draw; <code class="literal">drawRect:</code> is called “later.” You ask for layout; layout happens “later.” You order an animation; the animation happens “later.” This later time — the redraw moment — is the end of the current transaction. Your code runs within an implicit transaction. Your code comes to an end, and the transaction commits itself. It is as part of the transaction commit procedure that everything happens in relation to what appears on the screen: first layout, then drawing, then obedience to layer property changes, then the start of any animations. The transaction then continues onto a background thread while any animations are performed, and finally calls its completion block, if any, when the animations are over.</p>
+          </div>
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_media_timing_functions"></a>Media Timing Functions</h3>
+              </div>
+            </div>
+          </div>
+          <p>The CATransaction class method <code class="literal">setAnimationTimingFunction:</code> takes as its parameter a media timing function (CAMediaTimingFunction).<a id="idm441649742432" class="indexterm"></a><a id="idm441649741536" class="indexterm"></a> This class is the general expression of the animation curves we have already met (ease-in-out, ease-in, ease-out, and linear); in fact, you are most likely to use it with those very same predefined curves, by calling the CAMediaTimingFunction class method <code class="literal">functionWithName:</code> with one of these parameters:</p>
+          <div class="itemizedlist">
+            <ul class="itemizedlist" type="disc">
+              <li class="listitem">
+<code class="literal">kCAMediaTimingFunctionLinear</code>
+</li>
+              <li class="listitem">
+<code class="literal">kCAMediaTimingFunctionEaseIn</code>
+</li>
+              <li class="listitem">
+<code class="literal">kCAMediaTimingFunctionEaseOut</code>
+</li>
+              <li class="listitem">
+<code class="literal">kCAMediaTimingFunctionEaseInEaseOut</code>
+</li>
+              <li class="listitem">
+<code class="literal">kCAMediaTimingFunctionDefault</code>
+</li>
+            </ul>
+          </div>
+          <p>In reality, a media timing function is a Bézier curve defined by two points. The curve graphs the fraction of the animation’s time that has elapsed (the x-axis) against the fraction of the animation’s change that has occurred (the y-axis); its endpoints are therefore at <code class="literal">{0,0}</code> and <code class="literal">{1,1}</code>, because at the beginning of the animation there has been no elapsed time and no change, and at the end of the animation all the time has elapsed and all the change has occurred.</p>
+          <p>The curve’s defining points are its endpoints, and each endpoint needs only one Bézier control point to define the tangent to the curve. And because the curve’s endpoints are known, defining the two control points is sufficient to describe the entire curve. And because a point is a pair of floating-point values, a media timing function can be expressed as four floating-point values. That is, in fact, how it is expressed.</p>
+          <p>So, for example, the ease-in-out timing function is expressed as the four values <code class="literal">0.42</code>, <code class="literal">0.0</code>, <code class="literal">0.58</code>, <code class="literal">1.0</code>. That defines a Bézier curve with one endpoint at <code class="literal">{0,0}</code>, whose control point is <code class="literal">{0.42,0}</code>, and the other endpoint at <code class="literal">{1,1}</code>, whose control point is <code class="literal">{0.58,1}</code> (<a class="xref" href="ch17.html#FIGeaseInOut">Figure 17.1</a>).</p>
+          <div class="figure">
+            <a id="FIGeaseInOut"></a>
+            <div class="figure-contents">
+              <div class="mediaobject">
+                <img src="figs/pios_1701.png" alt="figs/pios_1701.png" />
+              </div>
+            </div>
+            <p class="title">Figure 17.1. An ease-in-out Bézier curve</p>
+          </div>
+          <br class="figure-break" />
+          <p>If you want to define your own media timing function, you can supply the coordinates of the two control points by calling <code class="literal">functionWithControlPoints::::</code> or <code class="literal">initWithControlPoints::::</code>; this is one of those rare cases, mentioned in <a class="xref" href="ch03.html">Chapter 3</a>, where the parameters of an Objective-C method have no name. (It helps to design the curve in a standard drawing program first so that you can visualize how the placement of the control points shapes the curve.) For example, here’s a media timing function that starts out quite slowly and then whips quickly into place after about two-thirds of the time has elapsed. I call this the “clunk” timing function, and it looks great with the compass arrow:</p>
+          <pre class="screen">CAMediaTimingFunction* clunk =
+    [CAMediaTimingFunction functionWithControlPoints:.9 :.1 :.7 :.9];
+[CATransaction setAnimationTimingFunction: clunk];
+c.arrow.transform = CATransform3DRotate(c.arrow.transform, M_PI/4.0, 0, 0, 1);</pre>
+        </div>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_core_animation"></a>Core Animation</h2>
+            </div>
+          </div>
+        </div>
+        <p>Core Animation is the fundamental underlying iOS animation technology. View animation and implicit layer animation are merely convenient façades for <a id="idm441649712208" class="indexterm"></a>Core Animation. Core Animation is <span class="emphasis"><em>explicit layer animation</em></span>, and revolves primarily around the CAAnimation class and its subclasses, which allow you to create far more elaborate specifications of an animation than anything we’ve encountered so far.<a id="idm441649712656" class="indexterm"></a>
+<a id="idm441649709360" class="indexterm"></a><a id="idm441649708448" class="indexterm"></a>
+<a id="idm441649707136" class="indexterm"></a></p>
+        <p>You may never program at the level of Core Animation, but you should read this section anyway, if only to learn how animation really works and to get a sense of the mighty powers you would acquire if you <span class="emphasis"><em>did</em></span> elect to use Core Animation directly. In particular, Core Animation:</p>
+        <div class="itemizedlist">
+          <ul class="itemizedlist" type="disc">
+            <li class="listitem">
+Works even on a view’s underlying layer. Thus, Core Animation is the <span class="emphasis"><em>only</em></span> way to apply full-on layer property animation to a view.<a id="idm441649703712" class="indexterm"></a>
+</li>
+            <li class="listitem">
+Provides fine control over the intermediate values and timing of an animation.
+</li>
+            <li class="listitem">
+Allows animations to be grouped into complex combinations.
+</li>
+            <li class="listitem">
+Adds transition animation effects that aren’t available otherwise, such as new content “pushing” the previous content out of a layer.
+</li>
+          </ul>
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_cabasicanimation_and_its_inheritance"></a>CABasicAnimation and Its Inheritance</h3>
+              </div>
+            </div>
+          </div>
+          <p>The simplest way to animate a property with Core Animation is with a <a id="idm441649698032" class="indexterm"></a>CABasicAnimation object. CABasicAnimation derives much of its power through its inheritance, so I’m going to describe that inheritance as well as CABasicAnimation itself. You will readily see that all the property animation features we have met so far are embodied in a CABasicAnimation instance.</p>
+          <div class="variablelist">
+            <dl>
+              <dt>
+                <span class="term">
+CAAnimation
+</span>
+              </dt>
+              <dd>
+                <p class="simpara">
+CAAnimation is an abstract class, meaning that you’ll only ever use a subclass of it. Some of CAAnimation’s powers come from its implementation of the CAMediaTiming protocol.
+</p>
+                <div class="variablelist">
+                  <dl>
+                    <dt>
+                      <span class="term">
+<code class="literal">animation</code>
+</span>
+                    </dt>
+                    <dd>
+A class method, a convenient way of creating an animation object.
+</dd>
+                    <dt>
+                      <span class="term">
+<code class="literal">delegate</code>
+</span>
+                    </dt>
+                    <dd>
+The delegate messages are <code class="literal">animationDidStart:</code> and <code class="literal">animationDidStop:finished:</code>, which should sound familiar from the analogous UIView animation delegate messages. A CAAnimation instance <span class="emphasis"><em>retains its delegate</em></span>; this is very unusual behavior and can cause trouble if you’re not conscious of it (I’m speaking from experience).<a id="idm441649688016" class="indexterm"></a>
+<a id="idm441649686768" class="indexterm"></a>
+</dd>
+                  </dl>
+                </div>
+                <div class="variablelist">
+                  <dl>
+                    <dt>
+                      <span class="term">
+<code class="literal">duration</code>, <code class="literal">timingFunction</code>
+</span>
+                    </dt>
+                    <dd>
+The length of the animation, and its timing function (a CAMediaTimingFunction). A duration of <code class="literal">0</code> (the default) means <code class="literal">.25</code> seconds unless overridden by the transaction.
+</dd>
+                    <dt>
+                      <span class="term">
+<code class="literal">autoreverses</code>, <code class="literal">repeatCount</code>, <code class="literal">repeatDuration</code>, <code class="literal">cumulative</code>
+</span>
+                    </dt>
+                    <dd>
+The first two are familiar from UIView animation. The <code class="literal">repeatDuration</code> property is a different way to govern repetition, specifying how long the repetition should continue rather than how many repetitions should occur; don’t specify both a <code class="literal">repeatCount</code> and a <code class="literal">repeatDuration</code>. If <code class="literal">cumulative</code> is YES, a repeating animation starts each repetition where the previous repetition ended (rather than jumping back to the start value).
+</dd>
+                    <dt>
+                      <span class="term">
+<code class="literal">beginTime</code>
+</span>
+                    </dt>
+                    <dd>
+The delay before the animation starts. To delay an animation with respect to now, call <code class="literal">CACurrentMediaTime</code> and add the desired delay in seconds. The delay does not eat into the animation’s duration.
+</dd>
+                    <dt>
+                      <span class="term">
+<code class="literal">timeOffset</code>
+</span>
+                    </dt>
+                    <dd>
+A shift in the animation’s overall timing; looked at another way, specifies the starting frame of the “animation movie,” which is treated as a loop. For example, an animation with a duration of 8 and a time offset of 4 plays its second half followed by its first half.
+</dd>
+                  </dl>
+                </div>
+                <p class="simpara">CAAnimation, along with all its subclasses, implements KVC to allow you set and retrieve a value for an arbitrary key, similar to CALayer (<a class="xref" href="ch16.html">Chapter 16</a>) and CATransaction.</p>
+              </dd>
+              <dt>
+                <span class="term">
+CAPropertyAnimation
+</span>
+              </dt>
+              <dd>
+                <p class="simpara">
+<a id="idm441649664448" class="indexterm"></a>CAPropertyAnimation is a subclass of CAAnimation. It too is abstract, and adds the following:
+</p>
+                <div class="variablelist">
+                  <dl>
+                    <dt>
+                      <span class="term">
+<code class="literal">keyPath</code>
+</span>
+                    </dt>
+                    <dd>
+The all-important string specifying the CALayer key that is to be animated. Recall from <a class="xref" href="ch16.html">Chapter 16</a> that CALayer properties are accessible through KVC keys; now we are using those keys! A CAPropertyAnimation convenience class method <code class="literal">animationWithKeyPath:</code> creates the instance and assigns it a <code class="literal">keyPath</code>.
+</dd>
+                    <dt>
+                      <span class="term">
+<code class="literal">additive</code>
+</span>
+                    </dt>
+                    <dd>
+If YES, the values supplied by the animation are added to the current presentation layer value.
+</dd>
+                    <dt>
+                      <span class="term">
+<code class="literal">valueFunction</code>
+</span>
+                    </dt>
+                    <dd>
+Converts a simple scalar value that you supply into a transform.
+</dd>
+                  </dl>
+                </div>
+              </dd>
+            </dl>
+          </div>
+          <div class="warning" style="margin-left: 0; margin-right: 10%;">
+            <h3 class="title">Warning</h3>
+            <p>There is no animatable CALayer key called <code class="literal">@"frame"</code> (because <code class="literal">frame</code> is not an animatable layer property).<a id="idm441649651696" class="indexterm"></a>
+<a id="idm441649650384" class="indexterm"></a></p>
+          </div>
+          <div class="variablelist">
+            <dl>
+              <dt>
+                <span class="term">
+CABasicAnimation
+</span>
+              </dt>
+              <dd>
+                <p class="simpara">
+CABasicAnimation is a subclass (not abstract!) of CAPropertyAnimation. It adds the following:
+</p>
+                <div class="variablelist">
+                  <dl>
+                    <dt>
+                      <span class="term">
+<code class="literal">fromValue</code>, <code class="literal">toValue</code>
+</span>
+                    </dt>
+                    <dd>
+The starting and ending values for the animation. These values must be objects, so numbers and structs will have to be wrapped accordingly, using NSNumber and NSValue. If neither <code class="literal">fromValue</code> nor <code class="literal">toValue</code> is provided, the former and current values of the property are used. If just one of <code class="literal">fromValue</code> or <code class="literal">toValue</code> is provided, the other uses the current value of the property.
+</dd>
+                    <dt>
+                      <span class="term">
+<code class="literal">byValue</code>
+</span>
+                    </dt>
+                    <dd>
+Expresses one of the endpoint values as a <span class="emphasis"><em>difference</em></span> from the other rather than in absolute terms. So you would supply a <code class="literal">byValue</code> instead of a <code class="literal">fromValue</code> or instead of a <code class="literal">toValue</code>, and the actual <code class="literal">fromValue</code> or <code class="literal">toValue</code> would be calculated for you by subtraction or addition with respect to the other value. If you supply <span class="emphasis"><em>only</em></span> a <code class="literal">byValue</code>, the <code class="literal">fromValue</code> is the property’s current value.
+</dd>
+                  </dl>
+                </div>
+              </dd>
+            </dl>
+          </div>
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_using_a_cabasicanimation"></a>Using a CABasicAnimation</h3>
+              </div>
+            </div>
+          </div>
+          <p>Having constructed and configured a CABasicAnimation, the way you order it to be performed is to <span class="emphasis"><em>add it to a layer</em></span>. This is done with the CALayer instance method <code class="literal">addAnimation:forKey:</code>. (I’ll discuss the purpose of the <code class="literal">forKey:</code> parameter later; it’s fine to ignore it and use nil, as I do in the examples that follow.)</p>
+          <p>However, there’s a slight twist. A CAAnimation is <span class="emphasis"><em>merely</em></span> an animation; all it does is describe the hoops that the presentation layer is to jump through, the “animation movie” that is to be presented. It has no effect on the layer <span class="emphasis"><em>itself</em></span>. Thus, if you naively create a CABasicAnimation and add it to a layer with <code class="literal">addAnimation:forKey:</code>, the animation happens and then the “animation movie” is whipped away to reveal the layer sitting there in exactly the same state as before. It is up to <span class="emphasis"><em>you</em></span> to change the layer to match what the animation will ultimately portray.</p>
+          <p>This requirement may seem odd, but keep in mind that we are now in a much more fundamental, flexible world than the automatic, convenient worlds of view animation and implicit layer animation. Using explicit animation is more work, but you get more power. The converse, as we shall see, is that you <span class="emphasis"><em>don’t</em></span> have to change the layer if it <span class="emphasis"><em>doesn’t</em></span> change as a result of the animation.</p>
+          <p>To assure good results, we’ll start by taking a plodding, formulaic approach to the use of CABasicAnimation, like this:</p>
+          <div class="orderedlist">
+            <ol class="orderedlist" type="1">
+              <li class="listitem">
+Capture the start and end values for the layer property you’re going to change, because you’re likely to need these values in what follows.
+</li>
+              <li class="listitem">
+Change the layer property to its end value, first calling <code class="literal">setDisableActions:</code> to prevent implicit animation.
+</li>
+              <li class="listitem">
+Construct the explicit animation, using the start and end values you captured earlier, and with its <code class="literal">keyPath</code> corresponding to the layer property you just changed.
+</li>
+              <li class="listitem">
+Add the explicit animation to the layer.
+</li>
+            </ol>
+          </div>
+          <p>Here’s how you’d use this approach to animate our compass arrow rotation:</p>
+          <pre class="screen">CompassLayer* c = (CompassLayer*)self.compass.layer;
+// capture the start and end values
+CATransform3D startValue = c.arrow.transform;
+CATransform3D endValue = CATransform3DRotate(startValue, M_PI/4.0, 0, 0, 1);
+// change the layer, without implicit animation
+[CATransaction setDisableActions:YES];
+c.arrow.transform = endValue;
+// construct the explicit animation
+CABasicAnimation* anim = [CABasicAnimation animationWithKeyPath:@"transform"];
+anim.duration = 0.8;
+CAMediaTimingFunction* clunk =
+    [CAMediaTimingFunction functionWithControlPoints:.9 :.1 :.7 :.9];
+anim.timingFunction = clunk;
+anim.fromValue = [NSValue valueWithCATransform3D:startValue];
+anim.toValue = [NSValue valueWithCATransform3D:endValue];
+// ask for the explicit animation
+[c.arrow addAnimation:anim forKey:nil];</pre>
+          <p>Once you know the full form, you will find that in many cases it can be condensed. For example, when <code class="literal">fromValue</code> and <code class="literal">toValue</code> are not set, the former and current values of the property are used automatically. (This magic is possible because the presentation layer still has the former value of the property, while the layer itself has the new value.) Thus, in this case there was no need to set them, and so there was no need to capture the start and end values beforehand either. Here’s the condensed version:</p>
+          <pre class="screen">CompassLayer* c = (CompassLayer*)self.compass.layer;
+[CATransaction setDisableActions:YES];
+c.arrow.transform = CATransform3DRotate(c.arrow.transform, M_PI/4.0, 0, 0, 1);
+CABasicAnimation* anim = [CABasicAnimation animationWithKeyPath:@"transform"];
+anim.duration = 0.8;
+CAMediaTimingFunction* clunk =
+    [CAMediaTimingFunction functionWithControlPoints:.9 :.1 :.7 :.9];
+anim.timingFunction = clunk;
+[c.arrow addAnimation:anim forKey:nil];</pre>
+          <p>As I mentioned earlier, you will omit changing the layer if it doesn’t change as a result of the animation. For example, let’s make the compass arrow appear to vibrate rapidly, without ultimately changing its current orientation. To do this, we’ll waggle it back and forth, using a repeated animation, between slightly clockwise from its current position and slightly counterclockwise from its current position. The “animation movie” neither starts nor stops at the current position of the arrow, but for this animation it doesn’t matter, because it all happens so quickly as to appear perfectly natural:</p>
+          <pre class="screen">CompassLayer* c = (CompassLayer*)self.compass.layer;
+// capture the start and end values
+CATransform3D nowValue = c.arrow.transform;
+CATransform3D startValue = CATransform3DRotate(nowValue, M_PI/40.0, 0, 0, 1);
+CATransform3D endValue = CATransform3DRotate(nowValue, -M_PI/40.0, 0, 0, 1);
+// construct the explicit animation
+CABasicAnimation* anim = [CABasicAnimation animationWithKeyPath:@"transform"];
+anim.duration = 0.05;
+anim.timingFunction =
+    [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionLinear];
+anim.repeatCount = 3;
+anim.autoreverses = YES;
+anim.fromValue = [NSValue valueWithCATransform3D:startValue];
+anim.toValue = [NSValue valueWithCATransform3D:endValue];
+// ask for the explicit animation
+[c.arrow addAnimation:anim forKey:nil];</pre>
+          <p>That code, too, can be shortened considerably from its full form. We can eliminate the need to calculate the new rotation values based on the arrow’s current transform by setting our animation’s <code class="literal">additive</code> property to YES; this means that the animation’s property values are added to the existing property value for us, so that they are relative, not absolute. For a transform, “added” means “matrix-multiplied,” so we can describe the waggle without any dependence on the arrow’s current rotation. Moreover, because our rotation is so simple (around a cardinal axis), we can take advantage of CAPropertyAnimation’s <code class="literal">valueFunction</code>; the animation’s property values can then be simple scalars (in this case, angles), because the <code class="literal">valueFunction</code> tells the animation to interpret these as rotations around the z-axis:</p>
+          <pre class="screen">CompassLayer* c = (CompassLayer*)self.compass.layer;
+CABasicAnimation* anim = [CABasicAnimation animationWithKeyPath:@"transform"];
+anim.duration = 0.05;
+anim.timingFunction =
+    [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionLinear];
+anim.repeatCount = 3;
+anim.autoreverses = YES;
+anim.additive = YES;
+anim.valueFunction =
+    [CAValueFunction functionWithName:kCAValueFunctionRotateZ];
+anim.fromValue = @(M_PI/40);
+anim.toValue = @(-M_PI/40);
+[c.arrow addAnimation:anim forKey:nil];</pre>
+          <div class="warning" style="margin-left: 0; margin-right: 10%;">
+            <h3 class="title">Warning</h3>
+            <p>Instead of using a <code class="literal">valueFunction</code>, we could have achieved the same effect by setting the animation’s key path to <code class="literal">@"transform.rotation.z"</code>. However, Apple advises against this, as it can result in mathematical trouble when there is more than one rotation.</p>
+          </div>
+          <p>Remember that there is no <code class="literal">@"frame"</code> key. To animate a layer’s frame, if both its <code class="literal">position</code> and <code class="literal">bounds</code> are to change, you must animate both. Recall this earlier example, using block-based animation (where <code class="literal">v</code> is <code class="literal">v2</code>’s superview):</p>
+          <pre class="screen">void (^anim) (void) = ^{
+    CGRect f = v2.frame;
+    f.size.width = v.frame.size.width;
+    f.origin.x = 0;
+    v2.frame = f;
+};</pre>
+          <p>Here’s how to do that with Core Animation:</p>
+          <pre class="screen">CABasicAnimation* anim1 = [CABasicAnimation animationWithKeyPath:@"bounds"];
+CGRect f = v2.layer.bounds;
+f.size.width = v.layer.bounds.size.width;
+v2.layer.bounds = f;
+[v2.layer addAnimation: anim1 forKey: nil];
+CABasicAnimation* anim2 = [CABasicAnimation animationWithKeyPath:@"position"];
+CGPoint p = v2.layer.position;
+p.x = CGRectGetMidX(v.layer.bounds);
+v2.layer.position = p;
+[v2.layer addAnimation:anim2 forKey: nil];</pre>
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_keyframe_animation"></a>Keyframe Animation</h3>
+              </div>
+            </div>
+          </div>
+          <p>Keyframe animation (CAKeyframeAnimation) is an alternative to basic animation (CABasicAnimation); they are both subclasses of CAPropertyAnimation and they are used in identical ways.<a id="idm441649596928" class="indexterm"></a>
+<a id="idm441649595744" class="indexterm"></a><a id="idm441649594832" class="indexterm"></a> The difference is that a keyframe animation, in addition to specifying a starting and ending value, also specifies multiple values through which the animation should pass on the way, the stages (<span class="emphasis"><em>frames</em></span>) of the animation. This can be as simple as setting the animation’s <code class="literal">values</code> property (an NSArray).</p>
+          <p>Here’s a more sophisticated version of our animation for waggling the compass arrow: the animation includes both the start and end states, and the degree of waggle gets progressively smaller:</p>
+          <pre class="screen">CompassLayer* c = (CompassLayer*)self.compass.layer;
+NSMutableArray* values = [NSMutableArray array];
+[values addObject: @0.0f];
+int direction = 1;
+for (int i = 20; i &lt; 60; i += 5, direction *= -1) { // alternate directions
+    [values addObject: @(direction*M_PI/(float)i)];
+}
+[values addObject: @0.0f];
+CAKeyframeAnimation* anim =
+    [CAKeyframeAnimation animationWithKeyPath:@"transform"];
+anim.values = values;
+anim.additive = YES;
+anim.valueFunction =
+    [CAValueFunction functionWithName: kCAValueFunctionRotateZ];
+[c.arrow addAnimation:anim forKey:nil];</pre>
+          <p>Here are some CAKeyframeAnimation properties:</p>
+          <div class="variablelist">
+            <dl>
+              <dt>
+                <span class="term">
+<code class="literal">values</code>
+</span>
+              </dt>
+              <dd>
+The array of values the animation is to adopt, including the starting and ending value.
+</dd>
+              <dt>
+                <span class="term">
+<code class="literal">timingFunctions</code>
+</span>
+              </dt>
+              <dd>
+An array of timing functions, one for each stage of the animation (so that this array will be one element shorter than the <code class="literal">values</code> array).
+</dd>
+              <dt>
+                <span class="term">
+<code class="literal">keyTimes</code>
+</span>
+              </dt>
+              <dd>
+An array of times to accompany the array of values, defining when each value should be reached. The times start at <code class="literal">0</code> and are expressed as increasing fractions of <code class="literal">1</code>, ending at <code class="literal">1</code>.
+</dd>
+              <dt>
+                <span class="term">
+<code class="literal">calculationMode</code>
+</span>
+              </dt>
+              <dd>
+                <p class="simpara">
+Describes how the <code class="literal">values</code> are treated to create <span class="emphasis"><em>all</em></span> the values through which the animation must pass.
+</p>
+                <div class="itemizedlist">
+                  <ul class="itemizedlist" type="disc">
+                    <li class="listitem">
+The default is <code class="literal">kCAAnimationLinear</code>, a simple straight-line interpolation from value to value.
+</li>
+                    <li class="listitem">
+<code class="literal">kCAAnimationCubic</code> constructs a single smooth curve passing through all the values (and additional advanced properties, <code class="literal">tensionValues</code>, <code class="literal">continuityValues</code>, and <code class="literal">biasValues</code>, allow you to refine the curve).
+</li>
+                    <li class="listitem">
+<code class="literal">kCAAnimationPaced</code> and <code class="literal">kCAAnimationCubicPaced</code> means the timing functions and key times are ignored, and the velocity is made constant through the whole animation.
+</li>
+                    <li class="listitem">
+<code class="literal">kCAAnimationDiscrete</code> means no interpolation: we jump directly to each value at the corresponding key time.
+</li>
+                  </ul>
+                </div>
+              </dd>
+              <dt>
+                <span class="term">
+<code class="literal">path</code>
+</span>
+              </dt>
+              <dd>
+When you’re animating a property whose values are pairs of floats (CGPoints), this is an alternative way of describing the values; instead of a <code class="literal">values</code> array, which must be interpolated to arrive at the intermediate values along the way, you supply the entire interpolation as a single CGPathRef. The points used to draw the path are the keyframe values, so you can still apply timing functions and key times. If you’re animating a position, the <code class="literal">rotationMode</code> property lets you ask the animated object to rotate so as to remain perpendicular to the path.
+</dd>
+            </dl>
+          </div>
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_making_a_property_animatable"></a>Making a Property Animatable</h3>
+              </div>
+            </div>
+          </div>
+          <p>So far, we’ve been animating built-in animatable properties. If you define your own property on a CALayer subclass, you can make that property animatable through a CAPropertyAnimation (a CABasicAnimation or a CAKeyframeAnimation). You do this by declaring the property <code class="literal">@dynamic</code> (so that Core Animation can create its accessors) and returning YES from the class method <code class="literal">needsDisplayForKey:</code>, where the key is the string name of the property.<a id="idm441649559552" class="indexterm"></a>
+<a id="idm441649558240" class="indexterm"></a><a id="idm441649557328" class="indexterm"></a>
+<a id="idm441649556016" class="indexterm"></a></p>
+          <p>For example, here we’ll start writing the code for a layer class MyLayer with an animatable <code class="literal">thickness</code> property:</p>
+          <pre class="screen">// MyLayer.h:
+@interface MyLayer : CALayer
+@property (nonatomic) CGFloat thickness;
+@end
+
+// MyLayer.m:
+@implementation MyLayer
+@dynamic thickness;
+
++ (BOOL) needsDisplayForKey:(NSString *)key {
+    if ([key isEqualToString: @"thickness"])
+        return YES;
+    return [super needsDisplayForKey:key];
+}
+
+@end</pre>
+          <p>Returning YES from <code class="literal">needsDisplayForKey:</code> causes this layer to be redisplayed repeatedly as the <code class="literal">thickness</code> property changes. So if we want to <span class="emphasis"><em>see</em></span> the animation, this layer also needs to draw itself in some way that depends on the <code class="literal">thickness</code> property. Here, I’ll implement the layer’s <code class="literal">drawInContext:</code> to make <code class="literal">thickness</code> the thickness of the black border around a red rectangle:</p>
+          <pre class="screen">- (void) drawInContext:(CGContextRef)con {
+    CGRect r = CGRectInset(self.bounds, 20, 20);
+    CGContextSetFillColorWithColor(con, [UIColor redColor].CGColor);
+    CGContextFillRect(con, r);
+    CGContextSetLineWidth(con, self.thickness);
+    CGContextStrokeRect(con, r);
+}</pre>
+          <p>Now we can animate the rectangle’s thickness using explicit animation (<code class="literal">lay</code> points to a MyLayer instance):</p>
+          <pre class="screen">CABasicAnimation* ba = [CABasicAnimation animationWithKeyPath:@"thickness"];
+ba.toValue = @10.0f;
+ba.autoreverses = YES;
+[lay addAnimation:ba forKey:nil];</pre>
+          <p>At every step of the animation, <code class="literal">drawInContext:</code> is called, and because the <code class="literal">thickness</code> value differs at each step, it is animated.</p>
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_grouped_animations"></a>Grouped Animations</h3>
+              </div>
+            </div>
+          </div>
+          <p>A grouped animation (CAAnimationGroup) combines multiple animations into one, by means of its <code class="literal">animations</code> property (an NSArray of animations). By delaying and timing the various component animations, complex effects can be achieved.<a id="idm441649540528" class="indexterm"></a>
+<a id="idm441649539248" class="indexterm"></a><a id="idm441649538352" class="indexterm"></a></p>
+          <p>A CAAnimationGroup is itself an animation; it is a CAAnimation subclass, so it has a <code class="literal">duration</code> and other animation features. Think of the CAAnimationGroup as the parent and its <code class="literal">animations</code> as its children. Then <span class="emphasis"><em>the children inherit default values from their parent</em></span>. Thus, for example, if you don’t set a child’s duration explicitly, it will inherit the parent’s duration. Also, make sure the parent’s duration is sufficient to include all parts of the child animations that you want displayed.</p>
+          <p>For example, we can form a sequence where the compass arrow rotates and then waggles. Very little change is required. We express the first animation in its full form, with explicit <code class="literal">fromValue</code> and <code class="literal">toValue</code>. We postpone the second animation using its <code class="literal">beginTime</code> property; notice that we express this in relative terms, as a number of seconds into the parent’s duration, not with respect to <code class="literal">CACurrentMediaTime</code>. Finally, we set the overall parent duration to the sum of the child durations, so that it can embrace both of them:</p>
+          <pre class="screen">CompassLayer* c = (CompassLayer*)self.compass.layer;
+// capture current value, set final value
+CGFloat rot = M_PI/4.0;
+[CATransaction setDisableActions:YES];
+CGFloat current =
+    [[c.arrow valueForKeyPath:@"transform.rotation.z"] floatValue];
+[c.arrow setValue: @(current + rot)
+       forKeyPath:@"transform.rotation.z"];
+
+// first animation (rotate and clunk)
+CABasicAnimation* anim1 = [CABasicAnimation animationWithKeyPath:@"transform"];
+anim1.duration = 0.8;
+CAMediaTimingFunction* clunk =
+    [CAMediaTimingFunction functionWithControlPoints:.9 :.1 :.7 :.9];
+anim1.timingFunction = clunk;
+anim1.fromValue = @(current);
+anim1.toValue = @(current + rot);
+anim1.valueFunction =
+    [CAValueFunction functionWithName:kCAValueFunctionRotateZ];
+
+// second animation (waggle)
+NSMutableArray* values = [NSMutableArray array];
+[values addObject: @0.0f];
+int direction = 1;
+for (int i = 20; i &lt; 60; i += 5, direction *= -1) { // alternate directions
+    [values addObject: @(direction*M_PI/(float)i)];
+}
+[values addObject: @0.0f];
+CAKeyframeAnimation* anim2 =
+    [CAKeyframeAnimation animationWithKeyPath:@"transform"];
+anim2.values = values;
+anim2.duration = 0.25;
+anim2.beginTime = anim1.duration;
+anim2.additive = YES;
+anim2.valueFunction =
+    [CAValueFunction functionWithName:kCAValueFunctionRotateZ];
+
+// group
+CAAnimationGroup* group = [CAAnimationGroup animation];
+group.animations = @[anim1, anim2];
+group.duration = anim1.duration + anim2.duration;
+[c.arrow addAnimation:group forKey:nil];</pre>
+          <p>In that example, I grouped two animations that animated the same property sequentially. Now let’s go to the other extreme and group some animations that animate different properties simultaneously. I have a small view (about 56×38), located near the top-right corner of the screen, whose layer contents are a picture of a sailboat facing to the left. I’ll “sail” the boat in a curving path, both down the screen and left and right across the screen, like an extended letter “S” (<a class="xref" href="ch17.html#FIGnancyBell">Figure 17.2</a>). Each time the boat comes to a vertex of the curve, changing direction across the screen, I’ll turn the boat picture so that it faces the way it’s about to move. At the same time, I’ll constantly rock the boat, so that it always appears to be pitching a little on the waves.</p>
+          <div class="figure">
+            <a id="FIGnancyBell"></a>
+            <div class="figure-contents">
+              <div class="mediaobject">
+                <img src="figs/pios_1702.png" alt="figs/pios_1702.png" />
+              </div>
+            </div>
+            <p class="title">Figure 17.2. A boat and the course she’ll sail</p>
+          </div>
+          <br class="figure-break" />
+          <p>Here’s the first animation, the movement of the boat along its curving path. It illustrates the use of a CAKeyframeAnimation with a CGPath; the <code class="literal">calculationMode</code> of <code class="literal">kCAAnimationPaced</code> ensures an even speed over the whole path. We don’t set an explicit duration because we want to adopt the duration of the group:</p>
+          <pre class="screen">CGFloat h = 200;
+CGFloat v = 75;
+CGMutablePathRef path = CGPathCreateMutable();
+int leftright = 1;
+CGPoint next = self.view.layer.position;
+CGPoint pos;
+CGPathMoveToPoint(path, nil, next.x, next.y);
+for (int i = 0; i &lt; 4; i++) {
+    pos = next;
+    leftright *= -1;
+    next = CGPointMake(pos.x+h*leftright, pos.y+v);
+    CGPathAddCurveToPoint(path, nil, pos.x, pos.y+30, next.x, next.y-30,
+                          next.x, next.y);
+}
+CAKeyframeAnimation* anim1 =
+    [CAKeyframeAnimation animationWithKeyPath:@"position"];
+anim1.path = path;
+anim1.calculationMode = kCAAnimationPaced;</pre>
+          <p>Here’s the second animation, the reversal of the direction the boat is facing. This is simply a rotation around the y-axis. We make no attempt at visually animating this reversal, so we set the <code class="literal">calculationMode</code> to <code class="literal">kCAAnimationDiscrete</code> (the boat image reversal is a sudden change). There is one fewer value than the number of points in our first animation’s path, and the first animation has an even speed, so the reversals take place at each curve apex with no further effort on our part. (If the pacing were more complicated, we could give both the first and the second animation identical <code class="literal">keyTimes</code> arrays, to coordinate them.) Once again, we don’t set an explicit duration:</p>
+          <pre class="screen">NSArray* revs = @[@0.0f, @M_PI, @0.0f, @M_PI];
+CAKeyframeAnimation* anim2 =
+    [CAKeyframeAnimation animationWithKeyPath:@"transform"];
+anim2.values = revs;
+anim2.valueFunction =
+    [CAValueFunction functionWithName:kCAValueFunctionRotateY];
+anim2.calculationMode = kCAAnimationDiscrete;</pre>
+          <p>Here’s the third animation, the rocking of the boat. It has a short duration, and repeats indefinitely (by giving its <code class="literal">repeatCount</code> an immense value):</p>
+          <pre class="screen">NSArray* pitches = @[@0.0f, @(M_PI/60.0), @0.0f, @(-M_PI/60.0), @0.0f];
+CAKeyframeAnimation* anim3 =
+    [CAKeyframeAnimation animationWithKeyPath:@"transform"];
+anim3.values = pitches;
+anim3.repeatCount = HUGE_VALF;
+anim3.duration = 0.5;
+anim3.additive = YES;
+anim3.valueFunction =
+    [CAValueFunction functionWithName:kCAValueFunctionRotateZ];</pre>
+          <p>Finally, we combine the three animations, assigning the group an explicit duration that will be adopted by the first two animations. As we hand the animation over to the layer displaying the boat, we also change the layer’s position to match the final position from the first animation, so that the boat won’t jump back to its original position afterward:</p>
+          <pre class="screen">CAAnimationGroup* group = [CAAnimationGroup animation];
+group.animations = @[anim1, anim2, anim3];
+group.duration = 8;
+[view.layer addAnimation:group forKey:nil];
+[CATransaction setDisableActions:YES];
+view.layer.position = next;</pre>
+          <p>Here are some further CAAnimation properties (from the CAMediaTiming protocol) that come into play especially when animations are grouped:</p>
+          <div class="variablelist">
+            <dl>
+              <dt>
+                <span class="term">
+<code class="literal">speed</code>
+</span>
+              </dt>
+              <dd>
+The ratio between a child’s timescale and the parent’s timescale. For example, if a parent and child have the same duration, but the child’s <code class="literal">speed</code> is <code class="literal">1.5</code>, its animation runs one-and-a-half times as fast as the parent.
+</dd>
+              <dt>
+                <span class="term">
+<code class="literal">fillMode</code>
+</span>
+              </dt>
+              <dd>
+                <p class="simpara">
+Suppose the child animation begins after the parent animation, or ends before the parent animation, or both. What should happen to the appearance of the property being animated, outside the child animation’s boundaries? The answer depends on the child’s <code class="literal">fillMode</code>:
+</p>
+                <div class="itemizedlist">
+                  <ul class="itemizedlist" type="disc">
+                    <li class="listitem">
+<code class="literal">kCAFillModeRemoved</code> means the child animation is removed, revealing the layer property at its actual current value whenever the child is not running.
+</li>
+                    <li class="listitem">
+<code class="literal">kCAFillModeForwards</code> means the final presentation layer value of the child animation remains afterward.
+</li>
+                    <li class="listitem">
+<code class="literal">kCAFillModeBackwards</code> means the initial presentation layer value of the child animation appears right from the start.
+</li>
+                    <li class="listitem">
+<code class="literal">kCAFillModeBoth</code> combines the previous two.
+</li>
+                  </ul>
+                </div>
+              </dd>
+            </dl>
+          </div>
+          <div class="note" style="margin-left: 0; margin-right: 10%;">
+            <h3 class="title">Note</h3>
+            <p>CALayer adopts the CAMediaTiming protocol, in the sense that a layer can have a <code class="literal">speed</code>. This will affect any animation attached to it. A <span class="keep-together">CALayer</span> with a speed of <code class="literal">2</code> will play a 10-second animation in 5 seconds.</p>
+          </div>
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_transitions"></a>Transitions</h3>
+              </div>
+            </div>
+          </div>
+          <p>A layer transition is an animation involving two “copies” of a single layer, in which the second “copy” appears to replace the first.<a id="idm441649493264" class="indexterm"></a>
+<a id="idm441649492016" class="indexterm"></a><a id="idm441649491136" class="indexterm"></a>
+<a id="idm441649489824" class="indexterm"></a> It is described by an instance of <a id="idm441649488736" class="indexterm"></a>CATransition (a CAAnimation subclass), which has these chief properties describing the animation:</p>
+          <div class="variablelist">
+            <dl>
+              <dt>
+                <span class="term">
+<code class="literal">type</code>
+</span>
+              </dt>
+              <dd>
+                <p class="simpara">
+Your choices are:
+</p>
+                <div class="itemizedlist">
+                  <ul class="itemizedlist" type="disc">
+                    <li class="listitem">
+<code class="literal">kCATransitionFade</code>
+</li>
+                    <li class="listitem">
+<code class="literal">kCATransitionMoveIn</code>
+</li>
+                    <li class="listitem">
+<code class="literal">kCATransitionPush</code>
+</li>
+                    <li class="listitem">
+<code class="literal">kCATransitionReveal</code>
+</li>
+                  </ul>
+                </div>
+              </dd>
+              <dt>
+                <span class="term">
+<code class="literal">subtype</code>
+</span>
+              </dt>
+              <dd>
+                <p class="simpara">
+If the <code class="literal">type</code> is not <code class="literal">kCATransitionFade</code>, your choices are:
+</p>
+                <div class="itemizedlist">
+                  <ul class="itemizedlist" type="disc">
+                    <li class="listitem">
+<code class="literal">kCATransitionFromRight</code>
+</li>
+                    <li class="listitem">
+<code class="literal">kCATransitionFromLeft</code>
+</li>
+                    <li class="listitem">
+<code class="literal">kCATransitionFromTop</code>
+</li>
+                    <li class="listitem">
+<code class="literal">kCATransitionFromBottom</code>
+</li>
+                  </ul>
+                </div>
+              </dd>
+            </dl>
+          </div>
+          <div class="note" style="margin-left: 0; margin-right: 10%;">
+            <h3 class="title">Note</h3>
+            <p>For historical reasons, the terms “bottom” and “top” in the names of the <code class="literal">subtype</code> settings have the opposite of their expected meanings.<a id="idm441649468128" class="indexterm"></a><a id="idm441649467232" class="indexterm"></a></p>
+          </div>
+          <p>To understand the nature of a transition animation, the best approach is to try one, without doing anything else. For example:</p>
+          <pre class="screen">CATransition* t = [CATransition animation];
+t.type = kCATransitionPush;
+t.subtype = kCATransitionFromBottom;
+[layer addAnimation: t forKey: nil];</pre>
+          <p>It will help if the layer’s frame is visible (give it a <code class="literal">borderWidth</code>, perhaps). What you’ll see, then, is that the entire layer exits moving down from its original place, and another “copy” of the same layer enters moving down from above. In <a class="xref" href="ch17.html#FIGpushTransition">Figure 17.3</a>, the green layer (the wider rectangle) is the superlayer of the red layer (the narrower rectangle, which appears twice). The red layer is normally centered in the green layer, but I’ve managed to freeze the red layer in the middle of a transition.</p>
+          <div class="figure">
+            <a id="FIGpushTransition"></a>
+            <div class="figure-contents">
+              <div class="mediaobject">
+                <img src="figs/pios_1703.png" alt="figs/pios_1703.png" />
+              </div>
+            </div>
+            <p class="title">Figure 17.3. A push transition</p>
+          </div>
+          <br class="figure-break" />
+          <p>You can use a layer’s superlayer to help restrict the visible part of the layer’s transition. If the superlayer’s <code class="literal">masksToBounds</code> is NO, the user can see the entire transition; its movements will have the whole screen as their visible boundaries. But if the superlayer’s <code class="literal">masksToBounds</code> is YES, then the visible part of the transition movement is restricted to the superlayer’s bounds: it’s as if you’re seeing the movements through a window that is the superlayer. In <a class="xref" href="ch17.html#FIGpushTransition">Figure 17.3</a>, for example, if the green layer’s <code class="literal">masksToBounds</code> were YES, we wouldn’t see any of the part of the transition animation outside its boundaries. A common device is to have the layer that is to be transitioned live inside a superlayer that is exactly the same size and whose <code class="literal">masksToBounds</code> is YES. This confines the visible transition to the bounds of the layer itself.</p>
+          <p>Our example appears silly, because there was no motivation for this animation; the two “copies” of the layer are identical. A typical motivation would be that you’re changing the contents of a layer and you want to dramatize this. Here, we change the example so that an image of Saturn replaces an image of Mars by pushing it away from above (<a class="xref" href="ch17.html#FIGpushTransition2">Figure 17.4</a>). We get a slide effect, as if one layer were being replaced by another; but in fact there is just one layer that holds first one picture, then the other:</p>
+          <pre class="screen">CATransition* t = [CATransition animation];
+t.type = kCATransitionPush;
+t.subtype = kCATransitionFromBottom;
+[CATransaction setDisableActions:YES];
+layer.contents = (id)[[UIImage imageNamed: @"Saturn.gif"] CGImage];
+[layer addAnimation: t forKey: nil];</pre>
+          <div class="figure">
+            <a id="FIGpushTransition2"></a>
+            <div class="figure-contents">
+              <div class="mediaobject">
+                <img src="figs/pios_1704.png" alt="figs/pios_1704.png" />
+              </div>
+            </div>
+            <p class="title">Figure 17.4. Another push transition</p>
+          </div>
+          <br class="figure-break" />
+          <p>A transition on a superlayer can happen simultaneously with animation of a sublayer. The animation will be seen to occur on the second “copy” of the layer as it moves into position. This is analogous to what we achieved earlier with the <code class="literal">UIViewAnimationOptionAllowAnimatedContent</code> option using block-based view animation.</p>
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_the_animations_list"></a>The Animations List</h3>
+              </div>
+            </div>
+          </div>
+          <p>The method that asks for an explicit animation to happen is CALayer’s <code class="literal">addAnimation:forKey:</code>. To understand how this method actually works (and what the “key” is), you need to know about a layer’s <span class="emphasis"><em>animations list</em></span>.<a id="idm441649443360" class="indexterm"></a>
+<a id="idm441649442112" class="indexterm"></a><a id="idm441649441232" class="indexterm"></a>
+<a id="idm441649439920" class="indexterm"></a></p>
+          <p>An animation is an object (a CAAnimation) that modifies how a layer is drawn. It does this merely by being attached to the layer; the layer’s drawing mechanism does the rest. A layer maintains a list of animations that are currently in force. To add an animation to this list, you call <code class="literal">addAnimation:forKey:</code>. When the time comes to draw itself, the layer looks through its animations list and draws itself in accordance with any animations it finds there. (The list of things the layer must do in order to draw itself is sometimes referred to by the documentation as the <span class="emphasis"><em>render tree</em></span>.)</p>
+          <p>The animations list is maintained in a curious way. The list is not exactly a dictionary, but it behaves somewhat like a dictionary. An animation has a key — the <code class="literal">forKey:</code> parameter in <code class="literal">addAnimation:forKey:</code>. If an animation with a certain key is added to the list, and an animation with that key is already in the list, the one that is already in the list is removed. Thus a rule is maintained that <span class="emphasis"><em>only one animation with a given key</em></span> can be in the list at a time (the <span class="emphasis"><em>exclusivity rule</em></span>). This explains why sometimes ordering an animation can cancel an animation already ordered or in-flight:<a id="idm441649433072" class="indexterm"></a>
+<a id="idm441649431776" class="indexterm"></a> the two animations had the same key, so the first one was removed. It is also possible to add an animation with <span class="emphasis"><em>no key</em></span> (the key is nil); it is then <span class="emphasis"><em>not</em></span> subject to the exclusivity rule (that is, there can be more than one animation in the list with no key). The order in which animations were added to the list is the order in which they are applied.</p>
+          <p>The <code class="literal">forKey:</code> parameter in <code class="literal">addAnimation:forKey:</code> is thus <span class="emphasis"><em>not a property name</em></span>. It <span class="emphasis"><em>could</em></span> be a property name, but it can be any arbitrary value. Its purpose is to enforce the exclusivity rule. It does <span class="emphasis"><em>not</em></span> have any meaning with regard to what property a CAPropertyAnimation animates; that is the job of the animation’s <code class="literal">keyPath</code>.
+(Apple’s use of the term “key” in <code class="literal">addAnimation:forKey:</code> is thus unfortunate and misleading; I wish they had named this method <code class="literal">addAnimation:withIdentifier:</code> or something like that.)</p>
+          <div class="note" style="margin-left: 0; margin-right: 10%;">
+            <h3 class="title">Note</h3>
+            <p>Actually, there <span class="emphasis"><em>is</em></span> a relationship between the “key” in <code class="literal">addAnimation:forKey:</code> and a CAPropertyAnimation’s <code class="literal">keyPath</code> — if a CAPropertyAnimation’s <code class="literal">keyPath</code> is nil at the time that it is added to a layer with <code class="literal">addAnimation:forKey:</code>, <span class="emphasis"><em>that <code class="literal">keyPath</code> is set to the <code class="literal">forKey:</code> value</em></span>. Thus, you can <span class="emphasis"><em>misuse</em></span> the <code class="literal">forKey:</code> parameter in <code class="literal">addAnimation:forKey:</code> as a way of specifying what <code class="literal">keyPath</code> an animation animates. (This fact is not documented, so far as I know, but it’s easily verified experimentally, and it should remain reliably true, as implicit animation crucially depends on it.) I have seen many prominent but misleading examples that use this technique, apparently in the mistaken belief that the “key” in <code class="literal">addAnimation:forKey:</code> is the way you are <span class="emphasis"><em>supposed</em></span> to specify what property to animate. <span class="emphasis"><em>This is wrong.</em></span> Set the CAPropertyAnimation’s <code class="literal">keyPath</code> explicitly (as do all my examples); that’s what it’s for.</p>
+          </div>
+          <p>You can use the exclusivity rule to your own advantage, to keep your code from stepping on its own feet. Some code of yours might add an animation to the list using a certain key; then later, some other code might come along and correct this, removing that animation and replacing it with another. By using the same key, the second code is easily able to override the first: “You may have been given some other animation with this key, but throw it away; play this one instead.”</p>
+          <p>In some cases, the key you supply is ignored and a different key is substituted. In particular, the key with which a CATransition is added to the list is always <code class="literal">kCATransition</code> (which happens to be <code class="literal">@"transition"</code>); thus there can be only one transition animation in the list.</p>
+          <p>You can’t access the entire animations list directly. You can access the key names of the animations in the list, with <code class="literal">animationKeys</code>; and you can obtain or remove an animation with a certain key, with <code class="literal">animationForKey:</code> and <code class="literal">removeAnimationForKey:</code>; but animations with a nil key are inaccessible. You can, however, remove all animations, including animations with a nil key, using <code class="literal">removeAllAnimations</code>. In the multitasking world, when the app is suspended (<a class="xref" href="ch11.html">Chapter 11</a>), <code class="literal">removeAllAnimations</code> is called on all layers for you.</p>
+          <p>If an animation is in-flight when you remove it from the animations list manually, by calling <code class="literal">removeAllAnimations</code> or <code class="literal">removeAnimationForKey:</code>, it will stop; however, that doesn’t happen until the next redraw moment. You might be able to work around this, if you need an animation to be removed immediately, by wrapping the <code class="literal">remove...</code> call in a transaction block.</p>
+          <p>You can think of an animation in a layer’s animations list as being the “animation movie” I spoke of at the start of this chapter. As long as an animation is in the list, the movie is present, either waiting to be played or actually playing. An animation that has finished playing is, in general, pointless; the animation should now be removed from the list. Therefore, an animation has a <code class="literal">removedOnCompletion</code> property, which defaults to YES: when the “movie” is over, the animation removes itself from the list.</p>
+          <p>You can, if desired, set <code class="literal">removedOnCompletion</code> to NO. However, even the presence in the list of an animation that has already played might make no difference to the layer’s appearance, because an animation’s <code class="literal">fillMode</code> is <code class="literal">kCAFillModeRemoved</code>, which removes the animation from the layer’s drawing when the movie is over. Thus, it can usually do no harm to leave an animation in the list after it has played, but it’s not a great idea either, because this is just one more thing for the drawing system to worry about. Typically, you’ll leave <code class="literal">removedOnCompletion</code> set at YES.</p>
+          <div class="note" style="margin-left: 0; margin-right: 10%;">
+            <h3 class="title">Note</h3>
+            <p>You may encounter examples that set <code class="literal">removedOnCompletion</code> to NO and set the animation’s <code class="literal">fillMode</code> to <code class="literal">kCAFillModeForwards</code> or <code class="literal">kCAFillModeBoth</code>, as a way of causing the layer to keep the appearance of the last frame of the “animation movie” even after the animation is over, and preventing a property from apparently jumping back to its initial value when the animation ends. <span class="emphasis"><em>This is wrong.</em></span> The correct approach, as I have explained, is to change the property value to match the final frame of the animation. The chief use of <code class="literal">kCAFillModeForwards</code> is in connection with grouped animations, as explained earlier.</p>
+          </div>
+        </div>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_animation_and_autolayout"></a>Animation and Autolayout</h2>
+            </div>
+          </div>
+        </div>
+        <p>The interplay between animation and autolayout can be tricky (see <a class="xref" href="ch14.html">Chapter 14</a>).<a id="idm441649389488" class="indexterm"></a>
+<a id="idm441649388192" class="indexterm"></a> An animation may appear to work perfectly, but there can be a hidden trap waiting to be sprung. The reason is that animation and layout are two different things. As part of an animation, you may well be directly changing a view’s frame (or bounds, or center). You’re really not supposed to do that to position a view when you’re using autolayout; but no penalty is incurred, because no layout has happened. However, it is entirely possible that layout <span class="emphasis"><em>will</em></span> happen. And at that moment, what’s going to matter, as we know very well, are the constraints. If the constraints that the system finds in place don’t resolve to the size and position that a view has at that moment, the view will jump as the constraints are obeyed. This is almost certainly not what you want.</p>
+        <p>To persuade yourself that this can be a problem, just animate a view and then ask for immediate layout by calling <code class="literal">layoutIfNeeded</code>, like this:</p>
+        <pre class="screen">CGPoint p = v.center;
+p.x += 100;
+[UIView animateWithDuration:1 animations:^{
+    v.center = p;
+} completion:^(BOOL b){
+    [v layoutIfNeeded]; // prove that we are in trouble
+}];</pre>
+        <p>If we’re using autolayout, the view slides to the right and then jumps back to the left. This is bad. It’s up to us to keep the constraints synchronized with the reality, so that when layout comes along in the natural course of things, our views don’t jump into undesirable states. This is no more than a natural extension of the fact that the last frame of the “animation movie” should be matched by the reality that’s revealed when the movie is ripped away. That reality now includes not only the frames of the views but also the constraints that determine those frames.</p>
+        <p>The details of what you will do to the constraints will depend, clearly, on what the constraints were to start with. In the preceding example, let’s say that the view <code class="literal">v</code> has a fixed width and height, and is positioned by a constraint pinning its left side at a certain distance from its superview’s left side, and its top at a certain distance from its superview’s top. Our animation moves the view 100 points to the right, so the value by which the view’s left is pinned to its superview’s left needs to be increased by 100. If we’ve planned far ahead, we might have an outlet or other reference to that constraint; but if not, we can find it by walking through the superview’s constraints, looking for the one whose <code class="literal">firstItem</code> is <code class="literal">v</code> and whose <code class="literal">firstAttribute</code> is <code class="literal">NSLayoutAttributeLeading</code>. We’ll remove that constraint and replace it with one whose <code class="literal">constant</code> matches the position of <code class="literal">v</code> (<code class="literal">sup</code> is the superview of <code class="literal">v</code>):</p>
+        <pre class="screen">CGPoint p = v.center;
+p.x += 100;
+[UIView animateWithDuration:1 animations:^{
+    v.center = p;
+    NSArray* cons = sup.constraints;
+    NSUInteger ix =
+    [cons indexOfObjectPassingTest:^BOOL(id obj, NSUInteger idx, BOOL *stop) {
+        NSLayoutConstraint* con = obj;
+        return ((con.firstItem == v) &amp;&amp;
+                (con.firstAttribute == NSLayoutAttributeLeading));
+    }];
+    NSLayoutConstraint* con = cons[ix];
+    [sup removeConstraint:con];
+    [sup addConstraint:
+     [NSLayoutConstraint
+      constraintWithItem:con.firstItem attribute:con.firstAttribute
+      relatedBy:con.relation
+      toItem:con.secondItem attribute:con.secondAttribute
+      multiplier:1 constant:v.frame.origin.x]];
+}];</pre>
+        <p>Changing a constraint causes layout to take place, so you’ll know immediately that this has worked correctly.</p>
+        <p>But in this case there is no need for such radical surgery. Recall that a constraint’s <code class="literal">constant</code> is one of its few writable properties. We are allowed to change our constraint’s <code class="literal">constant</code> <span class="emphasis"><em>in place</em></span>, like this:<a id="idm441649371744" class="indexterm"></a>
+<a id="idm441649370432" class="indexterm"></a></p>
+        <pre class="screen">CGPoint p = v.center;
+p.x += 100;
+[UIView animateWithDuration:1 animations:^{
+    v.center = p;
+    NSArray* cons = sup.constraints;
+    NSUInteger ix =
+    [cons indexOfObjectPassingTest:^BOOL(id obj, NSUInteger idx, BOOL *stop) {
+        NSLayoutConstraint* con = obj;
+        return ((con.firstItem == v) &amp;&amp;
+                (con.firstAttribute == NSLayoutAttributeLeading));
+    }];
+    NSLayoutConstraint* con = cons[ix];
+    con.constant = v.frame.origin.x;
+}];</pre>
+        <p>For our very simple case, this suggests an even more compact implementation: instead of animating the view’s position and then compensating by changing the constraint that positions it, <span class="emphasis"><em>animate the change in the constraint that positions the view</em></span>. To do so, we set the constraint’s <code class="literal">constant</code> to its new value, and animate the act of layout:</p>
+        <pre class="screen">NSArray* cons = sup.constraints;
+NSUInteger ix =
+[cons indexOfObjectPassingTest:^BOOL(id obj, NSUInteger idx, BOOL *stop) {
+    NSLayoutConstraint* con = obj;
+    return ((con.firstItem == v) &amp;&amp;
+            (con.firstAttribute == NSLayoutAttributeLeading));
+}];
+NSLayoutConstraint* con = cons[ix];
+con.constant += 100;
+[UIView animateWithDuration:1 animations:^{
+    [v layoutIfNeeded];
+}];</pre>
+        <p>Another issue has to do with view transforms. As I said at the end of <a class="xref" href="ch14.html">Chapter 14</a>, applying a view transform triggers layout, and constraints then take a hand in positioning the view. Thus an animation involving a view transform will likely misbehave under autolayout.</p>
+        <p>For example, you would expect a simple autoreversing animation that waggles a view, or scales it up and back down, to work under autolayout. After all, we’re not ultimately changing anything’s frame. But, alas, that’s not true. Even this simple “throb” animation can break under autolayout:</p>
+        <pre class="screen">[UIView animateWithDuration:0.3 delay:0
+                    options:UIViewAnimationOptionAutoreverse
+                 animations:^{
+    v.transform = CGAffineTransformMakeScale(1.1, 1.1);
+} completion:^(BOOL finished) {
+    v.transform = CGAffineTransformIdentity;
+}];</pre>
+        <p>The solution in this case is to use Core Animation instead:</p>
+        <pre class="screen">CABasicAnimation* ba = [CABasicAnimation animationWithKeyPath:@"transform"];
+ba.autoreverses = YES;
+ba.duration = 0.3;
+ba.toValue =
+    [NSValue valueWithCATransform3D:CATransform3DMakeScale(1.1, 1.1, 1)];
+[v.layer addAnimation:ba forKey:nil];</pre>
+        <p>Another useful trick is to take advantage of the fact that the “animation movie” masks the reality. In this example from one of my apps, I apparently shrink a view (<code class="literal">english</code>) down to nothingness:</p>
+        <pre class="screen">CABasicAnimation* ba = [CABasicAnimation animationWithKeyPath:@"opacity"];
+self.english.layer.opacity = 0;
+ba.duration = 0.2;
+[self.english.layer addAnimation:ba forKey:nil];
+CABasicAnimation* ba2 = [CABasicAnimation animationWithKeyPath:@"bounds"];
+ba2.duration = 0.2;
+ba2.toValue = [NSValue valueWithCGRect:self.english.layer.bounds];
+[self.english.layer addAnimation:ba2 forKey:nil];</pre>
+        <p>This doesn’t break under autolayout. Why not? Well, the “animation movie” <span class="emphasis"><em>portrays</em></span> the view as shrinking to nothingness, and also as fading away. But the view’s actual bounds were never changed, so there’s no conflict with constraints. And by the time the “animation movie” is ripped away, the view is invisible (its layer’s <code class="literal">opacity</code> is 0), so the user doesn’t see that it’s actually still at its full size.</p>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_actions_2"></a>Actions</h2>
+            </div>
+          </div>
+        </div>
+        <p>For the sake of completeness, I will now explain how implicit animation works — that is, how implicit animation is turned into explicit animation behind the scenes.<a id="idm441649353520" class="indexterm"></a>
+<a id="idm441649352224" class="indexterm"></a> The basis of implicit animation is the <span class="emphasis"><em>action mechanism</em></span>.</p>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_what_an_action_is"></a>What an Action Is</h3>
+              </div>
+            </div>
+          </div>
+          <p>An <span class="emphasis"><em>action</em></span> is an object that adopts the CAAction protocol.<a id="idm441649348864" class="indexterm"></a> This means simply that it implements <code class="literal">runActionForKey:object:arguments:</code>.<a id="idm441649347120" class="indexterm"></a></p>
+          <p>The action object could do <span class="emphasis"><em>anything</em></span> in response to this message. The notion of an action is completely general. However, in real life, the only class that adopts the CAAction protocol is CAAnimation. So, an animation is a special case of an action, but in fact it is also the <span class="emphasis"><em>only</em></span> case of an action.</p>
+          <p>What an animation does when it receives <code class="literal">run⁠Act⁠ion⁠For⁠Key:​obj⁠ect:⁠arg⁠um⁠en⁠ts:</code> is to assume that the second parameter, the <code class="literal">object:</code>, is a layer, and to add itself to that <span class="keep-together">layer's animations</span> list. Thus, for an animation, receiving the <code class="literal">runActionForKey:object:arguments:</code> message is like being told: “Play yourself!”</p>
+          <p>You would never send <code class="literal">runActionForKey:object:arguments:</code> to an animation directly. Rather, this message is sent to an animation for you, as the basis of implicit animation.</p>
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_the_action_search"></a>The Action Search</h3>
+              </div>
+            </div>
+          </div>
+          <p>When you set a property of a layer and trigger an implicit animation, you are actually triggering the <span class="emphasis"><em>action search</em></span>.<a id="idm441649338080" class="indexterm"></a>
+<a id="idm441649336784" class="indexterm"></a> This basically means that the layer searches for an <span class="emphasis"><em>action object</em></span> to which it can send the <code class="literal">runActionForKey:object:arguments:</code> message; because that action object will be an animation, and because it will respond to this message by adding itself to the layer’s animations list, this is the same as saying that the layer searches for an animation to play itself with respect to the layer. The procedure by which the layer searches for this animation is quite elaborate.</p>
+          <p>The search for an action object begins because you do something that causes the layer to be sent the <code class="literal">actionForKey:</code> message. Let us presume that what you do is to change the value of an animatable property. (Other things can cause the <code class="literal">actionForKey:</code> message to be sent, as I’ll show later.) The action mechanism then treats the name of the property as a key, and the layer receives <code class="literal">actionForKey:</code> with that key — and the action search begins.</p>
+          <p>At each stage of the action search, the following rules are obeyed regarding what is returned from that stage of the search:</p>
+          <div class="variablelist">
+            <dl>
+              <dt>
+                <span class="term">
+An action object
+</span>
+              </dt>
+              <dd>
+If an action object (an animation) is produced, that is the end of the search. The action mechanism sends that animation the <code class="literal">run⁠Act⁠ion⁠For⁠Key:object:​arg⁠um⁠en⁠ts:</code> message; the animation responds by adding itself to the layer’s animations list.
+</dd>
+              <dt>
+                <span class="term">
+<code class="literal">[NSNull null]</code>
+</span>
+              </dt>
+              <dd>
+If <code class="literal">[NSNull null]</code> is produced, that is the end of the search. There will be no implicit animation; <code class="literal">[NSNull null]</code> means, “Do nothing and stop searching.”
+</dd>
+              <dt>
+                <span class="term">
+nil
+</span>
+              </dt>
+              <dd>
+If nil is produced, the search continues to the next stage.
+</dd>
+            </dl>
+          </div>
+          <p>The action search proceeds by stages, as follows:</p>
+          <div class="orderedlist">
+            <ol class="orderedlist" type="1">
+              <li class="listitem">
+The layer’s <code class="literal">actionForKey:</code> might terminate the search before it even starts. For example, the layer will do this if it is the underlying layer of a view, or if a property is set to the same value it already has. In such a case, there should be no implicit animation, so the whole mechanism is nipped in the bud. (This stage is special in that a returned value of nil ends the search and no animation takes place.)
+</li>
+              <li class="listitem">
+If the layer has a delegate that implements <code class="literal">actionForLayer:forKey:</code>, that message is sent to the delegate, with this layer as the layer and the property name as the key. If an animation or <code class="literal">[NSNull null]</code> is returned, the search ends.
+</li>
+              <li class="listitem">
+The layer has a property called <code class="literal">actions</code>, which is a dictionary. If there is an entry in this dictionary with the given key, that value is used, and the search ends.
+</li>
+              <li class="listitem">
+                <p class="simpara">
+The layer has a property called <code class="literal">style</code>, which is a dictionary. If there is an entry in this dictionary with the key <code class="literal">actions</code>, it is assumed to be a dictionary; if this <code class="literal">actions</code> dictionary has an entry with the given key, that value is used, and the search ends. Otherwise, if there is an entry in the <code class="literal">style</code> dictionary called <code class="literal">style</code>, the same search is performed within it, and so on recursively until either an <code class="literal">actions</code> entry with the given key is found (the search ends) or there are no more <code class="literal">style</code> entries (the search continues).
+</p>
+                <p class="simpara">(If the <code class="literal">style</code> dictionary sounds profoundly weird, that’s because it is profoundly weird. It is actually a special case of a larger, separate mechanism, which is also profoundly weird, having to do not with actions, but with a CALayer’s implementation of KVC. When you call <code class="literal">valueForKey:</code> on a layer, if the key is undefined by the layer itself, the <code class="literal">style</code> dictionary is consulted. I have never written or seen code that uses this mechanism for anything, and I’ll say no more about it.)</p>
+              </li>
+              <li class="listitem">
+The layer’s class is sent <code class="literal">defaultActionForKey:</code>, with the property name as the key. If an animation or <code class="literal">[NSNull null]</code> is returned, the search ends.
+</li>
+              <li class="listitem">
+If the search reaches this last stage, a default animation is supplied, as appropriate. For a property animation, this is a plain vanilla CABasicAnimation.
+</li>
+            </ol>
+          </div>
+          <p>Both the delegate’s <code class="literal">actionForLayer:forKey:</code> and the subclass’s <code class="literal">defaultActionForKey:</code> are declared as returning an <code class="literal">id&lt;CAAction&gt;</code>. To return <code class="literal">[NSNull null]</code>, therefore, you’ll need to typecast it to <code class="literal">id&lt;CAAction&gt;</code> to quiet the compiler; you’re lying (NSNull does not adopt the CAAction protocol), but it doesn’t matter.<a id="idm441649297296" class="indexterm"></a></p>
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_hooking_into_the_action_search"></a>Hooking Into the Action Search</h3>
+              </div>
+            </div>
+          </div>
+          <p>You can affect the action search at various stages to modify what happens when the search is triggered. Perhaps the most common real-life case is to turn off implicit animation altogether for some particular property.<a id="idm441649294640" class="indexterm"></a>
+<a id="idm441649293392" class="indexterm"></a> This is done by returning nil from <code class="literal">actionForKey:</code> itself, in a CALayer subclass; this suppresses the action search altogether. Here’s the code from a CALayer subclass that doesn’t animate its <code class="literal">position</code> property (but does animate its other properties normally):</p>
+          <pre class="screen">-(id&lt;CAAction&gt;)actionForKey:(NSString *)event {
+    if ([event isEqualToString:@"position"])
+        return nil;
+    return [super actionForKey:event];
+}</pre>
+          <p>Assuming that the action search is permitted, you could cause some stage of the search to produce an animation; that animation will then be used. Assuming that the search is triggered by setting an animatable layer property, you would then be affecting how implicit animation behaves.</p>
+          <p>You will probably want your animation to be fairly minimal. You may have no way of knowing the former and current values of the property that is being changed, so it would then be pointless (and very strange) to set a CABasicAnimation’s <code class="literal">fromValue</code> or <code class="literal">toValue</code>. Moreover, although animation properties that you don’t set can be set through CATransaction, in the usual manner for implicit property animation, animation properties that you <span class="emphasis"><em>do</em></span> set can <span class="emphasis"><em>not</em></span> be overridden through CATransaction. For example, if you set the duration of the animation that you produce at some stage of the action search, a call to CATransaction’s <code class="literal">setAnimationDuration:</code> cannot change it.</p>
+          <p>Let’s say we want a certain layer’s duration for an implicit <code class="literal">position</code> animation to be 5 seconds. We can achieve this with a minimally configured animation, like this:</p>
+          <pre class="screen">CABasicAnimation* ba = [CABasicAnimation animation];
+ba.duration = 5;</pre>
+          <p>The idea now is to situate this animation, <code class="literal">ba</code>, where it will be produced by the action search when implicit animation is triggered on the <code class="literal">position</code> property of our layer. We could, for instance, put it into the layer’s <code class="literal">actions</code> dictionary:</p>
+          <pre class="screen">layer.actions = @{@"position": ba};</pre>
+          <p>The result is that when we set that layer’s <code class="literal">position</code>, if an implicit animation results, its duration is 5 seconds, even if we try to change it through CATransaction:</p>
+          <pre class="screen">[CATransaction setAnimationDuration:1];
+layer.position = CGPointMake(100,200); // animation takes 5 seconds</pre>
+          <p>Let’s use that example to tease apart how the action mechanism makes implicit animation work:</p>
+          <div class="orderedlist">
+            <ol class="orderedlist" type="1">
+              <li class="listitem">
+You set the value of the layer’s <code class="literal">position</code> property.
+</li>
+              <li class="listitem">
+If your setting does not represent a change in the <code class="literal">position</code> value, or if this layer is a view’s underlying layer, the layer’s <code class="literal">actionForKey:</code> returns nil, and that’s the end of the story; there is no implicit property animation.
+</li>
+              <li class="listitem">
+Otherwise, the action search continues. There is no delegate in this case, so the search proceeds to the next stage, the <code class="literal">actions</code> dictionary.
+</li>
+              <li class="listitem">
+There is an entry under the key <code class="literal">@"position"</code> in the <code class="literal">actions</code> dictionary (because we put it there), and it is an animation. That animation is the action, and that is the end of the search.
+</li>
+              <li class="listitem">
+The animation is sent <code class="literal">runActionForKey:object:arguments:</code>.
+</li>
+              <li class="listitem">
+The animation responds by calling <code class="literal">[object addAnimation:self forKey:@"position"]</code>. The animation’s <code class="literal">keyPath</code> was nil, <span class="emphasis"><em>so this call also sets the <code class="literal">keyPath</code> to the same key!</em></span> Thus, there is now an animation in the layer’s animations list that animates its <code class="literal">position</code>, because its <code class="literal">keyPath</code> is <code class="literal">@"position"</code>. Moreover, we didn’t set the <code class="literal">fromValue</code> or <code class="literal">toValue</code>, so the property’s previous and new values are used. The animation therefore shows the layer moving from its current position to <code class="literal">{100,200}</code>.
+</li>
+            </ol>
+          </div>
+          <p>Using the layer’s <code class="literal">actions</code> dictionary to set default animations is a somewhat inflexible way to hook into the action search, however. It has the disadvantage in general that you must write your animation beforehand. By contrast, if you set the layer’s delegate to an instance that responds to <code class="literal">actionForLayer:forKey:</code>, your code runs at the time the animation is needed, and you have access to the layer that is to be animated. So you can create the animation on the fly, possibly modifying it in response to current circumstances.</p>
+          <p>Recall also that CATransaction implements KVC to allow you to set and retrieve the value of arbitrary keys. We can take advantage of this fact to pass an additional message from the code that sets the property value, and triggers the action search, to the code that supplies the action. This works because they both take place within the same transaction.</p>
+          <p>In this example, we use the layer delegate to change the default <code class="literal">position</code> animation so that instead of being a straight line, the path has a slight waggle. To do this, the delegate constructs a keyframe animation. The animation depends on the old <code class="literal">position</code> value and the new <code class="literal">position</code> value; the delegate can get the former direct from the layer, but the latter must be handed to the delegate somehow. Here, a CATransaction key <code class="literal">@"newP"</code> is used to communicate this information. When we set the layer’s <code class="literal">position</code>, we put its future value where the delegate can retrieve it, like this:</p>
+          <pre class="screen">CGPoint newP = CGPointMake(200,300);
+[CATransaction setValue: [NSValue valueWithCGPoint: newP] forKey: @"newP"];
+layer.position = newP; // the delegate will waggle the layer into place</pre>
+          <p>The delegate is called by the action search and constructs the animation:</p>
+          <pre class="screen">- (id &lt; CAAction &gt;)actionForLayer:(CALayer *)layer forKey:(NSString *)key {
+    if ([key isEqualToString: @"position"]) {
+        CGPoint oldP = layer.position;
+        CGPoint newP = [[CATransaction valueForKey: @"newP"] CGPointValue];
+        CGFloat d = sqrt(pow(oldP.x - newP.x, 2) + pow(oldP.y - newP.y, 2));
+        CGFloat r = d/3.0;
+        CGFloat theta = atan2(newP.y - oldP.y, newP.x - oldP.x);
+        CGFloat wag = 10*M_PI/180.0;
+        CGPoint p1 = CGPointMake(oldP.x + r*cos(theta+wag),
+                                 oldP.y + r*sin(theta+wag));
+        CGPoint p2 = CGPointMake(oldP.x + r*2*cos(theta-wag),
+                                 oldP.y + r*2*sin(theta-wag));
+        CAKeyframeAnimation* anim = [CAKeyframeAnimation animation];
+        anim.values = @[
+                       [NSValue valueWithCGPoint:oldP],
+                       [NSValue valueWithCGPoint:p1],
+                       [NSValue valueWithCGPoint:p2],
+                       [NSValue valueWithCGPoint:newP]
+                       ];
+        anim.calculationMode = kCAAnimationCubic;
+        return anim;
+    }
+    return nil;
+}</pre>
+          <p>Finally, I’ll demonstrate overriding <code class="literal">defaultActionForKey:</code>. This code would go into a CALayer subclass where setting its <code class="literal">contents</code> is to trigger a push transition from the left:</p>
+          <p></p>
+          <pre class="screen">+ (id &lt; CAAction &gt;)defaultActionForKey:(NSString *)aKey {
+    if ([aKey isEqualToString:@"contents"]) {
+        CATransition* tr = [CATransition animation];
+        tr.type = kCATransitionPush;
+        tr.subtype = kCATransitionFromLeft;
+        return tr;
+    }
+    return [super defaultActionForKey: aKey];
+}</pre>
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_nonproperty_actions"></a>Nonproperty Actions</h3>
+              </div>
+            </div>
+          </div>
+          <p>Changing a property is not the only way to trigger a search for an action; an action search is also triggered when a layer is added to a superlayer (key <code class="literal">kCAOnOrderIn</code>) and when a layer’s sublayers are changed by adding or removing a sublayer (key <code class="literal">@"sublayers"</code>). We can watch for these keys in the delegate and return an animation.<a id="idm441649242144" class="indexterm"></a>
+<a id="idm441649240832" class="indexterm"></a></p>
+          <div class="warning" style="margin-left: 0; margin-right: 10%;">
+            <h3 class="title">Warning</h3>
+            <p>These triggers and their keys are incorrectly described in Apple’s documentation, and there are additional triggers and keys that are not mentioned there.</p>
+          </div>
+          <p>In this example, we use our layer’s delegate so that when our layer is added to a superlayer, it will “pop” into view. We implement this by fading the layer quickly in from an opacity of <code class="literal">0</code> and at the same time scaling the layer’s transform to make it momentarily appear a little larger:</p>
+          <pre class="screen">- (id &lt; CAAction &gt;)actionForLayer:(CALayer *)lay forKey:(NSString *)key {
+    if ([key isEqualToString:kCAOnOrderIn]) {
+        CABasicAnimation* anim1 =
+            [CABasicAnimation animationWithKeyPath:@"opacity"];
+        anim1.fromValue = @0.0f;
+        anim1.toValue = @(lay.opacity);
+        CABasicAnimation* anim2 =
+            [CABasicAnimation animationWithKeyPath:@"transform"];
+        anim2.toValue = [NSValue valueWithCATransform3D:
+                        CATransform3DScale(lay.transform, 1.1, 1.1, 1.0)];
+        anim2.autoreverses = YES;
+        anim2.duration = 0.1;
+        CAAnimationGroup* group = [CAAnimationGroup animation];
+        group.animations = @[anim1, anim2];
+        group.duration = 0.2;
+        return group;
+    }
+}</pre>
+          <p>The documentation says that when a layer is removed from a superlayer, an action is sought under the key <code class="literal">kCAOnOrderOut</code>. This is true but useless, because by the time the action is sought, the layer has already been removed from the superlayer, so returning an animation has no visible effect. Similarly, an animation returned as an action when a layer’s <code class="literal">hidden</code> is set to YES is never played. Apple has admitted that this is a bug. A possible workaround is to trigger the animation via the <code class="literal">opacity</code> property, perhaps in conjunction with a CATransaction key, and remove the layer afterward:</p>
+          <pre class="screen">[CATransaction setCompletionBlock: ^{
+    [layer removeFromSuperlayer];
+}];
+[CATransaction setValue:@"" forKey:@"byebye"];
+layer.opacity = 0;</pre>
+          <p>Now <code class="literal">actionForLayer:forKey:</code> can test for the incoming key <code class="literal">@"opacity"</code> and the CATransaction key <code class="literal">@"byebye"</code>, and return the animation appropriate to removal from the superlayer. Here’s a possible implementation:
+<a id="idm441649230192" class="indexterm"></a><a id="idm441649229248" class="indexterm"></a></p>
+          <pre class="screen">if ([key isEqualToString:@"opacity"]) {
+    if ([CATransaction valueForKey:@"byebye"]) {
+        CABasicAnimation* anim1 =
+        [CABasicAnimation animationWithKeyPath:@"opacity"];
+        anim1.fromValue = @(layer.opacity);
+        anim1.toValue = @0.0f;
+        CABasicAnimation* anim2 =
+        [CABasicAnimation animationWithKeyPath:@"transform"];
+        anim2.toValue = [NSValue valueWithCATransform3D:
+                         CATransform3DScale(layer.transform, 0.1, 0.1, 1.0)];
+        CAAnimationGroup* group = [CAAnimationGroup animation];
+        group.animations = @[anim1, anim2];
+        group.duration = 0.2;
+        return group;
+    }
+}</pre>
+        </div>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_emitter_layers"></a>Emitter Layers</h2>
+            </div>
+          </div>
+        </div>
+        <p>Emitter layers (CAEmitterLayer) are, to some extent, on a par with animated images: once you’ve set up an emitter layer, it just sits there animating all by itself. The nature of this animation is rather narrow: an emitter layer emits particles, which are <a id="idm441649224880" class="indexterm"></a>CAEmitterCell instances. However, by clever setting of the properties of an emitter layer and its emitter cells, you can achieve some astonishing effects. Moreover, the animation is itself animatable using Core Animation.<a id="idm441649224016" class="indexterm"></a><a id="idm441649223152" class="indexterm"></a>
+<a id="idm441649221856" class="indexterm"></a><a id="idm441649220960" class="indexterm"></a>
+<a id="idm441649219664" class="indexterm"></a></p>
+        <p>It is easiest to understand emitter layers and emitter cells if you start with some stupid settings to achieve a boring effect. Let’s start with the emitter cells. Here are some useful basic properties of a CAEmitterCell:</p>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+<code class="literal">contents</code>, <code class="literal">contentsRect</code>
+</span>
+            </dt>
+            <dd>
+These are modeled after the eponymous CALayer properties, although CAEmitterLayer is not a CALayer subclass; so, respectively, an image (a CGImageRef) and a CGRect defining a region of that image. They define the image that a cell will portray.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">birthrate</code>, <code class="literal">lifetime</code>
+</span>
+            </dt>
+            <dd>
+How many cells per second should be emitted, and how many seconds each cell should live before vanishing, respectively.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">velocity</code>
+</span>
+            </dt>
+            <dd>
+The speed at which a cell moves. The unit of measurement is not documented; perhaps it’s points per second.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">emissionLatitude</code>, <code class="literal">emissionLongitude</code>
+</span>
+            </dt>
+            <dd>
+The angle at which the cell is emitted from the emitter, as a variation from the perpendicular. Longitude is an angle within the plane; latitude is an angle out of the plane.
+</dd>
+          </dl>
+        </div>
+        <p>So, here’s code to create a very elementary emitter cell:</p>
+        <pre class="screen">UIGraphicsBeginImageContextWithOptions(CGSizeMake(10,10), NO, 0);
+CGContextRef con = UIGraphicsGetCurrentContext();
+CGContextAddEllipseInRect(con, CGRectMake(0,0,10,10));
+CGContextSetFillColorWithColor(con, [UIColor blackColor].CGColor);
+CGContextFillPath(con);
+UIImage* im = UIGraphicsGetImageFromCurrentImageContext();
+UIGraphicsEndImageContext();
+
+CAEmitterCell* cell = [CAEmitterCell emitterCell];
+emit.emitterCells = @[cell];
+cell.birthRate = 5;
+cell.lifetime = 1;
+cell.velocity = 100;
+cell.contents = (id)im.CGImage;</pre>
+        <p>The result is that little black circles should be emitted slowly and steadily, five per second, each one vanishing in five seconds. Now we need an emitter layer from which these circles are to be emitted. Here are some basic CAEmitterLayer properties (beyond those it inherits from CALayer); these define an imaginary object, an emitter, that will be producing the emitter cells:</p>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+<code class="literal">emitterPosition</code>
+</span>
+            </dt>
+            <dd>
+The point at which the emitter should located, in superlayer coordinates. You can optionally add a third dimension to this point, <code class="literal">emitterZPosition</code>.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">emitterSize</code>
+</span>
+            </dt>
+            <dd>
+The size of the emitter.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">emitterShape</code>
+</span>
+            </dt>
+            <dd>
+              <p class="simpara">
+The shape of the emitter. The dimensions of the shape depend on the emitter’s size; the cuboid shape depends also on a third size dimension, <code class="literal">emitterDepth</code>. Your choices are:
+</p>
+              <div class="itemizedlist">
+                <ul class="itemizedlist" type="disc">
+                  <li class="listitem">
+<code class="literal">kCAEmitterLayerPoint</code>
+</li>
+                  <li class="listitem">
+<code class="literal">kCAEmitterLayerLine</code>
+</li>
+                  <li class="listitem">
+<code class="literal">kCAEmitterLayerRectangle</code>
+</li>
+                  <li class="listitem">
+<code class="literal">kCAEmitterLayerCuboid</code>
+</li>
+                  <li class="listitem">
+<code class="literal">kCAEmitterLayerCircle</code>
+</li>
+                  <li class="listitem">
+<code class="literal">kCAEmitterLayerSphere</code>
+</li>
+                </ul>
+              </div>
+            </dd>
+            <dt>
+              <span class="term">
+<code class="literal">emitterMode</code>
+</span>
+            </dt>
+            <dd>
+              <p class="simpara">
+The region of the shape from which cells should be emitted. Your choices are:
+</p>
+              <div class="itemizedlist">
+                <ul class="itemizedlist" type="disc">
+                  <li class="listitem">
+<code class="literal">kCAEmitterLayerPoints</code>
+</li>
+                  <li class="listitem">
+<code class="literal">kCAEmitterLayerOutline</code>
+</li>
+                  <li class="listitem">
+<code class="literal">kCAEmitterLayerSurface</code>
+</li>
+                  <li class="listitem">
+<code class="literal">kCAEmitterLayerVolume</code>
+</li>
+                </ul>
+              </div>
+            </dd>
+          </dl>
+        </div>
+        <p>Let’s start with the simplest possible case, a single point emitter:</p>
+        <pre class="screen">CAEmitterLayer* emit = [CAEmitterLayer new];
+emit.emitterPosition = CGPointMake(30,100);
+emit.emitterShape = kCAEmitterLayerPoint;
+emit.emitterMode = kCAEmitterLayerPoints;</pre>
+        <p>We tell the emitter what types of cell to emit by assigning those cells to its <code class="literal">emitterCells</code> property (an array of CAEmitterCell). We have only one type of cell. We then add the emitter to our interface, and presto, it starts emitting:</p>
+        <pre class="screen">emit.emitterCells = @[cell];
+[self.window.rootViewController.view.layer addSublayer:emit];</pre>
+        <p>The result is a constant stream of black circles emitted from the point <code class="literal">{30,100}</code>, each circle marching steadily to the right and vanishing after one second (<a class="xref" href="ch17.html#FIGemitter">Figure 17.5</a>).</p>
+        <div class="figure">
+          <a id="FIGemitter"></a>
+          <div class="figure-contents">
+            <div class="mediaobject">
+              <img src="figs/pios_1705.png" alt="figs/pios_1705.png" />
+            </div>
+          </div>
+          <p class="title">Figure 17.5. A really boring emitter layer</p>
+        </div>
+        <br class="figure-break" />
+        <p>Now that we’ve succeeded in creating a boring emitter layer, we can start to vary some parameters. The <code class="literal">emissionRange</code> defines a cone in which cells will be emitted; if we increase the <code class="literal">birthRate</code> and widen the <code class="literal">emissionRange</code>, we get something that looks like a stream coming from a water hose:</p>
+        <pre class="screen">cell.birthRate = 100;
+cell.lifetime = 1;
+cell.velocity = 100;
+cell.emissionRange = M_PI/10;</pre>
+        <p>As the cell moves, it can be made to accelerate (or decelerate) in each dimension, using its <code class="literal">xAcceleration</code>, <code class="literal">yAcceleration</code>, and <code class="literal">zAcceleration</code> properties. Here, we turn the stream into a falling cascade, like a waterfall coming from the left:</p>
+        <pre class="screen">cell.birthRate = 100;
+cell.lifetime = 1.5;
+cell.velocity = 100;
+cell.emissionRange = M_PI/10;
+cell.xAcceleration = -40;
+cell.yAcceleration = 200;</pre>
+        <p>All aspects of cell behavior can be made to vary, using the following CAEmitterCell properties:</p>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+<code class="literal">lifetimeRange</code>, <code class="literal">velocityRange</code>
+</span>
+            </dt>
+            <dd>
+How much the lifetime and velocity values are allowed to vary randomly for different cells.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">scale</code>
+<br /></span>
+              <span class="term">
+<code class="literal">scaleRange</code>, <code class="literal">scaleSpeed</code>
+</span>
+            </dt>
+            <dd>
+The scale alters the size of the cell; the range and speed determine how far and how rapidly this size alteration is allowed to change over the lifetime of each cell.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">color</code>
+<br /></span>
+              <span class="term">
+<code class="literal">redRange</code>, <code class="literal">greenRange</code>, <code class="literal">blueRange</code>, <code class="literal">alphaRange</code>
+<br /></span>
+              <span class="term">
+<code class="literal">redSpeed</code>, <code class="literal">greenSpeed</code>, <code class="literal">blueSpeed</code>, <code class="literal">alphaSpeed</code>
+</span>
+            </dt>
+            <dd>
+The color is painted in accordance with the opacity of the cell’s contents image; it combines with the image’s color, so if we want the color stated here to appear in full purity, our contents image should use only white. The range and speed determine how far and how rapidly each color component is to change.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">spin</code>, <code class="literal">spinRange</code>
+</span>
+            </dt>
+            <dd>
+The spin is a rotational speed (in radians per second); its range determines how far this speed is allowed to change over the lifetime of each cell.
+</dd>
+          </dl>
+        </div>
+        <p>Here we apply some variation so that the circles behave a little more independently of one another. Some live longer than others, some come out of the emitter faster than others. And they all start out a shade of blue, but change to a shade of green about half-way through the stream (<a class="xref" href="ch17.html#FIGwaterfall">Figure 17.6</a>):</p>
+        <pre class="screen">cell.birthRate = 100;
+cell.lifetime = 1.5;
+cell.lifetimeRange = .4;
+cell.velocity = 100;
+cell.velocityRange = 20;
+cell.emissionRange = M_PI/5;
+cell.scale = 1;
+cell.scaleRange = .2;
+cell.scaleSpeed = .2;
+cell.xAcceleration = -40;
+cell.yAcceleration = 200;
+cell.color = [UIColor blueColor].CGColor;
+cell.greenRange = .5;
+cell.greenSpeed = .75;</pre>
+        <div class="figure">
+          <a id="FIGwaterfall"></a>
+          <div class="figure-contents">
+            <div class="mediaobject">
+              <img src="figs/pios_1706.png" alt="figs/pios_1706.png" />
+            </div>
+          </div>
+          <p class="title">Figure 17.6. An emitter layer that makes a sort of waterfall</p>
+        </div>
+        <br class="figure-break" />
+        <p>But wait, there’s more! Once the emitter layer is in place and animating, you can change its parameters and the parameters of its emitter cells. To do so, use KVC on the emitter layer. You can access the emitter cells through the emitter layer’s <code class="literal">@"emitterCells"</code> key path; to specify a cell type, use its <code class="literal">name</code> property (which you’ll have to have assigned earlier) as the next piece of the key path. For example, suppose we’ve set <code class="literal">cell.name</code> to <code class="literal">@"circle"</code>; now we’ll change the cell’s <code class="literal">greenSpeed</code> so that each cell changes from blue to green much earlier in its lifetime:</p>
+        <pre class="screen">[emit setValue:@3.0f
+    forKeyPath:@"emitterCells.circle.greenSpeed"];</pre>
+        <p>But wait, there’s <span class="emphasis"><em>still</em></span> more: such changes can themselves be animated! Here, we’ll attach to the emitter layer a repeating animation that causes our cell’s <code class="literal">greenSpeed</code> to move back and forth between two values. The result is that the stream is sometimes mostly blue and sometimes mostly green:</p>
+        <pre class="screen">CABasicAnimation* ba =
+    [CABasicAnimation animationWithKeyPath:@"emitterCells.circle.greenSpeed"];
+ba.fromValue = @-1.0f;
+ba.toValue = @3.0f;
+ba.duration = 4;
+ba.autoreverses = YES;
+ba.repeatCount = HUGE_VALF;
+[emit addAnimation:ba forKey:nil];</pre>
+        <p>But wait, there’s <span class="emphasis"><em>still</em></span> still more! A CAEmitterCell can itself function as an emitter — that is, it can have cells of its own. Both CAEmitterLayer and CAEmitterCell conform to the CAMediaTiming protocol, and their <code class="literal">beginTime</code> and <code class="literal">duration</code> properties can be used to govern their times of operation, much as in a grouped animation. For example, this code causes our existing waterfall to spray tiny droplets in the region of the “nozzle” (the emitter):</p>
+        <pre class="screen">CAEmitterCell* cell2 = [CAEmitterCell emitterCell];
+cell.emitterCells = @[cell2];
+cell2.contents = (id)im.CGImage;
+cell2.emissionRange = M_PI;
+cell2.birthRate = 200;
+cell2.lifetime = 0.4;
+cell2.velocity = 200;
+cell2.scale = 0.2;
+cell2.beginTime = .04;
+cell2.duration = .2;</pre>
+        <p>But if we change the <code class="literal">beginTime</code> to be larger (hence later), the tiny droplets happen near the bottom of the cascade. We must also increase the <code class="literal">duration</code>, or stop setting it altogether, since if the <code class="literal">duration</code> is less than the <code class="literal">beginTime</code>, no emission takes place at all (<a class="xref" href="ch17.html#FIGwaterfall2">Figure 17.7</a>):</p>
+        <pre class="screen">cell2.beginTime = .7;
+cell2.duration = .8;</pre>
+        <div class="figure">
+          <a id="FIGwaterfall2"></a>
+          <div class="figure-contents">
+            <div class="mediaobject">
+              <img src="figs/pios_1707.png" alt="figs/pios_1707.png" />
+            </div>
+          </div>
+          <p class="title">Figure 17.7. The waterfall makes a kind of splash</p>
+        </div>
+        <br class="figure-break" />
+        <p>Of course we can also completely change the picture by changing the behavior of the emitter itself. This change turns the emitter into a line, so that our cascade becomes broader:</p>
+        <pre class="screen">emit.emitterPosition = CGPointMake(100,25);
+emit.emitterSize = CGSizeMake(100,100);
+emit.emitterShape = kCAEmitterLayerLine;
+emit.emitterMode = kCAEmitterLayerOutline;
+cell.emissionLongitude = 3*M_PI/4;</pre>
+        <p>There remains more to know about emitter layers and emitter cells, but at this point you know enough to understand Apple’s sample code examples, one portraying fire and smoke, and the other simulating fireworks, and you can explore further on your own.</p>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_cifilter_transitions"></a>CIFilter Transitions</h2>
+            </div>
+          </div>
+        </div>
+        <p>New in iOS 6, Core Image filters include transitions. You supply two images and a frame time between 0 and 1; the filter supplies the corresponding frame of a one-second animation transitioning from the first image to the second. For example, <a class="xref" href="ch17.html#FIGstarburst">Figure 17.8</a> shows the frame at frame time <code class="literal">.75</code> for a starburst transition from a solid red image to a photo of me. (You don’t see the photo of me, because this transition, by default, “explodes” the first image to white first, and then quickly fades to the second image.)<a id="idm441649109872" class="indexterm"></a>
+<a id="idm441649108624" class="indexterm"></a><a id="idm441649107712" class="indexterm"></a>
+<a id="idm441649106400" class="indexterm"></a></p>
+        <div class="figure">
+          <a id="FIGstarburst"></a>
+          <div class="figure-contents">
+            <div class="mediaobject">
+              <img src="figs/pios_1708.png" alt="figs/pios_1708.png" />
+            </div>
+          </div>
+          <p class="title">Figure 17.8. Midway through a starburst transition</p>
+        </div>
+        <br class="figure-break" />
+        <p>What Core Image transition filters do <span class="emphasis"><em>not</em></span> do for you is animate: that’s up to you. Thus we need a way of rapidly calling the same method repeatedly; in that method, we’ll request and draw subsequent frames of the transition. This could be a job for an NSTimer (<a class="xref" href="ch11.html">Chapter 11</a>), but an even better way is to use a <span class="emphasis"><em>display link</em></span> (CADisplayLink), a form of timer that’s highly efficient, especially when repeated drawing is involved, because it is linked directly to the refreshing of the display (hence the name).<a id="idm441649099744" class="indexterm"></a> The display refresh rate is typically about one-sixtieth of a second; the actual value is given as the display link’s <code class="literal">duration</code>, and will undergo slight fluctuations. Like a timer, the display link calls a designated method of ours every time it fires. We can slow the rate of calls by an integral amount by setting the display link’s <code class="literal">frameInterval</code>; for example, a display link with a <code class="literal">frameInterval</code> of 2 will call us about every one-thirtieth of a second. We can learn the exact time when the display link last fired by querying its <code class="literal">timestamp</code>.</p>
+        <p>In this simple example, we start by initializing the CIFilter, and we store it in an instance variable; the last thing we want to do is waste time on each frame creating the CIFilter repeatedly from scratch! We also store as instance variables all the other values needed to render the final image — the image’s <code class="literal">extent</code> and the CIContext used for rendering — as these are time-consuming to generate. We then create the display link, setting it to call into our <code class="literal">nextFrame:</code> method, and set it going by adding it to the run loop, which retains it:</p>
+        <pre class="screen">UIImage* moi = [UIImage imageNamed:@"moi.jpg"];
+CIImage* moi2 = [[CIImage alloc] initWithCGImage:moi.CGImage];
+self-&gt;_moiextent = moi2.extent;
+self-&gt;_con = [CIContext contextWithOptions:nil];
+
+CIFilter* col = [CIFilter filterWithName:@"CIConstantColorGenerator"];
+CIColor* cicol = [[CIColor alloc] initWithColor:[UIColor redColor]];
+[col setValue:cicol forKey:@"inputColor"];
+CIImage* colorimage = [col valueForKey: @"outputImage"];
+
+CIFilter* tran = [CIFilter filterWithName:@"CIFlashTransition"];
+[tran setValue:colorimage forKey:@"inputImage"];
+[tran setValue:moi2 forKey:@"inputTargetImage"];
+CIVector* center = [CIVector vectorWithX:self-&gt;_moiextent.size.width/2.0
+                                       Y:self-&gt;_moiextent.size.height/2.0];
+[tran setValue:center forKey:@"inputCenter"];
+self-&gt;_tran = tran;
+
+CADisplayLink* link = [CADisplayLink displayLinkWithTarget:self
+                           selector:@selector(nextFrame:)];
+[link addToRunLoop:[NSRunLoop mainRunLoop] forMode:NSDefaultRunLoopMode];</pre>
+        <p>Our <code class="literal">nextFrame:</code> method is called with the display link as parameter (<code class="literal">sender</code>). We store the initial <code class="literal">timestamp</code> in an instance variable, and use the difference between that and each successive <code class="literal">timestamp</code> value to calculate our desired frame. We ask the filter for the corresponding image and display it. When the frame value exceeds 1, the animation is over and we invalidate the display link (just like a repeating timer), which releases it from the run loop:</p>
+        <pre class="screen">if (self-&gt;_timestamp &lt; 0.01) { // pick up and store first timestamp
+    self-&gt;_timestamp = sender.timestamp;
+    self-&gt;_frame = 0.0;
+} else { // calculate frame
+    self-&gt;_frame = sender.timestamp - self-&gt;_timestamp;
+}
+sender.paused = YES; // defend against frame loss
+
+[_tran setValue:@(self-&gt;_frame) forKey:@"inputTime"];
+CGImageRef moi3 = [self-&gt;_con createCGImage:_tran.outputImage
+                                   fromRect:_moiextent];
+self-&gt;_iv.image = [UIImage imageWithCGImage:moi3];
+CGImageRelease(moi3);
+
+if (self-&gt;_frame &gt; 1.0) {
+    [sender invalidate];
+    self-&gt;_frame = 0.0;
+    self-&gt;_timestamp = 0.0;
+}
+sender.paused = NO;</pre>
+        <p>I have surrounded the time-consuming calculation and drawing of the image with calls to the display link’s <code class="literal">paused</code> property, in case the calculation time exceeds the time between screen refreshes; perhaps this isn’t necessary, but it can’t hurt. Our animation occupies one second; changing that value is merely a matter of multiplying by a scale value when we set our <code class="literal">_frame</code> instance variable. If you experiment with this code, run on the device, as display links do not work well in the Simulator.</p>
+      </div>
+    </div>
+    <div class="navfooter">
+      <table width="100%" summary="Navigation footer">
+        <tr>
+          <td width="40%" align="left"><a accesskey="p" href="ch16.html">Prev</a> </td>
+          <td width="20%" align="center">
+            <a accesskey="u" href="pt04.html">Up</a>
+          </td>
+          <td width="40%" align="right"> <a accesskey="n" href="ch18.html">Next</a></td>
+        </tr>
+        <tr>
+          <td width="40%" align="left" valign="top">Chapter 16. Layers </td>
+          <td width="20%" align="center">
+            <a accesskey="h" href="index.html">Table of Contents</a>
+          </td>
+          <td width="40%" align="right" valign="top"> Chapter 18. Touches</td>
+        </tr>
+      </table>
+    </div>
+  </body>
+</html>

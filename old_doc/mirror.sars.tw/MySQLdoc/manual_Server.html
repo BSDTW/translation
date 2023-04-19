@@ -1,0 +1,305 @@
+<html>
+
+<head>
+<meta HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=big5">
+<title>MySQL中文參考手冊- 9 MySQL伺服器功能</title>
+<style type="text/css">
+<!--
+.p13{font-size:14.8px;font-family:宋體;}
+.p14{font-size:14.8px;font-family:宋體;line-height:14pt;}
+.bc{ background-color: rgb(255,255,132) ;font-size:9pt;font-family:宋體;line-height:14pt;}
+.pt{font-size:14.8px;font-family:宋體;line-height:14pt; background-color: rgb(255,255,132) }
+a:hover{color:red;}
+a.t1:visited{color:red;}
+-->
+</style>
+</head>
+
+<body BGCOLOR="#FFFFFF" TEXT="#000000" LINK="#101090" VLINK="#7030B0" class="p4">
+
+<h1><img src="Img/mysql-logo.gif" alt="mysql-logo.gif (3082 bytes)" WIDTH="127" HEIGHT="60"><font color="#FF0000">MySQL中文參考手冊</font></h1>
+
+<p>譯者：晏子 <a href="mailto:(clyan@sohu.com">(clyan@sohu.com</a>）<br>
+GB 碼主頁：<a href="http://linuxdb.yeah.net">http://linuxdb.yeah.net</a></p>
+
+<p>Big5 轉碼者：statue <a href="mailto:statue.bbs@bbs.yzu.edu.tw">
+(statue@bbs.yzu.edu.tw</a>） <br>
+詞彙轉換：彭武興 (<a href="mailto:wilson@mailbox.com.tw">wilson@mailbox.com.tw</a>)<br>
+Big5 碼主頁：
+<a href="http://cnpa.yzu.edu.tw/~cfc/docs/mysqldoc_big5/manual_toc.html">
+http://cnpa.yzu.edu.tw/~cfc/docs/mysqldoc_big5/manual_toc.html</a><br>
+Big5 碼分站：
+<a href="http://php.wilson.gs/mysqldoc/big5/manual_toc.html">
+http://php.wilson.gs/mysqldoc/big5/manual_toc.html
+</p>
+
+<hr>
+
+<p><a HREF="manual_Introduction.html">第一章</a>, <a HREF="manual_Tutorial.html">前一章</a>, 
+<a HREF="manual_Performance.html">下一章</a>, <a HREF="manual_Concept_Index.html">最後一章</a>，<a HREF="manual_toc.html">目錄</a>. </p>
+
+<hr>
+
+<h1><a NAME="Server" HREF="manual_toc.html#Server">9 MySQL伺服器功能</a><a NAME="IDX605"></a> </h1>
+
+<h2><a NAME="Languages" HREF="manual_toc.html#Languages">9.1 MySQL支援哪些語言？</a></h2>
+
+<p><code>mysqld</code>可以用下列語言發出錯誤消息：捷克語、荷蘭語、英語(內定)、愛沙尼亞語、法語、德語、匈牙利、意大利語、挪威語。 
+</p>
+
+<p>啟動<code>mysqld</code>使用一種特定的語言，使用一個<code>--language=lang</code>或<code>-L 
+lang</code>選項。例如： </p>
+
+<pre>shell&gt; mysqld --language=swedish
+</pre>
+
+<p>或： </p>
+
+<pre>shell&gt; mysqld --language=/usr/local/share/swedish
+</pre>
+
+<p>注意，所有語言的名稱用小寫字母指定。 </p>
+
+<p>語言文件位於(內定的)<tt>'<var>mysql_base_dir</var>/share/<var>LANGUAGE</var>/'</tt>。 
+</p>
+
+<p>為了更新錯誤消息文件，你應該編輯<tt>“errmsg.txt”</tt>文件並且執行下列命令產生<tt>“errmsg.sys”</tt>文件： 
+</p>
+
+<pre>shell&gt; comp_err errmsg.txt errmsg.sys
+</pre>
+
+<p>如果你升級到一個更新的<strong>MySQL</strong>版本，記得要再次用新<tt>的“errmsg.txt”</tt>文件進行更新。 
+</p>
+
+<h3><a NAME="Character_sets" HREF="manual_toc.html#Character_sets">9.1.1 
+用於數據和排序的字符集</a></h3>
+
+<p>內定地，<strong>MySQL</strong>使用 ISO-8859-1 ( Latin1 ) 
+字符集。這是在美國和西歐使用的字符集。 </p>
+
+<p>字符集決定了在名字中允許什麼字符和如何由<code>SELECT</code>語句的<code>ORDER 
+BY</code>和<code>GROUP BY</code>子句排序。 </p>
+
+<p>通過給<code>configure</code>以<code>--with-charset=charset</code>選項，你可以在編譯時改變字符集。見<a HREF="manual_Installing.html#Quick_install">4.7.1 快速安裝概述</a>。 </p>
+
+<p>為了把其他字符集加入<strong>MySQL</strong>，使用下列程序： </p>
+
+<h3><a NAME="Adding_character_set" HREF="manual_toc.html#Adding_character_set">9.1.2 
+增加一個新的字符集</a></h3>
+
+<ol>
+  <li>為字符集選擇一個名字，下面用<code>MYSET</code>表示。 </li>
+  <li>在<strong>MySQL</strong>原始碼版本中創造文件<tt>“strings/ctype-MYSET.c”</tt>。 
+  </li>
+  <li>研究一個現有的<tt>“ctype-*.c'</tt>文件，看需要定義什麼。注意，你文件中的數組必須有類似於<code>ctype_MYSET</code>、<code>to_lower_MYSET</code>等等的名字。<code>to_lower[]</code>和<code>to_upper[]</code>是簡單的數組，保存字符集每個成員相應的小寫和大寫字符。例如： 
+    <pre>to_lower['A'] should contain 'a'
+to_upper['a'] should contain 'A'</pre>
+    <p><code>sort_order[]</code>是一個映射，指出字符為了比較和排序目的應該如何定序。對於許多字符集，這與<code>to_upper[]</code>一樣（意味著排序將忽略大小寫)。<strong>MySQL</strong>將基於<code>sort_order[character]</code>值排序字符。<code>ctype[]</code>是一個位值的數組，一個元素對應一個字符。（注意，<code>to_lower[]</code>、<code>to_upper[]</code>和<code>sort_order[]</code>按字符定下標，但是<code>ctype[]</code>按字符值+1定下標。這是一個舊遺產以便能處理EOF) 
+    你能在<tt>“m_ctype.h”</tt>找到下列bitmask定義： </p>
+    <pre>#define _U      01      /* Upper case */
+#define _L      02      /* Lower case */
+#define _N      04      /* Numeral (digit) */
+#define _S      010     /* Spacing character */
+#define _P      020     /* Punctuation */
+#define _C      040     /* Control character */
+#define _B      0100    /* Blank */
+#define _X      0200    /* heXadecimal digit */
+</pre>
+    <p>每個字符的<code>ctype[]</code>的入口應該是描述字符的適用的位模(bitmask)值的聯合（union）。例如，<code>'A'</code>是一個大寫字符(<code>_U</code>) 
+    ，同時是十六進制位(<code>_X</code>)，這樣<code>ctype['A'+1]</code>應該包含值： 
+    </p>
+    <pre>_U + _X = 01 + 0200 = 0201
+</pre>
+  </li>
+  <li>為你的字符集增加一個唯一的編號到<tt>“include/m_ctype.h.in”</tt>。 </li>
+  <li>把字符集名字加到在<code>configure.in</code>中的<code>CHARSETS_AVAILABLE</code>表。 
+  </li>
+  <li>重新配置，重新編譯並且測試。 </li>
+</ol>
+
+<h3><a NAME="Multi-byte_characters" HREF="manual_toc.html#Multi-byte_characters">9.1.3 
+多字節字符支援</a></h3>
+
+<p>如果你正在創建一個多字節字符集，你可以使用<code>_MB</code>宏。在<tt>“include/m_ctype.h.in”</tt>，增加：</p>
+
+<pre>#define MY_CHARSET_MYSET  X
+#if MY_CHARSET_CURRENT == MY_CHARSET_MYSET
+#define USE_MB
+#define USE_MB_IDENT
+#define ismbchar(p, end)  (...)
+#define ismbhead(c)       (...)
+#define mbcharlen(c)      (...)
+#define MBMAXLEN          N
+#endif
+</pre>
+
+<p>這裡： </p>
+
+<table BORDER="1" WIDTH="100%" NOSAVE="#101090" class="p4">
+  <tr>
+    <td><code>MY_CHARSET_MYSET</code> </td>
+    <td>一個唯一的字符集值。 </td>
+  </tr>
+  <tr>
+    <td><code>USE_MB</code> </td>
+    <td>這個字符集有多字節字符，由<code>ismbhead()</code>和<code>mbcharlen()</code>來處理。</td>
+  </tr>
+  <tr>
+    <td><code>USE_MB_IDENT</code> </td>
+    <td>（可選 ) 如果定義，你能使用多字節字符的表和列名。</td>
+  </tr>
+  <tr>
+    <td><code>ismbchar(p, e)</code> </td>
+    <td>如果<code>p</code>不是一個多字節字符字符串，返回0，否則如果它是，返回字符的大小(字節數)。<code>p</code>和<code>e</code>指向字符串的開始和結束。檢查是從<code>(char*)p</code>到<code>(char*)e-1</code>。 
+    </td>
+  </tr>
+  <tr>
+    <td><code>ismbhead(c)</code> </td>
+    <td>如果<code>c</code>是一個多字節字符字符串的第一個字符，返回真。</td>
+  </tr>
+  <tr>
+    <td><code>mbcharlen(c)</code> </td>
+    <td>如果<code>c</code>是一個多字節字符串的第一個字符，返回該字符串的大小。</td>
+  </tr>
+  <tr>
+    <td><code>MBMAXLEN</code> </td>
+    <td>在字符集中最大字符的字節大小。</td>
+  </tr>
+</table>
+
+<h2><a NAME="Update_log" HREF="manual_toc.html#Update_log">9.2 更新日誌</a></h2>
+
+<p>當以<code>--log-update=file_name</code>選項啟動時，<code>mysqld</code>將所有更新數據的SQL命令寫入記錄文件中。文件被寫入數據目錄並且有一個名字<code>file_name.#</code>，這裡<code>#</code>是一個數字，它在每次執行<code>mysqladmin 
+refresh</code>或<code>mysqladmin flush-logs</code>、<code>FLUSH LOGS</code>語句、或重啟伺服器時加1。 
+</p>
+
+<p>如果你使用<code>--log</code>或<code>-l</code>選項，<code>mysqld</code>用一個文件名<tt>“hostname.log”</tt>寫一個通用的記錄文件，並且重啟和更新不會引起一個新的記錄文件產生(盡管它被關閉並且再打開)。內定地，<code>mysql.server</code>腳本用<code>-l</code>選項啟動<strong>MySQL</strong>伺服器，如果當你在生產環境中開始使用<strong>MySQL</strong>時，你需要好一些的性能，你可以從<code>mysql.server</code>中刪除<code>-l</code>選項。 
+</p>
+
+<p>更新記錄很聰明，因為它僅僅記載真正更新數據的語句。因此一個用<code>WHERE</code>的<code>UPDATE</code>或<code>DELETE</code>找不到行，它就不被寫入記錄文件。它甚至跳過將設置一個列為它已經有的值<code>的UPDATE</code>語句。 
+</p>
+
+<p>如果你想要從更新記錄文件更新一個資料庫，你可以如下做到(假設你的更新記錄有<tt>“file_name.#”</tt>形式的名字)： 
+</p>
+
+<pre>shell&gt; ls -1 -t -r file_name.[0-9]* | xargs cat | mysql
+</pre>
+
+<p><code>ls</code>被用來以正確的次序得到所有的記錄文件。 </p>
+
+<p>如果你必須在一個崩潰後恢復到備份文件並且你想要再做發生在備份和崩潰之間的更新，這可以很有用。 
+</p>
+
+<p><a NAME="IDX608"></a>當你在其他主機上有一個鏡像資料庫並且你想要複製必須對主資料庫進行的改變時，你也可以使用更新記錄。 
+</p>
+
+<h2><a NAME="Table_size" HREF="manual_toc.html#Table_size">9.3 MySQL資料庫表可以有多大?</a></h2>
+
+<p><strong>MySQL</strong> 3.22 在表大小上有一個4G的限制。使用在<strong>MySQL</strong> 
+3.23中的新MyISAM 最大的表大小可達8百萬 TB(2^63個字節)。 </p>
+
+<p>然而注意，作業系統有其自身文件大小的限制。在Linux上，當前的限制是2G﹔在Solaris 
+2.5.1上，限制是4G﹔在Solaris 2.6上，限制是1000G。這意味著<strong>MySQL</strong>表的大小通常由作業系統限制。 
+</p>
+
+<p>內定地，<strong>MySQL</strong>表最大尺寸大約4G。你可用<code>SHOW TABLE 
+STATUS</code>命令或<code>myisamchk -dv table_name</code>檢查一個表的最大表大小。見<a HREF="manual_Reference.html#SHOW">7.21<code> SHOW</code>句法(得到表、列等的資訊）</a>。</p>
+
+<p>如果你需要大於 4G 的表(並且你的作業系統支援它)，你應該在你創建表時設定<code>AVG_ROW_LENGTH</code>和<code>MAX_ROWS</code>參數。見<a HREF="manual_Reference.html#CREATE_TABLE">7.7<code> CREATE TABLE</code>語法</a>。你也能用<code>ALTER 
+TABLE</code>在以後設置這些。見<a HREF="manual_Reference.html#ALTER_TABLE">7.8<code> 
+ALTER TABLE</code>語法</a>。 </p>
+
+<p>如果你的大表要變成只讀，你可以使用<code>myisampack</code>合並並且把許多表壓縮成一個。<code>myisampack</code>通常壓縮一個表到至少50%，因此你可以有，實際上，更大的表。見<a HREF="manual_Tools.html#myisampack">12.5 MySQL壓縮的只讀的表產生器</a>。 </p>
+
+<p>另一個的解決方案可以是內含包括MERGE庫，它允許你將一個許多相同的表的集合作為一個來處理。（在這種情況下相同意味著所有的表由相同的列資訊創建)目前MERGE只能用於掃描一個表集合，因為它不支援索引。我們在不久的將來將把索引加進去。 
+</p>
+
+<h2><a NAME="Table_types" HREF="manual_toc.html#Table_types">9.4 MySQL資料庫表類型</a></h2>
+
+<p>用MySQL，目前(版本 3.23.6)你可以在三種基本資料庫表格式間選擇。當你創建一張表時，你可以告訴<strong>MySQL</strong>它應該對於表使用哪個表類型。<strong>MySQL</strong>將總是創建一個<code>.frm</code>文件保存表和列定義。視表類型而定，索引和數據將在其他文件中儲存。 
+</p>
+
+<p>你能用<code>ALTER TABLE</code>語句在不同類型的表之間變換。見<a HREF="manual_Reference.html#ALTER_TABLE">7.8<code> ALTER TABLE</code>語法</a>。 
+
+<dl COMPACT="manual_Reference.html#ALTER_TABLE">
+  <dt><strong><code>MyISAM</code></strong></dt>
+  <dd>在<strong>MySQL</strong> 3.23中，<code>MyISAM</code>是內定表格類型，它是基於<code>ISAM</code>代碼並且有很多有用的擴展。索引儲存在一個有<code>.MYI</code>（MYindex)擴展名的文件並且數據儲存在有<code>.MYD</code>（MYData)擴展名的文件中。你能用<code>myisamchk</code>實用程式檢查/修復<code>MyISAM</code>表。見<a HREF="manual_Maintenance.html#Crash_recovery">13.4 對崩潰恢復使用<code>myisamchk</code></a>。下列幾點在<code>MyISAM</code>中是全新的： 
+    <ul>
+      <li type="disc">不用刪除行，可以在表中<code>INSERT</code>一個新行，在其他執行緒從表刈袗在讀取的同時。 
+      </li>
+      <li>在支援大文件的文件系統/作業系統上支援大文件(63位)。</li>
+      <li>所有的數據首先儲存低字節，這使數據獨立於機器和OS，唯一的要求是機器使用補2有符號整數(就像最近20年時間內的每台機器)和IEEE浮點格式(也在主流機器上完全主導地位)。不能支援二進制兼容性的機器的唯一領域是嵌入式系統(因為他們有時有古怪的處理器)。 
+      </li>
+      <li>所有的數字鍵先儲存高字節以獲得更高的索引壓縮。 </li>
+      <li><code>AUTO_INCREMENT</code>列的內部處理。<code>MyISAM</code>將自動地在<code>INSERT/UPDATE</code>時更新它。 
+        <code>AUTO_INCREMENT</code>值可以用<code>myisamchk</code>重新設置，這將使得<code>AUTO_INCREMENT</code>列更快速並且原來的數將不像老的ISAM那樣被重新使用。注意，當一個<code>AUTO_INCREMENT</code>定義在一個多部鍵值(multi-part-key)的結尾時，老式的行為仍然是存在。 
+      </li>
+      <li><code>BLOB</code>和<code>TEXT</code>列可以被索引。 </li>
+      <li>被索引的列允許<code>NULL</code>值。每個鍵占0-1個字節。 </li>
+      <li>現在最大的鍵長度內定是500個字節。在鍵大於250個字節的情況下，一個大於內定的1024個字節的關鍵字塊大小被用於此鍵。 
+      </li>
+      <li>每個表的鍵的最大數目放大到32作為內定。這不必重新編譯<code>myisamchk</code>就可以放大到64。 
+      </li>
+      <li>在有一個標誌<code>MyISAM</code>顯示桌子是否正確被關上的文件。這將不久被用於自動的修理在<strong>MySQL</strong>伺服器。 
+      </li>
+      <li>現在<code>myisamchk</code>將標記表為“檢查的”。<code>myisamchk --fast</code>將僅僅檢查那些沒有這個標記的表。 
+      </li>
+      <li><code>myisamchk -a</code>儲存鍵值組成部分的統計(不只是像<code>ISAM</code>對整個鍵)。 
+      </li>
+      <li>現在在刪除與更新和插入混用時，動態尺寸的行將有更少碎片，這通過自動合並相鄰的刪除塊並且如果下一塊被刪除，通過擴大塊來做到。 
+      </li>
+      <li><code>myisampack</code>能緊縮<code>BLOB</code>和<code>VARCHAR</code>列。 </li>
+    </ul>
+    <p><code>MyISAM</code>也支援下列東西，<strong>MySQL</strong>在不久的將來將能使用。 
+    <ul>
+      <li type="disc">支援一個真正的<code>VARCHAR</code>類型﹔一個<code>VARCHAR</code>列以2各字節儲存的長度開始。 
+      </li>
+      <li type="disc">用<code>VARCHAR</code>的表可以式固定或動態的記錄長度。 </li>
+      <li><code>VARCHAR</code>和<code>CHAR</code>可以最大64K字節。所有的關鍵字片斷有其自身的語言定義，這將使得<strong>MySQL</strong>每列有不同的語言定義。 
+      </li>
+      <li>一個雜湊計算的索引可用於<code>UNIQUE</code>﹔這將允許你在一個表中的任何列組合上有<code>UNIQUE</code>屬性。（然而，你不能搜索一個<code>UNIQUE</code>計算的索引。）</li>
+    </ul>
+    <p>你也可以使用放棄的ISAM桌子類型。這將在不久消失，因為<code>MyISAM</code>是同一個東西的更好實現。ISAM使用一個<code>B-tree</code>索引，這個索引儲存在一個有<code>.ISM</code>擴展名的文件中並且數據儲存在有<code>.ISD</code>擴展名的文件中，你可用<code>isamchk</code>實用程式檢查/修復ISAM表。見<a HREF="manual_Maintenance.html#Crash_recovery">13.4 使用<code>myisamchk</code>恢復崩潰</a>。ISAM表不是跨OS/平台二進制可移植的。<code>ISAM</code>有下列特徵/屬性： 
+    <ul>
+      <li type="disc">壓縮的且定長鍵</li>
+      <li>固定和動態記錄長度</li>
+      <li type="disc">有16個鍵，每個鍵有16鍵組成部分</li>
+      <li>最大鍵長度256(內定）</li>
+      <li>數據以機器格式儲存﹔快速但是依賴於機器/OS 。 </li>
+    </ul>
+  </dd>
+  <dt><strong><code>HEAP</code>&nbsp; </strong></dt>
+  <dd><code>HEAP</code>表格使用一個雜湊（hashed）索引並且儲存在內存中。這使他們更快，但是如果<strong>MySQL</strong>崩潰，你將失去所有儲存的數據。<code>HEAP</code>作為臨時表很可用！ 
+    <pre>CREATE TABLE test TYPE=HEAP SELECT ip,SUM(downloads) as down
+        FROM log_table GROUP BY ip;
+SELECT COUNT(ip),AVG(down) FROM test;
+DROP TABLE test;
+</pre>
+    <p>當你使用<code>HEAP</code>表時，這裡是你應該考慮的一些事情： <ul>
+      <li type="disc">你應該總是在<code>CREATE</code>語句中指定<code>MAX_ROWS</code>以保証你有意不使用所有的內存。 
+      </li>
+      <li>索引將只能與與<code>=</code>和<code>&lt;=&gt;</code>一起使用（但是很快)。 
+      </li>
+      <li><code>HEAP</code>表使用一個固定的記錄長度格式。 </li>
+      <li><code>HEAP</code>不支援<code>BLOB</code>/<code>TEXT</code>列。 </li>
+      <li><code>HEAP</code>不支援<code>AUTO_INCREMENT</code>列。 </li>
+      <li><code>HEAP</code>不支援在一個<code>NULL</code>列上的索引。 </li>
+      <li>你可以在一個<code>HEAP</code>表中有非唯一鍵(雜湊表一般不這樣)。 </li>
+      <li><code>HEAP</code>表格在所有的客戶之間被共享(就像任何其他的表)。 </li>
+      <li><code>HEAP</code>表的數據以小塊分配。表是100%動態的(在插入時)，無需溢出區和額外的鍵空間。刪除的行放入一個鏈接表並且當你把新數據插入到表時，它將被再次使用。 
+      </li>
+      <li>為了釋放內存，你應該執行<code>DELETE FROM heap_table</code>或<code>DROP 
+        TABLE heap_table</code>。 </li>
+      <li>為了保証你不會偶然做些愚蠢的事情，你不能創建比<code>max_heap_table_size</code>大的<code>HEAP</code>表。 
+      </li>
+    </ul>
+  </dd>
+</dl>
+
+<hr>
+
+<p>到<a HREF="manual_Introduction.html">第一章</a>, <a HREF="manual_Tutorial.html">前一章</a>, 
+<a HREF="manual_Performance.html">下一章</a>, <a HREF="manual_Concept_Index.html">最後一章</a>，<a HREF="manual_toc.html">目錄</a>.</p>
+</body>
+</html>

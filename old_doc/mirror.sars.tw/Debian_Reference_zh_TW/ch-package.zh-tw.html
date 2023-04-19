@@ -1,0 +1,1428 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN">
+
+<html>
+
+<head>
+
+<meta http-equiv="content-type" content="text/html; charset=big5">
+
+<title>Debian 參考手冊 - Debian 套件管理系統</title>
+
+</head>
+
+<body>
+
+<p><a name="ch-package"></a></p>
+<hr>
+
+<p>
+[ <a href="ch-woody.zh-tw.html">上一頁</a> ]
+[ <a href="index.zh-tw.html#contents">目錄</a> ]
+[ <a href="ch-preface.zh-tw.html">1</a> ]
+[ <a href="ch-system.zh-tw.html">2</a> ]
+[ <a href="ch-install.zh-tw.html">3</a> ]
+[ <a href="ch-tutorial.zh-tw.html">4</a> ]
+[ <a href="ch-woody.zh-tw.html">5</a> ]
+[ 6 ]
+[ <a href="ch-kernel.zh-tw.html">7</a> ]
+[ <a href="ch-tips.zh-tw.html">8</a> ]
+[ <a href="ch-tune.zh-tw.html">9</a> ]
+[ <a href="ch-gateway.zh-tw.html">10</a> ]
+[ <a href="ch-edit.zh-tw.html">11</a> ]
+[ <a href="ch-vcs.zh-tw.html">12</a> ]
+[ <a href="ch-program.zh-tw.html">13</a> ]
+[ <a href="ch-gnupg.zh-tw.html">14</a> ]
+[ <a href="ch-support.zh-tw.html">15</a> ]
+[ <a href="ap-appendix.zh-tw.html">A</a> ]
+[ <a href="ch-kernel.zh-tw.html">下一頁</a> ]
+</p>
+
+<hr>
+
+<h1>
+Debian 參考手冊
+<br>第 6 章 - Debian 套件管理系統
+</h1>
+
+<hr>
+
+<p>
+進階級套件管理工具 <code>aptitude</code> 是首選的 APT
+前端程式。它會紀錄額外安裝的軟體並解決惱人的相依性問題。<code>aptitude</code>也會移除掉不被已安裝軟體需要的套件。它內建了一個套件過濾器，但比較難上手。
+</p>
+
+<p>
+<code>synaptic</code> 是目前首選的以 Gtk 為 toolkit 的視窗化 APT
+前端程式。它的套件過濾器就比<code>aptitude</code>來的友善且簡單多了。更多的功能和支援請參閱<code><a
+href="http://debtags.alioth.debian.org/">Debian Package Tags</a></code>。
+</p>
+
+<p>
+為了減少 Debian 檔案庫 (repository) 的網路負擔並加速您的下載速度，您可以考慮從
+Debian 鏡射站台下載。
+</p>
+
+<p>
+如果您的區網內需要安裝重複的套件到多台電腦上，請在使用 APT 下載套件時，考慮使用
+<code>squid</code> 設定本地端的 HTTP
+proxy。必要的話，設定<samp>http_proxy</samp>環境變數或加入 <samp>http</samp>
+設定到<code>/etc/apt/apt.conf</code>。
+</p>
+
+<p>
+儘管 <code>apt_preferences(5)</code> 的 pinning
+功能十分強大，但造成的影響是難以偵錯和管理。除非熟悉該工具才考慮採用。
+</p>
+
+<p>
+在 <a href="ch-tips.zh-tw.html#s-chroot"><code>chroot</code>, 第 8.6.35 節</a>
+中所敘述的方法非常適合於需要同時結合系統的穩定性和使用最新版軟體的情況。
+</p>
+
+<p>
+本章是基於 Woody 之後的系統所撰寫的，有些資訊只適用於 Sarge 或更新的系統。
+</p>
+
+<hr>
+
+<h2><a name="s-pkg-intro"></a>6.1 介紹</h2>
+
+<p>
+如果你沒精力閱讀完所有的開發文件，那麼先看看本章的內容，然後就開始體驗 Debian
+<samp>testing</samp>/<samp>unstable</samp> 的威力吧 :-)
+</p>
+
+<hr>
+
+<h3><a name="s6.1.1"></a>6.1.1 主要的套件管理工具</h3>
+
+<pre>
+     dpkg      &ndash; 安裝 Debian 套件的工具
+     apt-get   &ndash; APT 安裝套件的指令
+     aptitude  &ndash; 進階級的文字介面的 APT 前端工具
+     synaptic  &ndash; 圖形介面的 APT 前端工具
+     dselect   &ndash; 使用選單介面的套件管理工具 
+     tasksel   &ndash; 安裝 task
+</pre>
+
+<p>
+這些工具並非是為了取代對方而產生的，相反的，他們甚至能共用彼此。例如說
+<code>dselect</code> 能搭配使用 APT 和 <code>dpkg</code>來安裝套件。
+</p>
+
+<p>
+APT 使用 <code>/var/lib/apt/lists/*</code> 來追蹤可用的套件，而
+<code>dpkg</code> 則是使用 <code>/var/lib/dpkg/available</code> 。如果直接用
+<code>aptitude</code> 或類似工具來安裝套件的話，別忘了要使用 dselect 的
+<samp>[U]pdate</samp> 選項，或在執行 <samp>dselect update</samp> 來更新
+<code>/var/lib/dpkg/available</code> 。
+</p>
+
+<p>
+在處理套件相依性的方式上， <code>apt-get</code>
+會自動搜尋下載相依的套件，但不會額外安裝該軟體推薦或建議的套件。
+</p>
+
+<p>
+相反地，<code>aptitude</code> 可以設定成是否要額外安裝 &quot;推薦&quot; 或
+&quot;建議&quot; 的套件。
+</p>
+
+<p>
+<code>dselect</code>
+在套件的選擇方面提供了選單方式的操作，會列出該軟體推薦或建議的套件並個別決定是否要安裝。
+請參閱 <a href="ch-system.zh-tw.html#s-depends">套件相依性, 第 2.2.8 節</a> 。
+</p>
+
+<hr>
+
+<h3><a name="s6.1.2"></a>6.1.2 方便的工具</h3>
+
+<pre>
+     dpkg-reconfigure  - 重新設定一個已經安裝的套件
+                         (如果它是使用 debconf 的話)
+     dpkg-source       - 管理套件源碼檔案
+     dpkg-buildpackage - 自動重新編建套件檔案
+     apt-cache         - check package archive in local cache
+</pre>
+
+<hr>
+
+<h2><a name="s-apt-install"></a>6.2 體驗 Debian 套件管理</h2>
+
+<hr>
+
+<h3><a name="s-setup-apt"></a>6.2.1 設定 APT</h3>
+
+<p>
+參閱<a href="ch-woody.zh-tw.html#s-testing-transition">升級前的準備, 第 5.2
+節</a>來設定<code>sources.list</code>。 [<a href="footnotes.zh-tw.html#f34"
+name="fr34">34</a>] 請參考 <a href="ch-install.zh-tw.html">Debian 系統安裝提示,
+第 3 章</a>, <a href="ch-woody.zh-tw.html">將 distribution 升級至
+<samp>stable</samp>, <samp>testing</samp> 或 <samp>unstable</samp>, 第 5
+章</a>和 <a href="ch-edit.zh-tw.html#s-bin-editor">應急的編輯器, 第 11.2
+節</a>.
+</p>
+
+<hr>
+
+<h3><a name="s-tasksel"></a>6.2.2 tasks 安裝</h3>
+
+<p>
+您可以安裝一個許多軟體集合的套件來規畫特定用途的 Debian 系統。而該集合就叫作
+&quot;Task&quot;。
+</p>
+
+<p>
+安裝 tasks 最簡單的方法就是在安裝系統過程中，執行
+<code>tasksel</code>。請記得先執行
+</p>
+
+<pre>
+     dselect update
+</pre>
+
+<p>
+。
+</p>
+
+<p>
+建議使用 <code>aptitude</code> 來安裝
+tasks，而這也是它的特色之一。它能在您選擇好 tasks
+並準備安裝之前再額外刪除掉您不需要的軟體。
+</p>
+
+<hr>
+
+<h3><a name="s-aptitude"></a>6.2.3 <code>aptitude</code></h3>
+
+<p>
+<code>aptitude</code> 是一套全新的套件安裝系統，類似於
+<code>dselect</code>，不同的是針對 APT 重新設計的。 它也能當作
+<code>apt-get</code> 另一個指令介面且完全相容
+<code>apt-get</code>的參數喔。請參閱 <code>aptitude(1)</code> 和
+<code>file:///usr/share/doc/aptitude/README</code>。
+</p>
+
+<p>
+從您開始安裝軟體，建議使用<code>aptitude</code>來代替所有的安裝工具，不然會失去了<code>aptitude</code>所建立的套件追蹤清單。這會使您無法移除多餘的套件。
+</p>
+
+<p>
+<code>aptitude</code> 的功能鍵如下(大部分為小寫)：
+</p>
+
+<pre>
+     Keystroke   Action
+     F10         Menu
+     ?           Help for keystroke (complete listing)
+     u           Update package archive information
+                Mark the package to be upgraded or newly installed
+     -           Mark the package to be removed (keep config)
+     _           Mark the package to be purged (remove config)
+     =           Place the package on hold
+     U           Mark all upgradable packages to be upgraded
+     g           Download and install selected packages
+     q           Quit current screen and save changes
+     x           Quit current screen and discard changes
+     Enter       View information about a package
+     C           View a package's changelog
+     l           Change the limit for the displayed packages
+     /           Search for the first match
+     \           Repeat the last search
+</pre>
+
+<p>
+如同<code>apt-get</code>，<code>aptitude</code>在安裝軟體時也會解決掉惱人的相依性問題。
+<code>aptitude</code> 也能設定成是否要安裝軟體額外推薦或建議的軟體。
+利用主畫面選單上的<samp>F10 -&gt; Options -&gt; Dependency
+handling</samp>來改變預設的安裝策略。
+</p>
+
+<p>
+<code>aptitude</code> 的其他功能：
+</p>
+<ul>
+<li>
+<p>
+<code>aptitude</code> 能存取所有版本的套件。
+</p>
+</li>
+<li>
+<p>
+<code>aptitude</code> 的動作會紀錄在<code>/var/log/aptitude</code>。
+</p>
+</li>
+<li>
+<p>
+<code>aptitude</code> 能輕鬆地追蹤本地端建立的套件並列在 &quot;Obsolete and
+Locally Created Packages&quot;。
+</p>
+</li>
+<li>
+<p>
+<code>aptitude</code> 內建強大的收尋引擎並過濾顯示的套件。
+<code>mutt</code>的使用者會很容易上手，因為 expression 的文法是來自於
+mutt。請參閱 <code>file:///usr/share/doc/aptitude/README</code> 的
+&quot;SEARCHING, LIMITING, AND EXPRESSIONS&quot;。
+</p>
+</li>
+<li>
+<p>
+<code>aptitude</code>內建 <code>su</code>
+的功能所以一般使用者皆可以執行直到安裝或移除軟體時再取得管理者的權限。
+</p>
+</li>
+</ul>
+
+<hr>
+
+<h3><a name="s-dselect"></a>6.2.4 <code>dselect</code></h3>
+
+<p>
+從 Stable
+發行到現在為止(包含Potato)，<code>dselect</code>是主要的套件維護工具。當 Sarge
+發行後，您可以考慮使用 <code>aptitude</code> 來取代。
+</p>
+
+<p>
+當你啟動程式時， <code>dselect</code> 會自動選取所有 &quot;Required&quot; 、
+&quot;Important&quot; 和 &quot;Standard&quot; 分類的套件。
+</p>
+
+<p>
+雖然<code>dselect</code>
+的使用介面有點怪，但大部分的人都已經習慣了。有四主要的指令 (都是大寫的指令！)：
+</p>
+
+<pre>
+     按鍵        動作
+     Q           離開。確認目前所選取的並離開程式。
+                 (override dependencies)
+     R           回復 (Revert)！ I did not mean it.
+     D           不管你 (Damn it)！我不管 dselect 怎麼想的。照我的做就是了！
+     U           都照建議 (sUggested) 的來做
+</pre>
+
+<p>
+使用 <samp>D</samp> 和 <samp>Q</samp>
+可以選擇有衝突的選項。要小心地使用這些指令。
+</p>
+
+<p>
+在 <code>/etc/dpkg/dselect.cfg</code> 中加上一行 &quot;expert&quot;
+選項以減少干擾。
+</p>
+
+<p>
+對於速度慢的機器，可以在其它速度快的機器上執行 <code>dselect</code>
+先選好套件，然後用 <samp>apt-get install</samp> 來安裝。
+</p>
+
+<hr>
+
+<h3><a name="s-aptitude-track"></a>6.2.5 使用 APT 來維持 Debian 發行版本</h3>
+
+<p>
+請編輯<code>/etc/apt/preferences</code>並加入以下的說明來維持系統為
+<samp>testing</samp> 版本：
+</p>
+
+<pre>
+     Package: *
+     Pin: release a=testing
+     Pin-Priority: 800
+     
+     Package: *
+     Pin: release a=stable
+     Pin-Priority: 600
+</pre>
+
+<p>
+要注意的是追蹤<samp>testing</samp>版本會有延誤安裝安全性修正軟體的副作用。這樣的軟體是因為上傳到<samp>unstable</samp>並移植到<samp>testing</samp>的這段期間所造成的延誤。
+</p>
+
+<p>
+更多且複雜的範例請參考
+<code>apt_preferences(5)</code>，允許您做更多的事情，例如安裝
+<samp>unstable</samp> 的套件還能把系統維持在<samp>testing</samp>。
+</p>
+
+<p>
+關於限制替定軟體在特定的版本的範例可以在 <code><a href="examples/">examples
+subdirectory</a></code> 找到 <code>preferences.testing</code> 和
+<code>preferences.unstable</code>。
+</p>
+
+<p>
+如果您混用不同的發行版本，例如 <samp>testing</samp> 和 <samp>stable</samp> 或
+<samp>unstable</samp> 和
+<samp>stable</samp>，您終究會安裝到<samp>testing</samp>或<samp>unstable</samp>版本的核心軟體，例如<code>libc6</code>，而這樣的行為無法保證系統無臭蟲存在。您必須特別小心。
+</p>
+
+<p>
+另外一個例子，<code>preferences.stable</code>會強制降級所有的軟體到<samp>stable</samp>。
+</p>
+
+<p>
+Debian 不支援將某個
+<strong>套件</strong>降級到先前的發行版本。但新版的套件出問題時，重裝舊版的套件是被允許的。您可以在本地端的
+<code>/var/cache/apt/archives/</code> 或遠地端的 <code><a
+href="http://snapshot.debian.net/">http://snapshot.debian.net/</a></code>
+找到先前發行的版本。請參考 <a href="#s-rescue-dpkg">使用 <code>dpkg</code>
+來救援, 第 6.3.3 節</a>。
+</p>
+
+<p>
+Debian 也不支援將某個 <strong>發行版本</strong>
+降級到先前的版本且這樣做往往會造成很多問題。如果您願意冒險的話，也是值得嘗試看看。
+</p>
+
+<hr>
+
+<h3><a name="s-apt-commands"></a>6.2.6 <code>aptitude</code>，<code>apt-get</code>和<code>apt-cache</code> 命令</h3>
+
+<p>
+當像之前的例子一樣跟隨著 <samp>testing</samp>，您可以下列的指令來管理系統。
+</p>
+<ul>
+<li>
+<p>
+<samp>aptitude update</samp> (或 <samp>apt-get update</samp>
+</p>
+
+<p>
+以上動作會更新檔案庫中最新的套件列表
+</p>
+</li>
+</ul>
+<ul>
+<li>
+<p>
+<samp>aptitude upgrade</samp> (或 <samp>apt-get upgrade</samp> 或
+<samp>aptitude dist-upgrade</samp> 或 <samp>apt-get dist-upgrade</samp>)
+</p>
+
+<p>
+這樣會跟隨<samp>testing</samp>版本 &mdash;
+他們會安裝目前<samp>testing</samp>版本上可提供升級的套件以及其相依的軟體。 [<a
+href="footnotes.zh-tw.html#f35" name="fr35">35</a>]
+</p>
+</li>
+</ul>
+<ul>
+<li>
+<p>
+<samp>apt-get dselect-upgrade</samp>
+</p>
+
+<p>
+這會跟隨<samp>testing</samp>版本 &mdash;
+上述指令升級的方法是依照<code>dselect</code>的處理方式來決定的。
+</p>
+</li>
+</ul>
+<ul>
+<li>
+<p>
+<samp>aptitude install <var>package</var>/unstable</samp>
+</p>
+
+<p>
+由 <samp>unstable</samp> distribution 安裝 <var>package</var> ，並由
+<samp>testing</samp> distribution 安裝相依的套件。
+</p>
+</li>
+</ul>
+<ul>
+<li>
+<p>
+<samp>aptitude install -t unstable <var>package</var></samp>
+</p>
+
+<p>
+將 <samp>unstable</samp> 的 Pin-Priority 設為 990，會由 <samp>unstable</samp>
+distribution 安裝 <var>package</var>，也從 <samp>unstable</samp> distribution
+安裝相依的套件。
+</p>
+</li>
+</ul>
+<ul>
+<li>
+<p>
+<samp>apt-cache policy <var>foo bar ...</var></samp>
+</p>
+
+<p>
+檢查 <var>foo bar ...</var> 套件的狀態。
+</p>
+</li>
+</ul>
+<ul>
+<li>
+<p>
+<samp>aptitude show <var>foo bar ...</var> | less</samp> (或 <samp>apt-cache
+show <var>foo bar ...</var> | less</samp>)
+</p>
+
+<p>
+檢查 <var>foo bar ...</var> 套件的資料。
+</p>
+</li>
+</ul>
+<ul>
+<li>
+<p>
+<samp>aptitude install <var>foo=2.2.4-1</var></samp>
+</p>
+
+<p>
+安裝 <var>foo</var> 套件的特定版本 <var>2.2.4-1</var> 。
+</p>
+</li>
+</ul>
+<ul>
+<li>
+<p>
+<samp>aptitude install <var>foo bar-</var></samp>
+</p>
+
+<p>
+安裝 <var>foo</var> 套件，並移除 <var>bar</var> 套件
+</p>
+</li>
+</ul>
+<ul>
+<li>
+<p>
+<samp>aptitude remove <var>bar</var></samp>
+</p>
+
+<p>
+移除 <var>bar</var> 套件但不刪除設定檔。
+</p>
+</li>
+</ul>
+<ul>
+<li>
+<p>
+<samp>aptitude purge <var>bar</var></samp>
+</p>
+
+<p>
+移除 <var>bar</var> 並刪除其設定檔。
+</p>
+</li>
+</ul>
+
+<p>
+在上面的例子中，在<code>apt-get</code> 中使用 <samp>-u</samp>
+選項會列出所有要升級的套件列表，並在動作前請示使用者。<code>aptitude</code>預設也是如此。下面的作法也會使
+<code>apt-get</code>完成上述的動作：
+</p>
+
+<pre>
+     $ cat &gt;&gt; /etc/apt/apt.conf &lt;&lt; .
+     // 總是列出要升級的套件 (-u)
+     APT::Get::Show-Upgraded &quot;true&quot;;
+     .
+</pre>
+
+<p>
+搭配 <samp>--no-act</samp> 來模擬這些安裝，移除...套件等動作。
+</p>
+
+<hr>
+
+<h2><a name="s-survival"></a>6.3 Debian 生存指令</h2>
+
+<p>
+掌握了這些知識，就能讓你享受無窮盡的&quot;升級&quot;了 :-)
+</p>
+
+<hr>
+
+<h3><a name="s-bug-check"></a>6.3.1 檢查 Debian 中的 bugs 並尋求幫助</h3>
+
+<p>
+如你使用某個套件出現問題，在尋求幫助或發送錯誤報告之前請確認查看過下列網站（
+<code>lynx</code> 、 <code>links</code> 和 <code>w3m</code> 都很好用）：
+</p>
+
+<pre>
+     $ lynx http://bugs.debian.org/
+     $ lynx http://bugs.debian.org/<var>package-name</var>  # 如果你知道套件名稱
+     $ lynx http://bugs.debian.org/<var>bugnumber</var>     # 如果你知道錯誤序號
+</pre>
+
+<p>
+在 Google (www.google.com) 中使用關鍵字 &quot;site:debian.org&quot; 搜索。
+</p>
+
+<p>
+如有疑問，可閱讀說明文件。設定 <samp>CDPATH</samp> 如下：
+</p>
+
+<pre>
+     export CDPATH=.:/usr/local:/usr/share/doc
+</pre>
+
+<p>
+並輸入
+</p>
+
+<pre>
+     $ cd <var>packagename</var>
+     $ pager README.Debian # 如果存在的話
+     $ mc
+</pre>
+
+<p>
+在 <a href="ch-support.zh-tw.html">Debian 的技術支援, 第 15 章</a>
+有更多的參考資料。
+</p>
+
+<hr>
+
+<h3><a name="s-apt-trouble"></a>6.3.2 APT 升級的錯誤排除方法</h3>
+
+<p>
+在升級 <samp>unstable</samp>或<samp>testing</samp> 時可能會遇到在 <a
+href="ch-woody.zh-tw.html#s-upgrade-system">升級, 第 5.3 節</a>
+所描述的套件相依性問題。在大多數情況下，是因為將要升級的套件所相依性套件不存在。這個問題可用下面的方法來解決：
+</p>
+
+<pre>
+     # aptitude dist-upgrade
+</pre>
+
+<p>
+如果這也沒辦法的話，就重複使用下列之一的方法至到問題自動解決：
+</p>
+
+<pre>
+     # aptitude -f upgrade         # 即使遇到錯誤也繼續升級
+     ... 或
+     # aptitude -f dist-upgrade    # 即使遇到錯誤也繼續 dist-upgrade
+</pre>
+
+<p>
+有些升級用的 script
+的確有問題，所以會持續出現狀況。通常要解決這個狀況，你最好能檢查一下這些討厭套件中的
+<code>/var/lib/dpkg/info/<var>packagename</var>.{post-,pre-}{install,removal}</code>
+script ，並執行：
+</p>
+
+<pre>
+     # dpkg --configure -a    # 設定所有部分安裝的套件
+</pre>
+
+<p>
+如果 script 抱怨它找不到設定檔的話，在 <code>/etc/</code>
+中找找對應的設定檔。如果你找到的是個有 <samp>.dpkg-new</samp>
+的副檔名（或是類似的東西），就把它的後綴去除掉（用 <code>mv</code> ）。
+</p>
+
+<p>
+在安裝 <samp>unstable</samp>或<samp>testing</samp>
+系統時也可能遇到相依性問題。可用這個方法巧妙的解決：
+</p>
+
+<pre>
+     # aptitude -f install <var>package</var> # override broken dependencies
+</pre>
+
+<p>
+要修正這些問題，另一個可用的方法是使用 <code>equivs</code> 套件。請參閱
+<code>file:///usr/share/doc/equivs/README.Debian</code> 和 <a
+href="#s-equivs"><code>equivs</code> 套件, 第 6.5.2 節</a> 。
+</p>
+
+<hr>
+
+<h3><a name="s-rescue-dpkg"></a>6.3.3 使用 <code>dpkg</code> 來救援</h3>
+
+<p>
+如果你在使用 APT 遇到死胡同，那麼可以從 Debian
+鏡射站台下載套件並使用<code>dpkg</code>來安裝。如果您還沒連上網路，可以鎖住
+<code>/var/cache/apt/archives/</code> 的快取檔案。
+</p>
+
+<pre>
+     # dpkg -i fetchmail_6.2.5-4_i386.deb
+</pre>
+
+<p>
+如果您嘗試安裝套件卻因為相依性問題失敗的話，請搭配<samp>--ignore-depends</samp><samp>--force-depends</samp>或其他參數來執行<code>dpkg</code>。<code>dpkg(8)</code>有更詳盡的介紹。
+</p>
+
+<hr>
+
+<h3><a name="s-recover-status"></a>6.3.4 回復套件的選取狀態的資料</h3>
+
+<p>
+不論是什麼原因，如果 <code>/var/lib/dpkg/status</code> 亂掉了的話，則 Debian
+系統會失去套件的選取狀態的資料，這是很糟糕的事。到
+<code>/var/lib/dpkg/status-old</code> 或
+<code>/var/backups/dpkg.status.*</code> 找找看舊的
+<code>/var/lib/dpkg/status</code> 檔。
+</p>
+
+<p>
+因為 <code>/var/backups/</code>
+這個目錄中有很多重要的系統資料，所以把它放到分開的分割區會是個不錯的主意。
+</p>
+
+<p>
+如果連舊的 <code>/var/lib/dpkg/status</code> 檔也找不到了，你仍可以從
+<code>/usr/share/doc/</code> 目錄來回復這些資料。
+</p>
+
+<pre>
+     # ls /usr/share/doc | \
+       grep -v [A-Z] | \
+       grep -v '^texmf$' | \
+       grep -v '^debian$' | \
+       awk '{print $1 &quot; install&quot;}' | \
+       dpkg --set-selections
+     # dselect --expert # 重新安裝系統，如果需要的話去除一些選取
+</pre>
+
+<hr>
+
+<h3><a name="s-rescue-var"></a>6.3.5 在 <code>/var</code> 崩潰後救援系統</h3>
+
+<p>
+因為 <code>/var</code> 目錄下包含了常被更動的資料，如 mail
+，所以比較容易會有損壞。
+把它放到獨立的分割區可以減少風險。如果災難發生了，你必需重建 <code>/var</code>
+以回復 Debian 系統。
+</p>
+
+<p>
+從相同或較舊版本的最簡化的 Debian 系統中取得 <code>/var</code>
+目錄內容的架構，例如 <code><code><a
+href="http://people.debian.org/~osamu/pub/">var.tar.gz</a></code></code>，將它放入受損系統的根目錄，然後
+</p>
+
+<pre>
+     # cd /
+     # mv var var-old      # 如果還留下有用的資料的話
+     # tar xvzf var.tar.gz # 使用 Woody 架構的檔案
+     # aptitude            # 或是用 dselect
+</pre>
+
+<p>
+上述步驟應可使系統恢復工作。使用 <a
+href="#s-recover-status">回復套件的選取狀態的資料, 第 6.3.4 節</a>
+中描述的技術來加快套件選取資料的恢復。 ([FIXME]
+：這個流程需要更多的實驗來驗證。)
+</p>
+
+<hr>
+
+<h3><a name="s-un-bootable"></a>6.3.6 把套件安裝到一個無法開機的系統</h3>
+
+<p>
+用 Debian 救援磁片/CD 或是一個多重開機的 Linux 系統的其它分割區來開機進入 Linux
+。請參閱 <a href="ch-tips.zh-tw.html#s-booting">啟動系統, 第 8.1 節</a> 。在
+<code>/target</code> 掛上這個無法開機的系統，並使用 <code>dpkg</code> 的 chroot
+安裝模式。
+</p>
+
+<pre>
+     # dpkg --root /target -i <var>packagefile.deb</var>
+</pre>
+
+<p>
+然後設定並解決問題。
+</p>
+
+<p>
+By the way, if a broken <code>lilo</code> is all that prevents booting, you can
+boot using a standard Debian rescue disk.  At boot prompt, assuming the root
+partition of your Linux installation is in <code>/dev/hda12</code> and you want
+runlevel 3, enter:
+</p>
+
+<pre>
+     boot: rescue root=/dev/<var>hda12</var> 3
+</pre>
+
+<p>
+Then you are booted into an almost fully functional system with the kernel on
+floppy disk.  (There may be minor glitches due to lack of kernel features or
+modules.)
+</p>
+
+<hr>
+
+<h3><a name="s6.3.7"></a>6.3.7 如果 <code>dpkg</code> 指令壞了怎麼辦</h3>
+
+<p>
+如果 <code>dpkg</code> 有問題，就不能安裝任何 <samp>.deb</samp>
+檔了。下列的流程可幫助你來修復這個情況。（在第一行中，你可以把
+&quot;links&quot; 換成你喜歡的瀏覽器指令。）
+</p>
+
+<pre>
+     $ links http://<var>http.us.debian.org</var>/debian/pool/main/d/dpkg/
+       ... 下載正確的 dpkg_<var>version</var>_<var>arch</var>.deb
+     $ su
+     password: *****
+     # ar x dpkg_<var>version</var>_<var>arch</var>.deb
+     # mv data.tar.gz /data.tar.gz
+     # cd /
+     # tar xzfv data.tar.gz
+</pre>
+
+<p>
+如果是 <samp>i386</samp> 的話，也可以用
+<samp>http://packages.debian.org/dpkg</samp> 。
+</p>
+
+<hr>
+
+<h2><a name="s-debian-package"></a>6.4 Debian 神技之指令</h2>
+
+<p>
+經過這些指令的<strong>啟示</strong>，你將可由無休止的升級地獄中解放出來，到達
+Debian <strong>涅盤</strong>。 :-)
+</p>
+
+<hr>
+
+<h3><a name="s-info-file"></a>6.4.1 檔案中的資訊</h3>
+
+<p>
+在已安裝的套件中尋找特定檔案樣板所屬的套件：
+</p>
+
+<pre>
+     $ dpkg {-S|--search} pattern
+</pre>
+
+<p>
+或者搜尋 Debian 檔案庫中類似的：
+</p>
+
+<pre>
+     $ wget http://ftp.us.debian.org/debian/dists/<var>sarge</var>/<var>Contents-i386.gz</var>
+     $ zgrep -e pattern <var>Contents-i386.gz</var>
+</pre>
+
+<p>
+或是使用特殊的套件命令：
+</p>
+
+<pre>
+     # aptitude install dlocate  
+     $ dlocate <var>filename</var>         # dpkg -L 和 dpkg -S 的快速版
+     ...
+     # aptitude install auto-apt # on-demand package installation tool
+     # auto-apt update          # 建立 auto-apt 的 db 檔
+     $ auto-apt search <var>pattern</var>  
+                     # 尋找符合某個 pattern 的套件，不論是否安裝
+</pre>
+
+<hr>
+
+<h3><a name="s-info-package"></a>6.4.2 套件的資訊</h3>
+
+<p>
+從套件 archive 中尋找並顯示資訊。編輯 <code>/etc/apt/sources.list</code> 以確定
+APT 指向適合的 archive(s)。如果想了解
+<samp>testing</samp>/<samp>unstable</samp>
+中的相對應套件與當前系統安裝的套件有何差別，使用 <samp>apt-cache
+policy</samp>&mdash;會好得多。
+</p>
+
+<pre>
+     # apt-get   check           # 更新暫存區並檢查損壞的套件
+     $ apt-cache search  <var>pattern</var> # 搜尋套件的文字敘述
+     $ apt-cache policy  <var>package</var> # 套件的 priority/dists 資訊
+     $ apt-cache show -a <var>package</var> # show description of package in all dists
+     $ apt-cache showsrc <var>package</var> # show description of matching source package
+     $ apt-cache showpkg <var>package</var> # 套件的除錯資訊
+     # dpkg  --audit|-C          # search for partially installed packages
+     $ dpkg {-s|--status} <var>package</var> ... # 已安裝套件的敘述
+     $ dpkg -l <var>package</var> ...       # 已安裝套件的狀態 (一行一個)
+     $ dpkg -L <var>package</var> ...       # 列出套件安裝的檔案
+</pre>
+
+<p>
+<samp>apt-cache showsrc</samp> 在 Woody release 時沒有文件，但是會動 :)
+</p>
+
+<p>
+你也可以在下列的地方找到套件資訊 (我用 <samp>mc</samp> 來瀏覽) ：
+</p>
+
+<pre>
+     /var/lib/apt/lists/*
+     /var/lib/dpkg/available
+</pre>
+
+<p>
+比較下面的檔案可以正確的了解最近幾個安裝的過程對系統造成了那些改變。
+</p>
+
+<pre>
+     /var/lib/dpkg/status
+     /var/backups/dpkg.status*
+</pre>
+
+<hr>
+
+<h3><a name="s-apt-get-auto"></a>6.4.3 Unattended installation with APT</h3>
+
+<p>
+For an unattended installation，請在 <code>/etc/apt/apt.conf</code> 加入一行：
+</p>
+
+<pre>
+     Dpkg::Options {&quot;--force-confold&quot;;}
+</pre>
+
+<p>
+這等同於執行 <samp>aptitude -y install <var>packagename</var></samp> 或
+<samp>apt-get -q -y install
+<var>packagename</var></samp>。因為這個作法是對所有的提示都回答 &quot;yes&quot;
+的，所以可能會造成問題，請小心使用。參閱 <code>apt.conf(5)</code> 和
+<code>dpkg(1)</code> 。
+</p>
+
+<p>
+你可以在稍後用 <a href="#s-reconfigure">重新設定已安裝的套件, 第 6.4.4 節</a>
+的方法重新設定特定的套件。
+</p>
+
+<hr>
+
+<h3><a name="s-reconfigure"></a>6.4.4 重新設定已安裝的套件</h3>
+
+<p>
+使用下面的指令來重新設定任何已安裝的套件。
+</p>
+
+<pre>
+     # dpkg-reconfigure --priority=<var>medium</var> <var>package</var> [...]
+     # dpkg-reconfigure --all   # 重新設定所有的套件
+     # dpkg-reconfigure locales # 產生額外的 locales
+     # dpkg-reconfigure --p=<var>low</var> xserver-xfree86 # 重新設定 X server
+</pre>
+
+<p>
+如果你要永久設定 <code>debconf</code> 為對話窗模式，請對 <code>debconf</code>
+進行重設定。
+</p>
+
+<p>
+有些程式是用做特殊設定的 scripts 。 [<a href="footnotes.zh-tw.html#f36"
+name="fr36">36</a>]
+</p>
+
+<pre>
+     apt-setup     - 建立 /etc/apt/sources.list
+     install-mbr   - 安裝 Master Boot Record manager
+     tzconfig      - 設定本地時區
+     gpmconfig     - 設定 gpm mouse daemon
+     eximconfig    - 設定 Exim (MTA)
+     texconfig     - 設定 teTeX
+     apacheconfig  - 設定 Apache (httpd)
+     cvsconfig     - 設定 CVS
+     sndconfig     - 設定音效系統
+     ...
+     update-alternatives - 設定預設的指令， e.g., vim as vi
+     update-rc.d         - System-V init script management
+     update-menus        - Debian 選單系統
+     ...
+</pre>
+
+<hr>
+
+<h3><a name="s-remove"></a>6.4.5 移除和清除套件</h3>
+
+<p>
+移除套件但保留它的設定檔：
+</p>
+
+<pre>
+     # aptitude remove <var>package</var> ...
+     # dpkg   --remove <var>package</var> ...
+</pre>
+
+<p>
+移除套件並清除所有的設定檔：
+</p>
+
+<pre>
+     # aptitude  purge  <var>package</var> ...
+     # dpkg    --purge  <var>package</var> ...
+</pre>
+
+<hr>
+
+<h3><a name="s-hold"></a>6.4.6 維持舊的套件</h3>
+
+<p>
+舉例來說，下面的指令可以在 <code>dselect</code> 和 <samp>aptitude install
+<var>package</var></samp> 時維持 <code>libc6</code> 和 <code>libc6-dev</code>
+的版本：
+</p>
+
+<pre>
+     # echo -e &quot;libc6 hold\nlibc6-dev hold&quot; | dpkg --set-selections
+</pre>
+
+<p>
+但這個方法擋不住 <samp>aptitude install <var>package</var></samp> 。如果要在
+<samp>aptitude upgrade <var>package</var></samp> 或 <samp>aptitude
+dist-upgrade</samp> 時自動降級來維持版本的話，在
+<code>/etc/apt/preferences</code> 中加入：
+</p>
+
+<pre>
+     Package: libc6
+     Pin: release a=stable
+     Pin-Priority: 2000
+</pre>
+
+<p>
+在這裡的 &quot;<samp>Package:</samp>&quot; 不能用類似
+&quot;<samp>libc6*</samp>&quot; 的用法。如果你要所有有關 <code>glibc</code>
+的二進位套件都維持同步的話，你需要明確地把它們都列出來。
+</p>
+
+<p>
+下面的指令可以列出被維持住的套件：
+</p>
+
+<pre>
+     dpkg --get-selections &quot;*&quot;|grep -e &quot;hold$&quot;
+</pre>
+
+<hr>
+
+<h3><a name="s-mixedsys"></a>6.4.7 <samp>stable</samp>/<samp>testing</samp>/<samp>unstable</samp> 混合系統</h3>
+
+<p>
+<code>apt-show-versions</code> 能以 distribution 來列出可用的套件版本。
+</p>
+
+<pre>
+     $ apt-show-versions | fgrep /testing | wc
+     ... 在 testing 中的套件數目
+     $ apt-show-versions -u
+     ... 列出可升級的套件
+     $ aptitude install `apt-show-versions -u -b | fgrep /unstable`
+     ... 將所有 unstalbe 的套件升級至各自最新的版本
+</pre>
+
+<hr>
+
+<h3><a name="s-cache"></a>6.4.8 刪除暫存的套件檔</h3>
+
+<p>
+用 APT 安裝的套件會在 <code>/var/cache/apt/archives/</code>
+留下暫存的套件檔。這些檔案是可以刪除的。
+</p>
+
+<pre>
+     # aptitude autoclean # 只刪除無用的套件檔
+     # aptitude clean     # 刪除所有的暫存套件檔
+</pre>
+
+<hr>
+
+<h3><a name="s-record"></a>6.4.9 記錄/複製系統設定</h3>
+
+<p>
+要把套件選取狀態複製到本地端：
+</p>
+
+<pre>
+     # dpkg --get-selections &quot;*&quot; &gt;<var>myselections</var>   # 或使用 \*
+     # debconf-get-selections &gt; <var>debconfsel.txt</var>
+</pre>
+
+<p>
+<samp>&quot;*&quot;</samp> 使 <samp><var>myselections</var></samp> 也包含標記為
+&quot;purge&quot; 的套件。
+</p>
+
+<p>
+你可將這個檔案傳到另一台電腦，並用下列的方法把它安裝起來：
+</p>
+
+<pre>
+     # dselect update
+     # debconf-set-selections &lt; <var>debconfsel.txt</var>
+     # dpkg --set-selections &lt;<var>myselections</var>
+     # apt-get -u dselect-upgrade    # <var>或</var> dselect install
+</pre>
+
+<hr>
+
+<h3><a name="s-port"></a>6.4.10 把套件引入 <samp>stable</samp> 系統</h3>
+
+<p>
+將 <samp>stable</samp>
+系統進行部分升級，並在些環境下以重編建的方式來使用套件，這個方法是可以期待的。這個方法可以避免因相依性而對大量套件升級。首先，將下列來源加入
+<code>/etc/apt/sources.list</code> ：
+</p>
+
+<pre>
+     deb-src http://http.us.debian.org/debian testing \
+      main contrib non-free
+     deb-src http://http.us.debian.org/debian unstable \
+      main contrib non-free
+</pre>
+
+<p>
+因為螢幕輸出的限制，上面 <samp>deb-src</samp> 中每一項都分成了2行，實際上在
+<code>sources.list</code> 中它們都應該是單行。
+</p>
+
+<p>
+然後取得源碼套件並編建出本地端的套件：
+</p>
+
+<pre>
+     $ apt-get update  # 更新源碼套件的搜尋列表
+     $ apt-get source <var>package</var>
+     $ dpkg-source -x <var>package.dsc</var>
+     $ cd <var>package-version</var>
+       ... 檢查必需的套件 ( 在 .dsc 檔中的 Build-depends) 並也一起安裝。
+           你也需要 &quot;fakeroot&quot; 套件。
+     
+     $ dpkg-buildpackage -rfakeroot 
+     
+       ... 或是 (no sig)
+     $ dpkg-buildpackage -rfakeroot -us -uc # 如果需要的話，再使用 &quot;debsign&quot; 
+     
+       ... 然後就安裝吧
+     $ su -c &quot;dpkg -i <var>packagefile.deb</var>&quot;
+</pre>
+
+<p>
+通常，你會需要安裝一些以 &quot;-dev&quot; 結尾的套件以滿足相依性的要求。
+<code>debsign</code> 在 <code>devscripts</code> 套件中。 <code>auto-apt</code>
+可以輕鬆解決相依性的問題。請使用 <code>fakeroot</code> 以避免不必要的 root
+帳號使用。
+</p>
+
+<p>
+在 Woody 中，這些相依性可被簡化。例如編譯 <code>pine</code> 源碼套件：
+</p>
+
+<pre>
+     # apt-get build-dep pine
+     # apt-get source -b pine
+</pre>
+
+<hr>
+
+<h3><a name="s-local"></a>6.4.11 本地端的套件 archive</h3>
+
+<p>
+為了要建立相容於 APT 和 <code>dselect</code> 系統的本地端套件，需要建立
+<code>Packages</code> 檔，而且套件檔需要被放在特別的檔案目錄樹中。
+</p>
+
+<p>
+可以用下列的方法來建立類似官方 Debian archive 的本地端 <samp>deb</samp>
+repository ：
+</p>
+
+<pre>
+     # aptitude install dpkg-dev
+     # cd <var>/usr/local</var>
+     # install -d <var>pool</var> # 套件實體是放在這裡
+     # install -d dists/<var>unstable</var>/<var>main</var>/binary-<var>i386</var>
+     # ls -1 <var>pool</var> | sed 's/_.*$/ <var>priority</var> <var>section</var>/' | uniq &gt; <var>override</var>
+     # editor <var>override</var> # 調整 <var>priority</var> 和 <var>section</var>
+     # dpkg-scanpackages <var>pool</var> <var>override</var> <var>/usr/local</var>/ \
+        &gt; dists/<var>unstable</var>/<var>main</var>/binary-<var>i386</var>/Packages
+     # cat &gt; dists/<var>unstable</var>/<var>main</var>/Release &lt;&lt; EOF
+     Archive: <var>unstable</var>
+     Version: <var>3.0</var>
+     Component: <var>main</var>
+     Origin: <var>Local</var>
+     Label: <var>Local</var>
+     Architecture: <var>i386</var>
+     EOF
+     # echo &quot;deb file:<var>/usr/local</var> <var>unstable</var> <var>main</var>&quot; \
+        &gt;&gt; /etc/apt/sources.list
+</pre>
+
+<p>
+不然，你也可以用一個快速但骯髒的方法來建立本地端的 <samp>deb</samp> repository
+：
+</p>
+
+<pre>
+     # aptitude install dpkg-dev
+     # mkdir <var>/usr/local/debian</var>
+     # mv <var>/some/where/package.deb</var> <var>/usr/local/debian</var>
+     # dpkg-scanpackages <var>/usr/local/debian</var> /dev/null | \
+       gzip - &gt; <var>/usr/local/debian</var>/Packages.gz
+     #  echo &quot;deb file:<var>/usr/local/debian</var> ./&quot; &gt;&gt; /etc/apt/sources.list
+</pre>
+
+<p>
+把這些目錄開放給 HTTP 或 FTP 存取，並在 <code>/etc/apt/sources.list</code>
+中設定相對應的位址，就可以遠端存取這些 archives 了。
+</p>
+
+<hr>
+
+<h3><a name="s-alien"></a>6.4.12 轉換或安裝外來的二進位套件</h3>
+
+<p>
+<code>alien</code> 可將 Red Hat <samp>rpm</samp> ， Stampede <samp>slp</samp>
+， Slackware <samp>tgz</samp> 和 Solaris <samp>pkg</samp>
+的二進位套件檔案格式轉成 Debian 的 <samp>deb</samp>
+套件。如果你不要使用你已安裝在系統中的套件，而想裝來自其他 Linux distribution
+的套件的話，你可以使用 <code>alien</code> 來將其轉成你喜愛的套件格式並安裝。
+<code>alien</code> 也支援 LSB 套件。
+</p>
+
+<hr>
+
+<h3><a name="s-auto-apt"></a>6.4.13 Automatically install command</h3>
+
+<p>
+<code>auto-apt</code> is an on-demand package installation tool.
+</p>
+
+<pre>
+     $ sudo auto-apt update
+      ... update database
+     $ auto-apt -x -y run
+     Entering auto-apt mode: /bin/bash
+     Exit the command to leave auto-apt mode.
+     $ less /usr/share/doc/med-bio/copyright # access non-existing file
+      ...  Install the package which provide this file.
+      ... Also install dependencies
+</pre>
+
+<hr>
+
+<h3><a name="s-debsums"></a>6.4.14 驗證已安裝的套件檔</h3>
+
+<p>
+<code>debsums</code> 以 MD5
+偵錯碼的方式來驗證已安裝的套件檔。有些套件並沒有可用的 MD5
+偵錯碼。有個可能的暫時性的修正方法提供給系統管理員：
+</p>
+
+<pre>
+     # cat &gt;&gt;/etc/apt/apt.conf.d/90debsums
+     DPkg::Post-Install-Pkgs {&quot;xargs /usr/bin/debsums -sg&quot;;};
+     ^D
+</pre>
+
+<p>
+per Joerg Wendland <code><a
+href="mailto:joergland@debian.org">joergland@debian.org</a></code> (untested).
+</p>
+
+<hr>
+
+<h3><a name="s-spy"></a>6.4.15 <code>sources.list</code> 最佳化</h3>
+
+<p>
+簡而言之，像我這樣住得離美國很遠的人，用什麼奇特的方法建出來的最佳化
+<code>sources.list</code> 其實並沒什麼顯著的效果。還是用 <code>apt-setup</code>
+手動選個靠近的站台吧。
+</p>
+
+<p>
+<code>apt-spy</code> 會依 latency 和頻寬來自動產生 <code>sources.list</code>
+檔。 <code>netselect-apt</code> 會建立更完整的 <code>sources.list</code>
+，但在選站台時用的是比較差的方法 (比較 ping 的時間) 。
+</p>
+
+<pre>
+     # aptitude install apt-spy
+     # cd /etc/apt ; mv sources.list sources.list.org
+     # apt-spy -d testing -l sources.apt
+</pre>
+
+<hr>
+
+<h2><a name="s-pecuriarities"></a>6.5 Debian 其它特別之處</h2>
+
+<hr>
+
+<h3><a name="s-dpkg-divert"></a>6.5.1 <code>dpkg-divert</code> 指令</h3>
+
+<p>
+檔案移轉是強迫 <code>dpkg</code>
+把某個檔案安裝在一個<strong>被轉移過的</strong>位置，而非預設的位置。當 Debian
+套件的 scripts
+發生衝突時，可用<strong>移轉</strong>來將檔案移開。系統管理者也可以用移轉來多載套件的設定檔，或是用在當安裝套件新版本時，包括有些沒被標記為
+conffiles 而需要被 <code>dpkg</code> 所保留的檔案。（參閱 <a
+href="ch-system.zh-tw.html#s-conffile">保留本機設定檔, 第 2.2.4 節</a> ）。
+</p>
+
+<pre>
+     # dpkg-divert [--add]  <var>filename</var> # 加入 &quot;diversion&quot;
+     # dpkg-divert --remove <var>filename</var> # 刪除 &quot;diversion&quot;
+</pre>
+
+<p>
+平時不要請使用 <code>dpkg-divert</code> ，除非是必要的情況下。
+</p>
+
+<hr>
+
+<h3><a name="s-equivs"></a>6.5.2 <code>equivs</code> 套件</h3>
+
+<p>
+如果你從源碼來編譯程式，最好是能將它做成本地的 Debian 套件
+(<samp>*.deb</samp>)。最後的手段是使用 <samp>equivs</samp> 。
+</p>
+
+<pre>
+     Package: equivs
+     Priority: extra
+     Section: admin
+     Description: Circumventing Debian package dependencies
+      This is a dummy package which can be used to create Debian
+      packages, which only contain dependency information.
+</pre>
+
+<hr>
+
+<h3><a name="s-alternatives"></a>6.5.3 Alternative 指令</h3>
+
+<p>
+如果想用 <code>vi</code> 來執行 <code>vim</code> ，請用
+<code>update-alternatives</code> ：
+</p>
+
+<pre>
+     # update-alternatives --display vi
+     ...
+     # update-alternatives --config vi
+       Selection    Command
+     -----------------------------------------------
+           1        /usr/bin/elvis-tiny
+           2        /usr/bin/vim
+     *+    3        /usr/bin/nvi
+     
+     Enter to keep the default[*], or type selection number: 2
+</pre>
+
+<p>
+在 Debian alternatives 系統中的項目都以符號連結的方式放在
+<code>/etc/alternatives/</code> 。
+</p>
+
+<p>
+想設定你喜歡的 X 視窗環境的話，請用 <code>update-alternatives</code> 來修改
+<code>/usr/bin/x-session-manager</code> 和
+<code>/usr/bin/x-window-manager</code> 。詳請請參閱 <a
+href="ch-tune.zh-tw.html#s-custom-x">自定 X sessions, 第 9.4.5.1 節</a> 。
+</p>
+
+<p>
+<code>/bin/sh</code> 則就直接符號連結至 <code>/bin/bash</code> 或
+<code>/bin/dash</code> 。如果要相容於舊有且 bash 化的 script 的話，用
+<code>/bin/bash</code> 會比較好點，但用 <code>/bin/dash</code> 可強迫訓練你與
+POSIX 相容。升級至 2.4 Linux kernel 時傾向於將其設定至 <code>/bin/dash</code>
+。
+</p>
+
+<hr>
+
+<h3><a name="s-sys-v"></a>6.5.4 Runlevel</h3>
+
+<p>
+大部分的Debian套件在安裝後是被設定在 runlevel 2 到 5 時會自動執行。
+因此，Debian 系統的 runlevel 2,3,4,5是沒有差別的，而 Debian
+是保留給系統管理者來設定。 <a
+href="ch-system.zh-tw.html#s-custombootscripts">自訂 RunLevel, 第 2.4.3
+節</a>說明如何自定 runlevels。 這樣的 runlevels 系統是與其他有名的 GNU/Linux
+發行版本完全不同。 您或許想取消 runlevel 2 上的<code>xdm</code> 或
+<code>gdm</code> 在開機後自動執行 X display 管理器。您也可以試著修改 runlevel 3
+的設定。
+</p>
+
+<p>
+<a href="ch-system.zh-tw.html#s-runlevels">Runlevels, 第 2.4.2 節</a> 有更多
+Runlevl 的資訊。
+</p>
+
+<hr>
+
+<h3><a name="s-disables"></a>6.5.5 停止 daemon 服務程式</h3>
+
+<p>
+Debian distribution 非常注重系統安全，許多 daemon
+伺服程式都定位在最高安全等級，因而在預設的安裝狀態下，系統只啟動最少的可用的服務程式。
+</p>
+
+<p>
+如果你不確定你執行了什麼服務程式（像 Exim ， DHCP …）的話，執行 <samp>ps
+aux</samp> 或檢查一下 <code>/etc/init.d/*</code> 和
+<code>/etc/inetd.conf</code> 的內容。同時也使用 <a
+href="ch-tune.zh-tw.html#s-loginctrl">利用 PAM 來控制登入程序, 第 9.2.1 節</a>
+的方法確認一下 <code>/etc/hosts.deny</code> 。而 <code>pidof</code>
+指令也是很有用的（請參閱 <code>pidof(8)</code>）。
+</p>
+
+<p>
+在最近的 Debian 版本中，預設 X11 是不允許（遠端） TCP/IP 連接的。請參閱 <a
+href="ch-tune.zh-tw.html#s-xtcp">在TCP/IP的環境中使用X Window, 第 9.4.6 節</a>
+。經由 SSH 來 X forwarding 也是禁止的。請參閱 <a
+href="ch-tune.zh-tw.html#s-xssh">連線到遠端的 X server &ndash;
+<code>ssh</code>, 第 9.4.8 節</a> 。
+</p>
+
+<hr>
+
+<p>
+[ <a href="ch-woody.zh-tw.html">上一頁</a> ]
+[ <a href="index.zh-tw.html#contents">目錄</a> ]
+[ <a href="ch-preface.zh-tw.html">1</a> ]
+[ <a href="ch-system.zh-tw.html">2</a> ]
+[ <a href="ch-install.zh-tw.html">3</a> ]
+[ <a href="ch-tutorial.zh-tw.html">4</a> ]
+[ <a href="ch-woody.zh-tw.html">5</a> ]
+[ 6 ]
+[ <a href="ch-kernel.zh-tw.html">7</a> ]
+[ <a href="ch-tips.zh-tw.html">8</a> ]
+[ <a href="ch-tune.zh-tw.html">9</a> ]
+[ <a href="ch-gateway.zh-tw.html">10</a> ]
+[ <a href="ch-edit.zh-tw.html">11</a> ]
+[ <a href="ch-vcs.zh-tw.html">12</a> ]
+[ <a href="ch-program.zh-tw.html">13</a> ]
+[ <a href="ch-gnupg.zh-tw.html">14</a> ]
+[ <a href="ch-support.zh-tw.html">15</a> ]
+[ <a href="ap-appendix.zh-tw.html">A</a> ]
+[ <a href="ch-kernel.zh-tw.html">下一頁</a> ]
+</p>
+
+<hr>
+
+<p>
+Debian 參考手冊
+</p>
+
+<address>
+CVS, 週一 六月 16 21:20:48 UTC 2008<br>
+<br>
+Osamu Aoki <code><a href="mailto:osamu#at#debian.org">osamu#at#debian.org</a></code><br>
+Asho Yeh <code><a href="mailto:asho#at#debian.org.tw">asho#at#debian.org.tw</a></code><br>
+<a href="ap-appendix.zh-tw.html#s-authors">作者, 第 A.1 節</a><br>
+<br>
+</address>
+<hr>
+
+</body>
+
+</html>
+

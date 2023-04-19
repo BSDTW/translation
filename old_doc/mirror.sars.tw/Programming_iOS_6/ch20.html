@@ -1,0 +1,1059 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>Chapter 20. Scroll Views</title>
+    <link rel="stylesheet" type="text/css" href="docbook-xsl-mymods.css" />
+    <meta name="generator" content="DocBook XSL Stylesheets V1.76.0" />
+    <link rel="home" href="index.html" />
+    <link rel="up" href="pt05.html" />
+    <link rel="prev" href="ch19.html" />
+    <link rel="next" href="ch21.html" />
+  </head>
+  <body>
+    <div class="mattnotice">
+      <p>As a courtesy, this is a <b>full free</b> rendering of my book, <i>Programming iOS 6</i>, by Matt Neuburg. Copyright 2013 Matt Neuburg. Please note that this book has now been completely superseded by two more recent books, <a href="http://shop.oreilly.com/product/0636920032465.do">iOS 7 Fundamentals</a> and <a href="http://shop.oreilly.com/product/0636920031017.do">Programming iOS 7</a>. If my work has been of help to you, please <b>consider purchasing</b> one or both of them. Thank you!
+	</p>
+    </div>
+    <div class="navfooter">
+      <table width="100%" summary="Navigation footer">
+        <tr>
+          <td width="40%" align="left"><a accesskey="p" href="ch19.html">Prev</a> </td>
+          <td width="20%" align="center">
+            <a accesskey="u" href="pt05.html">Up</a>
+          </td>
+          <td width="40%" align="right"> <a accesskey="n" href="ch21.html">Next</a></td>
+        </tr>
+        <tr>
+          <td width="40%" align="left" valign="top">Chapter 19. View Controllers </td>
+          <td width="20%" align="center">
+            <a accesskey="h" href="index.html">Table of Contents</a>
+          </td>
+          <td width="40%" align="right" valign="top"> Chapter 21. Table Views and Collection Views</td>
+        </tr>
+      </table>
+    </div>
+    <div class="chapter">
+      <div class="titlepage">
+        <div>
+          <div>
+            <h2 class="title"><a id="chap_id20"></a>Chapter 20. Scroll Views</h2>
+          </div>
+        </div>
+      </div>
+      <p>A scroll view (UIScrollView) is a view whose content is larger than its bounds. To reveal a desired area, the user can scroll the content by dragging or flicking, or you can reposition the content in code.
+<a id="idm441646635840" class="indexterm"></a><a id="idxscrollviews" class="indexterm"></a></p>
+      <p>A scroll view isn’t magic. It’s really quite an ordinary UIView, taking advantage of ordinary UIView features (<a class="xref" href="ch14.html">Chapter 14</a>). The content is simply the scroll view’s subviews. When the scroll view scrolls, what’s really changing is the scroll view’s own bounds origin; the subviews are positioned with respect to the bounds origin, so they move with it. The scroll view’s <code class="literal">clipsToBounds</code> is usually YES, so any content positioned within the scroll view’s bounds width and height is visible and any content positioned outside them is not.</p>
+      <p>However, a scroll view does bring to the table some nontrivial additional abilities:</p>
+      <div class="itemizedlist">
+        <ul class="itemizedlist" type="disc">
+          <li class="listitem">
+It knows how to shift its bounds origin in response to the user’s gestures.
+</li>
+          <li class="listitem">
+It provides scroll indicators whose size and position give the user a clue as to the content’s size and position.
+</li>
+          <li class="listitem">
+It can optionally enforce paging, whereby the user can view only integral portions of the content.
+</li>
+          <li class="listitem">
+It can support zooming, so that the user can resize the apparent content by pinching.
+</li>
+        </ul>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_creating_a_scroll_view"></a>Creating a Scroll View</h2>
+            </div>
+          </div>
+        </div>
+        <p>The scroll view’s subviews are positioned with respect to its bounds origin. The scroll view knows how far it should be allowed to slide its subviews downward and rightward — the limit is reached when the scroll view’s bounds origin is <code class="literal">{0,0}</code>. What the scroll view doesn’t know is how far it should be allowed to slide its subviews upward and leftward. To tell it, you set the scroll view’s <code class="literal">contentSize</code>. The scroll view uses its <code class="literal">contentSize</code>, in combination with its own bounds size, to set the limits on how large its bounds origin can become. In effect, the <code class="literal">contentSize</code> is how large the scrollable content is. If a dimension of the <code class="literal">contentSize</code> isn’t larger than the same dimension of the scroll view’s own bounds, the content won’t be scrollable in that dimension: there is nothing to scroll, as the entire scrollable content is already showing. A remarkable feature of autolayout (<a class="xref" href="ch14.html">Chapter 14</a>) is that it can calculate the <code class="literal">contentSize</code> for you based on the constraints of the scroll view’s subviews.</p>
+        <p>To illustrate, I’ll start by creating a scroll view and providing it with subviews entirely in code. In the first instance, let’s <span class="emphasis"><em>not</em></span> use autolayout. Our project is based on the Empty Application template. Add a UIViewController subclass, ViewController, with no nib. In the app delegate’s <code class="literal">application:didFinishLaunchingWithOptions:</code>, we do the usual dance to get ourselves a root view controller:</p>
+        <pre class="screen">self.window = [[UIWindow alloc] initWithFrame:
+               [[UIScreen mainScreen] bounds]];
+// Override point for customization after application launch.
+self.viewController = [ViewController new];
+self.window.rootViewController = self.viewController;
+[self.window makeKeyAndVisible];
+return YES;</pre>
+        <p>In the view controller’s <code class="literal">loadView</code> I’ll create the scroll view and make it the root view, and populate it with 30 UILabels whose text contains a sequential number so that we can see where we are when we scroll:</p>
+        <pre class="screen">UIScrollView* sv = [[UIScrollView alloc] initWithFrame:
+                    [[UIScreen mainScreen] applicationFrame]];
+sv.backgroundColor = [UIColor whiteColor];
+self.view = sv;
+CGFloat y = 10;
+for (int i=0; i&lt;30; i++) {
+    UILabel* lab = [UILabel new];
+    lab.text = [NSString stringWithFormat:@"This is label %i", i+1];
+    [lab sizeToFit];
+    CGRect f = lab.frame;
+    f.origin = CGPointMake(10,y);
+    lab.frame = f;
+    [sv addSubview:lab];
+    y += lab.bounds.size.height + 10;
+}
+CGSize sz = sv.bounds.size;
+sz.height = y;
+sv.contentSize = sz; // This is the crucial line</pre>
+        <p>The crucial move, as the comment notes, is that we tell the scroll view how large its content is to be. If we omit this step, the scroll view won’t be scrollable; the window will appear to consist of a static column of labels.</p>
+        <p>There is no rule about the order in which you perform the two operations of setting the <code class="literal">contentSize</code> and populating the scroll view with subviews. In this example, we set the <code class="literal">contentSize</code> afterward because it is more convenient to track the heights of the subviews as we add them than to calculate their total height in advance. Similarly, you can alter a scroll view’s content (subviews) and <code class="literal">contentSize</code> dynamically as the app runs.</p>
+        <p>Any direct subviews of the scroll view may need to have their autoresizing set appropriately in case the scroll view is resized, as would happen, for instance, if our app performs compensatory rotation. To see this, add these lines inside the for loop:</p>
+        <pre class="screen">lab.backgroundColor = [UIColor redColor]; // make label bounds visible
+lab.autoresizingMask = UIViewAutoresizingFlexibleWidth;</pre>
+        <p>Run the app, and rotate the device or the Simulator. The labels are wider in portrait orientation because the scroll view itself is wider. (This has nothing to do with the <code class="literal">contentSize</code>! The <code class="literal">contentSize</code> does not change just because the scroll view’s bounds changed, and resizing the <code class="literal">contentSize</code> has no effect on the size of the scroll view’s subviews; it merely determines the scrolling limit.)</p>
+        <p>Now I’ll rewrite the example to use constraints.<a id="idm441646604960" class="indexterm"></a> The example will be clearer if the scroll view is itself positioned by constraints inside the actual root view. So delete <code class="literal">loadView</code>, allowing the root view to be an automatically generated generic UIView, and implement <code class="literal">viewDidLoad</code> instead:</p>
+        <pre class="screen">[super viewDidLoad];
+UIScrollView* sv = [UIScrollView new];
+sv.backgroundColor = [UIColor whiteColor];
+sv.translatesAutoresizingMaskIntoConstraints = NO;
+[self.view addSubview:sv];
+[self.view addConstraints:
+ [NSLayoutConstraint constraintsWithVisualFormat:@"H:|[sv]|"
+                                         options:0 metrics:nil
+                                           views:@{@"sv":sv}]];
+[self.view addConstraints:
+ [NSLayoutConstraint constraintsWithVisualFormat:@"V:|[sv]|"
+                                         options:0 metrics:nil
+                                           views:@{@"sv":sv}]];
+UILabel* previousLab = nil;
+for (int i=0; i&lt;30; i++) {
+    UILabel* lab = [UILabel new];
+    lab.translatesAutoresizingMaskIntoConstraints = NO;
+    lab.text = [NSString stringWithFormat:@"This is label %i", i+1];
+    [sv addSubview:lab];
+    [sv addConstraints:
+     [NSLayoutConstraint constraintsWithVisualFormat:@"H:|-(10)-[lab]"
+                                             options:0 metrics:nil
+                                               views:@{@"lab":lab}]];
+    if (!previousLab) { // first one, pin to top
+        [sv addConstraints:
+         [NSLayoutConstraint constraintsWithVisualFormat:@"V:|-(10)-[lab]"
+                                                 options:0 metrics:nil
+                                                   views:@{@"lab":lab}]];
+    } else { // all others, pin to previous
+        [sv addConstraints:
+         [NSLayoutConstraint
+          constraintsWithVisualFormat:@"V:[prev]-(10)-[lab]"
+                                  options:0 metrics:nil
+                                    views:@{@"lab":lab, @"prev":previousLab}]];
+    }
+    previousLab = lab;
+}
+// last one, pin to bottom and right, this dictates content size height
+[sv addConstraints:
+ [NSLayoutConstraint constraintsWithVisualFormat:@"V:[lab]-(10)-|"
+                                         options:0 metrics:nil
+                                           views:@{@"lab":previousLab}]];
+[sv addConstraints:
+ [NSLayoutConstraint constraintsWithVisualFormat:@"H:[lab]-(10)-|"
+                                         options:0 metrics:nil
+                                           views:@{@"lab":previousLab}]];
+// look, Ma, no contentSize!</pre>
+        <p>As the final comment says, there’s no need to set the <code class="literal">contentSize</code>. This works because the constraints of the scroll view’s subviews describe completely their relationship to their superview: besides the tops and bottoms of the subviews being pinned to one another, the top one is pinned to the top of the superview, the bottom one is pinned to the bottom of the superview, and the left and right of all of them are pinned to the left and right of the superview. Consequently, the runtime calculates the <code class="literal">contentSize</code> for us.</p>
+        <p>(A second strategy for using autolayout inside a scroll view is to provide a single generic UIView as the sole immediate subview of the scroll view, and position all the other subviews inside that generic UIView. The generic UIView itself can then keep its <code class="literal">translatesAutoresizingMaskIntoConstraints</code> set to YES and can be given an explicit size, and the scroll view’s <code class="literal">contentSize</code> should then be set to match that size.)</p>
+        <p>Next, I’ll design a scroll view in a nib. The example is based on my Zotz! app, where the user specifies preference settings in a navigation interface inside a tab bar interface. The problem is that, what with the navigation bar and the tab bar occupying valuable screen real estate, there isn’t enough vertical space for the various interface objects in the preferences view (<a class="xref" href="ch20.html#FIGzotzSettings">Figure 20.1</a>). The obvious solution is that the preferences view should be scrollable. To lay out the preferences view’s subviews in code would be painful and unmaintainable; a nib-based solution is better.</p>
+        <div class="figure">
+          <a id="FIGzotzSettings"></a>
+          <div class="figure-contents">
+            <div class="mediaobject">
+              <img src="figs/pios_2001.png" alt="figs/pios_2001.png" />
+            </div>
+          </div>
+          <p class="title">Figure 20.1. The Zotz! settings view</p>
+        </div>
+        <br class="figure-break" />
+        <p>A UIScrollView is available in the nib editor in the Object library, so you can drag it into a view in the canvas and give it subviews. Alternatively, you can wrap existing views in the canvas in a UIScrollView as an afterthought: select the views and choose Editor → Embed In → Scroll View. The scroll view can’t be scrolled in the nib editor, so to design its subviews, you make the scroll view large enough to accommodate them; if this makes the scroll view too large, you can resize the actual scroll view instance when the nib loads.</p>
+        <p>Unfortunately, the nib editor provides no way to set the scroll view’s <code class="literal">contentSize</code>, so you have to do it in code. But what should that <code class="literal">contentSize</code> be? In my example, the scroll view doesn’t scroll horizontally, so I need to know just the vertical dimension of the <code class="literal">contentSize</code> (the horizontal dimension can be 0). Before autolayout, there were two possible solutions to this problem:</p>
+        <div class="itemizedlist">
+          <ul class="itemizedlist" type="disc">
+            <li class="listitem">
+              <p class="simpara">
+Provide an outlet to the bottommost subview and use its position and height to calculate and set the content size:
+</p>
+              <pre class="screen">float width = 0; // sv is the scroll view
+// use lowest subview, "lowest", as reference for content height
+float height =
+    self.lowest.frame.origin.y + self.lowest.frame.size.height + 20.0;
+self.sv.contentSize = CGSizeMake(width, height);</pre>
+            </li>
+            <li class="listitem">
+              <p class="simpara">
+Wrap all the scroll view’s subviews in a single UIView; that single UIView is the scroll view’s sole subview in the nib. Size that UIView correctly to hold all the subviews. When the nib loads, use that UIView’s size to set the content size; we don’t even need an outlet to the UIView, since we know it is the scroll view’s first subview:
+</p>
+              <pre class="screen">self.sv.contentSize = ((UIView*)self.sv.subviews[0]).bounds.size;</pre>
+            </li>
+          </ul>
+        </div>
+        <p>If you’re using autolayout, you can do something similar to the second solution. We have a scroll view containing a single subview, which itself contains all the other subviews, so that everything can be positioned easily in the nib using constraints (<a class="xref" href="ch20.html#FIGzotzSettingsNib">Figure 20.2</a>). The scroll view is pinned to be the same size as its superview, which is the File’s Owner’s <code class="literal">view</code> and will be resized to fit the interface when the nib loads. The scroll view’s subview is sized correctly to describe the size of the scroll view’s content view. We have an outlet to the bottom constraint of the scroll view’s subview; when the nib loads, we set that constraint’s <code class="literal">constant</code> to 0. Now our constraints are describing the desired content size correctly, and the scroll view becomes scrollable:</p>
+        <pre class="screen">- (void)viewDidLoad {
+    [super viewDidLoad];
+    self.contentViewBottomConstraint.constant = 0;
+}</pre>
+        <div class="figure">
+          <a id="FIGzotzSettingsNib"></a>
+          <div class="figure-contents">
+            <div class="mediaobject">
+              <img src="figs/pios_2002.png" alt="figs/pios_2002.png" />
+            </div>
+          </div>
+          <p class="title">Figure 20.2. The Zotz! settings view, designed in the nib</p>
+        </div>
+        <br class="figure-break" />
+        <p>Another use of autolayout in connection with a scroll view is to <span class="emphasis"><em>prevent</em></span> a subview of the scroll view from scrolling — that is, from being carried along as the scroll view’s bounds origin changes. Use constraints to pin the subview to something <span class="emphasis"><em>outside</em></span> the scroll view. Now this subview will effectively “float” over the scroll view. Before autolayout, this sort of thing was rather tricky to arrange; you had to use a delegate event to respond to every change in the scroll view’s bounds origin by shifting the “floating” view’s position to compensate, so as to appear to remain fixed. With constraints, you just set up the subview once and that’s all.</p>
+        <p>In this example, I’ll pin a small image view to the scroll view’s superview. The scroll view’s own edges are pinned exactly to those of its superview, so the result is that the image “floats” in the top right corner of the scroll view:</p>
+        <pre class="screen">UIImageView* iv = [[UIImageView alloc]
+                   initWithImage:[UIImage imageNamed:@"smiley.png"]];
+iv.translatesAutoresizingMaskIntoConstraints = NO;
+[sv addSubview:iv];
+UIView* sup = sv.superview;
+[sup addConstraint:
+ [NSLayoutConstraint
+  constraintWithItem:iv attribute:NSLayoutAttributeRight
+  relatedBy:0
+  toItem:sup attribute:NSLayoutAttributeRight
+  multiplier:1 constant:-5]];
+[sup addConstraint:
+ [NSLayoutConstraint
+  constraintWithItem:iv attribute:NSLayoutAttributeTop
+  relatedBy:0
+  toItem:sup attribute:NSLayoutAttributeTop
+  multiplier:1 constant:5]];</pre>
+        <div class="warning" style="margin-left: 0; margin-right: 10%;">
+          <h3 class="title">Warning</h3>
+          <p>Do not assume that the subviews you add to a UIScrollView are its only subviews! The scroll indicators managed by the scroll view, discussed in the next section, are also subviews (they are actually UIImageViews).</p>
+        </div>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_scrolling"></a>Scrolling</h2>
+            </div>
+          </div>
+        </div>
+        <p>For the most part, the purpose of a scroll view will be to let the user scroll. A number of properties affect the user experience with regard to scrolling:<a id="idm441646570272" class="indexterm"></a>
+<a id="idm441646568976" class="indexterm"></a></p>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+<code class="literal">scrollEnabled</code>
+</span>
+            </dt>
+            <dd>
+If NO, the user can’t scroll, but you can still scroll in code (as explained later in this section). You could put a UIScrollView to various creative purposes other than letting the user scroll; for example, scrolling in code to a different region of the content might be a way of replacing one piece of interface by another, possibly with animation.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">scrollsToTop</code>
+</span>
+            </dt>
+            <dd>
+If YES (the default), and assuming scrolling is enabled, the user can tap on the status bar as a way of making the scroll view scroll its content to the top. You can also override this setting dynamically through the scroll view’s delegate (discussed later in this chapter).
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">bounces</code>
+</span>
+            </dt>
+            <dd>
+If YES (the default), then when the user scrolls to a limit of the content, it is possible to scroll somewhat further (possibly revealing the scroll view’s <code class="literal">backgroundColor</code> behind the content, if a subview was covering it); the content then snaps back into place when the user releases it. Otherwise, the user experiences the limit as a sudden inability to scroll further in that direction.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">alwaysBounceVertical</code>, <code class="literal">alwaysBounceHorizontal</code>
+</span>
+            </dt>
+            <dd>
+If YES, and assuming that <code class="literal">bounces</code> is YES, then even if the <code class="literal">contentSize</code> in the given dimension isn’t larger than the scroll view (so that no scrolling is actually possible in that dimension), the user can nevertheless scroll somewhat and the content then snaps back into place when the user releases it; otherwise, the user experiences a simple inability to scroll in that dimension.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">directionalLockEnabled</code>
+</span>
+            </dt>
+            <dd>
+If YES, and if scrolling is possible in both dimensions (even if only because the appropriate <code class="literal">alwaysBounce...</code> is YES), then the user, having begun to scroll in one dimension, can’t scroll in the other dimension without ending the gesture and starting over. In other words, the user is constrained to scroll vertically or horizontally but not both at once.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">decelerationRate</code>
+</span>
+            </dt>
+            <dd>
+The rate at which scrolling is damped out, and the content comes to a stop, after a flick gesture. As convenient examples, standard constants <code class="literal">UIScrollViewDecelerationRateNormal</code> (0.998) and <code class="literal">UIScrollViewDecelerationRateFast</code> (0.99) are provided. Lower values mean faster damping; experimentation suggests that values lower than 0.5 are viable but barely distinguishable from one another. You can also effectively override this value dynamically through the scroll view’s delegate (discussed later in this chapter).
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">showsHorizontalScrollIndicator</code>, <code class="literal">showsVerticalScrollIndicator</code>
+</span>
+            </dt>
+            <dd>
+              <p class="simpara">
+The scroll indicators are bars that appear only while the user is scrolling in a scrollable dimension (where the content is larger than the scroll view), and serve to indicate both the size of the content in that dimension relative to the scroll view and where the user is within it. The default is YES for both.
+</p>
+              <p class="simpara">Because the user cannot see the <a id="idm441646542128" class="indexterm"></a>scroll indicators except when actively scrolling, there is normally no indication that the view is scrollable. I regard this as somewhat unfortunate, because it makes the possibility of scrolling less discoverable; I’d prefer an option to make the scroll indicators constantly visible. Apple suggests that you call <code class="literal">flashScrollIndicators</code> when the scroll view appears, to make the scroll indicators visible momentarily.</p>
+            </dd>
+            <dt>
+              <span class="term">
+<code class="literal">indicatorStyle</code>
+</span>
+            </dt>
+            <dd>
+              <p class="simpara">
+The way the scroll indicators are drawn. Your choices are:
+</p>
+              <div class="itemizedlist">
+                <ul class="itemizedlist" type="disc">
+                  <li class="listitem">
+<code class="literal">UIScrollViewIndicatorStyleDefault</code> (black with a white border)
+</li>
+                  <li class="listitem">
+<code class="literal">UIScrollViewIndicatorStyleBlack</code> (black)
+</li>
+                  <li class="listitem">
+<code class="literal">UIScrollViewIndicatorStyleWhite</code> (white)
+</li>
+                </ul>
+              </div>
+            </dd>
+            <dt>
+              <span class="term">
+<code class="literal">contentInset</code>
+</span>
+            </dt>
+            <dd>
+              <p class="simpara">
+A <a id="idm441646531040" class="indexterm"></a>UIEdgeInsets struct (four CGFloats in the order <code class="literal">top</code>, <code class="literal">left</code>, <code class="literal">bottom</code>, <code class="literal">right</code>) specifying margins around the content. A typical use for this would be that your scroll view underlaps an interface element, such as a translucent status bar, navigation bar, or toolbar, and you want your content to be visible even when scrolled to its limit.
+</p>
+              <p class="simpara">For example, suppose that our app with the 30 labels has its <span class="emphasis"><em>Info.plist</em></span> configured with the “Status bar style” key set to “Transparent black style,” and that our scroll view’s view controller sets its <code class="literal">wantsFullScreenLayout</code> to YES. The scroll view now underlaps the status bar. This looks cool while scrolling, but at launch time, and if scrolled all the way to the top, the first label is partly covered by the status bar. We can fix this by supplying a <code class="literal">contentInset</code> whose <code class="literal">top</code> matches the height of the status bar. We may also have to scroll the content into position at launch time in code so that it looks right:</p>
+              <pre class="screen">CGFloat top = [[UIApplication sharedApplication] statusBarFrame].size.height;
+sv.contentInset = UIEdgeInsetsMake(top,0,0,0);
+[sv scrollRectToVisible:CGRectMake(0,0,1,1) animated:NO];</pre>
+              <p class="simpara">If a scroll view participates in state restoration (<a class="xref" href="ch19.html">Chapter 19</a>), its <code class="literal">contentInset</code> is saved and restored.</p>
+            </dd>
+            <dt>
+              <span class="term">
+<code class="literal">scrollIndicatorInsets</code>
+</span>
+            </dt>
+            <dd>
+A UIEdgeInsets struct specifying a shift in the position of the scroll indicators. A typical use is to compensate for the <code class="literal">contentInset</code>. For example, returning to our scroll view that underlaps the translucent status bar, the content is no longer hidden under the status bar when scrolled to the top, but the top of the vertical scroll indicator is. We can fix this by setting the <code class="literal">scrollIndicatorInsets</code> to the same value as the <code class="literal">contentInset</code>.
+</dd>
+          </dl>
+        </div>
+        <div class="note" style="margin-left: 0; margin-right: 10%;">
+          <h3 class="title">Note</h3>
+          <p>Here’s a trick I’ve sometimes used: by setting a <code class="literal">scrollIndicatorInsets</code> component to a negative number and setting the scroll view’s <code class="literal">clipsToBounds</code> to NO, you can make the scroll indicators appear <span class="emphasis"><em>outside</em></span> the scroll view. But because you’ve turned off <code class="literal">clipsToBounds</code>, you might have to impose some opaque views on top of the interface to mask off the edges of the scroll view, so that its content isn’t visible outside its bounds.</p>
+        </div>
+        <p>You can scroll in code even if the user can’t scroll. The content simply moves to the position you specify, with no bouncing and no exposure of the scroll indicators. You can specify the new position in two ways:</p>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+<code class="literal">contentOffset</code>
+</span>
+            </dt>
+            <dd>
+              <p class="simpara">
+The point (CGPoint) of the content that is located at the scroll view’s top left (effectively the same thing as the scroll view’s bounds origin). You can get this property to learn the current scroll position, and set it to change the current scroll position. The values normally go up from 0 until the limit dictated by the <code class="literal">contentSize</code> and the scroll view’s own bounds is reached.
+</p>
+              <p class="simpara">To set the <code class="literal">contentOffset</code> with animation, call <code class="literal">setContentOffset:animated:</code>. The animation does not cause the scroll indicators to appear; it just slides the content to the desired position.</p>
+              <p class="simpara">If a scroll view participates in state restoration (<a class="xref" href="ch19.html">Chapter 19</a>), its <code class="literal">contentOffset</code> is saved and restored, so when the app is relaunched, the scroll view will reappear scrolled to the same position as before.</p>
+            </dd>
+            <dt>
+              <span class="term">
+<code class="literal">scrollRectToVisible:animated:</code>
+</span>
+            </dt>
+            <dd>
+Adjusts the content so that the specified CGRect of the view is within the scroll view’s bounds. This is less precise than setting the <code class="literal">contentOffset</code>, because you’re not saying exactly what the resulting scroll position will be, but sometimes guaranteeing the visibility of a certain portion of the content is exactly what you’re after.
+</dd>
+          </dl>
+        </div>
+        <p>If you call a method to scroll with animation and you need to know when the animation ends, implement <code class="literal">scrollViewDidEndScrollingAnimation:</code> in the scroll view’s delegate.</p>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_paging"></a>Paging</h3>
+              </div>
+            </div>
+          </div>
+          <p>If its <code class="literal">pagingEnabled</code> property is YES, the scroll view doesn’t let the user scroll freely; instead, the content is considered to consist of sections the size of the scroll view’s bounds, and the user can scroll only in such a way as to move to an adjacent section.<a id="idm441646496752" class="indexterm"></a>
+<a id="idm441646495600" class="indexterm"></a></p>
+          <p>For instance, one of Apple’s examples consists of a scroll view containing image views. Each image view is the size of the scroll view. This is an appropriate use of <code class="literal">pagingEnabled</code>. The user can scroll to see the entire next image or the entire previous image.</p>
+          <p>The scroll indicator, if it appears, gives the user a sense of how many “pages” constitute the view. Alternatively, you could use delegate messages to coordinate with a UIPageControl (<a class="xref" href="ch25.html">Chapter 25</a>). <a class="xref" href="ch20.html#FIGpager">Figure 20.3</a> shows my modification of Apple’s Scrolling example, where I’ve added a UIPageControl below the paging scroll view. Here’s the code that updates the page control (<code class="literal">pager</code>) when the user scrolls:</p>
+          <div class="figure">
+            <a id="FIGpager"></a>
+            <div class="figure-contents">
+              <div class="mediaobject">
+                <img src="figs/pios_2003.png" alt="figs/pios_2003.png" />
+              </div>
+            </div>
+            <p class="title">Figure 20.3. A scroll view coordinated with a page control</p>
+          </div>
+          <br class="figure-break" />
+          <pre class="screen">- (void)scrollViewDidEndDecelerating:(UIScrollView *)scrollView {
+    CGFloat x = scrollView.contentOffset.x;
+    CGFloat w = scrollView.bounds.size.width;
+    self.pager.currentPage = x/w;
+}</pre>
+          <p>And here’s the code that scrolls the scroll view (<code class="literal">sv</code>) when the user taps the page control:</p>
+          <pre class="screen">- (void) userDidPage: (id) sender {
+    NSInteger p = self.pager.currentPage;
+    CGFloat w = self.sv.bounds.size.width;
+    [self.sv setContentOffset:CGPointMake(p*w,0) animated:YES];
+}</pre>
+          <p>A useful interface is a paging scroll view where you supply pages dynamically as the user scrolls. In this way, you can display a huge number of pages without having to put them all into the scroll view at once. UIPageViewController (<a class="xref" href="ch19.html">Chapter 19</a>) provides exactly that interface. (Prior to iOS 5, before UIPageViewController was introduced, I had written a scroll view that did the same thing; if you’re curious about the technique I was using, watch the Advanced Scroll View Techniques video from WWDC 2011, which describes something very similar, calling it “infinite scrolling”.)</p>
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_tiling"></a>Tiling</h3>
+              </div>
+            </div>
+          </div>
+          <p>Suppose we have some finite but really big content that we want to display in a scroll view, such as a very large image that the user can inspect, piecemeal, by scrolling. To hold the entire image in memory may be onerous or impossible.</p>
+          <p>Tiling is one solution to this kind of problem. It takes advantage of the insight that there’s really no need to hold the entire image in memory; all we need at any given moment is the part of the image the user is looking at right now.<a id="idm441646478704" class="indexterm"></a>
+<a id="idm441646477536" class="indexterm"></a> Mentally, divide the content rectangle into a matrix of rectangles; these rectangles are the tiles. In reality, divide the huge image into corresponding rectangles. Then whenever the user scrolls, we look to see whether part of any empty tile has become visible, and if so, we supply its content. At the same time, we can release the content of all tiles that are completely offscreen. Thus, at any given moment, only the tiles that are showing have content. There is some latency associated with this approach (the user scrolls, then any empty newly visible tiles are filled in), but we will have to live with that.</p>
+          <p>There is actually a built-in CALayer subclass for helping us implement tiling — CATiledLayer.<a id="idm441646475424" class="indexterm"></a>
+<a id="idm441646474112" class="indexterm"></a> Its <code class="literal">tileSize</code> property sets the dimensions of a tile. Its <code class="literal">drawLayer:inContext:</code> is called when content for an empty tile is needed; calling <code class="literal">CGContextGetClipBoundingBox</code> on the context reveals the location of desired tile, and now we can supply that tile’s content.</p>
+          <p>To illustrate, we’ll use some tiles already created for us as part of Apple’s own PhotoScroller example. In particular, I’ll use the “Shed_1000” images. These all have names of the form <span class="emphasis"><em>Shed_1000_x_y.png</em></span>, where <span class="emphasis"><em>x</em></span> and <span class="emphasis"><em>y</em></span> are integers corresponding to the picture’s position within the matrix. The images are 256×256 pixels (except for the ones on the extreme right and bottom edges of the matrix, which are shorter in one dimension).</p>
+          <p>Once again I’ll start with the Empty Application template with an added ViewController class acting as the root view controller. We also have a TiledView class (a UIView subclass). Once again I’ll implement <code class="literal">loadView</code> to make the root view controller’s view a UIScrollView; our scroll view’s sole subview will be a TiledView, which exists purely to give our CATiledLayer a place to live. We have just one set of tile images and we want these to appear the same size regardless of the display resolution, so we’ll set the CATiledLayer’s tile size with respect to its native scale (<code class="literal">TILESIZE</code> is defined as 256, to match the image dimensions):</p>
+          <pre class="screen">UIScrollView* sv = [[UIScrollView alloc] initWithFrame:
+                    [[UIScreen mainScreen] applicationFrame]];
+sv.backgroundColor = [UIColor whiteColor];
+self.view = sv;
+CGRect f = CGRectMake(0,0,3*TILESIZE,3*TILESIZE);
+TiledView* content = [[TiledView alloc] initWithFrame:f];
+float tsz = TILESIZE * content.layer.contentsScale;
+[(CATiledLayer*)content.layer setTileSize: CGSizeMake(tsz, tsz)];
+[self.view addSubview:content];
+[sv setContentSize: f.size];</pre>
+          <p>Here’s the code for TiledView. The CATiledLayer is our underlying layer; therefore we are its delegate. This means that when <code class="literal">drawLayer:inContext:</code> is called, <code class="literal">drawRect:</code> is called, and the argument to <code class="literal">drawRect:</code> is the same as the result of calling <code class="literal">CGContextGetClipBoundingBox</code>, namely, it’s the rect of the tile we are to draw. As Apple’s code points out, we must fetch images with <code class="literal">imageWithContentsOfFile:</code> so as to avoid the automatic caching behavior of <code class="literal">imageNamed:</code>, because we’re doing all this exactly to prevent using more memory than we have to:</p>
+          <pre class="screen">+ (Class) layerClass {
+    return [CATiledLayer class];
+}
+
+-(void)drawRect:(CGRect)r {
+    CGRect tile = r;
+    int x = tile.origin.x/TILESIZE;
+    int y = tile.origin.y/TILESIZE;
+    NSString *tileName = [NSString stringWithFormat:@"Shed_1000_%i_%i", x, y];
+    NSString *path =
+        [[NSBundle mainBundle] pathForResource:tileName ofType:@"png"];
+    UIImage *image = [UIImage imageWithContentsOfFile:path];
+    [image drawAtPoint:tile.origin];
+    // uncomment the following to see the tile boundaries
+    /*
+    UIBezierPath* bp = [UIBezierPath bezierPathWithRect: r];
+    [[UIColor whiteColor] setStroke];
+    [bp stroke];
+    */
+}</pre>
+          <p>There is no special call for invalidating an offscreen tile. You can call <code class="literal">setNeedsDisplay</code> or <code class="literal">setNeedsDisplayInRect:</code> on the TiledView, but this doesn’t erase offscreen tiles. You’re just supposed to trust that the CATiledLayer will eventually clear offscreen tiles if needed to conserve memory.</p>
+          <p>CATiledLayer has a class method <code class="literal">fadeDuration</code> that dictates the duration of the animation that fades a new tile into view. You can create a CATiledLayer subclass and override this method to return a value different from the default (<code class="literal">0.25</code>), but in general this is probably not worth doing, as the default value is a good one. Returning a smaller value won’t make tiles appear faster; it just replaces the nice fade-in with an annoying flash.</p>
+        </div>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_zooming"></a>Zooming</h2>
+            </div>
+          </div>
+        </div>
+        <p>To implement zooming of a scroll view’s content, you set the scroll view’s <code class="literal">minimumZoomScale</code> and <code class="literal">maximumZoomScale</code> so that at least one of them isn’t <code class="literal">1</code> (the default). You also implement <code class="literal">viewForZoomingInScrollView:</code> in the scroll view’s delegate to tell the scroll view which of its subviews is to be the scalable view. The scroll view then zooms by applying a scaling transform (<a class="xref" href="ch14.html">Chapter 14</a>) to this subview. The amount of that transform is the scroll view’s <code class="literal">zoomScale</code> property. Typically, you’ll want the scroll view’s entire content to be scalable, so you’ll have one direct subview of the scroll view that acts as the scalable view, and anything else inside the scroll view will be a subview of the scalable view, so as to be scaled together with it.<a id="idm441646446208" class="indexterm"></a>
+<a id="idm441646445056" class="indexterm"></a></p>
+        <p>To illustrate, let’s return to the first example in this chapter, where we created a scroll view containing 30 labels. To make this scroll view zoomable, we’ll need to modify the way we create it. As it stands, the scroll view’s subviews are just the 30 labels; there is no single view that we would scale in order to scale all the labels together. This time, as we create the scroll view in our root view controller’s <code class="literal">loadView</code> implementation, instead of making the 30 labels subviews of the scroll view, we’ll make them subviews of a single scalable view and make the scalable view the subview of the scroll view:</p>
+        <pre class="screen">UIScrollView* sv = [[UIScrollView alloc] initWithFrame:
+                    [[UIScreen mainScreen] applicationFrame]];
+self.view = sv;
+UIView* v = [UIView new];
+CGFloat y = 10;
+for (int i=0; i&lt;30; i++) {
+    UILabel* lab = [UILabel new];
+    lab.text = [NSString stringWithFormat:@"This is label %i", i+1];
+    [lab sizeToFit];
+    CGRect f = lab.frame;
+    f.origin = CGPointMake(10,y);
+    lab.frame = f;
+    [v addSubview:lab];
+    y += lab.bounds.size.height + 10;
+}
+CGSize sz = sv.bounds.size;
+sz.height = y;
+sv.contentSize = sz;
+v.frame = CGRectMake(0,0,sz.width,sz.height);
+[sv addSubview:v];</pre>
+        <p>So far, nothing has changed; the scroll view works just as before, but it isn’t zoomable. To make it zoomable, we add these lines:</p>
+        <pre class="screen">v.tag = 999;
+sv.minimumZoomScale = 1.0;
+sv.maximumZoomScale = 2.0;
+sv.delegate = self;</pre>
+        <p>We have assigned a tag to the view that is to be scaled, so we can find it later. We have set the scale limits for the scroll view. And we have made ourselves the scroll view’s delegate. Now all we have to do is implement <code class="literal">viewForZoomingInScrollView:</code> and return the scalable view:</p>
+        <pre class="screen">- (UIView *)viewForZoomingInScrollView:(UIScrollView *)scrollView {
+    return [scrollView viewWithTag:999];
+}</pre>
+        <p>The scroll view now responds to pinch gestures by scaling appropriately! The user can actually scale considerably beyond the limits we set in both directions; when the gesture ends, the scale returns to the limit value. If we wish to confine scaling strictly to our defined limits, we can set the scroll view’s <code class="literal">bouncesZoom</code> to NO; when the user reaches a limit, scaling will simply stop.</p>
+        <p>The actual amount of zoom is reflected as the scroll view’s current <code class="literal">zoomScale</code>. If a scroll view participates in state restoration, its <code class="literal">zoomScale</code> is saved and restored, so when the app is relaunched, the scroll view will reappear zoomed by the same amount as before.</p>
+        <div class="note" style="margin-left: 0; margin-right: 10%;">
+          <h3 class="title">Note</h3>
+          <p>The scroll view zooms by applying a scaling transform to the scalable view; therefore <span class="emphasis"><em>the frame of the scalable view is scaled as well</em></span>. Moreover, the scroll view is concerned to make scrolling continue to work correctly: the limits as the user scrolls should continue to match the limits of the content, and commands like <code class="literal">scrollRectToVisible:animated:</code> should continue to work the same way for the same values. Therefore, the scroll view <span class="emphasis"><em>automatically scales its own <code class="literal">contentSize</code></em></span> to match the current <code class="literal">zoomScale</code>. (You can actually detect this happening by overriding <code class="literal">setContentSize</code> in a UIScrollView subclass: you can see the scroll view adjusting its own content size as you zoom.)</p>
+        </div>
+        <p>If the <code class="literal">minimumZoomScale</code> is less than 1, then when the scalable view becomes smaller than the scroll view, it is pinned to the scroll view’s top left. If you don’t like this, you can change it by subclassing UIScrollView and overriding <code class="literal">layoutSubviews</code>, or by implementing the scroll view delegate method <code class="literal">scrollViewDidZoom:</code>. Here’s a simple example (drawn from a WWDC 2010 video) demonstrating an override of <code class="literal">layoutSubviews</code> that keeps the scalable view centered when it becomes smaller than the scroll view:</p>
+        <pre class="screen">-(void)layoutSubviews {
+    [super layoutSubviews];
+    UIView* v = [self.delegate viewForZoomingInScrollView:self];
+    CGFloat svw = self.bounds.size.width;
+    CGFloat svh = self.bounds.size.height;
+    CGFloat vw = v.frame.size.width;
+    CGFloat vh = v.frame.size.height;
+    CGRect f = v.frame;
+    if (vw &lt; svw)
+        f.origin.x = (svw - vw) / 2.0;
+    else
+        f.origin.x = 0;
+    if (vh &lt; svh)
+        f.origin.y = (svh - vh) / 2.0;
+    else
+        f.origin.y = 0;
+    v.frame = f;
+}</pre>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_zooming_programmatically"></a>Zooming Programmatically</h3>
+              </div>
+            </div>
+          </div>
+          <p>To zoom programmatically, you have two choices:</p>
+          <div class="variablelist">
+            <dl>
+              <dt>
+                <span class="term">
+<code class="literal">setZoomScale:animated:</code>
+</span>
+              </dt>
+              <dd>
+Zooms in terms of scale value. The <code class="literal">contentOffset</code> is automatically adjusted to keep the current center centered and the content occupying the entire scroll view.
+</dd>
+              <dt>
+                <span class="term">
+<code class="literal">zoomToRect:animated:</code>
+</span>
+              </dt>
+              <dd>
+Zooms so that the given rectangle of the content occupies as much as possible of the scroll view’s bounds. The <code class="literal">contentOffset</code> is automatically adjusted to keep the content occupying the entire scroll view.
+</dd>
+            </dl>
+          </div>
+          <p>In this example, I implement double tapping as a zoom gesture. Detecting the double tap is easy thanks to a gesture recognizer attached to the scalable view (<a class="xref" href="ch18.html">Chapter 18</a>). In this implementation of the action handler for the double-tap UITapGestureRecognizer, a double tap means to zoom to maximum scale, minimum scale, or actual size, depending on the current scale value:</p>
+          <pre class="screen">- (void) tapped: (UIGestureRecognizer*) tap {
+    UIView* v = tap.view;
+    UIScrollView* sv = (UIScrollView*)v.superview;
+    if (sv.zoomScale &lt; 1) {
+        [sv setZoomScale:1 animated:YES];
+        CGPoint pt =
+            CGPointMake((v.bounds.size.width - sv.bounds.size.width)/2.0,0);
+        [sv setContentOffset:pt animated:NO];
+    }
+    else if (sv.zoomScale &lt; sv.maximumZoomScale)
+        [sv setZoomScale:sv.maximumZoomScale animated:YES];
+    else
+        [sv setZoomScale:sv.minimumZoomScale animated:YES];
+}</pre>
+        </div>
+        <div class="section">
+          <div class="titlepage">
+            <div>
+              <div>
+                <h3 class="title"><a id="_zooming_with_detail"></a>Zooming with Detail</h3>
+              </div>
+            </div>
+          </div>
+          <p>By default, when a scroll view zooms, it merely applies a scale transform to the scaled view. The scaled view’s drawing is cached beforehand into its layer, so when we zoom in, the bits of the resulting bitmap are drawn larger. This means that a zoomed-in scroll view’s content may be fuzzy (pixellated). In some cases this might be acceptable, but in others you might like the content to be redrawn more sharply at its new size.</p>
+          <p>(On a double-resolution device, this might not be such an issue. For example, if the user is allowed to zoom only up to double scale, you can draw at double scale right from the start; the results will look good at single scale, because the screen has double resolution, as well as at double scale, because that’s the scale you drew at.)</p>
+          <p>One solution is to take advantage of a CATiledLayer feature that I didn’t mention earlier. <a id="idm441646412128" class="indexterm"></a>
+<a id="idm441646408432" class="indexterm"></a> It turns out that CATiledLayer is aware not only of scrolling but also of scaling: you can configure it to ask for tiles to be drawn when the layer is scaled to a new order of magnitude. This approach is extremely easy: your drawing routine is called and you simply draw, the graphics context itself having already been scaled appropriately. In fact, your drawing doesn’t even have to involve multiple tiles! Of course it <span class="emphasis"><em>can</em></span> involve tiles; for a large tiled image, you would be forearmed with multiple versions of the image broken into an identical quantity of tiles, each set having double the tile size of the previous set (as in Apple’s PhotoScroller example). But you can also just draw directly.</p>
+          <p>Besides its <code class="literal">tileSize</code>, you’ll need to set two additional CATiledLayer properties:</p>
+          <div class="variablelist">
+            <dl>
+              <dt>
+                <span class="term">
+<code class="literal">levelsOfDetail</code>
+</span>
+              </dt>
+              <dd>
+The number of different resolutions at which you want to redraw, where each level has twice the resolution of the previous level. So, for example, with two levels of detail we can ask to redraw when zooming to double size (2x) and when zooming back to single size (1x).
+</dd>
+              <dt>
+                <span class="term">
+<code class="literal">levelsOfDetailBias</code>
+</span>
+              </dt>
+              <dd>
+The number of levels of detail that are <span class="emphasis"><em>larger</em></span> than single size (1x). For example, if <code class="literal">levelsOfDetail</code> is 2, then if we want to redraw when zooming to 2x and when zooming back to 1x, the <code class="literal">levelsOfDetailBias</code> is <code class="literal">1</code>, because one of those levels is larger than 1x; if we were to leave <code class="literal">levelsOfDetailBias</code> at <code class="literal">0</code> (the default), we would be saying we want to redraw when zooming to 0.5x and back to 1x — we have two levels of detail but neither is larger than 1x, so one must be smaller than 1x.
+</dd>
+            </dl>
+          </div>
+          <p>The CATiledLayer will ask for a redraw at a higher resolution as soon as the view’s size becomes larger than the previous resolution. In other words, if there are two levels of detail with a bias of <code class="literal">1</code>, the layer will be redrawn at 2x as soon as it is zoomed even a little bit larger than 1x. This is an excellent approach, because although a level of detail would look blurry if scaled up, it looks pretty good scaled down.</p>
+          <p>To illustrate, I’ll reuse our previous example, where the root view controller’s view is a scroll view whose subview is a TiledView that hosts a CATiledLayer; but this time I’ll draw our 30 labels into the CATiledLayer. The tile size is of no particular importance:</p>
+          <pre class="screen">- (void)loadView {
+    UIScrollView* sv = [[UIScrollView alloc] initWithFrame:
+                        [[UIScreen mainScreen] applicationFrame]];
+    self.view = sv;
+    CGRect f = CGRectMake(0, 0, self.view.bounds.size.width,
+                          self.view.bounds.size.height * 2);
+    TiledView* content = [[TiledView alloc] initWithFrame:f];
+    content.tag = 999;
+    CATiledLayer* lay = (CATiledLayer*)content.layer;
+    lay.tileSize = f.size;
+    lay.levelsOfDetail = 2;
+    lay.levelsOfDetailBias = 1;
+    [self.view addSubview:content];
+    [sv setContentSize: f.size];
+    sv.minimumZoomScale = 1.0;
+    sv.maximumZoomScale = 2.0;
+    sv.delegate = self;
+}
+
+- (UIView *)viewForZoomingInScrollView:(UIScrollView *)scrollView {
+    return [scrollView viewWithTag:999];
+}</pre>
+          <p>Here’s the code for TiledView. Its <code class="literal">drawRect:</code> essentially does the work of putting the labels into place that we were previously doing in <code class="literal">loadView</code>, except that now there are no labels: we’re in <code class="literal">drawRect:</code> so we draw the text directly, with no concern for zooming or scaling:</p>
+          <pre class="screen">+ (Class) layerClass {
+    return [CATiledLayer class];
+}
+
+-(void)drawRect:(CGRect)r {
+    [[UIColor whiteColor] set];
+    UIRectFill(self.bounds);
+    [[UIColor blackColor] set];
+    UIFont* f = [UIFont fontWithName:@"Helvetica" size:18];
+    // height consists of 31 spacers with 30 texts between them
+    CGFloat viewh = self.bounds.size.height;
+    CGFloat spacerh = 10;
+    CGFloat texth = (viewh - (31*spacerh))/30.0;
+    CGFloat y = spacerh;
+    for (int i = 0; i &lt; 30; i++) {
+        NSString* s = [NSString stringWithFormat:@"This is label %i", i];
+        [s drawAtPoint:CGPointMake(10,y) withFont:f];
+        y += texth + spacerh;
+    }
+    // uncomment the following to see the tiling
+    /*
+    UIBezierPath* bp = [UIBezierPath bezierPathWithRect:r];
+    [[UIColor redColor] setStroke];
+    [bp stroke];
+    */
+}</pre>
+          <p>An alternative and much simpler approach (from a WWDC 2011 video) is to make yourself the scroll view’s delegate so that you get an event when the zoom ends, and then change the scalable view’s <code class="literal">contentScaleFactor</code> to match the current zoom scale, compensating for the double-resolution screen at the same time:</p>
+          <pre class="screen">- (void)scrollViewDidEndZooming:(UIScrollView *)scrollView
+                       withView:(UIView *)view
+                        atScale:(float)scale {
+    view.contentScaleFactor = scale * [UIScreen mainScreen].scale;
+}</pre>
+          <p>That approach comes with a caveat, however: you mustn’t overdo it. If the zoom scale, screen resolution, and scalable view size are high, you will be asking for a very large graphics context to be maintained in memory, which could cause your app to run low on memory or even to be abruptly terminated by the system.</p>
+        </div>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_scroll_view_delegate"></a>Scroll View Delegate</h2>
+            </div>
+          </div>
+        </div>
+        <p>The scroll view’s delegate (adopting the UIScrollViewDelegate protocol) receives lots of messages that can help you track what the scroll view is up to:<a id="idm441646382720" class="indexterm"></a>
+<a id="idm441646381424" class="indexterm"></a></p>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+<code class="literal">scrollViewDidScroll:</code>
+</span>
+            </dt>
+            <dd>
+If you scroll in code without animation, you will receive this message <span class="emphasis"><em>once</em></span>. If the user drags or flicks, or uses the scroll-to-top feature, or if you scroll in code with animation, you will receive this message <span class="emphasis"><em>repeatedly</em></span> throughout the scroll, including during the time the scroll view is decelerating after the user’s finger has lifted; there are other delegate messages that tell you, in those cases, when the scroll has really ended.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">scrollViewDidEndScrollingAnimation:</code>
+</span>
+            </dt>
+            <dd>
+If you scroll in code with animation, you will receive this message when the animation ends.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">scrollViewWillBeginDragging:</code>
+<br /></span>
+              <span class="term">
+<code class="literal">scrollViewWillEndDragging:withVelocity:targetContentOffset:</code>
+<br /></span>
+              <span class="term">
+<code class="literal">scrollViewDidEndDragging:willDecelerate:</code>
+</span>
+            </dt>
+            <dd>
+              <p class="simpara">
+If the user scrolls by dragging or flicking, you will receive these messages at the start and end of the user’s finger movement. If the user brings the scroll view to a stop before lifting the finger, <code class="literal">willDecelerate</code> is NO and the scroll is over. If the user lets go of the scroll view while the finger is moving, or if paging is turned on and the user has not paged perfectly already, <code class="literal">willDecelerate</code> is YES and we proceed to the delegate messages reporting deceleration.
+</p>
+              <p class="simpara">The purpose of <code class="literal">scrollViewWillEndDragging:...</code> is to let you customize the outcome of the content’s deceleration. The third argument is a pointer to a CGPoint; thus you can use it to set a different CGPoint, specifying the <code class="literal">contentOffset</code> value the content should have when the deceleration is over.</p>
+            </dd>
+            <dt>
+              <span class="term">
+<code class="literal">scrollViewWillBeginDecelerating:</code>
+<br /></span>
+              <span class="term">
+<code class="literal">scrollViewDidEndDecelerating:</code>
+</span>
+            </dt>
+            <dd>
+Sent once each after <code class="literal">scrollViewDidEndDragging:willDecelerate:</code> arrives with a value of YES. When <code class="literal">scrollViewDidEndDecelerating:</code> arrives, the scroll is over.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">scrollViewShouldScrollToTop:</code>
+<br /></span>
+              <span class="term">
+<code class="literal">scrollViewDidScrollToTop:</code>
+</span>
+            </dt>
+            <dd>
+These have to do with the feature where the user can tap the status bar to scroll the scroll view’s content to its top. You won’t get either of them if <code class="literal">scrollsToTop</code> is NO, because the scroll-to-top feature is turned off in that case. The first lets you prevent the user from scrolling to the top on this occasion even if <code class="literal">scrollsToTop</code> is YES. The second tells you that the user has employed this feature and the scroll is over.
+</dd>
+          </dl>
+        </div>
+        <p>In addition, the scroll view has read-only properties reporting its state:</p>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+<code class="literal">tracking</code>
+</span>
+            </dt>
+            <dd>
+The user has touched the scroll view, but the scroll view hasn’t decided whether this is a scroll or some kind of tap.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">dragging</code>
+</span>
+            </dt>
+            <dd>
+The user is dragging to scroll.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">decelerating</code>
+</span>
+            </dt>
+            <dd>
+The user has scrolled and has lifted the finger, and the scroll is continuing.
+</dd>
+          </dl>
+        </div>
+        <p>So, if you wanted to do something after a scroll ends completely regardless of how the scroll was performed, you’d need to implement many delegate methods:</p>
+        <div class="itemizedlist">
+          <ul class="itemizedlist" type="disc">
+            <li class="listitem">
+<code class="literal">scrollViewDidEndDragging:willDecelerate:</code> in case the user drags and stops (<code class="literal">willDecelerate</code> is NO).
+</li>
+            <li class="listitem">
+<code class="literal">scrollViewDidEndDecelerating:</code> in case the user drags and the scroll continues afterward.
+</li>
+            <li class="listitem">
+<code class="literal">scrollViewDidScrollToTop:</code> in case the user uses the scroll-to-top feature.
+</li>
+            <li class="listitem">
+<code class="literal">scrollViewDidEndScrollingAnimation:</code> in case you scroll in code with animation.
+</li>
+          </ul>
+        </div>
+        <p>You don’t need a delegate method to tell you when the scroll is over after you scroll in code without animation: it’s over immediately, so if you have work to do after the scroll ends, you can do it in the next line of code.</p>
+        <p>There are also three delegate messages that report zooming:</p>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+<code class="literal">scrollViewWillBeginZooming:withView:</code>
+</span>
+            </dt>
+            <dd>
+If the user zooms or you zoom in code, you will receive this message as the zoom begins.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">scrollViewDidZoom:</code>
+</span>
+            </dt>
+            <dd>
+If you zoom in code, even with animation, you will receive this message <span class="emphasis"><em>once</em></span>. If the user zooms, you will receive this message <span class="emphasis"><em>repeatedly</em></span> as the zoom proceeds. (You will probably also receive <code class="literal">scrollViewDidScroll:</code>, possibly many times, as the zoom proceeds.)
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">scrollViewDidEndZooming:withView:atScale:</code>
+</span>
+            </dt>
+            <dd>
+If the user zooms or you zoom in code, you will receive this message after the last <code class="literal">scrollViewDidZoom:</code>.
+</dd>
+          </dl>
+        </div>
+        <p>In addition, the scroll view has read-only properties reporting its state during a zoom:</p>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+<code class="literal">zooming</code>
+</span>
+            </dt>
+            <dd>
+The scroll view is zooming. It is possible for <code class="literal">dragging</code> to be true at the same time.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">zoomBouncing</code>
+</span>
+            </dt>
+            <dd>
+The scroll view is returning automatically from having been zoomed outside its minimum or maximum limit. As far as I can tell, you’ll get only one <code class="literal">scrollViewDidZoom:</code> while the scroll view is in this state.
+</dd>
+          </dl>
+        </div>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_scroll_view_touches"></a>Scroll View Touches</h2>
+            </div>
+          </div>
+        </div>
+        <p>Improvements in the scroll view implementation have eliminated most of the worry once associated with scroll view touches.
+A scroll view will interpret a drag or a pinch as a command to scroll or zoom, and any other gesture will fall through to the subviews; thus buttons and similar interface objects inside a scroll view work just fine.<a id="idm441646320688" class="indexterm"></a>
+<a id="idm441646318720" class="indexterm"></a></p>
+        <p>You can even put a scroll view inside a scroll view, and this can be quite a useful thing to do, in contexts where you might not think of it at first. A WWDC 2010 video uses as an example Apple’s Photos app, where a single photo fills the screen: you can page-scroll from one photo to the next, and you can zoom the current photo with a pinch-out gesture. This, the video demonstrates, can be implemented with a scroll view inside a scroll view: the outer scroll view is for paging between images, and the inner scroll view contains the current image and is for zooming.</p>
+        <p>Gesture recognizers (<a class="xref" href="ch18.html">Chapter 18</a>) have also greatly simplified the task of adding custom gestures to a scroll view. For instance, some older code in Apple’s documentation, showing how to implement a double tap to zoom in and a two-finger tap to zoom out, uses old-fashioned touch handling, but this is no longer necessary. Simply attach to your scroll view’s scalable subview any gesture recognizers for these sorts of gesture, and they will mediate automatically among the possibilities.</p>
+        <p>In the past, making something inside a scroll view draggable required setting the scroll view’s <code class="literal">canCancelContentTouches</code> property to NO. (The reason for the name is that the scroll view, when it realizes that a gesture is a drag or pinch gesture, normally sends <code class="literal">touchesCancelled:forEvent:</code> to a subview tracking touches, so that the scroll view and not the subview will be affected.) However, unless you’re implementing old-fashioned direct touch handling, you probably won’t have to concern yourself with this. Regardless of how <code class="literal">canCancelContentTouches</code> is set, a draggable control, such as a UISlider, remains draggable inside a scroll view.</p>
+        <p>On the other hand, something like a UISlider might prove more quickly responsive if you set the scroll view’s <code class="literal">delaysContentTouches</code> to NO. Without this, the user may have to hold a finger on the slider briefly before it becomes draggable. But even this will be a concern only if the scroll view is scrollable in the same dimension as the slider is oriented; a horizontal slider in a scroll view that can be scrolled only vertically is instantly draggable.</p>
+        <p>Here’s an example of a draggable object inside a scroll view implemented through a gesture recognizer. Suppose we have an image of a map, larger than the screen, and we want the user to be able to scroll it in the normal way to see any part of the map, but we also want the user to be able to drag a flag into a new location on the map. We’ll put the map image in an image view and wrap the image view in a scroll view, with the scroll view’s <code class="literal">contentSize</code> the same as the map image view’s size. The flag is a small image view; it’s another subview of the scroll view, and it has a UIPanGestureRecognizer:</p>
+        <pre class="screen">UIScrollView* sv = [UIScrollView new];
+self.sv = sv;
+[self.view addSubview:sv];
+sv.translatesAutoresizingMaskIntoConstraints = NO;
+[self.view addConstraints:
+ [NSLayoutConstraint
+  constraintsWithVisualFormat:@"H:|[sv]|"
+  options:0 metrics:nil views:@{@"sv":sv}]];
+[self.view addConstraints:
+ [NSLayoutConstraint
+  constraintsWithVisualFormat:@"V:|[sv]|"
+  options:0 metrics:nil views:@{@"sv":sv}]];
+
+UIImageView* imv = [[UIImageView alloc] initWithImage:
+                    [UIImage imageNamed:@"map.jpg"]];
+[sv addSubview:imv];
+imv.translatesAutoresizingMaskIntoConstraints = NO;
+// constraints here mean "content view is the size of the map image view"
+[self.view addConstraints:
+ [NSLayoutConstraint
+  constraintsWithVisualFormat:@"H:|[imv]|"
+  options:0 metrics:nil views:@{@"imv":imv}]];
+[self.view addConstraints:
+ [NSLayoutConstraint
+  constraintsWithVisualFormat:@"V:|[imv]|"
+  options:0 metrics:nil views:@{@"imv":imv}]];
+
+UIImageView* flag = [[UIImageView alloc] initWithImage:
+                     [UIImage imageNamed:@"redflag.png"]];
+[sv addSubview: flag];
+UIPanGestureRecognizer* pan = [[UIPanGestureRecognizer alloc]
+                               initWithTarget:self
+                               action:@selector(dragging:)];
+[flag addGestureRecognizer:pan];
+flag.userInteractionEnabled = YES;</pre>
+        <p>The flag image view’s UIPanGestureRecognizer has the same <code class="literal">dragging:</code> action handler developed in <a class="xref" href="ch18.html">Chapter 18</a>:</p>
+        <pre class="screen">- (void) dragging: (UIPanGestureRecognizer*) p {
+    UIView* v = p.view;
+    if (p.state == UIGestureRecognizerStateBegan ||
+        p.state == UIGestureRecognizerStateChanged) {
+        CGPoint delta = [p translationInView: v.superview];
+        CGPoint c = v.center;
+        c.x += delta.x; c.y += delta.y;
+        v.center = c;
+        [p setTranslation: CGPointZero inView: v.superview];
+    }
+}</pre>
+        <p>The user can now drag the map or the flag (<a class="xref" href="ch20.html#FIGmapflag">Figure 20.4</a>). Dragging the map brings the flag along with it, but dragging the flag doesn’t move the map. The state of the scroll view’s <code class="literal">canCancelContentTouches</code> is irrelevant, because the flag view isn’t tracking the touches manually.</p>
+        <div class="figure">
+          <a id="FIGmapflag"></a>
+          <div class="figure-contents">
+            <div class="mediaobject">
+              <img src="figs/pios_2004.png" alt="figs/pios_2004.png" />
+            </div>
+          </div>
+          <p class="title">Figure 20.4. A scrollable map with a draggable flag</p>
+        </div>
+        <br class="figure-break" />
+        <p>An interesting addition to that example would be to implement autoscrolling, meaning that the scroll view scrolls itself when the user drags the flag close to its edge. This, too, is greatly simplified by gesture recognizers; in fact, we can add autoscrolling code directly to the <code class="literal">dragging:</code> action handler:</p>
+        <pre class="screen">- (void) dragging: (UIPanGestureRecognizer*) p {
+    UIView* v = p.view;
+    if (p.state == UIGestureRecognizerStateBegan ||
+        p.state == UIGestureRecognizerStateChanged) {
+        CGPoint delta = [p translationInView: v.superview];
+        CGPoint c = v.center;
+        c.x += delta.x; c.y += delta.y;
+        v.center = c;
+        [p setTranslation: CGPointZero inView: v.superview];
+    }
+    // autoscroll
+    if (p.state == UIGestureRecognizerStateChanged) {
+        CGPoint loc = [p locationInView:self.view.superview];
+        CGRect f = self.view.frame;
+        UIScrollView* sv = self.sv;
+        CGPoint off = sv.contentOffset;
+        CGSize sz = sv.contentSize;
+        CGPoint c = v.center;
+        // to the right
+        if (loc.x &gt; CGRectGetMaxX(f) - 30) {
+            CGFloat margin = sz.width - CGRectGetMaxX(sv.bounds);
+            if (margin &gt; 6) {
+                off.x += 5;
+                sv.contentOffset = off;
+                c.x += 5;
+                v.center = c;
+                [self keepDragging:p];
+            }
+        }
+        // to the left
+        if (loc.x &lt; f.origin.x + 30) {
+            CGFloat margin = off.x;
+            if (margin &gt; 6) {
+                // ... omitted ...
+            }
+        }
+        // to the bottom
+        if (loc.y &gt; CGRectGetMaxY(f) - 30) {
+            CGFloat margin = sz.height - CGRectGetMaxY(sv.bounds);
+            if (margin &gt; 6) {
+                // ... omitted ...
+            }
+        }
+        // to the top
+        if (loc.y &lt; f.origin.y + 30) {
+            CGFloat margin = off.y;
+            if (margin &gt; 6) {
+                // ... omitted ...
+            }
+        }
+    }
+}
+
+- (void) keepDragging: (UIPanGestureRecognizer*) p {
+    float delay = 0.1;
+    dispatch_time_t popTime =
+        dispatch_time(DISPATCH_TIME_NOW, delay * NSEC_PER_SEC);
+    dispatch_after(popTime, dispatch_get_main_queue(), ^(void){
+        [self dragging: p];
+    });
+}</pre>
+        <p>The <code class="literal">delay</code> in <code class="literal">keepDragging:</code>, combined with the change in offset, determines the speed of autoscrolling. The material marked as omitted in the second, third, and fourth cases is obviously parallel to the first case, and is left as an exercise for the reader.</p>
+        <p>A scroll view’s touch handling is itself based on gesture recognizers attached to the scroll view, and these are available to your code through the scroll view’s <code class="literal">panGestureRecognizer</code> and <code class="literal">pinchGestureRecognizer</code> properties. This means that if you want to customize a scroll view’s touch handling, it’s easy to add more gesture recognizers and have them interact with those already attached to the scroll view.<a id="idm441646293120" class="indexterm"></a><a id="idm441646292256" class="indexterm"></a></p>
+        <p>To illustrate, I’ll build on the previous example. Suppose we want the flag to start out offscreen, and we’d like the user to be able to summon it with a rightward swipe. We can attach a UISwipeGestureRecognizer to our scroll view, but it will never recognize its gesture because the scroll view’s own pan gesture recognizer will recognize first. But we have access to the scroll view’s pan gesture recognizer, so we can compel it to yield to our swipe gesture recognizer by sending it <code class="literal">requireGestureRecognizerToFail:</code>:</p>
+        <pre class="screen">UISwipeGestureRecognizer* swipe =
+    [[UISwipeGestureRecognizer alloc]
+        initWithTarget:self action:@selector(swiped:)];
+[sv addGestureRecognizer:swipe];
+[sv.panGestureRecognizer requireGestureRecognizerToFail:swipe];</pre>
+        <p>By default, the UISwipeGestureRecognizer will recognize a rightward swipe, which is exactly what we want. Here’s my implementation of <code class="literal">swiped:</code>; we create the flag offscreen and animate it onto the screen:</p>
+        <pre class="screen">- (void) swiped: (UISwipeGestureRecognizer*) g {
+    if (g.state == UIGestureRecognizerStateEnded ||
+            g.state == UIGestureRecognizerStateCancelled) {
+        UIImageView* flag =
+            [[UIImageView alloc] initWithImage:
+                [UIImage imageNamed:@"redflag.png"]];
+        UIPanGestureRecognizer* pan = [[UIPanGestureRecognizer alloc]
+                                       initWithTarget:self
+                                       action:@selector(dragging:)];
+        [flag addGestureRecognizer:pan];
+        flag.userInteractionEnabled = YES;
+
+        UIScrollView* sv = self.sv;
+        CGPoint p = sv.contentOffset;
+        CGRect f = flag.frame;
+        f.origin = p;
+        f.origin.x -= flag.bounds.size.width;
+        flag.frame = f;
+        [sv addSubview: flag];
+        // thanks for the flag, now stop operating altogether
+        g.enabled = NO;
+
+        [UIView animateWithDuration:0.25 animations:^{
+            CGRect f = flag.frame;
+            f.origin.x = p.x;
+            flag.frame = f;
+        }];
+    }
+}</pre>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_scroll_view_performance"></a>Scroll View Performance</h2>
+            </div>
+          </div>
+        </div>
+        <p>At several points in earlier chapters I’ve mentioned performance problems and ways to increase drawing efficiency. Nowhere are you so likely to need these as in connection with a scroll view. As a scroll view scrolls, views must be drawn very rapidly as they appear on the screen. If the view-drawing system can’t keep up with the speed of the scroll, the scrolling will visibly stutter.<a id="idm441646284160" class="indexterm"></a></p>
+        <p>Performance testing and optimization is a big subject, so I can’t tell you exactly what to do if you encounter stuttering while scrolling. But certain general suggestions (mostly extracted from a really great WWDC 2010 video) should come in handy:</p>
+        <div class="itemizedlist">
+          <ul class="itemizedlist" type="disc">
+            <li class="listitem">
+Everything that can be opaque should be opaque: don’t force the drawing system to composite transparency, and remember to tell it that an opaque view or layer <span class="emphasis"><em>is</em></span> opaque by setting its <code class="literal">opaque</code> property to YES. If you really must composite transparency, keep the size of the nonopaque regions to a minimum; for example, if a large layer is transparent at its edges, break it into five layers — the large central layer, which is opaque, and the four edges, which are not.
+</li>
+            <li class="listitem">
+If you’re drawing shadows, don’t make the drawing system calculate the shadow shape for a layer: supply a <code class="literal">shadowPath</code>, or use Core Graphics to create the shadow with a drawing. Similarly, avoid making the drawing system composite the shadow as a transparency against another layer; for example, if the background layer is white, your opaque drawing can itself include a shadow already drawn on a white background.
+</li>
+            <li class="listitem">
+Don’t make the drawing system scale images for you; supply the images at the target size for the correct resolution.
+</li>
+            <li class="listitem">
+In a pinch, you can just eliminate massive swatches of the rendering operation by setting a layer’s <code class="literal">shouldRasterize</code> to YES. You could, for example, do this when scrolling starts and then set it back to NO when scrolling ends.
+</li>
+          </ul>
+        </div>
+        <p>Apple’s documentation also says that setting a view’s <code class="literal">clearsContextBeforeDrawing</code> to NO may make a difference. I can’t confirm or deny this; it may be true, but I haven’t encountered a case that positively proves it.</p>
+        <p>As I’ve already mentioned, Xcode provides tools that will help you detect inefficiencies in the drawing system. In the Simulator, the Debug menu shows you blended layers (where transparency is being composited) and images that are being copied, misaligned, or rendered offscreen.<a id="idm441646271440" class="indexterm"></a>
+<a id="idm441646270192" class="indexterm"></a> On the device, the Core Animation module of <a id="idm441646269200" class="indexterm"></a>Instruments provides the same functionality, plus it tracks the frame rate for you, allowing you to scroll and measure performance objectively.
+<a id="idm441646268000" class="indexterm"></a></p>
+      </div>
+    </div>
+    <div class="navfooter">
+      <table width="100%" summary="Navigation footer">
+        <tr>
+          <td width="40%" align="left"><a accesskey="p" href="ch19.html">Prev</a> </td>
+          <td width="20%" align="center">
+            <a accesskey="u" href="pt05.html">Up</a>
+          </td>
+          <td width="40%" align="right"> <a accesskey="n" href="ch21.html">Next</a></td>
+        </tr>
+        <tr>
+          <td width="40%" align="left" valign="top">Chapter 19. View Controllers </td>
+          <td width="20%" align="center">
+            <a accesskey="h" href="index.html">Table of Contents</a>
+          </td>
+          <td width="40%" align="right" valign="top"> Chapter 21. Table Views and Collection Views</td>
+        </tr>
+      </table>
+    </div>
+  </body>
+</html>

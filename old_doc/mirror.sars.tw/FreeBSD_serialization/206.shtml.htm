@@ -1,0 +1,634 @@
+
+
+<!-- Vignette StoryServer 4 Sat Mar 11 15:43:24 2000 --> 
+<style type=text/css>
+<!--
+p,div {font-size:12pt; line-height:14pt; font-family:宋體;}
+.p1{font-size:12pt;font-family:宋體;}
+.p2{font-size:12pt;font-family:宋體;line-height:14pt;}
+.p3{font-size:14.8px;font-family:宋體;}
+.p4{font-size:14.8px;font-family:宋體;line-height:14pt;}
+.p5{font-size:1pt}
+a:hover{color:red;}
+a.t1:visited{color:red;}
+-->
+</style>
+<title>FreeBSD使用大全</title></head>
+
+<body bgcolor="#FFFFFF" text="#000000" link="#383098" vlink="#336699" alink="#FF0000" topmargin="0">
+<!-- Vignette StoryServer 4 Thu Mar 23 10:01:54 2000 --> <!-- Vignette StoryServer 4 Thu Mar 23 15:34:35 2000 --> 
+
+<!--開始：新聞內容-->
+<TABLE WIDTH=750 BORDER=0 CELLSPACING=0 CELLPADDING=0>
+
+<tr valign=top>
+
+
+
+<TD  valign=top>
+<CENTER><FONT COLOR=#000066 size=5><B>FreeBSD連載(85)：配置Apache伺服器(2)</B><br></FONT></CENTER>
+
+<HR  ALIGN="center" SIZE=1>
+<CENTER><FONT FACE="Arial" SIZE=2> 2000年1月26日 15:03 </FONT><FONT COLOR="#990000" SIZE=2>王波</FONT></CENTER><p>
+
+<h1 align=center>配置Apache伺服器(2)</h1>
+
+<ul><h2><P><LI>主伺服器設置</LI></P></h2></ul>
+
+<p>　　Apache伺服器需要各種設置，以定義自己使用各種參數以提供Web服務。對於使用虛擬主機的情況，除了在
+虛擬主機的定義項中覆蓋的設置之外（有的設置必須重新定義），這裡的設置也是虛擬主機的預設設置。</p>
+
+<p>　　Port 80</p>
+
+<p>　　<B>Port</B>定義了Standalone模式下httpd守護進程使用的端口，標準端口是80。這
+個選項只對於以獨立方式啟動的伺服器才有效，對於以inetd方式啟動的伺服器則在inetd.conf中定義使用哪
+個端口。</p>
+
+<p>　　在Unix下使用80端口需要root權限，一些管理員為了安全的原因，認為httpd伺服器不可能沒有安全
+漏洞，因而更願意使用普通用戶的權限來啟動伺服器，這樣就不能使用80端口及其他小於1024的端口，而必須使用大於
+1024的端口來啟動httpd，一般情況下8000或8080也是常用的端口。而Apache httpd伺服器本
+身可以在以root權限打開80端口後再改變為普通用戶身份進行運行，這樣就減少了危險性，因而就不需要考慮這個安全
+問題。但是如果普通用戶也想安裝配置自己的WWW伺服器，那麼就不得不使用大於1024的端口，當然普通用戶不能使用
+Ports Collection進行編譯安裝，而必須手工編譯安裝。</p>
+
+<p>　　User nobody</p>
+
+<p>　　Group nogroup</p>
+
+<p>　　<B>User</B>和<B>Group</B>配置是Apache的安全保証，Apache在打開端口之
+後，就將其本身設置為這兩個選項設置的用戶和組權限進行運行，這樣就降低了伺服器的危險性。這個選項也只用於
+Standalone模式，inetd模式在inetd.conf中指定運行Apache的用戶。由於伺服器必須執行改變身份
+的setuid()操作，因此初始進程應該具備root權限，如果是使用非root用戶來啟動Aapche，這個配置
+就不會發揮作用。</p>
+
+<p>　　預設設置為nobody和nogroup，這個用戶和組在系統中不擁有檔案，保証了伺服器本身和由它啟動的CGI
+進程沒有權限更改檔案系統。在某些情況下，例如為了運行CGI與Unix交互，也需要讓伺服器來訪問伺服器上的文
+件，如果仍然使用nobody和nogroup，那麼系統中將會出現屬於nobody的檔案，這對於系統安全是不利的
+，因為其他程序也會以nobody和nogroup的權限執行某些操作，就有可能訪問這些nobody擁有的檔案，造
+成安全問題。一般情況下要為Web服務設定一個特定的用戶和組，同時在這裡更改用戶和組設置。</p>
+
+<p>　　ServerAdmin you@your.address</p>
+
+<p>　　配置檔案中應該改變的也許只有<B>ServerAdmin</B>， 這一項用於配置WWW伺服器的管理員
+的email地址，這將在HTTP服務出現錯誤的條件下返回給瀏覽器，以便讓Web使用者和管理員聯繫，報告錯誤。習
+慣上使用伺服器上的webmaster作為WWW伺服器的管理員，通過郵件伺服器的別名機制，將發送到webmaster
+的電子郵件發送給真正的Web管理員。</p>
+
+<p>　　#ServerName new.host.name</p>
+
+<p>　　預設情況下，並不需要指定這個<B>ServerName</B>參數，伺服器將自動通過名字解析過程來獲得
+自己的名字，但如果伺服器的名字解析有問題（通常為反向解析不正確），或者沒有正式的DNS名字，也可以在這裡指定I
+P地址。當ServerName設置不正確的時候，伺服器不能正常啟動。</p>
+
+<p>　　通常一個Web伺服器可以具有多個名字，客戶瀏覽器可以使用所有這些名字或IP地址來訪問這台伺服器，但在沒
+有定義虛擬主機的情況下，伺服器總是以自己的正式名字回應瀏覽器。ServerName就定義了Web伺服器自己承認
+的正式名字，例如一台伺服器名字（在DNS中定義了A類型）為freebsd.exmaple.org.cn，同時為
+了方便記憶還定義了一個別名（CNAME記錄）為www.exmaple.org.cn，那麼Apache自動解析得
+到的名字就為freebsd.example.org.cn，這樣不管客戶瀏覽器使用哪個名字發送請求，伺服器總是告
+訴客戶程序自己為freebsd.example.org.cn。雖然這一般並不會造成什麼問題，但是考慮到某一天服
+務器可能遷移到其他電腦上，而只想通過更改DNS中的www別名配置就完成遷移任務，所以不想讓客戶在其書簽中使用
+freebsd記錄下這個伺服器的地址，就必須使用ServerName來重新指定伺服器的正式名字。</p>
+
+<p>　　DocumentRoot "/usr/local/www/data"</p>
+
+<p>　　<B>DocumentRoot</B>定義這個伺服器對外發布的超文本文檔存放的路徑，客戶程序請求的UR
+L就被映射為這個目錄下的網頁檔案。這個目錄下的子目錄，以及使用符號連接指出的檔案和目錄都能被瀏覽器訪問，只是要
+在URL上使用同樣的相對目錄名。</p>
+
+<p>　　注意，符號連接雖然邏輯上位於根文檔目錄之下，但實際上可以位於電腦上的任意目錄中，因此可以使客戶程序能
+訪問那些根文檔目錄之外的目錄，這在增加了靈活性的同時但減少了安全性。Apache在目錄的訪問控制中提供了Fol
+lowSymLinks選項來打開或關閉支持符號連接的特性。</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre><Directory />
+    Options FollowSymLinks
+    AllowOverride None
+</Directory></td></pre></tr></table>
+
+<p>　　Apache伺服器可以針對目錄進行文檔的訪問控制，然而訪問控制可以通過兩種方式來實現，一個是在設置檔案
+httpd.conf（或access.conf）中針對每個目錄進行設置，另一個方法是在每個目錄下設置訪問控制文
+件，通常訪問控制檔案名字為.htaccess。雖然使用這兩個方式都能用於控制瀏覽器的訪問，然而使用配置檔案的方
+法要求每次改動後重新啟動httpd守護進程，比較不靈活，因此主要用於配置伺服器系統的整體安全控制策略，而使用每
+個目錄下的.htaccess檔案設置具體目錄的訪問控制更為靈活方便。</p>
+
+<p>　　<B>Directory</B>語句就是用來定義目錄的訪問限制的，這裡可以看出它的標準語法，為一個目錄
+定義訪問限制。上例的這個設置是針對系統的根目錄進行的，設置了允許符號連接的選項<B>FollowSymLinks
+</B>，以及使用<B>AllowOverride</B> <B>None</B>表示不允許這個目錄下的訪問
+控制檔案來改變這裡進行的配置，這也意味著不用查看這個目錄下的相應訪問控制檔案。</p>
+
+<p>　　由於Apache對一個目錄的訪問控制設置是能夠被下一級目錄繼承的，因此對根目錄的設置將影響到它的下級目
+錄。注意由於<B>AllowOverride</B> <B>None</B>的設置，使得Apache伺服器不需
+要查看根目錄下的訪問控制檔案，也不需要查看以下各級目錄下的訪問控制檔案，直至httpd.conf（或access.conf
+）中為某個目錄指定了允許Alloworride，即允許查看訪問控制檔案。由於Apache對目錄訪問
+控制是採用的繼承方式，如果從根目錄就允許查看訪問控制檔案，那麼Apache就必須一級一級的查看訪問控制檔案，對
+系統性能會造成影響。而預設關閉了根目錄的這個特性，就使得Apache從httpd.conf中具體指定的目錄向下
+搜尋，減少了搜尋的級數，增加了系統性能。因此對於系統根目錄設置AllowOverride None不但對於系統
+安全有幫助，也有益於系統性能。</p>
+
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre><Directory "/usr/local/www/data">
+    Options Indexes FollowSymLinks
+    AllowOverride None
+    Order allow,deny
+    Allow from all
+</Directory></td></pre></tr></table>
+
+<p>　　這裡定義的是系統對外發布文檔的目錄的訪問設置，設置不同的AllowOverride選項，以定義配置檔案
+中的目錄設置和用戶目錄下的安全控制檔案的關系，而Options選項用於定義該目錄的特性。</p>
+
+<p>　　配置檔案和每個目錄下的訪問控制檔案都可以設置訪問限制，設置檔案是由管理員設置的，而每個目錄下的訪問控制
+檔案是由目錄的屬主設置的，因此管理員可以規定目錄的屬主是否能覆蓋系統在設置檔案中的設置，這就需要使用
+AllowOverride參數進行設置，通常可以設置的值為：</p>
+
+<center><TABLE BORDER CELLSPACING=1 CELLPADDING=7 WIDTH=524>
+<TR><TD WIDTH="30%">AllowOverride的設置</TD><TD WIDTH="70%">對每個目錄訪問控制檔案作用的影響</TD></TR>
+<TR><TD>All</TD><TD>預設值，使訪問控制檔案可以覆蓋系統配置</TD></TR>
+<TR><TD>None</TD><TD>伺服器忽略訪問控制檔案的設置</TD></TR>
+<TR><TD>Options</TD><TD>允許訪問控制檔案中可以使用Options參數定義目錄的選項</TD></TR>
+<TR><TD>FileInfo</TD><TD>允許訪問控制檔案中可以使用AddType等參數設置</TD></TR>
+<TR><TD>AuthConfig</TD><TD>允許訪問控制檔案使用AuthName，AuthType等針對每個用戶的認証機制，這使目錄屬主能用密碼和用戶名來保護目錄</TD></TR>
+<TR><TD>Limit</TD><TD>允許對訪問目錄的客戶機的IP地址和名字進行限制</TD></TR>
+</TABLE></center>
+
+<P>　　每個目錄具備一定屬性，可以使用Options來控制這個目錄下的一些訪問特性設置，以下為常用的特性選項：</P>
+
+<center><TABLE BORDER CELLSPACING=1 CELLPADDING=7 WIDTH=524>
+<TR><TD WIDTH="30%">Options設置</TD><TD WIDTH="70%">伺服器特性設置</TD></TR>
+<TR><TD>All</TD><TD>所有的目錄特性都有效，這是預設狀態</TD></TR>
+<TR><TD>None</TD><TD>所有的目錄特性都無效</TD></TR>
+<TR><TD>FollowSymLinks</TD><TD>允許使用符號連接，這將使瀏覽器有可能訪問文檔根目錄（DocumentRoot）之外的文檔</TD></TR>
+<TR><TD>SymLinksIfOwnerMatch</TD><TD>只有符號連接的目的與符號連接本身為同一用戶所擁有時，才允許訪問，這個設置將增加一些安全性</TD></TR>
+<TR><TD>ExecCGI</TD><TD>允許這個目錄下可以執行CGI程序</TD></TR>
+<TR><TD>Indexes</TD><TD>允許瀏覽器可以生成這個目錄下所有檔案的索引，使得在這個目錄下沒有index.html（或其他索引檔案）時，能向瀏覽器發送這個目錄下的檔案列表</TD></TR>
+</TABLE></center>
+
+<p>　　此外，上例中還使用了Order、Allow、Deny等參數，這是Limit語句中用來根據瀏覽器的域名和
+IP地址來控制訪問的一種方式。其中Order定義處理Allow和Deny的順序，而Allow、Deny則針對名
+字或IP進行訪問控制設置，上例使用allow from all，表示允許所有的客戶機訪問這個目錄，而不進行任何
+限制。</p>
+
+<p>　　UserDir public_html</p>
+
+<p>　　當在一台FreeBSD上運行Apache伺服器時，這台電腦上的所有用戶都可以有自己的網頁路徑，形如
+http://freebsd.example.org.cn/~user，使用波浪符號加上用戶名就可以映射到用戶自
+己的網頁目錄上。映射目錄為用戶個人主目錄下的一個子目錄，其名字就用<B>UseDir</B>這個參數進行定義，
+預設為public_html。如果不想為正式的用戶提供網頁服務，使用DISABLED作UserDir的參數即可
+。</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre><font size=2>#<Directory /*/public_html>
+#    AllowOverride FileInfo AuthConfig Limit
+#    Options MultiViews Indexes SymLinksIfOwnerMatch IncludesNoExec
+#    <Limit GET POST OPTIONS PROPFIND>
+#        Order allow,deny
+#        Allow from all
+#    </Limit>
+#    <Limit PUT DELETE PATCH PROPPATCH MKCOL COPY MOVE LOCK UNLOCK>
+#        Order deny,allow
+#        Deny from all
+#    </Limit>
+#</Directory></font></td></pre></tr></table>
+
+<p>　　這裡可以看到Directory的另一個用法，即可以通過簡單的模式匹配方法，針對分布在不同目錄下的子目錄
+定義訪問控制權限。這樣設置就需要Apache伺服器對每個路徑進行額外的處理，因此就會降低伺服器的性能，所以預設
+情況並沒有打開這種訪問限制。</p>
+
+<p>　　這裡可以看到另外一個語句Limit，Limit語句就是用來針對具體的請求方法來設定訪問控制的，其中可以
+使用GET、POST等各種伺服器支持的請求方法做Limit的參數，來設定對不同請求方法的訪問限制。一般可以打開
+對GET、POST、HEAD三種請求方法，而屏蔽其他的請求方法，以增加安全性。Limit語句中，可以使用Order
+、Allow、Deny，Allow和Deny中可以使用匹配的方法針對域名和IP進行限制，只是對於域名是從後
+向前匹配，對於IP地址則從前向後匹配。</p>
+
+<p>　　DirectoryIndex index.html</p>
+
+<p>　　很多情況下，URL中並沒有指定文檔的名字，而只是給出了一個目錄名。那麼Apache伺服器就自動返回這個
+目錄下由<B>DirectoryIndex</B>定義的檔案，當然可以指定多個檔案名字，系統會這個目錄下順序搜
+索。當所有由DirectoryIndex指定的檔案都不存在時，Apache伺服器可以根據系統設置，生成這個目錄
+下的所有檔案列表，提供用戶選擇。此時該目錄的訪問控制選項中的Indexes選項（Options Indexes
+）必須打開，以使得伺服器能夠生成目錄列表，否則Apache將拒絕訪問。</p>
+
+<p>　　AccessFileName .htaccess</p>
+
+<p>　　<B>AccessFileName</B>定義每個目錄下的訪問控制檔案的檔案名，預設為.htaccess
+，可以通過更改這個檔案，來改變不同目錄的訪問控制限制。</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre><Files .htaccess>
+    Order allow,deny
+    Deny from all
+</Files></td></pre></tr></table>
+
+<p>　　除了可以針對目錄進行訪問控制之外，還可以根據檔案來設置訪問控制，這就是File語句的任務。使用File
+語句，不管檔案處於哪個目錄，只要名字匹配，就必須接受相應的訪問控制。這個語句對於系統安全比較重要，例如上例將屏
+蔽所有的使用者不能訪問.htaccess檔案，這樣就避免.htaccess中的關鍵安全信息不至於被客戶獲取。</p>
+
+<p>　　#CacheNegotiatedDocs</p>
+
+<p>　　預設情況下如果代理伺服器和Apache伺服器協商是否緩存其網頁，Apache給予否定的回答，不希望自己
+的網頁被代理伺服器緩存。然而這樣就不能有效的利用代理伺服器的優勢，因此可以設置<B>CacheNegotiatieDocs</B>
+選項， 使得代理伺服器可以對網頁進行緩存。然而即使不設置這個選項，有的代理伺服器（或通過調
+整設置）也能對網頁進行緩存。</p>
+
+<p>　　UseCanonicalName On</p>
+
+<p>　　打開這個<B>UseCanonicalName</B>是Web伺服器的標準做法，因為客戶發送的大部分請
+求都是對本伺服器的引用，這樣伺服器就能使用ServerName和Port選項的設置內容構建完整的URL，並回應
+客戶，使瀏覽器能得到規范的URL。如果將這個參數設置為Off，那麼Apache將使用從客戶請求中獲得伺服器的名
+字和端口值（支持HTTP 1.1的客戶的請求中將會有這些信息），重新構建URL。</p>
+
+<p>　　TypesConfig /usr/local/etc/apache/mime.types</p>
+
+<p>　　<B>TypeConfig</B>用於設置保存有不同的MIME類型數據的檔案名，在FreeBSD下預設
+設置為/usr/local/etc/apache/mime.types。</p>
+
+<p>　　DefaultType text/plain</p>
+
+<p>　　如果Web伺服器不能決定一個文檔的預設類型，這通常表示文檔使用了非標準的後綴，那麼伺服器就使用
+<B>DefaultType</B>定義的MIME類型將文檔發送給客戶瀏覽器。這裡的設置為text/plain，這樣設
+置的問題是，如果伺服器不能判斷出文檔的MIME，那麼大部分情況下這個文檔為一個二進制文檔，但使用
+text/plain格式發送回去，瀏覽器將在內部打開它而不會提示保存。因此建議將這個設置更改為
+application/octet-stream，這樣瀏覽器將提示用戶進行保存。</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre><IfModule mod_mime_magic.c>
+    MIMEMagicFile /usr/local/etc/apache/magic
+</IfModule></td></pre></tr></table>
+
+<p>　　除了從檔案的後綴出發來判斷檔案的MIME類型之外，Apache還可以進一步分析檔案的一些特征，來判斷文
+件的真實MIME類型。這個功能是由mod_mime_magic模塊實現的，它需要一個記錄各種MIME類型特征的
+檔案，以進行分析判斷。上面的設置是一個條件語句，如果載入了這個模塊，就必須指定相應的標志檔案magic的位置。
+</p>
+<p>　　HostnameLookups Off</p>
+
+<p>　　通常連接時，伺服器僅僅可以得到客戶機的IP地址，如果要想獲得客戶機的主機名，以進行日誌記錄和提供給
+CGI程序使用，就需要使用這個HostnameLookups選項，將其設置為On打開DNS反查功能。但是這將使服務
+器對每次客戶請求都進行DNS查詢，增加了系統開銷，使得反應變慢，因此預設設置為使用Off關閉此選項。關閉選項之
+後，伺服器就不會獲得客戶機的主機名，而只能使用IP地址來記錄客戶。</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre><font size=2>ErrorLog /var/log/httpd-error.log
+LogLevel warn
+LogFormat "%h %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"" combined
+LogFormat "%h %l %u %t \"%r\" %>s %b" common
+LogFormat "%{Referer}i -> %U" referer
+LogFormat "%{User-agent}i" agent
+#CustomLog /var/log/httpd-access.log common
+#CustomLog /var/log/httpd-referer.log referer
+#CustomLog /var/log/httpd-agent.log agent
+CustomLog /var/log/httpd-access.log combined</font></td></pre></tr></table>
+
+<p>　　這裡定義了系統日誌的形式，對於伺服器錯誤記錄， 由<B>ErrorLog</B>、<B>LogLevel</B>
+來定義不同的錯誤日誌檔案及其記錄內容。 </p>
+
+<p>　　對於系統的訪問日誌，預設使用<B>CustomLog</B>參數定義日誌的位置，預設使用combined
+參數指定將所有的訪問日誌放在一個檔案中，然而也可以將不同種類的訪問日誌放在不同的日誌記錄檔案中，這是通過在
+CustomLog中指定不同的記錄類型來完成的。common表示普通的對單頁面請求訪問記錄，referer表示每
+個頁面的引用記錄，可以看出一個頁面中包含的請求數，agent表示對客戶機的類型記錄，顯然可以將現有的combined
+定義的設置行注釋掉，並使用common、referer和agent作為CustomLog的參數，來為不同
+種類的日誌分別指定日誌記錄檔案。</p>
+
+<p>　　顯然，<B>LogFormat</B>是用於定義不同類型的日誌進行記錄時使用的格式， 這裡使用了以%開
+頭的宏定義，以記錄不同的內容。</p>
+
+<p>　　如果這些參數指定的檔案使用的是相對路徑，那麼就是相對於ServerRoot的路徑。</p>
+
+<p>　　ServerSignature On</p>
+
+<p>　　一些情況下，例如當客戶請求的網頁並不存在時，伺服器將產生錯誤文檔，預設情況下由於打開了
+<B>ServerSignature</B>選項，錯誤文檔的最後一行將包含伺服器的名字、Apache的版本等信息。有的管理員更
+傾向於不對外顯示這些信息，就可以將這個參數設置為Off，或者設置為Email，最後一行將替換為對ServerAdmin
+的Email提示。</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>Alias /icons/ "/usr/local/www/icons/"
+<Directory "/usr/local/www/icons">
+    Options Indexes MultiViews
+    AllowOverride None
+    Order allow,deny
+    Allow from all
+</Directory></td></pre></tr></table>
+
+<p>　　<B>Alias</B>參數用於將URL與伺服器檔案系統中的真實位置進行直接映射，一般的文檔將在DocumentRoot
+中進行查詢，然而使用Alias定義的路徑將直接映射到相應目錄下，而不再到DocumentRoot
+下面進行查詢。因此Alias可以用來映射一些公用檔案的路徑，例如保存了各種常用圖標的icons路徑。這樣使
+得除了使用符號連接之外，文檔根目錄（DocumentRoot）外的目錄也可以通過使用了Alias映射，提供給瀏
+覽器訪問。</p>
+
+<p>　　定義好映射的路徑之後，應該需要使用Directory語句設置訪問限制。</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>ScriptAlias /cgi-bin/ "/usr/local/www/cgi-bin/"
+<Directory "/usr/local/www/cgi-bin">
+    AllowOverride None
+    Options None
+    Order allow,deny
+    Allow from all
+</Directory></td></pre></tr></table>
+
+<p>　　ScriptAlias也是用於URL路徑的映射，但與Alias的不同在於，ScriptAlias是用於
+映射CGI程序的路徑，這個路徑下的檔案都被定義為CGI程序，通過執行它們來獲得結果，而非由伺服器直接返回其內容
+。預設情況下CGI程序使用cgi-bin目錄作為虛擬路徑。</p>
+
+<p>　　# Redirect old-URI new-URL</p>
+
+<p>　　<B>Redirect</B>參數是用來重寫URL的，當瀏覽器訪問伺服器上的一個已經不存在的資源的時候
+，伺服器返回給瀏覽器新的URL，告訴瀏覽器從該URL中獲取資源。這主要用於原來存在於伺服器上的文檔，改變了位置
+之後，而又希望能使用老URL能訪問到，以保持與以前的URL兼容。 </p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre><font size=2>IndexOptions FancyIndexing
+AddIconByEncoding (CMP,/icons/compressed.gif) x-compress x-gzip
+AddIconByType (TXT,/icons/text.gif) text/*
+AddIconByType (IMG,/icons/image2.gif) image/*
+AddIconByType (SND,/icons/sound2.gif) audio/*
+AddIconByType (VID,/icons/movie.gif) video/*
+AddIcon /icons/binary.gif .bin .exe
+AddIcon /icons/binhex.gif .hqx
+AddIcon /icons/tar.gif .tar
+AddIcon /icons/world2.gif .wrl .wrl.gz .vrml .vrm .iv
+AddIcon /icons/compressed.gif .Z .z .tgz .gz .zip
+AddIcon /icons/a.gif .ps .ai .eps
+AddIcon /icons/layout.gif .html .shtml .htm .pdf
+AddIcon /icons/text.gif .txt
+AddIcon /icons/c.gif .c
+AddIcon /icons/p.gif .pl .py
+AddIcon /icons/f.gif .for
+AddIcon /icons/dvi.gif .dvi
+AddIcon /icons/uuencoded.gif .uu
+AddIcon /icons/script.gif .conf .sh .shar .csh .ksh .tcl
+AddIcon /icons/tex.gif .tex
+AddIcon /icons/bomb.gif core
+AddIcon /icons/back.gif ..
+AddIcon /icons/hand.right.gif README
+AddIcon /icons/folder.gif ^^DIRECTORY^^
+AddIcon /icons/blank.gif ^^BLANKICON^^
+DefaultIcon /icons/unknown.gif
+#AddDescription "GZIP compressed document" .gz
+#AddDescription "tar archive" .tar
+#AddDescription "GZIP compressed tar archive" .tgz
+ReadmeName README
+HeaderName HEADER
+IndexIgnore .??* *~ *# HEADER* README* RCS CVS *,v *,t</font></td></pre></tr></table>
+
+<p>　　當一個HTTP請求的URL為一個目錄的時候，伺服器返回這個目錄中的索引檔案。但如果一個目錄中不存在預設
+的索引檔案，並且該伺服器又許可顯示目錄檔案列表的時候，就會顯示出這個目錄中的檔案列表，為了使得這個檔案列表能具
+有可理解性，而不僅僅是一個簡單的列表，就需要前面的這些設置參數。</p>
+
+<p>　　如果使用了<B>IndexOptions</B> <B>FancyIndexing</B>選項，可以讓
+伺服器產生的目錄列表中針對各種不同類型的文檔引用各種圖標。而哪種檔案使用哪種圖標，則使用下面的
+<B>AddIconByEncoding</B>、<B>AddIconByType</B>以及<B>AddIcon</B>來定
+義，分別依據MIME的編碼、類型以及檔案的後綴來判斷使用何種圖標。如果不能確定文檔使用的圖標，就使用
+<B>DefaultIcon</B>定義的預設圖標。</p>
+
+<p>　　同樣，使用<B>AddDescription</B>可以為不同類型的文檔加入不同的描述。並且，伺服器還
+在目錄下，查詢使用<B>ReadmeName</B>和<B>HeaderName</B>定義的檔案（自動加上.
+html後綴，如果沒有發現，再使用.txt後綴進行搜索），如果發現了這些檔案，就在檔案列表之前首先顯示這些檔案
+的內容，以使得普通目錄列表具備更大的可理解性。</p>
+
+<p>　　<B>IndexIgnore</B>讓伺服器在列出檔案列表時忽略相應的檔案， 這裡使用模式配置的方式定
+義檔案名。</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>AddEncoding x-compress Z
+AddEncoding x-gzip gz</td></pre></tr></table>
+
+<P>　　AddEncoding用於告訴一些使用壓縮的MIME類型，這樣可以讓瀏覽器進行解壓縮操作。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>AddLanguage en .en
+AddLanguage fr .fr
+AddLanguage de .de
+AddLanguage da .da
+AddLanguage el .el
+AddLanguage it .it
+LanguagePriority en fr de</td></pre></tr></table>
+
+<p>　　一個HTML文檔可以同時具備多個語言的版本，如對於file1.html文檔可以具備file1.html.en、file1.html.fr
+等不同的版本，每個語言後綴必須使用<B>AddLanguage</B>進行定
+義。這樣伺服器可以針對不同國家的客戶，通過與瀏覽器進行協商，發送不同的語言版本。而<B>LanguagePriority</B>
+定義不同語言的優先級，以便在瀏覽器沒有特殊要求時，按照順序使用不同的語言版本回應對file1.html
+的請求。這個國際化的能力實際的應用並不多。</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>#AddType application/x-httpd-php3 .phtml
+#AddType application/x-httpd-php3-source .phps</td></pre></tr></table>
+
+<p>　　<B>AddType</B>參數可以為特定後綴的檔案指定MIME類型，這裡的設置將覆蓋mime.types中的設置。</p>
+
+<p>　　#AddHandler cgi-script .cgi</p>
+
+<p>　　AddHandler是用於指定非靜態的處理類型，用於定義文檔為一個非靜態的文檔類型，需要進行處理，再向
+瀏覽器返回處理結果。例如上面注釋中的設置是將以.cgi結尾的檔案設置為cgi-script類型，那麼伺服器將啟
+動這個CGI程序以進行處理。如果需要在前面AliasScript定義的路徑之外執行CGI程序，就需要使用這個參
+數進行設置，此後以.cgi結尾的檔案將被當作CGI程序執行。</p>
+
+<p>　　在配置檔案、這個目錄中的.htaccess以及其上級目錄的.htaccess中必須允許執行CGI程序，
+這需要通過Options ExecCGI參數設定。</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>#AddType text/html .shtml
+#AddHandler server-parsed .shtml</td></pre></tr></table>
+
+<p>　　另外一種動態進行處理的類型為server-parsed，由伺服器自身預先分析網頁內的標記，將標記更改為
+正確的HTML標識。由於server-parsed需要對text/html類型的文檔進行處理，因此首先定義了對
+應的.shtml為text/html類型。</p>
+
+<p>　　然而要支持SSI，還要首先要在配置檔案（或.htaccess）中使用Options Includes允
+許該目錄下的文檔可以為SSI類型，或使用Options IncludesNOExec讓執行普通的SSI標志，但
+不執行其中引用的外部程序。</p>
+
+<p>　　另一種指定server-parsed類型的方式為使用XBitBack設置選項，如果將XBitHack設
+置為On，伺服器將檢查所有text/html類型的文檔（包括.html後綴的文檔），如果發現檔案屬性具備執行位
+“x"，則伺服器就認為它是伺服器分析文檔，需要伺服器進行處理。推荐使用AddHandler進行設置，而將XBitBack
+設置為Off，因為使用XBitBack將對所有的HTML文檔都執行額外的檢查，降低了效率。</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>#AddHandler send-as-is asis
+#AddHandler imap-file map
+#AddHandler type-map var</td></pre></tr></table>
+
+<P>　　上面被注釋的<B>AddHandler</B>用於支持Apache伺服器的asis、map和var處理能力。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># Action media/type /cgi-script/location
+# Action handler-name /cgi-script/location</td></pre></tr></table>
+
+<p>　　因為Apache內部提供的處理功能有限，因此可以使用Action為伺服器定義外部程序作為可處理的動態文
+檔類型，這些外部程序與標準CGI程序相同，都是對輸入的數據處理之後，再輸出不同MIME類型的結果。例如要定義一
+個對特殊後綴wri都先執行wri2txt進行處理操作，再返回結果的操作，可以使用：</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre> 		Action windows-writer /bin/wri2txt
+ 		AddHandler windows-writer wri</td></pre></tr></table>
+
+<p>　　更進一步，可以直接使用Action定義對某個MIME類型預先進行處理操作，這需要例子中第一種格式的Action
+參數設置方式。這樣設置方式就不再需要額外的AddHandler用來將處理操作與檔案後綴聯繫起來，而是使
+用Action直接處理MIME類型的檔案。但如果文檔後綴沒有正式的MIME類型，還需要先定義一個MIME類型。</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>#MetaDir .web</P>
+<P>#MetaSuffix .meta</td></pre></tr></table>
+
+<p>　　Meta信息是在文檔發送給客戶之前，預先發送給客戶瀏覽器一些數據，因此瀏覽器可以通過HEAD請求來訪問
+這些Meta信息而不必真正通過GET來返回全部文檔數據。伺服器通常發送給瀏覽器的是一些標準的HTTP頭信息，如
+果要想增加額外的信息，就需要使用<B>MetaDir</B>來定義Meta數據存放的目錄， 而<B>MetaS
+uffix</B>用於指定包含Meta數據的檔案後綴。</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre><font size=2>#ErrorDocument 500 "The server made a boo boo.
+#ErrorDocument 404 /missing.html
+#ErrorDocument 404 /cgi-bin/missing_handler.pl
+#ErrorDocument 402 http://some.other_server.com/subscription_info.html</font></td></pre></tr></table>
+
+<p>　　如果客戶請求的網頁不存在，或者沒有訪問權限等情況發生時，伺服器將產生一個錯誤代碼，同時也將回應客戶瀏覽
+器一個標識錯誤的網頁。<B>ErrorDocument</B>就用於設置當出現哪個錯誤時應該回應客戶瀏覽器那些
+內容，ErrorDocument的第一個參數為錯誤的序號，第二個參數為回應的數據，可以為簡單的文本，本地網頁，
+本地CGI程序，以及遠程主機上的網頁。</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre><font size=2>BrowserMatch "Mozilla/2" nokeepalive
+BrowserMatch "MSIE 4\.0b2;" nokeepalive downgrade-1.0 force-response-1.0
+BrowserMatch "RealPlayer 4\.0" force-response-1.0
+BrowserMatch "Java/1\.0" force-response-1.0
+BrowserMatch "JDK/1\.0" force-response-1.0</font></td></pre></tr></table>
+
+<p>　　<B>BrowserMatch</B>命令為特定的客戶程序，設置特殊的參數，以保証對老版本瀏覽器的兼容
+性，並支持新瀏覽器的新特性。</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>#<Location /server-status>
+#    SetHandler server-status
+#    Order deny,allow
+#    Deny from all
+#    Allow from .your_domain.com
+#</Location>
+#<Location /server-info>
+#    SetHandler server-info
+#    Order deny,allow
+#    Deny from all
+#    Allow from .your_domain.com
+#</Location>
+#<Location /cgi-bin/phf*>
+#    Deny from all
+#    ErrorDocument 403 http://phf.apache.org/phf_abuse_log.cgi
+#</Location></td></pre></tr></table>
+
+<p>　　用於設置訪問控制的設置主要是針對目錄和檔案進行設置的，然而也可以針對不同的URL進行訪問控制的設置，這
+樣就不必擔心ScriptAlias、Alias是否將路徑設置到了受控制的目錄之外了。針對URL進行控制的語句為
+<B>Location</B>語句，這樣不但能對伺服器上的檔案、CGI提供保護，此外，它還能保護不能找到對應文
+件，而是由伺服器本身提供的特殊功能URL。http://servername/server-status用於報
+告目前Apache伺服器的狀態，http://servername/server-info用於報告Apache
+伺服器的統計信息。與此相關的設置還有ExtendedStatus參數，可以讓伺服器輸出更詳細的的報告。</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>#<IfModule mod_proxy.c>
+#ProxyRequests On
+#
+#<Directory proxy:*>
+#    Order deny,allow
+#    Deny from all
+#    Allow from .your_domain.com
+#</Directory>
+#ProxyVia On
+#CacheRoot "/usr/local/www/proxy"
+#CacheSize 5
+#CacheGcInterval 4
+#CacheMaxExpire 24
+#CacheLastModifiedFactor 0.1
+#CacheDefaultExpire 1
+#NoCache a_domain.com another_domain.edu joes.garage_sale.com
+ 
+#</IfModule></td></pre></tr></table>
+
+<p>　　Apache伺服器本身就具備代理的功能，然而這要求加載入mod_proxy模塊。這能使用IfModule語
+句進行判斷，如果存在mod_proxy模塊，就使用ProxyRequests打開代理支持。此後的Directory用於設
+置對Proxy功能的訪問權限設置，以及用於設置緩衝的各個參數設置。</p>
+
+<ul><h2><P><LI>虛擬主機</LI></P></h2></ul>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>#NameVirtualHost 12.34.56.78:80
+#NameVirtualHost 12.34.56.78
+#<VirtualHost ip.address.of.host.some_domain.com>
+#    ServerAdmin webmaster@host.some_domain.com
+#    DocumentRoot /www/docs/host.some_domain.com
+#    ServerName host.some_domain.com
+#    ErrorLog logs/host.some_domain.com-error_log
+#    CustomLog logs/host.some_domain.com-access_log common
+#</VirtualHost>
+ 
+#<VirtualHost _default_:*>
+#</VirtualHost></td></pre></tr></table>
+
+<p>　　預設設置檔案中的這些內容是用於設置命名基礎的虛擬主機伺服器時使用。其中<B>NameVirtualHost</B>
+來指定虛擬主機使用的IP地址，這個IP地址將對應多個DNS名字，如果Apache使用了Listen
+參數控制了多個端口，那麼就可以在這裡加上端口號以進一步進行區分對不同端口的不同連接請求。此後，使用
+<B>VirtualHost</B>語句，使用NameVirtualHost指定的IP地址作參數，對每個名字都定義對應的虛
+擬主機設置。</p>
+
+<p>　　虛擬主機是在一台Web伺服器上，可以為多個單獨域名提供Web服務，並且每個域名都完全獨立，包括具有完全
+獨立的文檔目錄結構及設置，這樣域名之間完全獨立，不但使用每個域名訪問到的內容完全獨立，並且使用另一個域名無法訪
+問其他域名提供的網頁內容。</p>
+
+<p>　　虛擬主機的概念對於ISP來講非常有用，因為雖然一個組織可以將自己的網頁挂在具備其他域名的伺服器上的下級
+往址上，但使用獨立的域名和根網址更為正式，易為眾人接受。傳統上，必須自己設立一台伺服器才能達到單獨域名的目的，
+然而這需要維護一個單獨的伺服器，很多小單位缺乏足夠的維護能力，更為合適的方式是租用別人維護的伺服器。ISP也沒
+有必要為一個機構提供一個單獨的伺服器，完全可以使用虛擬主機能力，使伺服器為多個域名提供Web服務，而且不同的服
+務互不干擾，對外就表現為多個不同的伺服器。</p>
+
+<p>　　有兩種設定虛擬主機的方式，一種是基於HTTP 1.0標準，需要一個具備多IP地址的伺服器，再配置DNS
+伺服器，給每個IP地址以不同的域名，最後才能配置Apache的配置檔案，使伺服器對不同域名返回不同的Web文檔
+。由於這需要使用額外的IP地址，對每個要提供服務的域名都要使用單獨的IP地址，因此這種方式實現起來問題較多。</p>
+
+<p>　　可以在一個網路界面上綁定多個IP地址，FreeBSD下需要使用ifconfig的alias參數來進行這
+個配置，但此時會影響網路性能。</p>
+
+<p>　　HTTP 1.1標準在協議中規定了對瀏覽器和伺服器通信時，伺服器能夠跟蹤瀏覽器請求的是哪個主機名字。因
+此可以利用這個新特性，使用更輕松的方式設定虛擬主機。這種方式不需要額外的IP地址，但需要新版本的瀏覽器支持。這
+種方式已經成為建立虛擬主機的標準方式。</p>
+
+<p>　　要建立非IP基礎的虛擬主機，多個域名是不可少的配置，因為每個域名就對應一個要服務的虛擬主機。因此需要更
+改DNS伺服器的配置，為伺服器增加多個CNAME選項，如：</p>
+
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>freebsd			IN 	A     		192.168.1.64
+vhost1 			IN 	CNAME 		freebsd
+vhost2 			IN 	CNAME 		freebsd</td></pre></tr></table>
+
+<p>　　基本的設置選項都是為了freebsd主機設定的，如果要為vhost1和vhost2設定虛擬主機，就要使
+用VirtualHost語句定義不同的選項，在語句中可以使用配置檔案前面中的大部分選項，而可以重新定義幾乎所有
+的針對伺服器的設置。</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>NameVirtualHost 192.168.1.64
+<VirtualHost  192.168.1.64>
+DocumentRoot /usr/local/www/data
+ServerName  freebsd.example.org.cn
+</VirtualHost>
+<VirtualHost  192.168.1.64>
+DocumentRoot /vhost1
+ServerName  vhost1.example.org.cn
+</VirtualHost>
+<VirtualHost  192.168.1.64>
+DocumentRoot /vhost2
+ServerName  vhost2.example.org.cn
+</VirtualHost></td></pre></tr></table>
+
+<p>　　這裡需要注意的是，VirtualHost的參數地址一定要和NameVirtualHost定義的地址相一
+致，必須保証所有的值嚴格一致，Apache伺服器才承認這些定義是為這個IP地址定義的虛擬主機。</p>
+
+<p>　　此外，定義過NameVirtualHost之後，那麼對這個IP地址的訪問都被區分不同的虛擬主機進行處理
+，而對其他IP地址的訪問，例如127.0.0.1，才應用前面定義的預設選項。</p>
+
+<p align=right>未完，待續。。。　
+<BR>
+
+</TD>
+</TR></TABLE>
+
+
+
+</BODY>
+</HTML>

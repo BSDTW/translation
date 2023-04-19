@@ -1,0 +1,1438 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><title>Chapter 14. High Availability and Scalability</title><link rel="stylesheet" href="mysql-html.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.69.1"><link rel="start" href="index.html" title="MySQL 5.1 Reference Manual"><link rel="up" href="index.html" title="MySQL 5.1 Reference Manual"><link rel="prev" href="storage-engines.html" title="Chapter 13. Storage Engines"><link rel="next" href="ha-vm.html" title="Chapter 15. MySQL and Virtualization"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">Chapter 14. High Availability and Scalability</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="storage-engines.html">Prev</a> </td><th width="60%" align="center"> </th><td width="20%" align="right"> <a accesskey="n" href="ha-vm.html">Next</a></td></tr></table><hr></div><div class="chapter" lang="en"><div class="titlepage"><div><div><h2 class="title"><a name="ha-overview"></a>Chapter 14. High Availability and Scalability</h2></div></div></div><div class="toc"><p><b>Table of Contents</b></p><dl><dt><span class="section"><a href="ha-overview.html#ha-drbd">14.1. Using MySQL with DRBD for High Availability</a></span></dt><dd><dl><dt><span class="section"><a href="ha-overview.html#ha-drbd-install">14.1.1. Configuring the DRBD Environment</a></span></dt><dt><span class="section"><a href="ha-overview.html#ha-drbd-install-mysql">14.1.2. Configuring MySQL for DRBD</a></span></dt><dt><span class="section"><a href="ha-overview.html#ha-drbd-performance">14.1.3. Optimizing Performance and Reliability</a></span></dt></dl></dd><dt><span class="section"><a href="ha-overview.html#ha-heartbeat">14.2. Using Linux HA Heartbeat</a></span></dt><dd><dl><dt><span class="section"><a href="ha-overview.html#ha-heartbeat-config">14.2.1. Heartbeat Configuration</a></span></dt><dt><span class="section"><a href="ha-overview.html#ha-heartbeat-drbd">14.2.2. Using Heartbeat with MySQL and DRBD</a></span></dt><dt><span class="section"><a href="ha-overview.html#ha-heartbeat-drbd-dopd">14.2.3. Using Heartbeat with DRBD and <span><strong class="command">dopd</strong></span></a></span></dt><dt><span class="section"><a href="ha-overview.html#ha-heartbeat-errors">14.2.4. Dealing with System Level Errors</a></span></dt></dl></dd></dl></div><p>
+    When using MySQL you may need to ensure the availability or
+    scalability of your MySQL installation. Availability refers to the
+    ability to cope with, and if necessary recover from, failures on the
+    host, including failures of MySQL, the operating system, or the
+    hardware. Scalability refers to the ability to spread the load of
+    your application queries across multiple MySQL servers. As your
+    application and usage increases, you may need to spread the queries
+    for the application across multiple servers to improve response
+    times.
+  </p><p>
+    There are a number of solutions available for solving issues of
+    availability and scalability. The two primary solutions supported by
+    MySQL are MySQL Replication and MySQL Cluster. Further options are
+    available using third-party solutions such as DRBD (Distributed
+    Replicated Block Device) and Heartbeat, and more complex scenarios
+    can be solved through a combination of these technologies. These
+    tools work in different ways:
+  </p><div class="itemizedlist"><ul type="disc"><li><p>
+        <span class="emphasis"><em>MySQL Replication</em></span> enables statements and
+        data from one MySQL server instance to be replicated to another
+        MySQL server instance. Without using more complex setups, data
+        can only be replicated from a single master server to any number
+        of slaves. The replication is asynchronous, so the
+        synchronization does not take place in real time, and there is
+        no guarantee that data from the master will have been replicated
+        to the slaves.
+      </p><div class="itemizedlist"><ul type="circle"><li><p>
+            <span class="bold"><strong>Advantages</strong></span>
+          </p><div class="itemizedlist"><ul type="square"><li><p>
+                MySQL Replication is available on all platforms
+                supported by MySQL, and since it isn't operating
+                system-specific it can operate across different
+                platforms.
+              </p></li><li><p>
+                Replication is asynchronous and can be stopped and
+                restarted at any time, making it suitable for
+                replicating over slower links, partial links and even
+                across geographical boundaries.
+              </p></li><li><p>
+                Data can be replicated from one master to any number of
+                slaves, making replication suitable in environments with
+                heavy reads, but light writes (for example, many web
+                applications), by spreading the load across multiple
+                slaves.
+              </p></li></ul></div></li><li><p>
+            <span class="bold"><strong>Disadvantages</strong></span>
+          </p><div class="itemizedlist"><ul type="square"><li><p>
+                Data can only be written to the master. In advanced
+                configurations, though, you can set up a multiple-master
+                configuration where the data is replicated around a ring
+                configuration.
+              </p></li><li><p>
+                There is no guarantee that data on master and slaves
+                will be consistent at a given point in time. Because
+                replication is asynchronous there may be a small delay
+                between data being written to the master and it being
+                available on the slaves. This can cause problems in
+                applications where a write to the master must be
+                available for a read on the slaves (for example a web
+                application).
+              </p></li></ul></div></li><li><p>
+            <span class="bold"><strong>Recommended uses</strong></span>
+          </p><div class="itemizedlist"><ul type="square"><li><p>
+                Scale-out solutions that require a large number of reads
+                but fewer writes (for example, web serving).
+              </p></li><li><p>
+                Logging/data analysis of live data. By replicating live
+                data to a slave you can perform queries on the slave
+                without affecting the operation of the master.
+              </p></li><li><p>
+                Online backup (availability), where you need an active
+                copy of the data available. You need to combine this
+                with other tools, such as custom scripts or Heartbeat.
+                However, because of the asynchronous architecture, the
+                data may be incomplete.
+              </p></li><li><p>
+                Offline backup. You can use replication to keep a copy
+                of the data. By replicating the data to a slave, you
+                take the slave down and get a reliable snapshot of the
+                data (without MySQL running), then restart MySQL and
+                replication to catch up. The master (and any other
+                slaves) can be kept running during this period.
+              </p></li></ul></div></li></ul></div><p>
+        For information on setting up and configuring replication, see
+        <a href="replication.html" title="Chapter 19. Replication">Chapter 19, <i>Replication</i></a>.
+      </p></li><li><p>
+        <span class="emphasis"><em>MySQL Cluster</em></span> is a synchronous solution
+        that enables multiple MySQL instances to share database
+        information. Unlike replication, data in a cluster can be read
+        from or written to any node within the cluster, and information
+        will be distributed to the other nodes.
+      </p><div class="itemizedlist"><ul type="circle"><li><p>
+            <span class="bold"><strong>Advantages</strong></span>
+          </p><div class="itemizedlist"><ul type="square"><li><p>
+                Offers multiple read and write nodes for data storage.
+              </p></li><li><p>
+                Provides automatic failover between nodes. Only
+                transaction information for the active node being used
+                is lost in the event of a failure.
+              </p></li><li><p>
+                Data on nodes is instantaneously distributed to the
+                other data nodes.
+              </p></li></ul></div></li><li><p>
+            <span class="bold"><strong>Disadvantages</strong></span>
+          </p><div class="itemizedlist"><ul type="square"><li><p>
+                Available on a limited range of platforms.
+              </p></li><li><p>
+                Nodes within a cluster should be connected via a LAN;
+                geographically separate nodes are not supported.
+                However, you can replicate from one cluster to another
+                using MySQL Replication, although the replication in
+                this case is still asynchronous.
+              </p></li></ul></div></li><li><p>
+            <span class="bold"><strong>Recommended uses</strong></span>
+          </p><div class="itemizedlist"><ul type="square"><li><p>
+                Applications that need very high availability, such as
+                telecoms and banking.
+              </p></li><li><p>
+                Applications that require an equal or higher number of
+                writes compared to reads.
+              </p></li></ul></div></li></ul></div><p>
+        For information on MySQL Cluster, see
+        <a href="mysql-cluster.html" title="Chapter 20. MySQL Cluster">Chapter 20, <i>MySQL Cluster</i></a>.
+      </p></li><li><p>
+        <span class="emphasis"><em>DRBD (Distributed Replicated Block Device)</em></span>
+        is a solution from Linbit supported only on Linux. DRBD creates
+        a virtual block device (which is associated with an underlying
+        physical block device) that can be replicated from the primary
+        server to a secondary server. You create a filesystem on the
+        virtual block device, and this information is then replicated,
+        at the block level, to the secondary server.
+      </p><p>
+        Because the block device, not the data you are storing on it, is
+        being replicated the validity of the information is more
+        reliable than with data-only replication solutions. DRBD can
+        also ensure data integrity by only returning from a write
+        operation on the primary server when the data has been written
+        to the underlying physical block device on both the primary and
+        secondary servers.
+      </p><div class="itemizedlist"><ul type="circle"><li><p>
+            <span class="bold"><strong>Advantages</strong></span>
+          </p><div class="itemizedlist"><ul type="square"><li><p>
+                Provides high availability and data integrity across two
+                servers in the event of hardware or system failure.
+              </p></li><li><p>
+                Can ensure data integrity by enforcing write consistency
+                on the primary and secondary nodes.
+              </p></li></ul></div></li><li><p>
+            <span class="bold"><strong>Disadvantages</strong></span>
+          </p><div class="itemizedlist"><ul type="square"><li><p>
+                Only provides a method for duplicating data across the
+                nodes. Secondary nodes cannot use the DRBD device while
+                data is being replicated, and so the MySQL on the
+                secondary node cannot be simultaneously active.
+              </p></li><li><p>
+                Can not be used to scale performance, since you can not
+                redirect reads to the secondary node.
+              </p></li></ul></div></li><li><p>
+            <span class="bold"><strong>Recommended uses</strong></span>
+          </p><div class="itemizedlist"><ul type="square"><li><p>
+                High availability situations where concurrent access to
+                the data is not required, but instant access to the
+                active data in the event of a system or hardware failure
+                is required.
+              </p></li></ul></div></li></ul></div><p>
+        For information on configuring DRBD and configuring MySQL for
+        use with a DRBD device, see <a href="ha-overview.html#ha-drbd" title="14.1. Using MySQL with DRBD for High Availability">Section 14.1, “Using MySQL with DRBD for High Availability”</a>.
+      </p></li><li><p>
+        <span class="emphasis"><em><span><strong class="command">memcached</strong></span></em></span> is a simple,
+        yet highly-scalable key-based cache that stores data and objects
+        wherever dedicated or spare RAM is available for very quick
+        access by applications. You use <span><strong class="command">memcached</strong></span> in
+        combination with your application and MySQL to reduce the number
+        of reads from the database.
+      </p><p>
+        When writing your application, you first try to load the data
+        from the <span><strong class="command">memcached</strong></span> cache, if the data you are
+        looking for cannot be found, you then load the data from the
+        MySQL database as normal, and populate the cache with the
+        information that you loaded. Because
+        <span><strong class="command">memcached</strong></span> can be used to store entire objects
+        that might normally consist of multiple table lookups and
+        aggregations, you can significantly increase the speed of your
+        application because the requirement to load data directly from
+        the database is reduced or even eliminated. Because the cache is
+        entirely in RAM, the response time is very fast, and the
+        information can be distributed among many servers to make the
+        best use of any spare RAM capacity.
+      </p><div class="itemizedlist"><ul type="circle"><li><p>
+            <span class="bold"><strong>Advantages</strong></span>
+          </p><div class="itemizedlist"><ul type="square"><li><p>
+                Very fast, RAM based, cache.
+              </p></li><li><p>
+                Reduces load on the MySQL server, allowing MySQL to
+                concentrate on persistent storage and data writes.
+              </p></li><li><p>
+                Highly distributable and scalable, allowing multiple
+                servers to be part of the cache group.
+              </p></li><li><p>
+                Highly portable - the <span><strong class="command">memcached</strong></span>
+                interface is supported by many languages and systems,
+                including Perl, Python, PHP, Ruby, Java and the MySQL
+                server.
+              </p></li></ul></div></li><li><p>
+            <span class="bold"><strong>Disadvantages</strong></span>
+          </p><div class="itemizedlist"><ul type="square"><li><p>
+                Data is not persistent - you should only use the cache
+                to store information that can otherwise be loaded from a
+                MySQL database.
+              </p></li><li><p>
+                Fault tolerance is implied, rather than explicit. If a
+                <span><strong class="command">memcached</strong></span> node fails then your
+                application must be capable of loading the data from
+                MySQL and updating the cache.
+              </p></li></ul></div></li><li><p>
+            <span class="bold"><strong>Recommended uses</strong></span>
+          </p><div class="itemizedlist"><ul type="square"><li><p>
+                High scalability situations where you have a very high
+                number of reads, particularly of complex data objects
+                that can easily be cached in the final, usable, form
+                directly within the cache.
+              </p></li></ul></div></li></ul></div><p>
+        For information on installing, configuring and using
+        <span><strong class="command">memcached</strong></span>, including using the many APIs
+        available for communicating with <span><strong class="command">memcached</strong></span>,
+        see <a href="ha-memcached.html" title="Chapter 16. Using MySQL with memcached">Chapter 16, <i>Using MySQL with <span><strong class="command">memcached</strong></span></i></a>.
+      </p></li><li><p>
+        <span class="emphasis"><em>Heartbeat</em></span> is a software solution for Linux.
+        It is not a data replication or synchronization solution, but a
+        solution for monitoring servers and switching active MySQL
+        servers automatically in the event of failure. Heartbeat needs
+        to be combined with MySQL Replication or DRBD to provide
+        automatic failover.
+      </p><p>
+        For more information on configuring Heartbeat for use with MySQL
+        and DRBD, see <a href="ha-overview.html#ha-heartbeat" title="14.2. Using Linux HA Heartbeat">Section 14.2, “Using Linux HA Heartbeat”</a>.
+      </p></li></ul></div><p>
+    The information and suitability of the various technologies and
+    different scenarios is summarized in the table below.
+  </p><div class="informaltable"><a name="ha-availability-comparison"></a><table border="1"><colgroup><col><col><col><col><col><col></colgroup><thead><tr><th>Requirements</th><th>MySQL Replication</th><th>MySQL Replication + Heartbeat</th><th>MySQL Heartbeat + DRBD</th><th>MySQL Cluster</th><th>MySQL + <span><strong class="command">memcached</strong></span></th></tr></thead><tbody><tr><td><span class="bold"><strong>Availability</strong></span></td><td class="auto-generated"> </td><td class="auto-generated"> </td><td class="auto-generated"> </td><td class="auto-generated"> </td><td class="auto-generated"> </td></tr><tr><td>Automated IP failover</td><td>No</td><td>Yes</td><td>Yes</td><td>No</td><td>No</td></tr><tr><td>Automated database failover</td><td>No</td><td>No</td><td>Yes</td><td>Yes</td><td>No</td></tr><tr><td>Typical failover time</td><td>User/script-dependent</td><td>Varies</td><td>&lt; 30 seconds</td><td>&lt; 3 seconds</td><td>App dependent</td></tr><tr><td>Automatic resynchronization of data</td><td>No</td><td>No</td><td>Yes</td><td>Yes</td><td>No</td></tr><tr><td>Geographic redundancy support</td><td>Yes</td><td>Yes</td><td>Yes, when combined with MySQL Replication</td><td>Yes, when combined with MySQL Replication</td><td>No</td></tr><tr><td><span class="bold"><strong>Scalability</strong></span></td><td class="auto-generated"> </td><td class="auto-generated"> </td><td class="auto-generated"> </td><td class="auto-generated"> </td><td class="auto-generated"> </td></tr><tr><td>Built-in load balancing</td><td>No</td><td>No</td><td>No</td><td>Yes</td><td>Yes</td></tr><tr><td>Supports Read-intensive applications</td><td>Yes</td><td>Yes</td><td>Yes, when combined with MySQL Replication</td><td>Yes</td><td>Yes</td></tr><tr><td>Supports Write-intensive applications</td><td>No</td><td>No</td><td>Yes</td><td>Yes</td><td>No</td></tr><tr><td>Maximum number of nodes per group</td><td>One master, multiple slaves</td><td>One master, multiple slaves</td><td>One active (primary), one passive (secondary) node</td><td>255</td><td>Unlimited</td></tr><tr><td>Maximum number of slaves</td><td>Unlimited (reads only)</td><td>Unlimited (reads only)</td><td>One (failover only)</td><td>Unlimited (reads only)</td><td>Unlimited</td></tr></tbody></table></div><div class="section" lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="ha-drbd"></a>14.1. Using MySQL with DRBD for High Availability</h2></div></div></div><div class="toc"><dl><dt><span class="section"><a href="ha-overview.html#ha-drbd-install">14.1.1. Configuring the DRBD Environment</a></span></dt><dt><span class="section"><a href="ha-overview.html#ha-drbd-install-mysql">14.1.2. Configuring MySQL for DRBD</a></span></dt><dt><span class="section"><a href="ha-overview.html#ha-drbd-performance">14.1.3. Optimizing Performance and Reliability</a></span></dt></dl></div><p>
+    The Distributed Replicated Block Device (DRBD) is a Linux Kernel
+    module that constitutes a distributed storage system. You can use
+    DRBD to share block devices between Linux servers and, in turn,
+    share filesystems and data.
+  </p><p>
+    DRBD implements a block device which can be used for storage and
+    which is replicated from a primary server to one or more secondary
+    servers. The distributed block device is handled by the DRBD
+    service. Writes to the DRBD block device are distributed among the
+    servers. Each DRBD service writes the information from the DRBD
+    block device to a local physical block device (hard disk).
+  </p><p>
+    On the primary, for example, the data writes are written both to the
+    underlying physical block device and distributed to the secondary
+    DRBD services. On the secondary, the writes received through DRBD
+    and written to the local physical block device. On both the primary
+    and the secondary, reads from the DRBD block device are handled by
+    the underlying physical block device. The information is shared
+    between the primary DRBD server and the secondary DRBD server
+    synchronously and at a block level, and this means that DRBD can be
+    used in high-availability solutions where you need failover support.
+  </p><div class="figure"><a name="ha-drbd-overview"></a><p class="title"><b>Figure 14.1. DRBD Architecture</b></p><div class="mediaobject"><img src="images/drbd-main.png" alt="DRBD Architecture"></div></div><p>
+    When used with MySQL, DRBD can be used to ensure availability in the
+    event of a failure. MySQL is configured to store information on the
+    DRBD block device, with one server acting as the primary and a
+    second machine available to operate as an immediate replacement in
+    the event of a failure.
+  </p><p>
+    For automatic failover support you can combine DRBD with the Linux
+    Heartbeat project, which will manage the interfaces on the two
+    servers and automatically configure the secondary (passive) server
+    to replace the primary (active) server in the event of a failure.
+    You can also combine DRBD with MySQL Replication to provide both
+    failover and scalability within your MySQL environment.
+  </p><p>
+    For information on how to configure DRBD and MySQL, including
+    Heartbeat support, see <a href="ha-overview.html#ha-drbd-install" title="14.1.1. Configuring the DRBD Environment">Section 14.1.1, “Configuring the DRBD Environment”</a>.
+  </p><p>
+    An FAQ for using DRBD and MySQL is available. See
+    <a href="faqs.html#faqs-mysql-drbd-heartbeat" title="A.14. MySQL 5.1 FAQ — MySQL, DRBD, and Heartbeat">Section A.14, “MySQL 5.1 FAQ — MySQL, DRBD, and Heartbeat”</a>.
+  </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Note</h3><p>
+      Because DRBD is a Linux Kernel module it is currently not
+      supported on platforms other than Linux.
+    </p></div><div class="section" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="ha-drbd-install"></a>14.1.1. Configuring the DRBD Environment</h3></div></div></div><div class="toc"><dl><dt><span class="section"><a href="ha-overview.html#ha-drbd-install-os">14.1.1.1. Setting Up the OS for DRBD</a></span></dt><dt><span class="section"><a href="ha-overview.html#ha-drbd-install-drbd">14.1.1.2. Installing and Configuring DRBD</a></span></dt><dt><span class="section"><a href="ha-overview.html#ha-drbd-install-drbd-primary">14.1.1.3. Setting Up a DRBD Primary Node</a></span></dt><dt><span class="section"><a href="ha-overview.html#ha-drbd-install-drbd-secondary">14.1.1.4. Setting Up a DRBD Secondary Node</a></span></dt><dt><span class="section"><a href="ha-overview.html#ha-drbd-install-drbd-using">14.1.1.5. Monitoring and Managing Your DRBD Device</a></span></dt><dt><span class="section"><a href="ha-overview.html#ha-drbd-install-drbd-othercfg">14.1.1.6. Additional DRBD Configuration Options</a></span></dt></dl></div><p>
+      To set up DRBD, MySQL and Heartbeat you need to follow a number of
+      steps that affect the operating system, DRBD and your MySQL
+      installation.
+    </p><p>
+      Before starting the installation process, you should be aware of
+      the following information, terms and requirements on using DRBD:
+    </p><div class="itemizedlist"><ul type="disc"><li><p>
+          DRBD is a solution for enabling high-availability, and
+          therefore you need to ensure that the two machines within your
+          DRBD setup are as identically configured as possible so that
+          the secondary machine can act as a direct replacement for the
+          primary machine in the event of system failure.
+        </p></li><li><p>
+          DRBD works through two (or more) servers, each called a
+          <em class="firstterm">node</em>
+        </p></li><li><p>
+          The node that contains the primary data, has read/write access
+          to the data, and in an HA environment is the currently active
+          node is called the <em class="firstterm">primary</em>.
+        </p></li><li><p>
+          The server to which the data is replicated is referred as
+          <em class="firstterm">secondary</em>.
+        </p></li><li><p>
+          A collection of nodes that are sharing information are
+          referred to as a <em class="firstterm">DRBD cluster</em>.
+        </p></li><li><p>
+          For DRBD to operate you must have a block device on which the
+          information can be stored on <span class="emphasis"><em>each</em></span> DRBD
+          node. The <em class="firstterm">lower level</em> block device can
+          be a physical disk partition, a partition from a volume group
+          or RAID device or any other block device.
+        </p><p>
+          Typically you use a spare partition on which the physical data
+          will be stored . On the primary node, this disk will hold the
+          raw data that you want replicated. On the secondary nodes, the
+          disk will hold the data replicated to the secondary server by
+          the DRBD service. Ideally, the size of the partition on the
+          two DRBD servers should be identical, but this is not
+          necessary as long as there is enough space to hold the data
+          that you want distributed between the two servers.
+        </p></li><li><p>
+          For the distribution of data to work, DRBD is used to create a
+          logical block device that uses the lower level block device
+          for the actual storage of information. To store information on
+          the distributed device, a filesystem is created on the DRBD
+          logical block device.
+        </p></li><li><p>
+          When used with MySQL, once the filesystem has been created,
+          you move the MySQL data directory (including InnoDB data files
+          and binary logs) to the new filesystem.
+        </p></li><li><p>
+          When you set up the secondary DRBD server, you set up the
+          physical block device and the DRBD logical block device that
+          will store the data. The block device data is then copied from
+          the primary to the secondary server.
+        </p></li></ul></div><p>
+      The overview for the installation and configuration sequence is as
+      follows:
+    </p><div class="orderedlist"><ol type="1"><li><p>
+          First you need to set up your operating system and
+          environment. This includes setting the correct hostname,
+          updating the system and preparing the available packages and
+          software required by DRBD, and configuring a physical block
+          device to be used with the DRBD block device. See
+          <a href="ha-overview.html#ha-drbd-install-os" title="14.1.1.1. Setting Up the OS for DRBD">Section 14.1.1.1, “Setting Up the OS for DRBD”</a>.
+        </p></li><li><p>
+          Installing DRBD requires installing or compiling the DRBD
+          source code and then configuring the DRBD service to set up
+          the block devices that will be shared. See
+          <a href="ha-overview.html#ha-drbd-install-drbd" title="14.1.1.2. Installing and Configuring DRBD">Section 14.1.1.2, “Installing and Configuring DRBD”</a>.
+        </p></li><li><p>
+          Once DRBD has been configured, you must alter the
+          configuration and storage location of the MySQL data. See
+          <a href="ha-overview.html#ha-drbd-install-mysql" title="14.1.2. Configuring MySQL for DRBD">Section 14.1.2, “Configuring MySQL for DRBD”</a>.
+        </p></li></ol></div><div class="section" lang="en"><div class="titlepage"><div><div><h4 class="title"><a name="ha-drbd-install-os"></a>14.1.1.1. Setting Up the OS for DRBD</h4></div></div></div><p>
+        To set your Linux environment for using DRBD there are a number
+        of system configuration steps that you must follow.
+      </p><div class="itemizedlist"><ul type="disc"><li><p>
+            Make sure that the primary and secondary DRBD servers have
+            the correct hostname, and that the hostnames are unique. You
+            can verify this by using the <span><strong class="command">uname</strong></span>
+            command:
+          </p><pre class="programlisting">$ uname -n
+drbd-one
+</pre><p>
+            If the hostname is not set correctly then edit the
+            appropriate file (usually
+            <code class="filename">/etc/sysconfig/network</code>,
+            <code class="filename">/etc/hostname</code>, or
+            <code class="filename">/etc/conf.d/hostname</code>) and set the name
+            correctly.
+          </p></li><li><p>
+            Each DRBD node must have a unique IP address. Make sure that
+            the IP address information is set correctly within the
+            network configuration and that the hostname and IP address
+            has been set correctly within the
+            <code class="filename">/etc/hosts</code> file.
+          </p></li><li><p>
+            Although you can rely on the DNS or NIS system for host
+            resolving, in the event of a major network failure these
+            services may not be available. If possible, add the IP
+            address and hostname of each DRBD node into the /etc/hosts
+            file for each machine. This will ensure that the node
+            information can always be determined even if the DNS/NIS
+            servers are unavailable.
+          </p></li><li><p>
+            As a general rule, the faster your network connection the
+            better. Because the block device data is exchanged over the
+            network, everything that will be written to the local disk
+            on the DRBD primary will also be written to the network for
+            distribution to the DRBD secondary.
+          </p></li><li><p>
+            You must have a spare disk or disk partition that you can
+            use as the physical storage location for the DRBD data that
+            will be replicated. You do not have to have a complete disk
+            available, a partition on an existing disk is acceptable.
+          </p><p>
+            If the disk is unpartitioned, partition the disk using
+            <span><strong class="command">fdisk</strong></span>, <span><strong class="command">cfdisk</strong></span> or other
+            partitioning solution.. Do not create a filesystem on the
+            new partition.
+          </p><p>
+            Remember that you must have a physical disk available for
+            the storage of the replicated information on each DRBD node.
+            Ideally the partitions that will be used on each node should
+            be of an identical size, although this is not strictly
+            necessary. Do, however, ensure that the physical partition
+            on the DRBD secondary is at least as big as the partitions
+            on the DRBD primary node.
+          </p></li><li><p>
+            If possible, upgrade your system to the latest available
+            Linux kernel for your distribution. Once the kernel has been
+            installed, you must reboot to make the kernel active. To use
+            DRBD you will also need to install the relevant kernel
+            development and header files that are required for building
+            kernel modules. Platform specification information for this
+            is available later in this section.
+          </p></li></ul></div><p>
+        Before you compile or install DRBD, you must make sure the
+        following tools and files are in place:
+      </p><div class="itemizedlist"><ul type="disc"><li><p>
+            Kernel header files
+          </p></li><li><p>
+            Kernel source files
+          </p></li><li><p>
+            GCC Compiler
+          </p></li><li><p>
+            <code class="literal">glib 2</code>
+          </p></li><li><p>
+            <span><strong class="command">flex</strong></span>
+          </p></li></ul></div><p>
+        Here are some operating system specific tips for setting up your
+        installation:
+      </p><div class="itemizedlist"><ul type="disc"><li><p>
+            <span class="bold"><strong>Tips for Red Hat (including CentOS and
+            Fedora)</strong></span>:
+          </p><p>
+            Use <span><strong class="command">up2date</strong></span> or <span><strong class="command">yum</strong></span> to
+            update and install the latest kernel and kernel header
+            files:
+          </p><pre class="programlisting">root-shell&gt; up2date kernel-smp-devel kernel-smp</pre><p>
+            Reboot. If you are going to build DRBD from source, then
+            update your system with the required development packages
+          </p><pre class="programlisting">root-shell&gt; up2date glib-devel openssl-devel libgcrypt-devel glib2-devel \
+pkgconfig ncurses-devel rpm-build rpm-devel redhat-rpm-config gcc \
+gcc-c++ bison flex gnutls-devel lm_sensors-devel net-snmp-devel \
+python-devel bzip2-devel libselinux-devel perl-DBI</pre><p>
+            If you are going to use the pre-built DRBD RPMs:
+          </p><pre class="programlisting">root-shell&gt; up2date gnutls lm_sensors net-snmp ncurses libgcrypt glib2 openssl glib</pre></li><li><p>
+            <span class="bold"><strong>Tips for Debian, Ubuntu,
+            Kubuntu</strong></span>:
+          </p><p>
+            Use <span><strong class="command">apt-get</strong></span> to install the kernel
+            packages
+          </p><pre class="programlisting">root-shell&gt; apt-get install linux-headers linux-image-server</pre><p>
+            If you are going to use the pre-built Debian packages for
+            DRBD then you should not need any additional packages.
+          </p><p>
+            If you want to build DRBD from source, you will need to use
+            the following command to install the required components:
+          </p><pre class="programlisting">root-shell&gt; apt-get install devscripts flex bison build-essential \
+dpkg-dev kernel-package debconf-utils dpatch debhelper \
+libnet1-dev e2fslibs-dev libglib2.0-dev automake1.9 \
+libgnutls-dev libtool libltdl3 libltdl3-dev</pre></li><li><p>
+            <span class="bold"><strong>Tips for Gentoo</strong></span>:
+          </p><p>
+            Gentoo is a source based Linux distribution and therefore
+            many of the source files and components that you will need
+            are either already installed or will be installed
+            automatically by <span><strong class="command">emerge</strong></span>.
+          </p><p>
+            To install DRBD 0.8.x, you must unmask the
+            <code class="literal">sys-cluster/drbd</code> build by adding the
+            following line to
+            <code class="filename">/etc/portage/package.keywords</code>:
+          </p><pre class="programlisting">sys-cluster/drbd ~x86
+sys-cluster/drbd-kernel ~x86</pre><p>
+            If your kernel does not already have the userspace to
+            kernelspace linker enabled, then you will need to rebuild
+            the kernel with this option. The best way to do this is to
+            use <span><strong class="command">genkernel</strong></span> with the
+            <code class="option">--menuconfig</code> option to select the option
+            and then rebuild the kernel. For example, at the command
+            line as <code class="literal">root</code>:
+          </p><pre class="programlisting">root-shell&gt; genkernel --menuconfig all</pre><p>
+            Then through the menu options, select <span class="guimenu">Device
+            Drivers</span>, <span class="guimenu">Connector - unified userspace
+            &lt;-&gt; kernelspace linker</span> and finally press 'y'
+            or 'space' to select the <span class="guimenu">Connector - unified
+            userspace &lt;-&gt; kernelspace linker</span> option.
+            Then exit the menu configuration. The kernel will be rebuilt
+            and installed. If this is a new kernel, make sure you update
+            your bootloader accordingly. Now reboot to enable the new
+            kernel.
+          </p><p>
+            You can now <span><strong class="command">emerge</strong></span> DRBD 0.8.x into your
+            Gentoo installation:
+          </p><pre class="programlisting">root-shell&gt; emerge drbd</pre><p>
+            Once <code class="literal">drbd</code> has been downloaded and
+            installed, you need to decompress and copy the default
+            configuration file from
+            <code class="filename">/usr/share/doc/drbd-8.0.7/drbd.conf.bz2</code>
+            into <code class="filename">/etc/drbd.conf</code>.
+          </p></li></ul></div></div><div class="section" lang="en"><div class="titlepage"><div><div><h4 class="title"><a name="ha-drbd-install-drbd"></a>14.1.1.2. Installing and Configuring DRBD</h4></div></div></div><p>
+        To install DRBD you can choose either the pre-built binary
+        installation packages or you can use the source packages and
+        build from source. If you want to build from source you must
+        have installed the source and development packages.
+      </p><p>
+        If you are installing using a binary distribution then you must
+        ensure that the kernel version number of the binary package
+        matches your currently active kernel. You can use
+        <span><strong class="command">uname</strong></span> to find out this information:
+      </p><pre class="programlisting">$ uname -r
+2.6.20-gentoo-r6</pre><p>
+        To build from the sources, download the source
+        <code class="literal">tar.gz</code> package, extract the contents and then
+        follow the instructions within the <code class="filename">INSTALL</code>
+        file.
+      </p><p>
+        Once DRBD has been built and installed, you need to edit the
+        <code class="filename">/etc/drbd.conf</code> file and then run a number
+        of commands to build the block device and set up the
+        replication.
+      </p><p>
+        Although the steps below are split into those for the primary
+        node and the secondary node, it should be noted that the
+        configuration files for all nodes should be identical, and many
+        of the same steps have to be repeated on each node to enable the
+        DRBD block device.
+      </p></div><div class="section" lang="en"><div class="titlepage"><div><div><h4 class="title"><a name="ha-drbd-install-drbd-primary"></a>14.1.1.3. Setting Up a DRBD Primary Node</h4></div></div></div><p>
+        To set up a DRBD primary node you need to configure the DRBD
+        service, create the first DRBD block device and then create a
+        filesystem on the device so that you can store files and data.
+      </p><p>
+        The DRBD configuration file
+        (<code class="filename">/etc/drbd.conf</code>) defined a number of
+        parameters for your DRBD configuration, including the frequency
+        of updates and block sizes, security information and the
+        definition of the DRBD devices that you want to create.
+      </p><p>
+        The key elements to configure are the <code class="literal">on</code>
+        sections which specify the configuration of each node.
+      </p><p>
+        To follow the configuration, the sequence below shows only the
+        changes from the default <code class="filename">drbd.conf</code> file.
+        Configurations within the file can be both global or tied to
+        specific resource.
+      </p><div class="orderedlist"><ol type="1"><li><p>
+            Set the synchronization rate between the two nodes. This is
+            the rate at which devices are synchronized in the background
+            after a disk failure, device replacement or during the
+            initial setup. You should keep this in check compared to the
+            speed of your network connection. Gigabit Ethernet can
+            support up to 125 MB/second, 100Mbps Ethernet slightly less
+            than a tenth of that (12MBps). If you are using a shared
+            network connection, rather than a dedicated, then you should
+            gauge accordingly.
+          </p><p>
+            For more detailed information on synchronization, the
+            effects of the synchronization rate and the effects on
+            network performance, see
+            <a href="ha-overview.html#ha-drbd-performance-syncrate" title="14.1.3.2. Optimizing the Synchronization Rate">Section 14.1.3.2, “Optimizing the Synchronization Rate”</a>.
+          </p><p>
+            To set the synchronization rate, edit the
+            <code class="literal">rate</code> setting within the
+            <code class="literal">syncer</code> block:
+          </p><pre class="programlisting">syncer {
+    rate 10M;
+}</pre></li><li><p>
+            Set up some basic authentication. DRBD supports a simple
+            password hash exchange mechanism. This helps to ensure that
+            only those hosts with the same shared secret are able to
+            join the DRBD node group.
+          </p><pre class="programlisting">cram-hmac-alg “sha1”;
+shared-secret "<em class="replaceable"><code>shared-string</code></em>";</pre></li><li><p>
+            Now you must configure the host information. Remember that
+            you must have the node information for the primary and
+            secondary nodes in the <code class="filename">drbd.conf</code> file
+            on each host. You need to configure the following
+            information for each node:
+          </p><div class="itemizedlist"><ul type="disc"><li><p>
+                <code class="literal">device</code> — the path of the
+                logical block device that will be created by DRBD.
+              </p></li><li><p>
+                <code class="literal">disk</code> — the block device that
+                will be used to store the data.
+              </p></li><li><p>
+                <code class="literal">address</code> — the IP address and
+                port number of the host that will hold this DRBD device.
+              </p></li><li><p>
+                <code class="literal">meta-disk</code> — the location where
+                the metadata about the DRBD device will be stored. You
+                can set this to <code class="literal">internal</code> and DRBD
+                will use the physical block device to store the
+                information, by recording the metadata within the last
+                sections of the disk. The exact size will depend on the
+                size of the logical block device you have created, but
+                it may involve up to 128MB.
+              </p></li></ul></div><p>
+            A sample configuration for our primary server might look
+            like this:
+          </p><pre class="programlisting">on drbd-one {
+device /dev/drbd0;
+disk /dev/hdd1;
+address 192.168.0.240:8888;
+meta-disk internal;
+}</pre><p>
+            The <code class="literal">on</code> configuration block should be
+            repeated for the secondary node (and any further) nodes:
+          </p><pre class="programlisting">on drbd-two {
+device /dev/drbd0;
+disk /dev/hdd1;
+address 192.168.0.241:8888;
+meta-disk internal;
+}</pre><p>
+            The IP address of each <code class="literal">on</code> block must
+            match the IP address of the corresponding host. Do not set
+            this value to the IP address of the corresponding primary or
+            secondary in each case.
+          </p></li><li><p>
+            Before starting the primary node, you should create the
+            metadata for the devices:
+          </p><pre class="programlisting">root-shell&gt; drbdadm create-md all</pre></li><li><p>
+            You are now ready to start DRBD:
+          </p><pre class="programlisting">root-shell&gt; /etc/init.d/drbd start</pre><p>
+            DRBD should now start and initialize, creating the DRBD
+            devices that you have configured.
+          </p></li><li><p>
+            DRBD creates a standard block device - to make it usable,
+            you must create a filesystem on the block device just as you
+            would with any standard disk partition. Before you can
+            create the filesystem, you must mark the new device as the
+            primary device (i.e. where the data will be written and
+            stored), and initialize the device. Because this is a
+            destructive operation, you must specify the command line
+            option to overwrite the raw data:
+          </p><pre class="programlisting">root-shell&gt; drbdadm -- --overwrite-data-of-peer primary all</pre><p>
+            If you are using a version of DRBD 0.7.x or earlier, then
+            you need to use a different command-line option:
+          </p><pre class="programlisting">root-shell&gt; drbdadm -- --do-what-I-say primary all</pre><p>
+            Now create a filesystem using your chosen filesystem type:
+          </p><pre class="programlisting">root-shell&gt; mkfs.ext3 /dev/drbd0</pre></li><li><p>
+            You can now mount the filesystem and if necessary copy files
+            to the mount point:
+          </p><pre class="programlisting">root-shell&gt; mkdir /mnt/drbd
+root-shell&gt; mount /dev/drbd0 /mnt/drbd
+root-shell&gt; echo "DRBD Device" &gt;/mnt/drbd/samplefile</pre></li></ol></div><p>
+        Your primary node is now ready to use. You should now configure
+        your secondary node or nodes.
+      </p></div><div class="section" lang="en"><div class="titlepage"><div><div><h4 class="title"><a name="ha-drbd-install-drbd-secondary"></a>14.1.1.4. Setting Up a DRBD Secondary Node</h4></div></div></div><p>
+        The configuration process for setting up a secondary node is the
+        same as for the primary node, except that you do not have to
+        create the filesystem on the secondary node device, as this
+        information will automatically be transferred from the primary
+        node.
+      </p><p>
+        To set up a secondary node:
+      </p><div class="orderedlist"><ol type="1"><li><p>
+            Copy the <code class="filename">/etc/drbd.conf</code> file from your
+            primary node to your secondary node. It should already
+            contain all the information and configuration that you need,
+            since you had to specify the secondary node IP address and
+            other information for the primary node configuration.
+          </p></li><li><p>
+            Create the DRBD metadata on the underlying disk device:
+          </p><pre class="programlisting">root-shell&gt; drbdadm create-md all</pre></li><li><p>
+            Start DRBD:
+          </p><pre class="programlisting">root-shell&gt; /etc/init.d/drbd start</pre></li></ol></div><p>
+        Once DRBD has started, it will start the copy the data from the
+        primary node to the secondary node. Even with an empty
+        filesystem this will take some time, since DRBD is copying the
+        block information from a block device, not simply copying the
+        filesystem data.
+      </p><p>
+        You can monitor the progress of the copy between the primary and
+        secondary nodes by viewing the output of
+        <code class="filename">/proc/drbd</code>:
+      </p><pre class="programlisting">root-shell&gt; cat /proc/drbd 
+version: 8.0.4 (api:86/proto:86)
+SVN Revision: 2947 build by root@drbd-one, 2007-07-30 16:43:05
+ 0: cs:SyncSource st:Primary/Secondary ds:UpToDate/Inconsistent C r---
+    ns:252284 nr:0 dw:0 dr:257280 al:0 bm:15 lo:0 pe:7 ua:157 ap:0
+        [==&gt;.................] sync'ed: 12.3% (1845088/2097152)K
+        finish: 0:06:06 speed: 4,972 (4,580) K/sec
+        resync: used:1/31 hits:15901 misses:16 starving:0 dirty:0 changed:16
+        act_log: used:0/257 hits:0 misses:0 starving:0 dirty:0 changed:0</pre></div><div class="section" lang="en"><div class="titlepage"><div><div><h4 class="title"><a name="ha-drbd-install-drbd-using"></a>14.1.1.5. Monitoring and Managing Your DRBD Device</h4></div></div></div><p>
+        Once the primary and secondary machines are configured and
+        synchronized, you can get the status information about your DRBD
+        device by viewing the output from
+        <code class="filename">/proc/drbd</code>:
+      </p><pre class="programlisting">root-shell&gt; cat /proc/drbd 
+version: 8.0.4 (api:86/proto:86)
+SVN Revision: 2947 build by root@drbd-one, 2007-07-30 16:43:05
+ 0: cs:Connected st:Primary/Secondary ds:UpToDate/UpToDate C r---
+    ns:2175704 nr:0 dw:99192 dr:2076641 al:33 bm:128 lo:0 pe:0 ua:0 ap:0
+        resync: used:0/31 hits:134841 misses:135 starving:0 dirty:0 changed:135
+        act_log: used:0/257 hits:24765 misses:33 starving:0 dirty:0 changed:33</pre><p>
+        The first line provides the version/revision and build
+        information.
+      </p><p>
+        The second line starts the detailed status information for an
+        individual resource. The individual field headings are as
+        follows:
+      </p><div class="itemizedlist"><ul type="disc"><li><p>
+            cs — connection state
+          </p></li><li><p>
+            st — node state (local/remote)
+          </p></li><li><p>
+            ld — local data consistency
+          </p></li><li><p>
+            ds — data consistency
+          </p></li><li><p>
+            ns — network send
+          </p></li><li><p>
+            nr — network receive
+          </p></li><li><p>
+            dw — disk write
+          </p></li><li><p>
+            dr — disk read
+          </p></li><li><p>
+            pe — pending (waiting for ack)
+          </p></li><li><p>
+            ua — unack'd (still need to send ack)
+          </p></li><li><p>
+            al — access log write count
+          </p></li></ul></div><p>
+        In the previous example, the information shown indicates that
+        the nodes are connected, the local node is the primary (because
+        it is listed first), and the local and remote data is up to date
+        with each other. The remainder of the information is statistical
+        data about the device, and the data exchanged that kept the
+        information up to date.
+      </p><p>
+        For administration, the main command is
+        <span><strong class="command">drbdadm</strong></span>. There are a number of commands
+        supported by this tool the control the connectivity and status
+        of the DRBD devices.
+      </p><p>
+        The most common commands are those to set the primary/secondary
+        status of the local device. You can manually set this
+        information for a number of reasons, including when you want to
+        check the physical status of the secondary device (since you
+        cannot mount a DRBD device in primary mode), or when you are
+        temporarily moving the responsibility of keeping the data in
+        check to a different machine (for example, during an upgrade or
+        physical move of the normal primary node). You can set state of
+        all local device to be the primary using this command:
+      </p><pre class="programlisting">root-shell&gt; drbdadm primary all</pre><p>
+        Or switch the local device to be the secondary using:
+      </p><pre class="programlisting">root-shell&gt; drbdadm secondary all</pre><p>
+        To change only a single DRBD resource, specify the resource name
+        instead of <code class="literal">all</code>.
+      </p><p>
+        You can temporarily disconnect the DRBD nodes:
+      </p><pre class="programlisting">root-shell&gt; drbdadm disconnect all</pre><p>
+        Reconnect them using <code class="literal">connect</code>:
+      </p><pre class="programlisting">root-shell&gt; drbdadm connect all</pre><p>
+        For other commands and help with <span><strong class="command">drbdadm</strong></span> see
+        the DRBD documentation.
+      </p></div><div class="section" lang="en"><div class="titlepage"><div><div><h4 class="title"><a name="ha-drbd-install-drbd-othercfg"></a>14.1.1.6. Additional DRBD Configuration Options</h4></div></div></div><p>
+        Additional options you may want to configure:
+      </p><div class="itemizedlist"><ul type="disc"><li><p>
+            <code class="literal">protocol</code> — specifies the level of
+            consistency to be used when information is written to the
+            block device. The option is similar in principle to the
+            <a href="storage-engines.html#option_mysqld_innodb_flush_log_at_trx_commit"><code class="literal">innodb_flush_log_at_trx_commit</code></a>
+            option within MySQL. Three levels are supported:
+          </p><div class="itemizedlist"><ul type="circle"><li><p>
+                <code class="literal">A</code> — data is considered written
+                when the information reaches the TCP send buffer and the
+                local physical disk. There is no guarantee that the data
+                has been written to the remote server or the remote
+                physical disk.
+              </p></li><li><p>
+                <code class="literal">B</code> — data is considered written
+                when the data has reached the local disk and the remote
+                node's network buffer. The data has reached the remote
+                server, but there is no guarantee it has reached the
+                remote server's physical disk.
+              </p></li><li><p>
+                <code class="literal">C</code> — data is considered written
+                when the data has reached the local disk and the remote
+                node's physical disk.
+              </p></li></ul></div><p>
+            The preferred and recommended protocol is C, as it is the
+            only protocol which ensures the consistency of the local and
+            remote physical storage.
+          </p></li><li><p>
+            <code class="literal">size</code> — if you do not want to use
+            the entire partition space with your DRBD block device then
+            you can specify the size of the DRBD device to be created.
+            The size specification can include a quantifier. For
+            example, to set the maximum size of the DRBD partition to
+            1GB you would use:
+          </p><pre class="programlisting">size 1G;</pre></li></ul></div><p>
+        With the configuration file suitably configured and ready to
+        use, you now need to populate the lower-level device with the
+        metadata information, and then start the DRBD service.
+      </p></div></div><div class="section" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="ha-drbd-install-mysql"></a>14.1.2. Configuring MySQL for DRBD</h3></div></div></div><p>
+      Once you have configured DRBD and have an active DRBD device and
+      filesystem, you can configure MySQL to use the chosen device to
+      store the MySQL data.
+    </p><p>
+      When performing a new installation of MySQL, you can either select
+      to install MySQL entirely onto the DRBD device, or just configure
+      the data directory to be located on the new filesystem.
+    </p><p>
+      In either case, the files and installation must take place on the
+      primary node, because that is the only DRBD node on which you can
+      mount the DRBD device filesystem as read/write.
+    </p><p>
+      You should store the following files and information on your DRBD
+      device:
+    </p><div class="itemizedlist"><ul type="disc"><li><p>
+          MySQL data files, including the binary log, and InnoDB data
+          files.
+        </p></li><li><p>
+          MySQL configuration file (<code class="filename">my.cnf</code>).
+        </p></li></ul></div><p>
+      To set up MySQL to use your new DRBD device and filesystem:
+    </p><div class="orderedlist"><ol type="1"><li><p>
+          If you are migrating an existing MySQL installation, stop
+          MySQL:
+        </p><pre class="programlisting">$ mysqladmin shutdown</pre></li><li><p>
+          Copy the <code class="filename">my.cnf</code> onto the DRBD device. If
+          you are not already using a configuration file, copy one of
+          the sample configuration files from the MySQL distribution.
+        </p><pre class="programlisting">root-shell&gt; mkdir /mnt/drbd/mysql
+root-shell&gt; cp /etc/my.cnf /mnt/drbd/mysql</pre></li><li><p>
+          Copy your MySQL data directory to the DRBD device and mounted
+          filesystem.
+        </p><pre class="programlisting">root-shell&gt; cp -R /var/lib/mysql /drbd/mysql/data</pre></li><li><p>
+          Edit the configuration file to reflect the change of directory
+          by setting the value of the <code class="literal">datadir</code> option.
+          If you have not already enabled the binary log, also set the
+          value of the <code class="literal">log-bin</code> option.
+        </p><pre class="programlisting">datadir = /drbd/mysql/data
+  log-bin = mysql-bin</pre></li><li><p>
+          Create a symbolic link from <code class="filename">/etc/my.cnf</code>
+          to the new configuration file on the DRBD device filesystem.
+        </p><pre class="programlisting">root-shell&gt; ln -s /drbd/mysql/my.cnf /etc/my.cnf</pre></li><li><p>
+          Now start MySQL and check that the data that you copied to the
+          DRBD device filesystem is present.
+        </p><pre class="programlisting">root-shell&gt; /etc/init.d/mysql start</pre></li></ol></div><p>
+      Your MySQL data should now be located on the filesystem running on
+      your DRBD device. The data will be physically stored on the
+      underlying device that you configured for the DRBD device.
+      Meanwhile, the content of your MySQL databases will be copied to
+      the secondary DRBD node.
+    </p><p>
+      Note that you cannot access the information on your secondary
+      node, as a DRBD device working in secondary mode is not available
+      for use.
+    </p></div><div class="section" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="ha-drbd-performance"></a>14.1.3. Optimizing Performance and Reliability</h3></div></div></div><div class="toc"><dl><dt><span class="section"><a href="ha-overview.html#ha-drbd-performance-bonded">14.1.3.1. Using Bonded Ethernet Network Interfaces</a></span></dt><dt><span class="section"><a href="ha-overview.html#ha-drbd-performance-syncrate">14.1.3.2. Optimizing the Synchronization Rate</a></span></dt></dl></div><p>
+      Because of the nature of the DRBD system, the critical
+      requirements are for a very fast exchange of the information
+      between the two hosts. To ensure that your DRBD setup is available
+      to switch over in the event of a failure as quickly as possible,
+      you must transfer the information between the two hosts using the
+      fastest method available.
+    </p><p>
+      Typically, a dedicated network circuit should be used for
+      exchanging DRBD data between the two hosts. You should then use a
+      separate, additional, network interface for your standard network
+      connection. For an example of this layout, see
+      <a href="ha-overview.html#ha-drbd-performance-sepinterface" title="Figure 14.2. DRBD Architecture">Figure 14.2, “DRBD Architecture”</a>.
+    </p><div class="figure"><a name="ha-drbd-performance-sepinterface"></a><p class="title"><b>Figure 14.2. DRBD Architecture</b></p><div class="mediaobject"><img src="images/drbd-sepinterface.png" alt="DRBD Architecture"></div></div><p>
+      The dedicated DRBD network interfaces should be configured to use
+      a non-routed TCP/IP network configuration. For example, you might
+      want to set the primary to use 192.168.0.1 and the secondary
+      192.168.0.2. These networks and IP addresses should not be part of
+      normal network subnet.
+    </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Note</h3><p>
+        The preferred setup, whenever possible, is to use a direct cable
+        connection (using a crossover cable with Ethernet, for example)
+        between the two machines. This eliminates the risk of loss of
+        connectivity due to switch failures.
+      </p></div><div class="section" lang="en"><div class="titlepage"><div><div><h4 class="title"><a name="ha-drbd-performance-bonded"></a>14.1.3.1. Using Bonded Ethernet Network Interfaces</h4></div></div></div><p>
+        For a set-up where there is a high-throughput of information
+        being written, you may want to use bonded network interfaces.
+        This is where you combine the connectivity of more than one
+        network port, increasing the throughput linearly according to
+        the number of bonded connections.
+      </p><p>
+        Bonding also provides an additional benefit in that with
+        multiple network interfaces effectively supporting the same
+        communications channel, a fault within a single network
+        interface in a bonded group does not stop communication. For
+        example, imagine you have a bonded setup with four network
+        interfaces providing a single interface channel between two DRBD
+        servers. If one network interface fails, communication can
+        continue on the other three without interruption, although it
+        will be at a lower speed
+      </p><p>
+        To enable bonded connections you must enable bonding within the
+        kernel. You then need to configure the module to specify the
+        bonded devices and then configure each new bonded device just as
+        you would a standard network device:
+      </p><div class="itemizedlist"><ul type="disc"><li><p>
+            To configure the bonded devices, you need to edit the
+            <code class="filename">/etc/modprobe.conf</code> file (RedHat) or add
+            a file to the <code class="filename">/etc/modprobe.d</code>
+            directory.. In each case you will define the parameters for
+            the kernel module. First, you need to specify each bonding
+            device:
+          </p><pre class="programlisting">alias bond0 bonding</pre><p>
+            You can then configure additional parameters for the kernel
+            module. Typical parameters are the <code class="literal">mode</code>
+            option and the <code class="literal">miimon</code> option.
+          </p><p>
+            The <code class="literal">mode</code> option specifies how the network
+            interfaces are used. The default setting is 0, which means
+            that each network interface is used in a round-robin fashion
+            (this supports aggregation and fault tolerance). Using
+            setting 1 sets the bonding mode to active-backup. This means
+            that only one network interface is used as a time, but that
+            the link will automatically failover to a new interface if
+            the primary interface fails. This settings only supports
+            fault-tolerance.
+          </p><p>
+            The <code class="literal">miimon</code> option enables the MII link
+            monitoring. A positive value greater than zero indicates the
+            monitoring frequency in milliseconds for checking each slave
+            network interface that is configured as part of the bonded
+            interface. A typical value is 100.
+          </p><p>
+            You set th options within the module parameter file, and you
+            must set the options for each bonded device individually:
+          </p><pre class="programlisting">options bond0 miimon=100 mode=1</pre></li><li><p>
+            Reboot your server to enable the bonded devices.
+          </p></li><li><p>
+            Configure the network device parameters. There are two parts
+            to this, you need to setup the bonded device configuration,
+            and then configure the original network interfaces as
+            'slaves' of the new bonded interface.
+          </p><div class="itemizedlist"><ul type="circle"><li><p>
+                For RedHat Linux:
+              </p><p>
+                Edit the configuration file for the bonded device. For
+                device <code class="literal">bond0</code> this would be
+                <code class="filename">/etc/sysconfig/network-scripts/ifcfg-bond0</code>:
+              </p><pre class="programlisting">        
+DEVICE=bond0
+BOOTPROTO=none
+ONBOOT=yes
+GATEWAY=192.168.0.254
+NETWORK=192.168.0.0
+NETMASK=255.255.255.0
+IPADDR=192.168.0.1
+USERCTL=no</pre><p>
+                Then for each network interface that you want to be part
+                of the bonded device, configure the interface as a slave
+                to the 'master' bond. For example, the configuration of
+                <code class="literal">eth0</code> in
+                <code class="filename">/etc/sysconfig/network-scripts/ifcfg-eth0</code>
+                might look like this::
+              </p><pre class="programlisting">DEVICE=eth0
+BOOTPROTO=none
+HWADDR=00:11:22:33:44:55
+ONBOOT=yes
+TYPE=Ethernet
+MASTER=bond0
+SLAVE=yes</pre></li><li><p>
+                For Debian Linux:
+              </p><p>
+                Edit the <code class="filename">/etc/iftab</code> file and
+                configure the logical name and MAC address for each
+                devices. For example:
+              </p><pre class="programlisting">eth0 mac 00:11:22:33:44:55</pre><p>
+                Now you need to set the configuration of the devices in
+                <code class="filename">/etc/network/interfaces</code>:
+              </p><pre class="programlisting">auto bond0
+    iface bond0 inet static
+    address 192.168.0.1
+    netmask 255.255.255.0
+    network 192.168.0.0
+    gateway 192.168.0.254
+    up /sbin/ifenslave bond0 eth0
+    up /sbin/ifenslave bond0 eth1</pre></li><li><p>
+                For Gentoo:
+              </p><p>
+                Use <span><strong class="command">emerge</strong></span> to add the
+                <code class="literal">net-misc/ifenslave</code> package to your
+                system.
+              </p><p>
+                Edit the <code class="filename">/etc/conf.d/net</code> file and
+                specify the network interface slaves in a bond, the
+                dependencies and then the configuration for the bond
+                itself. A sample configuration might look like this:
+              </p><pre class="programlisting">slaves_bond0="eth0 eth1 eth2"
+
+config_bond0=( "192.168.0.1 netmask 255.255.255.0"  )
+
+depend_bond0() {
+need net.eth0 net.eth1 net.eth2
+}
+            </pre><p>
+                Then make sure that you add the new network interface to
+                list of interfaces configured during boot:
+              </p><pre class="programlisting">root-shell&gt; rc-update add default net.bond0</pre></li></ul></div></li></ul></div><p>
+        Once the bonded devices are configured you should reboot your
+        systems.
+      </p><p>
+        You can monitor the status of a bonded connection using the
+        <code class="filename">/proc</code> filesystem:
+      </p><pre class="programlisting">root-shell&gt; cat /proc/net/bonding/bond0
+Bonding Mode: fault-tolerance (active-backup)
+Primary Slave: None
+Currently Active Slave: eth1
+MII Status: up
+MII Polling Interval (ms): 100
+Up Delay (ms): 200
+Down Delay (ms): 200
+Slave Interface: eth1
+MII Status: up
+Link Failure Count: 0
+Permanent HW addr: 00:11:22:33:44:55
+Slave Interface: eth2
+MII Status: up
+Link Failure Count: 0
+Permanent HW addr: 00:11:22:33:44:56</pre></div><div class="section" lang="en"><div class="titlepage"><div><div><h4 class="title"><a name="ha-drbd-performance-syncrate"></a>14.1.3.2. Optimizing the Synchronization Rate</h4></div></div></div><p>
+        The <code class="literal">syncer rate</code> configuration parameter
+        should be configured with care as the synchronization rate can
+        have a significant effect on the performance of the DRBD setup
+        in the event of a node or disk failure where the information is
+        being synchronized from the Primary to the Secondary node.
+      </p><p>
+        In DRBD, there are two distinct ways of data being transferred
+        between peer nodes:
+      </p><div class="itemizedlist"><ul type="disc"><li><p>
+            <span class="emphasis"><em>Replication</em></span> refers to the transfer of
+            modified blocks being transferred from the primary to the
+            secondary node. This happens automatically when the block is
+            modified on the primary node, and the replication process
+            uses whatever bandwidth is available over the replication
+            link. The replication process cannot be throttled, because
+            you want to transfer of the block information to happen as
+            quickly as possible during normal operation.
+          </p></li><li><p>
+            <span class="emphasis"><em>Synchronization</em></span> refers to the process
+            of bringing peers back in sync after some sort of outage,
+            due to manual intervention, node failure, disk swap, or the
+            initial setup. Synchronization is limited to the
+            <code class="literal">syncer rate</code> configured for the DRBD
+            device.
+          </p></li></ul></div><p>
+        Both replication and synchronization can take place at the same
+        time. For example, the block devices can be being synchronized
+        while they are actively being used by the primary node. Any I/O
+        that updates on the primary node will automatically trigger
+        replication of the modified block. In the event of a failure
+        within an HA environment, it is highly likely that
+        synchronization and replication will take place at the same
+        time.
+      </p><p>
+        Unfortunately, if the synchronization rate is set too high, then
+        the synchronization process will use up all the available
+        network bandwidth between the primary and secondary nodes. In
+        turn, the bandwidth available for replication of changed blocks
+        is zero, which means replication will stall and I/O will block,
+        and ultimately the application will fail or degrade.
+      </p><p>
+        To avoid enabling the <code class="literal">syncer rate</code> to consume
+        the available network bandwidth and prevent the replication of
+        changed blocks you should set the <code class="literal">syncer rate</code>
+        to less than the maximum network bandwidth.
+      </p><p>
+        Depending on the application, you may wish to limit the
+        synchronization rate. For example, on a busy server you may wish
+        to configure a significantly slower synchronization rate to
+        ensure the replication rate is not affected.
+      </p></div></div></div><div class="section" lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="ha-heartbeat"></a>14.2. Using Linux HA Heartbeat</h2></div></div></div><div class="toc"><dl><dt><span class="section"><a href="ha-overview.html#ha-heartbeat-config">14.2.1. Heartbeat Configuration</a></span></dt><dt><span class="section"><a href="ha-overview.html#ha-heartbeat-drbd">14.2.2. Using Heartbeat with MySQL and DRBD</a></span></dt><dt><span class="section"><a href="ha-overview.html#ha-heartbeat-drbd-dopd">14.2.3. Using Heartbeat with DRBD and <span><strong class="command">dopd</strong></span></a></span></dt><dt><span class="section"><a href="ha-overview.html#ha-heartbeat-errors">14.2.4. Dealing with System Level Errors</a></span></dt></dl></div><p>
+    The Heartbeat program provides a basis for verifying the
+    availability of resources on one or more systems within a cluster.
+    In this context a resource includes MySQL, the filesystems on which
+    the MySQL data is being stored and, if you are using DRBD, the DRBD
+    device being used for the filesystem. Heartbeat also manages a
+    virtual IP address, and the virtual IP address should be used for
+    all communication to the MySQL instance.
+  </p><p>
+    A cluster within the context of Heartbeat is defined as two
+    computers notionally providing the same service. By definition, each
+    computer in the cluster is physically capable of providing the same
+    services as all the others in the cluster. However, because the
+    cluster is designed for high-availability, only one of the servers
+    is actively providing the service at any one time. Each additional
+    server within the cluster is a 'hot-spare' that can be brought into
+    service in the event of a failure of the master, it's next
+    connectivity or the connectivity of the network in general.
+  </p><p>
+    The basics of Heartbeat are very simple. Within the Heartbeat
+    cluster (see <a href="ha-overview.html#ha-heartbeat-overview" title="Figure 14.3. DRBD Architecture">Figure 14.3, “DRBD Architecture”</a>, each machine
+    sends a 'heartbeat' signal to the other hosts in the cluster. The
+    other cluster nodes monitor this heartbeat. The heartbeat can be
+    transmitted over many different systems, including shared network
+    devices, dedicated network interfaces and serial connections.
+    Failure to get a heartbeat from a node is treated as failure of the
+    node. Although we don't know the reason for the failure (it could be
+    an OS failure, a hardware failure in the server, or a failure in the
+    network switch), it is safe to assume that if no heartbeat is
+    produced there is a fault.
+  </p><div class="figure"><a name="ha-heartbeat-overview"></a><p class="title"><b>Figure 14.3. DRBD Architecture</b></p><div class="mediaobject"><img src="images/ha-heartbeat-overview.png" alt="Heartbeat Architecture"></div></div><p>
+    In addition to checking the heartbeat from the server, the system
+    can also check the connectivity (using <span><strong class="command">ping</strong></span>) to
+    another host on the network, such as the network router. This allows
+    Heartbeat to detect a failure of communication between a server and
+    the router (and therefore failure of the server, since it is no
+    longer capable of providing the necessary service), even if the
+    heartbeat between the servers in the clusters is working fine.
+  </p><p>
+    In the event of a failure, the resources on the failed host are
+    disabled, and the resources on one of the replacement hosts is
+    enabled instead. In addition, the Virtual IP address for the cluster
+    is redirected to the new host in place of the failed device.
+  </p><p>
+    When used with MySQL and DRBD, the MySQL data is replicated from the
+    master to the slave using the DRBD device, but MySQL is only running
+    on the master. When the master fails, the slave switches the DRBD
+    devices to be primary, the filesystems on those devices are mounted,
+    and MySQL is started. The original master (if still available) has
+    it's resources disabled, which means shutting down MySQL and
+    unmounting the filesystems and switching the DRBD device to
+    secondary.
+  </p><div class="section" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="ha-heartbeat-config"></a>14.2.1. Heartbeat Configuration</h3></div></div></div><p>
+      Heartbeat configuration requires three files located in
+      <code class="filename">/etc/ha.d</code>. The <code class="filename">ha.cf</code>
+      contains the main heartbeat configuration, including the list of
+      the nodes and times for identifying failures.
+      <code class="filename">haresources</code> contains the list of resources to
+      be managed within the cluster. The <code class="filename">authkeys</code>
+      file contains the security information for the cluster.
+    </p><p>
+      The contents of these files should be identical on each host
+      within the Heartbeat cluster. It's important that you keep these
+      files in sync across all the hosts. Any changes in the information
+      on one host should be copied to the all the others.
+    </p><p>
+      For these examples n example of the <code class="filename">ha.cf</code>
+      file is shown below:
+    </p><pre class="programlisting">logfacility local0
+keepalive 500ms
+deadtime 10
+warntime 5
+initdead 30
+mcast bond0 225.0.0.1 694 2 0
+mcast bond1 225.0.0.2 694 1 0
+auto_failback off
+node drbd1
+node drbd2</pre><p>
+      The individual lines in the file can be identified as follows:
+    </p><div class="itemizedlist"><ul type="disc"><li><p>
+          <code class="literal">logfacility</code> — sets the logging, in
+          this case setting the logging to use
+          <span><strong class="command">syslog</strong></span>.
+        </p></li><li><p>
+          <code class="literal">keepalive</code> — defines how frequently
+          the heartbeat signal is sent to the other hosts.
+        </p></li><li><p>
+          <code class="literal">deadtime</code>— the delay in seconds before
+          other hosts in the cluster are considered 'dead' (failed).
+        </p></li><li><p>
+          <code class="literal">warntime</code> — the delay in seconds
+          before a warning is written to the log that a node cannot be
+          contacted.
+        </p></li><li><p>
+          <code class="literal">initdead</code> — the period in seconds to
+          wait during system startup before the other host is considered
+          to be down.
+        </p></li><li><p>
+          <code class="literal">mcast</code> — defines a method for sending
+          a heartbeat signal. In the above example, a multicast network
+          address is being used over a bonded network device. If you
+          have multiple clusters then the multicast address for each
+          cluster should be unique on your network. Other choices for
+          the heartbeat exchange exist, including a serial connection.
+        </p><p>
+          If you are using multiple network interfaces (for example, one
+          interface for your server connectivity and a secondary and/or
+          bonded interface for your DRBD data exchange) then you should
+          use both interfaces for your heartbeat connection. This
+          decreases the chance of a transient failure causing a invalid
+          failure event.
+        </p></li><li><p>
+          <code class="literal">auto_failback</code> — sets whether the
+          original (preferred) server should be enabled again if it
+          becomes available. Switching this to <code class="literal">on</code> may
+          cause problems if the preferred went offline and then comes
+          back on line again. If the DRBD device has not been synced
+          properly, or if the problem with the original server happens
+          again you may end up with two different datasets on the two
+          servers, or with a continually changing environment where the
+          two servers flip-flop as the preferred server reboots and then
+          starts again.
+        </p></li><li><p>
+          <code class="literal">node</code> — sets the nodes within the
+          Heartbeat cluster group. There should be one
+          <code class="literal">node</code> for each server.
+        </p></li></ul></div><p>
+      An optional additional set of information provides the
+      configuration for a ping test that will check the connectivity to
+      another host. You should use this to ensure that you have
+      connectivity on the public interface for your servers, so the ping
+      test should be to a reliable host such as a router or switch. The
+      additional lines specify the destination machine for the
+      <code class="literal">ping</code>, which should be specified as an IP
+      address, rather than a hostname; the command to run when a failure
+      occurs, the authority for the failure and the timeout before an
+      non-response triggers a failure. A sample configure is shown
+      below:
+    </p><pre class="programlisting">ping 10.0.0.1
+respawn hacluster /usr/lib64/heartbeat/ipfail
+apiauth ipfail gid=haclient uid=hacluster
+deadping 5</pre><p>
+      In the above example, the <span><strong class="command">ipfail</strong></span> command, which
+      is part of the Heartbeat solution, is called on a failure and
+      'fakes' a fault on the currently active server. You need to
+      configure the user and group ID under which the command should be
+      executed (using the <code class="literal">apiauth</code>). The failure will
+      be triggered after 5 seconds.
+    </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Note</h3><p>
+        The <code class="literal">deadping</code> value must be less than the
+        <code class="literal">deadtime</code> value.
+      </p></div><p>
+      The <code class="filename">authkeys</code> file holds the authorization
+      information for the Heartbeat cluster. The authorization relies on
+      a single unique 'key' that is used to verify the two machines in
+      the Heartbeat cluster. The file is used only to confirm that the
+      two machines are in the same cluster and is used to ensure that
+      the multiple clusters can co-exist within the same network.
+    </p></div><div class="section" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="ha-heartbeat-drbd"></a>14.2.2. Using Heartbeat with MySQL and DRBD</h3></div></div></div><p>
+      To use Heartbeat in combination with MySQL you should be using
+      DRBD (see <a href="ha-overview.html#ha-drbd" title="14.1. Using MySQL with DRBD for High Availability">Section 14.1, “Using MySQL with DRBD for High Availability”</a>) or another solution that
+      allows for sharing of the MySQL database files in event of a
+      system failure. In these examples, DRBD is used as the data
+      sharing solution.
+    </p><p>
+      Heartbeat manages the configuration of different resources to
+      manage the switching between two servers in the event of a
+      failure. The resource configuration defines the individual
+      services that should be brought up (or taken down) in the event of
+      a failure.
+    </p><p>
+      The <code class="filename">haresources</code> file within
+      <code class="filename">/etc/ha.d</code> defines the resources that should
+      be managed, and the individual resource mentioned in this file in
+      turn relates to scripts located within
+      <code class="filename">/etc/ha.d/resource.d</code>. The resource definition
+      is defined all on one line:
+    </p><pre class="programlisting">drbd1 drbddisk Filesystem::/dev/drbd0::/drbd::ext3 mysql 10.0.0.100</pre><p>
+      The line is notionally split by whitespace. The first entry
+      (<code class="literal">drbd1</code>) is the name of the preferred host, i.e.
+      the server that is normally responsible for handling the service.
+      The last field is virtual IP address or name that should be used
+      to share the service. This is the IP address that should be used
+      to connect to the MySQL server. It will automatically be allocated
+      to the server that is active when Heartbeat starts.
+    </p><p>
+      The remaining fields between these two fields define the resources
+      that should be managed. Each Field should contain the name of the
+      resource (and each name should refer to a script within
+      <code class="filename">/etc/ha.d/resource.d</code>). In the event of a
+      failure, these resources are started on the backup server by
+      calling the corresponding script (with a single argument,
+      <code class="literal">start</code>), in order from left to right. If there
+      are additional arguments to the script, you can use a double colon
+      to separate each additional argument.
+    </p><p>
+      In the above example, we manage the following resources:
+    </p><div class="itemizedlist"><ul type="disc"><li><p>
+          <code class="literal">drbddisk</code> — the DRBD resource script,
+          this will switch the DRBD disk on the secondary host into
+          primary mode, making the device read/write.
+        </p></li><li><p>
+          <code class="literal">Filesystem</code> — manages the Filesystem
+          resource. In this case we have supplied additional arguments
+          to specify the DRBD device, mount point and filesystem type.
+          When executed this should mount the specified filesystem.
+        </p></li><li><p>
+          <code class="literal">mysql</code> — manages the MySQL instances
+          and starts the MySQL server. You should copy the
+          <code class="filename">mysql.resource</code> file from the
+          <code class="filename">support-files</code> directory from any MySQL
+          release into the <code class="filename">/etc/ha.d/resources.d</code>
+          directory.
+        </p><p>
+          If this file is not available in your distribution, you can
+          use the following as the contents of the
+          <code class="filename">/etc/ha.d/resource.d/mysql.resource</code> file:
+        </p><pre class="programlisting">#!/bin/bash
+#
+# This script is inteded to be used as resource script by heartbeat
+#
+# Mar 2006 by Monty Taylor
+#
+###
+
+. /etc/ha.d/shellfuncs
+
+case "$1" in
+    start)
+        res=`/etc/init.d/mysql start`
+        ret=$?
+        ha_log $res
+        exit $ret
+        ;;
+    stop)
+        res=`/etc/init.d/mysql stop`
+        ret=$?
+        ha_log $res
+        exit $ret
+        ;;
+    status)
+        if [ `ps -ef | grep '[m]ysqld'` ] ; then
+           echo "running"
+        else
+           echo "stopped"
+        fi
+        ;;
+    *)
+        echo "Usage: mysql {start|stop|status}"
+        exit 1
+        ;;
+esac
+
+exit 0
+        </pre></li></ul></div><p>
+      If you want to be notified of the failure by email, you can add
+      another line to the <code class="filename">haresources</code> file with the
+      address for warnings and the warning text:
+    </p><pre class="programlisting">MailTo::youremail@address.com::DRBDFailure</pre><p>
+      With the Heartbeat configuration in place, copy the
+      <code class="filename">haresources</code>, <code class="filename">authkeys</code>
+      and <code class="filename">ha.cf</code> files from your primary and
+      secondary servers to make sure that the configuration is
+      identical. Then start the Heartbeat service, either by calling
+      <code class="filename">/etc/init.d/heartbeat start</code> or by rebooting
+      both primary and secondary servers.
+    </p><p>
+      You can test the configuration by running a manual failover,
+      connect to the primary node and run:
+    </p><pre class="programlisting">root-shell&gt; /usr/lib64/heartbeat/hb_standby</pre><p>
+      This will cause the current node to relinquish its resources
+      cleanly to the other node.
+    </p></div><div class="section" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="ha-heartbeat-drbd-dopd"></a>14.2.3. Using Heartbeat with DRBD and <span><strong class="command">dopd</strong></span></h3></div></div></div><p>
+      As a further extension to using DRBD and Heartbeat together, you
+      can enable <span><strong class="command">dopd</strong></span>. The <span><strong class="command">dopd</strong></span>
+      daemon handles the situation where a DRBD node is out of date
+      compared to the master and prevents the slave from being promoted
+      to master in the event of a failure. This stops a situation where
+      you have two machines that have been masters ending up different
+      data on the underlying device.
+    </p><p>
+      For example, imagine that you have a two server DRBD setup, master
+      and slave. If the DRBD connectivity between master and slave fails
+      then the slave would be out of the sync with the master. If
+      Heartbeat identifies a connectivity issue for master and then
+      switches over to the slave, the slave DRBD device will be promoted
+      to the primary device, even though the data on the slave and the
+      master is not in synchronization.
+    </p><p>
+      In this situation, with <span><strong class="command">dopd</strong></span> enabled, the
+      connectivity failure between the master and slave would be
+      identified and the metadata on the slave wold be set to
+      <code class="literal">Outdated</code>. Heartbeat will then refuse to switch
+      over to the slave even if the master failed. In a dual-host
+      solution this would effectively render the cluster out of action,
+      as there is no additional fail over server. In an HA cluster with
+      three or more servers, control would be passed to the slave that
+      has an up to date version of the DRBD device data.
+    </p><p>
+      To enable <span><strong class="command">dopd</strong></span>, you need to modify the
+      Heartbeat configuration and specify <span><strong class="command">dopd</strong></span> as
+      part of the commands executed during the monitoring process. Add
+      the following lines to your <code class="filename">ha.cf</code> file:
+    </p><pre class="programlisting">respawn hacluster /usr/lib/heartbeat/dopd  
+apiauth dopd gid=haclient uid=hacluster</pre><p>
+      Make sure you make the same modification on both your primary and
+      secondary nodes.
+    </p><p>
+      You will need to reload the Heartbeat configuration:
+    </p><pre class="programlisting">root-shell&gt; /etc/init.d/heartbeat reload</pre><p>
+      You will also need to modify your DRBD configuration by
+      configuration the <code class="literal">outdate-peer</code> option. You will
+      need to add the configuration line into the
+      <code class="literal">common</code> section of
+      <code class="filename">/etc/drbd.conf</code> on both hosts. An example of
+      the full block is shown below:
+    </p><pre class="programlisting">common {  
+  handlers {  
+    outdate-peer "/usr/lib/heartbeat/drbd-peer-outdater";  
+  }  
+}</pre><p>
+      Finally, set the <code class="literal">fencing</code> option on your DRBD
+      configured resources:
+    </p><pre class="programlisting">resource my-resource {  
+  disk {  
+    fencing    resource-only;  
+  }
+}</pre><p>
+      Now reload your DRBD configuration:
+    </p><pre class="programlisting">root-shell&gt; drbdadmin adjust all</pre><p>
+      You can test the system by unplugging your DRBD link and
+      monitoring the output from <code class="filename">/proc/drbd</code>.
+    </p></div><div class="section" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="ha-heartbeat-errors"></a>14.2.4. Dealing with System Level Errors</h3></div></div></div><p>
+      Because a kernel panic or oops may indicate potential problem with
+      your server, you should configure your server to remove itself
+      from the cluster in the event of a problem. Typically on a kernel
+      panic your system will automatically trigger a hard reboot. For a
+      kernel oops a reboot may not happen automatically, but the issue
+      that caused that oops may still lead to potential problems.
+    </p><p>
+      You can force a reboot by setting the
+      <code class="literal">kernel.panic</code> and
+      <code class="literal">kernel.panic_on_oops</code> parameters of the kernel
+      control file <code class="filename">/etc/sysctl.conf</code>. For example:
+    </p><pre class="programlisting"> kernel.panic_on_oops = 1
+ kernel.panic = 1
+  </pre><p>
+      You can also set these parameters during runtime by using the
+      <span><strong class="command">sysctl</strong></span> command. You can either specify the
+      parameters on the command line:
+    </p><pre class="programlisting">$ sysctl -w kernel.panic=1
+  </pre><p>
+      Or you can edit your <code class="filename">sysctl.conf</code> file and
+      then reload the configuration information:
+    </p><pre class="programlisting">$ sysctl -p
+ </pre><p>
+      By setting both these parameters to a positive value (actually the
+      number of seconds to wait before triggering the reboot), the
+      system will reboot. Your second heartbeat node should then detect
+      that the server is down and then switch over to the failover host.
+    </p></div></div></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="storage-engines.html">Prev</a> </td><td width="20%" align="center"> </td><td width="40%" align="right"> <a accesskey="n" href="ha-vm.html">Next</a></td></tr><tr><td width="40%" align="left" valign="top">Chapter 13. Storage Engines </td><td width="20%" align="center"><a accesskey="h" href="index.html">Home</a></td><td width="40%" align="right" valign="top"> Chapter 15. MySQL and Virtualization</td></tr></table></div></body></html>

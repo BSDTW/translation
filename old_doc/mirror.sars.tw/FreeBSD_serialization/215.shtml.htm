@@ -1,0 +1,100 @@
+
+
+<!-- Vignette StoryServer 4 Sat Mar 11 15:43:24 2000 --> 
+<style type=text/css>
+<!--
+p,div {font-size:12pt; line-height:14pt; font-family:宋體;}
+.p1{font-size:12pt;font-family:宋體;}
+.p2{font-size:12pt;font-family:宋體;line-height:14pt;}
+.p3{font-size:14.8px;font-family:宋體;}
+.p4{font-size:14.8px;font-family:宋體;line-height:14pt;}
+.p5{font-size:1pt}
+a:hover{color:red;}
+a.t1:visited{color:red;}
+-->
+</style>
+<title>FreeBSD使用大全</title></head>
+
+<body bgcolor="#FFFFFF" text="#000000" link="#383098" vlink="#336699" alink="#FF0000" topmargin="0">
+<!-- Vignette StoryServer 4 Thu Mar 23 10:01:54 2000 --> <!-- Vignette StoryServer 4 Thu Mar 23 15:34:35 2000 --> 
+
+<!--開始：新聞內容-->
+<TABLE WIDTH=750 BORDER=0 CELLSPACING=0 CELLPADDING=0>
+
+<tr valign=top>
+
+
+
+<TD  valign=top>
+<CENTER><FONT COLOR=#000066 size=5><B>FreeBSD連載(92)：基於DNS的負載均衡</B><br></FONT></CENTER>
+
+<HR  ALIGN="center" SIZE=1>
+<CENTER><FONT FACE="Arial" SIZE=2> 2000年2月2日 01:04 </FONT><FONT COLOR="#990000" SIZE=2>王波</FONT></CENTER><p>
+
+<h1 align=center>負載均衡技術</h1>
+
+<p>　　可以使用上面提到的各種技術來提升Apache伺服器的性能，同時也可以使用增加硬體性能的方法來提高Web
+伺服器的性能。但是單台伺服器的性能總是有限的，尤其是伺服器上需要運行大量的CGI程序時，不可能僅靠上面的調整服
+務器設置的方法來建立一個面向整個Internet，如同Yahoo等站點一樣的高負載Web站點。</p>
+
+<p>　　為了建立一個高負載的Web站點，必須使用多伺服器的分布式結構。上面提到的使用代理伺服器和Web伺服器相
+結合，或者兩個Web伺服器相互協作的方式也屬於多伺服器的結構，但在這些多伺服器的結構中，每個伺服器所起到的作用
+是不同的，屬於非對稱的體系結構。非對稱的伺服器結構中每個伺服器起到的作用是不同的，例如一個伺服器用於提供靜態網
+頁，而另一個用於提供動態網頁等等，這樣就使得網頁設計時就需要考慮不同伺服器之間的關系，一旦要改變伺服器之間的關
+系，就會使得某些網頁出現連接錯誤，不利於維護，可擴展性也差。</p>
+
+<p>　　另外一種多伺服器的設計結構為對稱結構，在對稱結構中每台伺服器都具備等價的地位，都可以單獨對外提供服務而
+無須其他伺服器的輔助。然後，可以通過某種技術，將外部發送來的請求均勻分配到對稱結構中的每台伺服器上，接收到連接
+請求的伺服器都獨立回應客戶的請求。在這種結構中，將外部請求均勻分配到伺服器上的技術稱為負載均衡技術，由於建立內
+容完全一致的Web伺服器並不困難，因此負載均衡技術就成為建立一個高負載Web站點的關鍵性技術。</p>
+
+<ul><h2><P><LI>基於DNS的負載均衡</LI></P></h2></ul>
+
+<p>　　最早的負載均衡技術是通過DNS服務中的隨機名字解析來實現的。在DNS伺服器中，可以為多個不同的地址配置
+同一個名字，這個數據被發送給其他名字伺服器，而最終查詢這個名字的客戶機將在解析這個名字時隨機使用其中一個地址。
+因此，對於同一個名字，不同的客戶機會得到不同的地址，因此不同的客戶訪問的也就是不同地址的Web伺服器，從而達到
+負載均衡的目的。</p>
+
+<P align=center><img SRC="FreeBSD_59.gif" tppabs="http://tech.sina.com.cn/focus/FreeBSD/images/FreeBSD_59.gif" WIDTH=450 HEIGHT=279></P>
+
+<p>　　例如如果希望使用三個Web伺服器來回應對www.exampleorg.org.cn的HTTP請求，就可
+以設置該域的DNS伺服器中關於該域的數據包括與下面例子類似的結果：</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>www1		IN		A 		192.168.1.1
+www2		IN		A 		192.168.1.2
+www3		IN		A 		192.168.1.3
+www		IN		CNAME		www1
+www		IN		CNAME		www2
+www		IN		CNAME		www3</td></pre></tr></table>
+
+<p>　　這裡先為每個電腦定義一個真實名字，然後再為它們定義同一個別名。直接針對不同地址設置同一個真實名字
+（A記錄）也是可行的，但使用別名的方法易於管理一些。</p>
+
+<p>　　由於此時反向解析只能針對一台電腦，那麼每個Web伺服器都需要使用ServerName重新定義同一個名
+字，或者設置名字解析的順序為hosts檔案優先，並在hosts檔案中定義本身為www，以保証每個伺服器的名字設
+置保持一致。</p>
+
+<p>　　此後外部的客戶機就可能隨機的得到對應www的不同地址，那麼隨後的HTTP請求也就會發送給不同地址了。</p>
+
+<p>　　當使用DNS負載均衡的時候，必須盡量保証不同的客戶電腦能均勻獲得不同的地址。由於DNS數據是具備一個
+刷新時間的標志的，一旦超過這個時間限制過期，其他DNS伺服器就需要和這個伺服器交談以重新獲得地址數據，就有可能
+獲得不同IP地址。因此為了使得地址能隨機分配，就應該使得刷新時間盡量短，不同地方的DNS伺服器能更新對應的地址
+，使得地址獲得能隨機一些。然而將過期時間設置的過低將使得DNS流量大增，而造成額外的網路問題。出於折衷的考慮，
+一般將刷新時間設置為1個小時。</p>
+
+<p>　　DNS負載均衡的一個問題是一旦某個伺服器出現故障，即使及時修改了DNS設置，還是要等待足夠的時間（刷新
+時間）才能發揮作用，在此期間保存了故障伺服器地址的客戶電腦將不能正常訪問伺服器。</p>
+
+<p>　　盡管存在多種問題，然而它還是一種非常有效的做法，目前使用在包括Yahoo在內的很多Web站點上。</p>
+
+
+<BR>
+
+</TD>
+</TR></TABLE>
+
+
+
+</BODY>
+</HTML>

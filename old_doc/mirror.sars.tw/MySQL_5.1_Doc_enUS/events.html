@@ -1,0 +1,1262 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><title>Chapter 25. Event Scheduler</title><link rel="stylesheet" href="mysql-html.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.69.1"><link rel="start" href="index.html" title="MySQL 5.1 Reference Manual"><link rel="up" href="index.html" title="MySQL 5.1 Reference Manual"><link rel="prev" href="triggers.html" title="Chapter 24. Triggers"><link rel="next" href="views.html" title="Chapter 26. Views"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">Chapter 25. Event Scheduler</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="triggers.html">Prev</a> </td><th width="60%" align="center"> </th><td width="20%" align="right"> <a accesskey="n" href="views.html">Next</a></td></tr></table><hr></div><div class="chapter" lang="en"><div class="titlepage"><div><div><h2 class="title"><a name="events"></a>Chapter 25. Event Scheduler</h2></div></div></div><div class="toc"><p><b>Table of Contents</b></p><dl><dt><span class="section"><a href="events.html#events-overview">25.1. Event Scheduler Overview</a></span></dt><dt><span class="section"><a href="events.html#events-syntax">25.2. Event Scheduler Syntax</a></span></dt><dd><dl><dt><span class="section"><a href="events.html#alter-event">25.2.1. <code class="literal">ALTER EVENT</code> Syntax</a></span></dt><dt><span class="section"><a href="events.html#create-event">25.2.2. <code class="literal">CREATE EVENT</code> Syntax</a></span></dt><dt><span class="section"><a href="events.html#drop-event">25.2.3. <code class="literal">DROP EVENT</code> Syntax</a></span></dt></dl></dd><dt><span class="section"><a href="events.html#events-metadata">25.3. Event Metadata</a></span></dt><dt><span class="section"><a href="events.html#events-status-info">25.4. Event Scheduler Status</a></span></dt><dt><span class="section"><a href="events.html#events-privileges">25.5. The Event Scheduler and MySQL Privileges</a></span></dt><dt><span class="section"><a href="events.html#events-limitations-restrictions">25.6. Event Scheduler Limitations and Restrictions</a></span></dt></dl></div><a class="indexterm" name="id2437798"></a><a class="indexterm" name="id2437807"></a><p>
+    This chapter describes the <em class="firstterm">MySQL Event
+    Scheduler</em>, for which support was added in MySQL 5.1.6,
+    and is divided into the following sections:
+  </p><div class="itemizedlist"><ul type="disc"><li><p>
+        <a href="events.html#events-overview" title="25.1. Event Scheduler Overview">Section 25.1, “Event Scheduler Overview”</a>, provides an introduction to
+        and conceptual overview of MySQL Events.
+      </p></li><li><p>
+        <a href="events.html#events-syntax" title="25.2. Event Scheduler Syntax">Section 25.2, “Event Scheduler Syntax”</a>, discusses the SQL statements
+        introduced in MySQL 5.1.6 for creating, altering, and dropping
+        MySQL Events.
+      </p></li><li><p>
+        <a href="events.html#events-metadata" title="25.3. Event Metadata">Section 25.3, “Event Metadata”</a>, shows how to obtain
+        information about events and how this information is stored by
+        the MySQL Server.
+      </p></li><li><p>
+        <a href="events.html#events-privileges" title="25.5. The Event Scheduler and MySQL Privileges">Section 25.5, “The Event Scheduler and MySQL Privileges”</a>, discusses the privileges
+        required to work with events and the ramifications that events
+        have with regard to privileges when executing.
+      </p></li><li><p>
+        <a href="events.html#events-limitations-restrictions" title="25.6. Event Scheduler Limitations and Restrictions">Section 25.6, “Event Scheduler Limitations and Restrictions”</a>, describes the
+        restrictions and limitations on the use of events.
+      </p></li></ul></div><p><b>Additional Resources. </b>
+      You may find the
+      <a href="http://forums.mysql.com/list.php?119" target="_top">MySQL Event
+      Scheduler User Forum</a> of use when working with scheduled
+      events. Here you can discuss the MySQL Event Scheduler with other
+      MySQL users and the MySQL developers.
+    </p><div class="section" lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="events-overview"></a>25.1. Event Scheduler Overview</h2></div></div></div><a class="indexterm" name="id2437926"></a><p>
+      MySQL Events are tasks that run according to a schedule.
+      Therefore, we sometimes refer to them as
+      <span class="emphasis"><em>scheduled</em></span> events. When you create an event,
+      you are creating a named database object containing one or more
+      SQL statements to be executed at one or more regular intervals,
+      beginning and ending at a specific date and time. Conceptually,
+      this is similar to the idea of the Unix <code class="literal">crontab</code>
+      (also known as a “<span class="quote">cron job</span>”) or the Windows Task
+      Scheduler.
+    </p><p>
+      Scheduled tasks of this type are also sometimes known as
+      “<span class="quote">temporal triggers</span>”, implying that these are objects
+      that are triggered by the passage of time. While this is
+      essentially correct, we prefer to use the term
+      <span class="emphasis"><em>events</em></span> in order to avoid confusion with
+      triggers of the type discussed in <a href="triggers.html" title="Chapter 24. Triggers">Chapter 24, <i>Triggers</i></a>.
+      Events should more specifically not be confused with
+      “<span class="quote">temporary triggers</span>”. Whereas a trigger is a database
+      object whose statements are executed in response to a specific
+      type of event that occurs on a given table, a (scheduled) event is
+      an object whose statements are executed in response to the passage
+      of a specified time interval.
+    </p><p>
+      While there is no provision in the SQL Standard for event
+      scheduling, there are precedents in other database systems, and
+      you may notice some similarities between these implementations and
+      that found in the MySQL Server.
+    </p><p>
+      MySQL Events have the following major features and properties:
+    </p><div class="itemizedlist"><ul type="disc"><li><p>
+          In MySQL 5.1.12 and later, an event is uniquely identified by
+          its name and the schema to which it is assigned. (Previously,
+          an event was also unique to its definer.)
+        </p></li><li><p>
+          An event performs a specific action according to a schedule.
+          This action consists of an SQL statement, which can be a
+          compound statement in a <code class="literal">BEGIN ... END</code> block
+          if desired (see <a href="stored-procedures.html#begin-end" title="23.2.7. BEGIN ... END Compound Statement Syntax">Section 23.2.7, “<code class="literal">BEGIN ... END</code> Compound Statement Syntax”</a>). An event's
+          timing can be either <em class="firstterm">one-time</em> or
+          <em class="firstterm">recurrent</em>. A one-time event executes
+          one time only. A recurrent event repeats its action at a
+          regular interval, and the schedule for a recurring event can
+          be assigned a specific start day and time, end day and time,
+          both, or neither. (By default, a recurring event's schedule
+          begins as soon as it is created, and continues indefinitely,
+          until it is disabled or dropped.)
+        </p></li><li><p>
+          Users can create, modify, and drop scheduled events using SQL
+          statements intended for these purposes. Syntactically invalid
+          event creation and modification statements fail with an
+          appropriate error message. <span class="emphasis"><em>A user may include
+          statements in an event's action which require privileges that
+          the user does not actually have</em></span>. The event creation
+          or modification statement succeeds but the event's action
+          fails. See <a href="events.html#events-privileges" title="25.5. The Event Scheduler and MySQL Privileges">Section 25.5, “The Event Scheduler and MySQL Privileges”</a> for details.
+        </p></li><li><p>
+          Many of the properties of an event can be set or modified
+          using SQL statements. These properties include the event's
+          name, timing, persistence (that is, whether it is preserved
+          following the expiration of its schedule), status (enabled or
+          disabled), action to be performed, and the schema to which it
+          is assigned. See <a href="events.html#alter-event" title="25.2.1. ALTER EVENT Syntax">Section 25.2.1, “<code class="literal">ALTER EVENT</code> Syntax”</a>.
+        </p><p>
+          The default definer of an event is the user who created the
+          event, unless the event has been altered, in which case the
+          definer is the user who issued the last <code class="literal">ALTER
+          EVENT</code> statement affecting that event. An event can
+          be modified by any user having the <code class="literal">EVENT</code>
+          privilege on the database for which the event is defined.
+          (Prior to MySQL 5.1.12, only an event's definer, or a user
+          having privileges on the <code class="literal">mysql.event</code> table,
+          could modify a given event.) See
+          <a href="events.html#events-privileges" title="25.5. The Event Scheduler and MySQL Privileges">Section 25.5, “The Event Scheduler and MySQL Privileges”</a>.
+        </p></li><li><p>
+          An event's action statement may include most SQL statements
+          permitted within stored routines.
+        </p></li></ul></div><p>
+      Events are executed by a special <em class="firstterm">event scheduler
+      thread</em>; when we refer to the Event Scheduler, we
+      actually refer to this thread. When running, the event scheduler
+      thread and its current state can be seen by users having the
+      <code class="literal">PROCESS</code> privilege in the output of
+      <code class="literal">SHOW PROCESSLIST</code>, as shown in the discussion
+      that follows.
+    </p><a class="indexterm" name="id2438127"></a><a class="indexterm" name="id2438139"></a><p><a name="events-event-scheduler-option"></a>
+      The global <code class="literal">event_scheduler</code> system variable
+      determines whether the Event Scheduler is enabled and running on
+      the server. Beginning with MySQL 5.1.12, it has one of these 3
+      values, which affect event scheduling as described here:
+    </p><div class="itemizedlist"><ul type="disc"><li><p>
+          <code class="literal">OFF</code>: The Event Scheduler is stopped. The
+          event scheduler thread does not run, is not shown in the
+          output of <code class="literal">SHOW PROCESSLIST</code>, and no
+          scheduled events are executed. <code class="literal">OFF</code> is the
+          default value for <code class="literal">event_scheduler</code>.
+        </p><p>
+          When the Event Scheduler is stopped
+          (<code class="literal">event_scheduler</code> is
+          <code class="literal">OFF</code>), it can be started by setting the
+          value of <code class="literal">event_scheduler</code> to
+          <code class="literal">ON</code>. (See next item.)
+        </p></li><li><p>
+          <code class="literal">ON</code>: The Event Scheduler is started; the
+          event scheduler thread runs and executes all scheduled events.
+        </p><a class="indexterm" name="id2438238"></a><p>
+          When the Event Scheduler is <code class="literal">ON</code>, the event
+          scheduler thread is listed in the output of <code class="literal">SHOW
+          PROCESSLIST</code> as a daemon process, and its state is
+          represented as shown here:
+        </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SHOW PROCESSLIST\G</code></strong>
+*************************** 1. row ***************************
+     Id: 1
+   User: root
+   Host: localhost
+     db: NULL
+Command: Query
+   Time: 0
+  State: NULL
+   Info: show processlist
+*************************** 2. row ***************************
+     Id: 2
+   User: event_scheduler
+   Host: localhost
+     db: NULL
+Command: Daemon
+   Time: 3
+  State: Waiting for next activation
+   Info: NULL
+2 rows in set (0.00 sec)
+</pre><p>
+          Event scheduling can be stopped by setting the value of
+          <code class="literal">event_scheduler</code> to <code class="literal">OFF</code>.
+        </p></li><li><p>
+          <code class="literal">DISABLED</code>: This value renders the Event
+          Scheduler non-operational. When the Event Scheduler is
+          <code class="literal">DISABLED</code>, the event scheduler thread does
+          not run (and so does not appear in the output of <code class="literal">SHOW
+          PROCESSLIST</code>). In addition, the Event Scheduler state
+          cannot be changed at runtime.
+        </p></li></ul></div><p>
+      If the Event Scheduler status has not been set to
+      <code class="literal">DISABLED</code>, <code class="literal">event_scheduler</code>
+      can be toggled between <code class="literal">ON</code> and
+      <code class="literal">OFF</code> (using <code class="literal">SET</code>). It is also
+      possible to use <code class="literal">0</code> for <code class="literal">OFF</code>,
+      and <code class="literal">1</code> for <code class="literal">ON</code> when setting
+      this variable. Thus, any of the following 4 statements can be used
+      in the <span><strong class="command">mysql</strong></span> client to turn on the Event
+      Scheduler:
+    </p><pre class="programlisting">SET GLOBAL event_scheduler = ON;
+SET @@global.event_scheduler = ON;
+SET GLOBAL event_scheduler = 1;
+SET @@global.event_scheduler = 1;
+</pre><p>
+      Similarly, any of these 4 statements can be used to turn off the
+      Event Scheduler:
+    </p><pre class="programlisting">SET GLOBAL event_scheduler = OFF;
+SET @@global.event_scheduler = OFF;
+SET GLOBAL event_scheduler = 0;
+SET @@global.event_scheduler = 0;
+</pre><p>
+      Although <code class="literal">ON</code> and <code class="literal">OFF</code> have
+      numeric equivalents, the value displayed for
+      <code class="literal">event_scheduler</code> by <code class="literal">SELECT</code> or
+      <code class="literal">SHOW VARIABLES</code> is always one of
+      <code class="literal">OFF</code>, <code class="literal">ON</code>, or
+      <code class="literal">DISABLED</code>. <span class="emphasis"><em><code class="literal">DISABLED</code>
+      has no numeric equivalent</em></span>. For this reason,
+      <code class="literal">ON</code> and <code class="literal">OFF</code> are usually
+      preferred over <code class="literal">1</code> and <code class="literal">0</code> when
+      setting this variable.
+    </p><p>
+      Note that attempting to set <code class="literal">event_scheduler</code>
+      without specifying it as a global variable causes an error:
+    </p><pre class="programlisting">mysql&lt; <strong class="userinput"><code>SET @@event_scheduler = OFF;</code></strong>
+<span class="errortext">ERROR 1229 (HY000): Variable 'event_scheduler' is a GLOBAL
+variable and should be set with SET GLOBAL</span>
+</pre><div class="important" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Important</h3><p>
+        It is possible to set the Event Scheduler to
+        <code class="literal">DISABLED</code> only at server startup. If
+        <code class="literal">event_scheduler</code> is <code class="literal">ON</code> or
+        <code class="literal">OFF</code>, you cannot set it to
+        <code class="literal">DISABLED</code> at runtime. Also, if the Event
+        Scheduler is set to <code class="literal">DISABLED</code> at startup, you
+        cannot change the value of <code class="literal">event_scheduler</code> at
+        runtime.
+      </p></div><p>
+      To disable the event scheduler, use one of the following two
+      methods:
+    </p><div class="itemizedlist"><ul type="disc"><li><p>
+          As a command-line option when starting the server:
+        </p><pre class="programlisting">--event-scheduler=DISABLED
+</pre></li><li><p>
+          In the server configuration file (<code class="filename">my.cnf</code>,
+          or <code class="filename">my.ini</code> on Windows systems), include
+          the line where it will be read by the server (for example, in
+          a <code class="literal">[mysqld]</code> section):
+        </p><pre class="programlisting">event_scheduler=DISABLED
+</pre></li></ul></div><p>
+      To enable the Event Scheduler, restart the server without the
+      <code class="option">--event-scheduler=DISABLED</code> command-line option,
+      or after removing or commenting out the line containing
+      <code class="literal">event_scheduler=DISABLED</code> in the server
+      configuration file, as appropriate. Alternatively, you can use
+      <code class="literal">ON</code> (or <code class="literal">1</code>) or
+      <code class="literal">OFF</code> (or <code class="literal">0</code>) in place of the
+      <code class="literal">DISABLED</code> value when starting the server.
+    </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Note</h3><p>
+        You can issue event-manipulation statements when
+        <code class="literal">event_scheduler</code> is set to
+        <code class="literal">DISABLED</code>. No warnings or errors are generated
+        in such cases (provided that the statements are themselves
+        valid). However, scheduled events cannot execute until this
+        variable is set to <code class="literal">ON</code> (or
+        <code class="literal">1</code>). Once this has been done, the event
+        scheduler thread executes all events whose scheduling conditions
+        are satisfied.
+      </p></div><p>
+      In MySQL 5.1.11, <code class="literal">event_scheduler</code> behaved as
+      follows: this variable could take one of the values
+      <code class="literal">0</code> (or <code class="literal">OFF</code>),
+      <code class="literal">1</code> (or <code class="literal">ON</code>), or
+      <code class="literal">2</code>. Setting it to <code class="literal">0</code> turned
+      event scheduling off, so that the event scheduler thread did not
+      run; the <code class="literal">event_scheduler</code> variable could not be
+      set to this value while the server was running. Setting it to
+      <code class="literal">1</code> so that the event scheduler thread ran and
+      executed scheduled events. In this state, the event scheduler
+      thread appeared to be sleeping when viewed with <code class="literal">SHOW
+      PROCESSLIST</code>. When <code class="literal">event_scheduler</code> was
+      set to <code class="literal">2</code> (which was the default value), the
+      Event Scheduler was considered to be “<span class="quote">suspended</span>”; the
+      event scheduler thread ran and could be seen in the output of
+      <code class="literal">SHOW PROCESSLIST</code> (where
+      <code class="literal">Suspended</code> was displayed in the
+      <code class="literal">State</code> column), but did not execute any
+      scheduled events. The value of <code class="literal">event_scheduler</code>
+      could be changed only between <code class="literal">1</code> (or
+      <code class="literal">ON</code>) and <code class="literal">2</code> while the server
+      was running. Setting it to <code class="literal">0</code> (or
+      <code class="literal">OFF</code>) required a server restart, as did changing
+      its value from <code class="literal">0</code> (or <code class="literal">OFF</code>) to
+      <code class="literal">1</code> (or <code class="literal">ON</code>) or
+      <code class="literal">2</code>.
+    </p><p>
+      Prior to MySQL 5.1.11, <code class="literal">event_scheduler</code> could
+      take one of only the 2 values
+      <code class="literal">0</code>|<code class="literal">OFF</code> or
+      <code class="literal">1</code>|<code class="literal">ON</code>, and the default value
+      was <code class="literal">0</code>|<code class="literal">OFF</code>. It was also
+      possible to start and stop the event scheduler thread while the
+      MySQL server was running.
+    </p><p>
+      For more information concerning the reasons for these changes in
+      behaviour, see <a href="http://bugs.mysql.com/17619" target="_top">Bug#17619</a>.
+    </p><p>
+      Beginning with MySQL 5.1.17, starting the MySQL server with the
+      <code class="option">--skip-grant-tables</code> option causes
+      <code class="literal">event_scheduler</code> to be set to
+      <code class="literal">DISABLED</code>, overriding any other value set either
+      on the command line or in the <code class="filename">my.cnf</code> or
+      <code class="filename">my.ini</code> file (<a href="http://bugs.mysql.com/26807" target="_top">Bug#26807</a>).
+    </p><p>
+      For SQL statements used to create, alter, and drop events, see
+      <a href="events.html#events-syntax" title="25.2. Event Scheduler Syntax">Section 25.2, “Event Scheduler Syntax”</a>.
+    </p><p>
+      MySQL 5.1.6 and later provides an <code class="literal">EVENTS</code> table
+      in the <code class="literal">INFORMATION_SCHEMA</code> database. This table
+      can be queried to obtain information about scheduled events which
+      have been defined on the server. See
+      <a href="events.html#events-metadata" title="25.3. Event Metadata">Section 25.3, “Event Metadata”</a>, and
+      <a href="information-schema.html#events-table" title="27.20. The INFORMATION_SCHEMA EVENTS Table">Section 27.20, “The <code class="literal">INFORMATION_SCHEMA EVENTS</code> Table”</a>, for more information.
+    </p><p>
+      For information regarding event scheduling and the MySQL privilege
+      system, see <a href="events.html#events-privileges" title="25.5. The Event Scheduler and MySQL Privileges">Section 25.5, “The Event Scheduler and MySQL Privileges”</a>.
+    </p></div><div class="section" lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="events-syntax"></a>25.2. Event Scheduler Syntax</h2></div></div></div><div class="toc"><dl><dt><span class="section"><a href="events.html#alter-event">25.2.1. <code class="literal">ALTER EVENT</code> Syntax</a></span></dt><dt><span class="section"><a href="events.html#create-event">25.2.2. <code class="literal">CREATE EVENT</code> Syntax</a></span></dt><dt><span class="section"><a href="events.html#drop-event">25.2.3. <code class="literal">DROP EVENT</code> Syntax</a></span></dt></dl></div><a class="indexterm" name="id2439004"></a><p>
+      MySQL 5.1.6 and later provides several SQL statements for working
+      with scheduled events:
+    </p><div class="itemizedlist"><ul type="disc"><li><p>
+          New events are defined using the <code class="literal">CREATE
+          EVENT</code> statement. See <a href="events.html#create-event" title="25.2.2. CREATE EVENT Syntax">Section 25.2.2, “<code class="literal">CREATE EVENT</code> Syntax”</a>.
+        </p></li><li><p>
+          The definition of an existing event can be changed by means of
+          the <code class="literal">ALTER EVENT</code> statement. See
+          <a href="events.html#alter-event" title="25.2.1. ALTER EVENT Syntax">Section 25.2.1, “<code class="literal">ALTER EVENT</code> Syntax”</a>.
+        </p></li><li><p>
+          When a scheduled event is no longer wanted or needed, it can
+          be deleted from the server by its definer using the
+          <code class="literal">DROP EVENT</code> statement. See
+          <a href="events.html#drop-event" title="25.2.3. DROP EVENT Syntax">Section 25.2.3, “<code class="literal">DROP EVENT</code> Syntax”</a>. (Whether an event persists past
+          the end of its schedule also depends on its <code class="literal">ON
+          COMPLETION</code> clause, if it has one. See
+          <a href="events.html#create-event" title="25.2.2. CREATE EVENT Syntax">Section 25.2.2, “<code class="literal">CREATE EVENT</code> Syntax”</a>.)
+        </p><p>
+          An event can be deleted by any user having the
+          <code class="literal">EVENT</code> privilege for the database on which
+          the event is defined. Prior to MySQL 5.1.12, a user other than
+          the definer required privileges on the
+          <code class="literal">mysql.event</code> table. See
+          <a href="events.html#events-privileges" title="25.5. The Event Scheduler and MySQL Privileges">Section 25.5, “The Event Scheduler and MySQL Privileges”</a>.
+        </p></li></ul></div><div class="section" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="alter-event"></a>25.2.1. <code class="literal">ALTER EVENT</code> Syntax</h3></div></div></div><a class="indexterm" name="id2439130"></a><a class="indexterm" name="id2439143"></a><a class="indexterm" name="id2439155"></a><pre class="programlisting">ALTER
+    [DEFINER = { <em class="replaceable"><code>user</code></em> | CURRENT_USER }]
+    EVENT <em class="replaceable"><code>event_name</code></em>
+    [ON SCHEDULE <em class="replaceable"><code>schedule</code></em>]
+    [ON COMPLETION [NOT] PRESERVE]
+    [RENAME TO <em class="replaceable"><code>new_event_name</code></em>]
+    [ENABLE | DISABLE | DISABLE ON SLAVE]
+    [COMMENT '<em class="replaceable"><code>comment</code></em>']
+    [DO <em class="replaceable"><code>sql_statement</code></em>]
+</pre><p>
+        The <code class="literal">ALTER EVENT</code> statement is used to change
+        one or more of the characteristics of an existing event without
+        the need to drop and recreate it. The syntax for each of the
+        <code class="literal">DEFINER</code>, <code class="literal">ON SCHEDULE</code>,
+        <code class="literal">ON COMPLETION</code>, <code class="literal">COMMENT</code>,
+        <code class="literal">ENABLE</code> / <code class="literal">DISABLE</code>, and
+        <code class="literal">DO</code> clauses is exactly the same as when used
+        with <code class="literal">CREATE EVENT</code>. (See
+        <a href="events.html#create-event" title="25.2.2. CREATE EVENT Syntax">Section 25.2.2, “<code class="literal">CREATE EVENT</code> Syntax”</a>.)
+      </p><p>
+        Support for the <code class="literal">DEFINER</code> clause was added in
+        MySQL 5.1.17.
+      </p><p>
+        Beginning with MySQL 5.1.12, any user can alter an event defined
+        on a database for which that user has the
+        <code class="literal">EVENT</code> privilege. When a user executes a
+        successful <code class="literal">ALTER EVENT</code> statement, that user
+        becomes the definer for the affected event.
+      </p><p>
+        (In MySQL 5.1.11 and earlier, an event could be altered only by
+        its definer, or by a user having the <code class="literal">SUPER</code>
+        privilege.)
+      </p><p>
+        <code class="literal">ALTER EVENT</code> works only with an existing
+        event:
+      </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>ALTER EVENT no_such_event </code></strong>
+     &gt;     <strong class="userinput"><code>ON SCHEDULE </code></strong>
+     &gt;       <strong class="userinput"><code>EVERY '2:3' DAY_HOUR;</code></strong>
+<span class="errortext">ERROR 1517 (HY000): Unknown event 'no_such_event'</span>
+</pre><p>
+        In each of the following examples, assume that the event named
+        <code class="literal">myevent</code> is defined as shown here:
+      </p><pre class="programlisting">CREATE EVENT myevent
+    ON SCHEDULE 
+      EVERY 6 HOUR
+    COMMENT 'A sample comment.'
+    DO
+      UPDATE myschema.mytable SET mycol = mycol + 1;
+</pre><p>
+        The following statement changes the schedule for
+        <code class="literal">myevent</code> from once every six hours starting
+        immediately to once every twelve hours, starting four hours from
+        the time the statement is run:
+      </p><pre class="programlisting">ALTER EVENT myevent
+    ON SCHEDULE 
+      EVERY 12 HOUR 
+    STARTS CURRENT_TIMESTAMP + 4 HOUR;
+</pre><p>
+        It is possible to change multiple characteristics of an event in
+        a single statement. This example changes the SQL statement
+        executed by <code class="literal">myevent</code> to one that deletes all
+        records from <code class="literal">mytable</code>; it also changes the
+        schedule for the event such that it executes once, one day after
+        this <code class="literal">ALTER EVENT</code> statement is run.
+      </p><pre class="programlisting">ALTER TABLE myevent
+    ON SCHEDULE 
+      AT CURRENT_TIMESTAMP + INTERVAL 1 DAY
+    DO
+      TRUNCATE TABLE myschema.mytable;
+</pre><p>
+        It is necessary to include only those options in an
+        <code class="literal">ALTER EVENT</code> statement which correspond to
+        characteristics that you actually wish to change; options which
+        are omitted retain their existing values. This includes any
+        default values for <code class="literal">CREATE EVENT</code> such as
+        <code class="literal">ENABLE</code>.
+      </p><p>
+        To disable <code class="literal">myevent</code>, use this <code class="literal">ALTER
+        EVENT</code> statement:
+      </p><pre class="programlisting">ALTER EVENT myevent
+    DISABLE;
+</pre><p>
+        The <code class="literal">ON SCHEDULE</code> clause may use expressions
+        involving built-in MySQL functions and user variables to obtain
+        any of the <em class="replaceable"><code>timestamp</code></em> or
+        <em class="replaceable"><code>interval</code></em> values which it contains.
+        You may not use stored routines or user-defined functions in
+        such expressions, nor may you use any table references; however,
+        you may use <code class="literal">SELECT FROM DUAL</code>. This is true
+        for both <code class="literal">ALTER EVENT</code> and <code class="literal">CREATE
+        EVENT</code> statements. Beginning with MySQL 5.1.13,
+        references to stored routines, user-defined functions, and
+        tables in such cases are specifically disallowed, and fail with
+        an error (see <a href="http://bugs.mysql.com/22830" target="_top">Bug#22830</a>).
+      </p><p>
+        An <code class="literal">ALTER EVENT</code> statement that contains
+        another <code class="literal">ALTER EVENT</code> statement in its
+        <code class="literal">DO</code> clause appears to succeed; however, when
+        the server attempts to execute the resulting scheduled event,
+        the execution fails with an error.
+      </p><p>
+        To rename an event, use the <code class="literal">ALTER EVENT</code>
+        statement's <code class="literal">RENAME TO</code> clause. This statement
+        renames the event <code class="literal">myevent</code> to
+        <code class="literal">yourevent</code>:
+      </p><pre class="programlisting">ALTER EVENT myevent
+    RENAME TO yourevent;
+</pre><p>
+        You can also move an event to a different database using
+        <code class="literal">ALTER EVENT ... RENAME TO ...</code> and
+        <code class="literal"><em class="replaceable"><code>db_name.event_name</code></em></code>
+        notation, as shown here:
+      </p><pre class="programlisting">ALTER EVENT olddb.myevent
+    RENAME TO newdb.myevent;
+</pre><p>
+        To execute the previous statement, the user executing it must
+        have the <code class="literal">EVENT</code> privilege on both the
+        <code class="literal">olddb</code> and <code class="literal">newdb</code> databases.
+      </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Note</h3><p>
+          There is no <code class="literal">RENAME EVENT</code> statement.
+        </p></div><p>
+        Beginning with MySQL 5.1.18, a third value may also appear in
+        place of <code class="literal">ENABLED</code> or
+        <code class="literal">DISABLED</code>; <code class="literal">DISABLE ON SLAVE</code>
+        is used on a replication slave to indicate an event which was
+        created on the master and replicated to the slave, but which is
+        not executed on the slave. Normally, <code class="literal">DISABLE ON
+        SLAVE</code> is set automatically as required; however, there
+        are some circumstances under which you may want or need to
+        change it manually. See
+        <a href="replication.html#replication-features-invoked" title="19.3.1.5. Replication of Invoked Features">Section 19.3.1.5, “Replication of Invoked Features”</a>, for more
+        information.
+      </p></div><div class="section" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="create-event"></a>25.2.2. <code class="literal">CREATE EVENT</code> Syntax</h3></div></div></div><a class="indexterm" name="id2439675"></a><a class="indexterm" name="id2439688"></a><a class="indexterm" name="id2439700"></a><pre class="programlisting">CREATE 
+    [DEFINER = { <em class="replaceable"><code>user</code></em> | CURRENT_USER }]
+    EVENT 
+    [IF NOT EXISTS]
+    <em class="replaceable"><code>event_name</code></em>    
+    ON SCHEDULE <em class="replaceable"><code>schedule</code></em>
+    [ON COMPLETION [NOT] PRESERVE]
+    [ENABLE | DISABLE | DISABLE ON SLAVE]
+    [COMMENT '<em class="replaceable"><code>comment</code></em>']
+    DO <em class="replaceable"><code>sql_statement</code></em>;
+
+<em class="replaceable"><code>schedule</code></em>:
+    AT <em class="replaceable"><code>timestamp</code></em> [+ INTERVAL <em class="replaceable"><code>interval</code></em>] ...
+  | EVERY <em class="replaceable"><code>interval</code></em> 
+    [STARTS <em class="replaceable"><code>timestamp</code></em> [+ INTERVAL interval] ...] 
+    [ENDS <em class="replaceable"><code>timestamp</code></em> [+ INTERVAL interval] ...]
+
+<em class="replaceable"><code>interval</code></em>:
+    <em class="replaceable"><code>quantity</code></em> {YEAR | QUARTER | MONTH | DAY | HOUR | MINUTE |
+              WEEK | SECOND | YEAR_MONTH | DAY_HOUR | DAY_MINUTE |
+              DAY_SECOND | HOUR_MINUTE | HOUR_SECOND | MINUTE_SECOND}
+</pre><p>
+        This statement creates and schedules a new event. The minimum
+        requirements for a valid <code class="literal">CREATE EVENT</code>
+        statement are as follows:
+      </p><div class="itemizedlist"><ul type="disc"><li><p>
+            The keywords <code class="literal">CREATE EVENT</code> plus an event
+            name, which uniquely identifies the event in the current
+            schema. (Prior to MySQL 5.1.12, the event name needed to be
+            unique only among events created by the same user on a given
+            database.)
+          </p></li><li><p>
+            An <code class="literal">ON SCHEDULE</code> clause, which determines
+            when and how often the event executes.
+          </p></li><li><p>
+            A <code class="literal">DO</code> clause, which contains the SQL
+            statement to be executed by an event.
+          </p></li></ul></div><p>
+        This is an example of a minimal <code class="literal">CREATE EVENT</code>
+        statement:
+      </p><pre class="programlisting">CREATE EVENT myevent
+    ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 HOUR
+    DO
+      UPDATE myschema.mytable SET mycol = mycol + 1;
+</pre><p>
+        The previous statement creates an event named
+        <code class="literal">myevent</code>. This event executes once — one
+        hour following its creation — by running an SQL statement
+        that increments the value of the
+        <code class="literal">myschema.mytable</code> table's
+        <code class="literal">mycol</code> column by 1.
+      </p><p>
+        The <em class="replaceable"><code>event_name</code></em> must be a valid MySQL
+        identifier with a maximum length of 64 characters. It may be
+        delimited using back ticks, and may be qualified with the name
+        of a database schema. An event is associated with both a MySQL
+        user (the definer) and a schema, and its name must be unique
+        among names of events within that schema. In general, the rules
+        governing event names are the same as those for names of stored
+        routines. See <a href="language-structure.html#identifiers" title="8.2. Schema Object Names">Section 8.2, “Schema Object Names”</a>.
+      </p><p>
+        If no schema is indicated as part of
+        <em class="replaceable"><code>event_name</code></em>, the default (current)
+        schema is assumed.
+      </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Note</h3><p>
+          MySQL uses case-insensitive comparisons when checking for the
+          uniqueness of event names. This means that, for example, you
+          cannot have two events named <code class="literal">myevent</code> and
+          <code class="literal">MyEvent</code> in the same database schema.
+        </p></div><p>
+        The <code class="literal">DEFINER</code> clause specifies the MySQL
+        account to be used when checking access privileges at event
+        execution time. If a <em class="replaceable"><code>user</code></em> value is
+        given, it should be a MySQL account in
+        <code class="literal">'<em class="replaceable"><code>user_name</code></em>'@'<em class="replaceable"><code>host_name</code></em>'</code>
+        format (the same format used in the <code class="literal">GRANT</code>
+        statement). The <em class="replaceable"><code>user_name</code></em> and
+        <em class="replaceable"><code>host_name</code></em> values both are required.
+        The definer can also be given as
+        <a href="functions.html#function_current-user"><code class="literal">CURRENT_USER</code></a> or
+        <a href="functions.html#function_current-user"><code class="literal">CURRENT_USER()</code></a>. The default
+        <code class="literal">DEFINER</code> value is the user who executes the
+        <code class="literal">CREATE EVENT</code> statement. (This is the same as
+        <code class="literal">DEFINER = CURRENT_USER</code>.)
+      </p><p>
+        The <code class="literal">DEFINER</code> clause was added in MySQL 5.1.17.
+        (Prior to MySQL 5.1.12, it was possible for two different users
+        to create different events having the same name on the same
+        database schema.)
+      </p><p>
+        <code class="literal">IF NOT EXISTS</code> has the same meaning for
+        <code class="literal">CREATE EVENT</code> as for <code class="literal">CREATE
+        TABLE</code>: If an event named
+        <em class="replaceable"><code>event_name</code></em> already exists in the same
+        schema, no action is taken, and no error results. (However, a
+        warning is generated in such cases.)
+      </p><p>
+        The <code class="literal">ON SCHEDULE</code> clause determines when, how
+        often, and for how long the
+        <em class="replaceable"><code>sql_statement</code></em> defined for the event
+        repeats. This clause takes one of two forms:
+      </p><div class="itemizedlist"><ul type="disc"><li><p>
+            <code class="literal">AT <em class="replaceable"><code>timestamp</code></em></code>
+            is used for a one-time event. It specifies that the event
+            executes one time only at the date and time given by
+            <em class="replaceable"><code>timestamp</code></em>, which must include
+            both the date and time, or must be an expression that
+            resolves to a datetime value. You may use a value of either
+            the <code class="literal">DATETIME</code> or
+            <code class="literal">TIMESTAMP</code> type for this purpose. If the
+            date is in the past, a warning occurs, as shown here:
+          </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT NOW();</code></strong>
++---------------------+
+| NOW()               |
++---------------------+
+| 2006-02-10 23:59:01 |
++---------------------+
+1 row in set (0.04 sec)
+
+mysql&gt; <strong class="userinput"><code>CREATE EVENT e_totals</code></strong>
+    -&gt;     <strong class="userinput"><code>ON SCHEDULE AT '2006-02-10 23:59:00'</code></strong>
+    -&gt;     <strong class="userinput"><code>DO INSERT INTO test.totals VALUES (NOW());</code></strong>
+Query OK, 0 rows affected, 1 warning (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>SHOW WARNINGS\G</code></strong>
+*************************** 1. row ***************************
+  Level: Note
+   Code: 1588
+Message: Event execution time is in the past and ON COMPLETION NOT
+         PRESERVE is set. The event was dropped immediately after
+         creation.
+</pre><p>
+            <code class="literal">CREATE EVENT</code> statements which are
+            themselves invalid — for whatever reason — fail
+            with an error.
+          </p><p>
+            You may use
+            <a href="functions.html#function_current-timestamp"><code class="literal">CURRENT_TIMESTAMP</code></a> to specify
+            the current date and time. In such a case, the event acts as
+            soon as it is created.
+          </p><p>
+            To create an event which occurs at some point in the future
+            relative to the current date and time — such as that
+            expressed by the phrase “<span class="quote">three weeks from now</span>”
+            — you can use the optional clause <code class="literal">+ INTERVAL
+            <em class="replaceable"><code>interval</code></em></code>. The
+            <em class="replaceable"><code>interval</code></em> portion consists of two
+            parts, a quantity and a unit of time, and follows the same
+            syntax rules that govern intervals used in the
+            <a href="functions.html#function_date-add"><code class="literal">DATE_ADD()</code></a> function (see
+            <a href="functions.html#date-and-time-functions" title="11.6. Date and Time Functions">Section 11.6, “Date and Time Functions”</a>. The units
+            keywords are also the same, except that you cannot use any
+            units involving microseconds when defining an event. With
+            some interval types, complex time units may be used. For
+            example, “<span class="quote">two minutes and ten seconds</span>” can be
+            expressed as <code class="literal">+ INTERVAL '2:10'
+            MINUTE_SECOND</code>.
+          </p><p>
+            You can also combine intervals. For example, <code class="literal">AT
+            CURRENT_TIMESTAMP + INTERVAL 3 WEEK + INTERVAL 2
+            DAY</code> is equivalent to “<span class="quote">three weeks and two
+            days from now</span>”. Each portion of such a clause must
+            begin with <code class="literal">+ INTERVAL</code>.
+          </p></li><li><p>
+            To repeat actions at a regular interval, use an
+            <code class="literal">EVERY</code> clause. The
+            <code class="literal">EVERY</code> keyword is followed by an
+            <em class="replaceable"><code>interval</code></em> as described in the
+            previous dicussion of the <code class="literal">AT</code> keyword.
+            (<code class="literal">+ INTERVAL</code> is <span class="emphasis"><em>not</em></span>
+            used with <code class="literal">EVERY</code>.) For example,
+            <code class="literal">EVERY 6 WEEK</code> means “<span class="quote">every six
+            weeks</span>”.
+          </p><p>
+            Although <code class="literal">+ INTERVAL</code> clauses are not
+            allowed in an <code class="literal">EVERY</code> clause, you can use
+            the same complex time units allowed in a <code class="literal">+
+            INTERVAL</code>.
+          </p><p>
+            An <code class="literal">EVERY</code> clause may also contain an
+            optional <code class="literal">STARTS</code> clause.
+            <code class="literal">STARTS</code> is followed by a
+            <em class="replaceable"><code>timestamp</code></em> value which indicates
+            when the action should begin repeating, and may also use
+            <code class="literal">+ INTERVAL
+            <em class="replaceable"><code>interval</code></em></code> in order to
+            specify an amount of time “<span class="quote">from now</span>”. For
+            example, <code class="literal">EVERY 3 MONTH STARTS CURRENT_TIMESTAMP + 1
+            WEEK</code> means “<span class="quote">every three months, beginning
+            one week from now</span>”. Similarly, you can express
+            “<span class="quote">every two weeks, beginning six hours and fifteen
+            minutes from now</span>” as <code class="literal">EVERY 2 WEEK STARTS
+            CURRENT_TIMESTAMP + INTERVAL '6:15' HOUR_MINUTE</code>.
+            Not specifying <code class="literal">STARTS</code> is the same as
+            using <code class="literal">STARTS CURRENT_TIMESTAMP</code> —
+            that is, the action specified for the event begins repeating
+            immediately upon creation of the event.
+          </p><p>
+            An <code class="literal">EVERY</code> clause may also contain an
+            optional <code class="literal">ENDS</code> clause. The
+            <code class="literal">ENDS</code> keyword is followed by a
+            <em class="replaceable"><code>timestamp</code></em> value which tells MySQL
+            when the event should stop repeating. You may also use
+            <code class="literal">+ INTERVAL
+            <em class="replaceable"><code>interval</code></em></code> with
+            <code class="literal">ENDS</code>; for instance, <code class="literal">EVERY 12
+            HOUR STARTS CURRENT_TIMESTAMP + INTERVAL 30 MINUTE ENDS
+            CURRENT_TIMESTAMP + INTERVAL 4 WEEK</code> is equivalent
+            to “<span class="quote">every twelve hours, beginning thirty minutes from
+            now, and ending four weeks from now</span>”. Not using
+            <code class="literal">ENDS</code> means that the event continues
+            executing indefinitely.
+          </p><p>
+            <code class="literal">ENDS</code> supports the same syntax for complex
+            time units as <code class="literal">STARTS</code> does.
+          </p><p>
+            You may use <code class="literal">STARTS</code>,
+            <code class="literal">ENDS</code>, both, or neither in an
+            <code class="literal">EVERY</code> clause.
+          </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Note</h3><p>
+              Beginning with MySQL 5.1.17, <code class="literal">STARTS</code> or
+              <code class="literal">ENDS</code> uses the MySQL server's local time
+              zone, as shown in the
+              <code class="literal">INFORMATION_SCHEMA.EVENTS</code> and
+              <code class="literal">mysql.event</code> tables, as well as in the
+              output of <code class="literal">SHOW EVENTS</code>. Previously, this
+              information was stored using UTC (<a href="http://bugs.mysql.com/16420" target="_top">Bug#16420</a>).
+            </p><p>
+              Due to this change, the <code class="literal">mysql.event</code>
+              table must be updated before events created in earlier
+              releases can be created, altered, viewed, or used in MySQL
+              5.1.17 or later. You can use
+              <span><strong class="command">mysql_upgrade</strong></span> for this (see
+              <a href="programs.html#mysql-upgrade" title="4.4.8. mysql_upgrade — Check Tables for MySQL Upgrade">Section 4.4.8, “<span><strong class="command">mysql_upgrade</strong></span> — Check Tables for MySQL Upgrade”</a>).
+            </p><p>
+              See <a href="information-schema.html#events-table" title="27.20. The INFORMATION_SCHEMA EVENTS Table">Section 27.20, “The <code class="literal">INFORMATION_SCHEMA EVENTS</code> Table”</a>, and
+              <a href="sql-syntax.html#show-events" title="12.5.5.18. SHOW EVENTS">Section 12.5.5.18, “<code class="literal">SHOW EVENTS</code>”</a> for information about
+              columns added in MySQL 5.1.17 to accomodate these changes.
+            </p></div></li></ul></div><p>
+        Beginning with MySQL 5.1.18, a third value may also appear in
+        place of <code class="literal">ENABLED</code> or
+        <code class="literal">DISABLED</code>; <code class="literal">DISABLE ON SLAVE</code>
+        is set for the status of an event on a replication slave to
+        indicate that the event was created on the master and replicated
+        to the slave, but is not executed on the slave. See
+        <a href="replication.html#replication-features-invoked" title="19.3.1.5. Replication of Invoked Features">Section 19.3.1.5, “Replication of Invoked Features”</a>.
+      </p><p>
+        The <code class="literal">ON SCHEDULE</code> clause may use expressions
+        involving built-in MySQL functions and user variables to obtain
+        any of the <em class="replaceable"><code>timestamp</code></em> or
+        <em class="replaceable"><code>interval</code></em> values which it contains.
+        You may not use stored functions or user-defined functions in
+        such expressions, nor may you use any table references; however,
+        you may use <code class="literal">SELECT FROM DUAL</code>. This is true
+        for both <code class="literal">CREATE EVENT</code> and <code class="literal">ALTER
+        EVENT</code> statements. Beginning with MySQL 5.1.13,
+        references to stored functions, user-defined functions, and
+        tables in such cases are specifically disallowed, and fail with
+        an error (see <a href="http://bugs.mysql.com/22830" target="_top">Bug#22830</a>).
+      </p><p>
+        Normally, once an event has expired, it is immediately dropped.
+        You can override this behavior by specifying <code class="literal">ON
+        COMPLETION PRESERVE</code>. Using <code class="literal">ON COMPLETION NOT
+        PRESERVE</code> merely makes the default non-persistent
+        behavior explicit.
+      </p><p>
+        You can create an event but keep it from being active using the
+        <code class="literal">DISABLE</code> keyword. Alternatively, you may use
+        <code class="literal">ENABLE</code> to make explicit the default status,
+        which is active. This is most useful in conjunction with
+        <code class="literal">ALTER EVENT</code> (see
+        <a href="events.html#alter-event" title="25.2.1. ALTER EVENT Syntax">Section 25.2.1, “<code class="literal">ALTER EVENT</code> Syntax”</a>).
+      </p><p>
+        You may supply a comment for an event using a
+        <code class="literal">COMMENT</code> clause.
+        <em class="replaceable"><code>comment</code></em> may be any string of up to 64
+        characters that you wish to use for describing the event. The
+        comment text, being a string literal, must be surrounded by
+        quotation marks.
+      </p><p>
+        The <code class="literal">DO</code> clause specifies an action carried by
+        the event, and consists of an SQL statement. Nearly any valid
+        MySQL statement which can be used in a stored routine can also
+        be used as the action statement for a scheduled event. (See
+        <a href="restrictions.html#routine-restrictions" title="D.1. Restrictions on Stored Routines, Triggers, and Events">Section D.1, “Restrictions on Stored Routines, Triggers, and Events”</a>.) For example, the
+        following event <code class="literal">e_hourly</code> deletes all rows
+        from the <code class="literal">sessions</code> table once per hour, where
+        this table is part of the <code class="literal">site_activity</code>
+        schema:
+      </p><pre class="programlisting">CREATE EVENT e_hourly
+    ON SCHEDULE 
+      EVERY 1 HOUR
+    COMMENT 'Clears out sessions table each hour.'
+    DO
+      DELETE FROM site_activity.sessions;
+</pre><p>
+        MySQL stores the <code class="literal">sql_mode</code> system variable
+        setting that is in effect at the time an event is created, and
+        always executes the event with this setting in force,
+        <span class="emphasis"><em>regardless of the current server SQL mode</em></span>.
+      </p><p>
+        A <code class="literal">CREATE EVENT</code> statement that contains an
+        <code class="literal">ALTER EVENT</code> statement in its
+        <code class="literal">DO</code> clause appears to succeed; however, when
+        the server attempts to execute the resulting scheduled event,
+        the execution fails with an error.
+      </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Note</h3><p>
+          Statements such as <code class="literal">SELECT</code> or
+          <code class="literal">SHOW</code> that merely return a result set have
+          no effect when used in an event; the output from these is not
+          sent to the MySQL Monitor, nor is it stored anywhere. However,
+          you can use statements such as <code class="literal">SELECT ...
+          INTO</code> and <code class="literal">INSERT INTO ... SELECT</code>
+          that store a result. (See the next example in this section for
+          an instance of the latter.)
+        </p></div><p>
+        The schema to which an event belongs is the default schema for
+        table references in the <code class="literal">DO</code> clause. Any
+        references to tables in other schemas must be qualified with the
+        proper schema name. (In MySQL 5.1.6, all tables referenced in
+        event <code class="literal">DO</code> clauses had to include a reference
+        to the schema.)
+      </p><p>
+        As with stored routines, you can use compound-statement syntax
+        in the <code class="literal">DO</code> clause by using the
+        <code class="literal">BEGIN</code> and <code class="literal">END</code> keywords, as
+        shown here:
+      </p><pre class="programlisting">DELIMITER |
+
+CREATE EVENT e_daily
+    ON SCHEDULE
+      EVERY 1 DAY
+    COMMENT 'Saves total number of sessions then clears the table each day.'
+    DO
+      BEGIN
+        INSERT INTO site_activity.totals (when, total)
+          SELECT CURRENT_TIMESTAMP, COUNT(*) 
+            FROM site_activity.sessions;
+        DELETE FROM site_activity.sessions;
+      END |
+
+DELIMITER ;
+</pre><p>
+        Note the use of the <code class="literal">DELIMITER</code> command to
+        change the statement delimiter, as with stored routines. See
+        <a href="stored-procedures.html#create-procedure" title="23.2.2. CREATE PROCEDURE and CREATE
+        FUNCTION Syntax">Section 23.2.2, “<code class="literal">CREATE PROCEDURE</code> and <code class="literal">CREATE
+        FUNCTION</code> Syntax”</a>.
+      </p><p>
+        More complex compound statements, such as those used in stored
+        routines, are possible in an event. This example uses local
+        variables, an error handler, and a flow control construct:
+      </p><pre class="programlisting">DELIMITER |
+
+CREATE EVENT e
+    ON SCHEDULE 
+      EVERY 5 SECOND
+    DO
+      BEGIN
+        DECLARE v INTEGER;
+        DECLARE CONTINUE HANDLER FOR SQLEXCEPTION BEGIN END;
+
+        SET v = 0;
+
+        WHILE v &lt; 5 DO
+          INSERT INTO t1 VALUES (0);
+          UPDATE t2 SET s1 = s1 + 1;
+          SET v = v + 1;
+        END WHILE;
+    END |
+
+DELIMITER ;
+</pre><p>
+        There is no way to pass parameters directly to or from events;
+        however, it is possible to invoke a stored routine with
+        parameters:
+      </p><pre class="programlisting">CREATE EVENT e_call_myproc
+    ON SCHEDULE 
+      AT CURRENT_TIMESTAMP + INTERVAL 1 DAY
+    DO CALL myproc(5, 27); 
+</pre><p>
+        In addition, if the event's definer has the
+        <code class="literal">SUPER</code> privilege, that event may read and
+        write global variables. As granting this privilege entails a
+        potential for abuse, extreme care must be taken in doing so.
+      </p><p>
+        Generally, any statements which are valid in stored routines may
+        be used for action statements executed by events. For more
+        information about statements allowable within stored routines,
+        see <a href="stored-procedures.html#stored-procedure-syntax" title="23.2. Stored Routine Syntax">Section 23.2, “Stored Routine Syntax”</a>. You can create an
+        event as part of a stored routine, but an event cannot be
+        created by another event.
+      </p></div><div class="section" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="drop-event"></a>25.2.3. <code class="literal">DROP EVENT</code> Syntax</h3></div></div></div><a class="indexterm" name="id2440926"></a><a class="indexterm" name="id2440935"></a><a class="indexterm" name="id2440947"></a><pre class="programlisting">DROP EVENT [IF EXISTS] <em class="replaceable"><code>event_name</code></em>
+</pre><p>
+        This statement drops the event named
+        <em class="replaceable"><code>event_name</code></em>. The event immediately
+        ceases being active, and is deleted completely from the server.
+      </p><p>
+        If the event does not exist, the error <span class="errortext">ERROR 1517
+        (HY000): Unknown event
+        '<em class="replaceable"><code>event_name</code></em>'</span> results. You
+        can override this and cause the statement to generate a warning
+        for non-existent events instead using <code class="literal">IF
+        EXISTS</code>.
+      </p><p>
+        Beginning with MySQL 5.1.12, an event can be dropped by any user
+        having the <code class="literal">EVENT</code> privilege on the database
+        schema to which the event to be dropped belongs. (In MySQL
+        5.1.11 and earlier, an event could be dropped only by its
+        definer, or by a user having the <code class="literal">SUPER</code>
+        privilege.)
+      </p></div></div><div class="section" lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="events-metadata"></a>25.3. Event Metadata</h2></div></div></div><a class="indexterm" name="id2441049"></a><a class="indexterm" name="id2441061"></a><p>
+      Information about events can be obtained as follows:
+    </p><div class="itemizedlist"><ul type="disc"><li><p>
+          Query the <code class="literal">EVENTS</code> table of the
+          <code class="literal">INFORMATION_SCHEMA</code> database. See
+          <a href="information-schema.html#events-table" title="27.20. The INFORMATION_SCHEMA EVENTS Table">Section 27.20, “The <code class="literal">INFORMATION_SCHEMA EVENTS</code> Table”</a>.
+        </p></li><li><p>
+          Use the <code class="literal">SHOW EVENTS</code> statement. See
+          <a href="sql-syntax.html#show-events" title="12.5.5.18. SHOW EVENTS">Section 12.5.5.18, “<code class="literal">SHOW EVENTS</code>”</a>.
+        </p></li><li><p>
+          Use the <code class="literal">SHOW CREATE EVENT</code> statement. See
+          <a href="sql-syntax.html#show-create-event" title="12.5.5.9. SHOW CREATE EVENT">Section 12.5.5.9, “<code class="literal">SHOW CREATE EVENT</code>”</a>.
+        </p></li><li><p>
+          A record of events executed on the server can be read from the
+          MySQL Server's error log. See
+          <a href="events.html#events-privileges" title="25.5. The Event Scheduler and MySQL Privileges">Section 25.5, “The Event Scheduler and MySQL Privileges”</a> for an example.
+        </p></li></ul></div></div><div class="section" lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="events-status-info"></a>25.4. Event Scheduler Status</h2></div></div></div><a class="indexterm" name="id2441161"></a><a class="indexterm" name="id2441173"></a><a class="indexterm" name="id2441182"></a><p>
+      Information about the state of the Event Scheduler for debugging
+      and troubleshooting purposes can be obtained as follows:
+
+      </p><div class="itemizedlist"><ul type="disc"><li><p>
+            In MySQL 5.1.11 <code class="literal">-debug</code> builds, you can
+            use the <code class="literal">SHOW SCHEDULER STATUS</code> statement;
+            see <a href="sql-syntax.html#show-scheduler-status" title="12.5.5.29. SHOW SCHEDULER STATUS Syntax">Section 12.5.5.29, “<code class="literal">SHOW SCHEDULER STATUS</code> Syntax”</a>.
+          </p><div class="important" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Important</h3><p>
+              This statement was removed in MySQL 5.1.12. We intend to
+              implement an SQL statement providing similar functionality
+              in a future MySQL release.
+            </p></div></li><li><p>
+            Beginning with MySQL 5.1.12, event scheduler status
+            information can be obtained by running <span><strong class="command">mysqladmin
+            debug</strong></span> (see <a href="programs.html#mysqladmin" title="4.5.2. mysqladmin — Client for Administering a MySQL Server">Section 4.5.2, “<span><strong class="command">mysqladmin</strong></span> — Client for Administering a MySQL Server”</a>); after
+            running this command, the error log contains output relating
+            to the Event Scheduler, similar to what is shown here:
+
+</p><pre class="programlisting">Events status:
+LLA = Last Locked At  LUA = Last Unlocked At
+WOC = Waiting On Condition  DL = Data Locked
+
+Event scheduler status:
+State      : INITIALIZED
+Thread id  : 0
+LLA        : init_scheduler:313
+LUA        : init_scheduler:318
+WOC        : NO
+Workers    : 0
+Executed   : 0
+Data locked: NO
+
+Event queue status:
+Element count   : 1
+Data locked     : NO
+Attempting lock : NO
+LLA             : init_queue:148
+LUA             : init_queue:168
+WOC             : NO
+Next activation : 0000-00-00 00:00:00
+</pre><p>
+          </p></li></ul></div><p>
+    </p></div><div class="section" lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="events-privileges"></a>25.5. The Event Scheduler and MySQL Privileges</h2></div></div></div><a class="indexterm" name="id2441272"></a><p>
+      To enable or disable the execution of scheduled events, it is
+      necessary to set the value of the global
+      <code class="literal">event_scheduler</code> system variable. This requires
+      the <code class="literal">SUPER</code> privilege.
+    </p><p>
+      MySQL 5.1.6 introduces a privilege governing the creation,
+      modification, and deletion of events, the <code class="literal">EVENT</code>
+      privilege. This privilege can be bestowed using
+      <code class="literal">GRANT</code>. For example, this
+      <code class="literal">GRANT</code> statement confers the
+      <code class="literal">EVENT</code> privilege for the schema named
+      <code class="literal">myschema</code> on the user
+      <code class="literal">jon@ghidora</code>:
+    </p><pre class="programlisting">GRANT EVENT ON myschema.* TO jon@ghidora;
+</pre><p>
+      (We assume that this user account already exists, and that we wish
+      for it to remain unchanged otherwise.)
+    </p><p>
+      To grant this same user the <code class="literal">EVENT</code> privilege on
+      all schemas, use the following statement:
+    </p><pre class="programlisting">GRANT EVENT ON *.* TO jon@ghidora;
+</pre><p>
+      The <code class="literal">EVENT</code> privilege has global or schema-level
+      scope. Therefore, trying to grant it on a single table results in
+      an error as shown:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>GRANT EVENT ON myschema.mytable TO jon@ghidora;</code></strong>
+<span class="errortext">ERROR 1144 (42000): Illegal GRANT/REVOKE command; please
+consult the manual to see which privileges can be used</span>
+</pre><p>
+      It is important to understand that an event is executed with the
+      privileges of its definer, and that it cannot perform any actions
+      for which its definer does not have the requisite privileges. For
+      example, suppose that <code class="literal">jon@ghidora</code> has the
+      <code class="literal">EVENT</code> privilege for
+      <code class="literal">myschema</code>. Suppose also that this user has the
+      <code class="literal">SELECT</code> privilege for
+      <code class="literal">myschema</code>, but no other privileges for this
+      schema. It is possible for <code class="literal">jon@ghidora</code> to
+      create a new event such as this one:
+    </p><pre class="programlisting">CREATE EVENT e_store_ts
+    ON SCHEDULE 
+      EVERY 10 SECOND
+    DO 
+      INSERT INTO myschema.mytable VALUES (UNIX_TIMESTAMP());
+</pre><p>
+      The user waits for a minute or so, and then performs a
+      <code class="literal">SELECT * FROM mytable;</code> query, expecting to see
+      several new rows in the table. Instead, he finds that the table is
+      empty. Since he does not have the <code class="literal">INSERT</code>
+      privilege for the table in question, the event has no effect.
+    </p><p>
+      If you inspect the MySQL error log
+      (<code class="filename"><em class="replaceable"><code>hostname</code></em>.err</code>),
+      you can see that the event is executing, but the action it is
+      attempting to perform fails, as indicated by
+      <code class="literal">RetCode=0</code>:
+    </p><pre class="programlisting">060209 22:39:44 [Note]     EVEX EXECUTING event newdb.e [EXPR:10]
+060209 22:39:44 [Note]     EVEX EXECUTED event newdb.e  [EXPR:10]. RetCode=0
+060209 22:39:54 [Note]     EVEX EXECUTING event newdb.e [EXPR:10]
+060209 22:39:54 [Note]     EVEX EXECUTED event newdb.e  [EXPR:10]. RetCode=0
+060209 22:40:04 [Note]     EVEX EXECUTING event newdb.e [EXPR:10]
+060209 22:40:04 [Note]     EVEX EXECUTED event newdb.e  [EXPR:10]. RetCode=0
+</pre><p>
+      Since this user very likely does not have access to the error log,
+      he can verify whether the event's action statement is valid by
+      running it himself:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>INSERT INTO myschema.mytable VALUES (UNIX_TIMESTAMP());</code></strong>
+<span class="errortext">ERROR 1142 (42000): INSERT command denied to user 
+'jon'@'ghidora' for table 'mytable'</span>
+</pre><a class="indexterm" name="id2441511"></a><p>
+      Inspection of the <code class="literal">INFORMATION_SCHEMA.EVENTS</code>
+      table shows that <code class="literal">e_store_ts</code> exists and is
+      enabled, but its <code class="literal">LAST_EXECUTED</code> column is
+      <code class="literal">NULL</code>:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT * FROM INFORMATION_SCHEMA.EVENTS</code></strong>
+     &gt;     <strong class="userinput"><code>WHERE EVENT_NAME='e_store_ts'</code></strong>
+     &gt;     <strong class="userinput"><code>AND EVENT_SCHEMA='myschema'\G</code></strong>
+*************************** 1. row ***************************
+   EVENT_CATALOG: NULL
+    EVENT_SCHEMA: myschema
+      EVENT_NAME: e_store_ts
+         DEFINER: jon@ghidora
+      EVENT_BODY: SQL
+EVENT_DEFINITION: INSERT INTO myschema.mytable VALUES (UNIX_TIMESTAMP())
+      EVENT_TYPE: RECURRING
+      EXECUTE_AT: NULL
+  INTERVAL_VALUE: 5
+  INTERVAL_FIELD: INTERVAL_SECOND
+        SQL_MODE: NULL
+          STARTS: 0000-00-00 00:00:00
+            ENDS: 0000-00-00 00:00:00
+          STATUS: ENABLED
+   ON_COMPLETION: NOT PRESERVE
+         CREATED: 2006-02-09 22:36:06
+    LAST_ALTERED: 2006-02-09 22:36:06
+   LAST_EXECUTED: NULL
+   EVENT_COMMENT:
+1 row in set (0.00 sec)
+</pre><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Note</h3><p>
+        Prior to MySQL 5.1.12, there was no
+        <code class="literal">EVENT_DEFINITION</code> column, and
+        <code class="literal">EVENT_BODY</code> contained the SQL statement or
+        statements to be executed. See <a href="information-schema.html#events-table" title="27.20. The INFORMATION_SCHEMA EVENTS Table">Section 27.20, “The <code class="literal">INFORMATION_SCHEMA EVENTS</code> Table”</a>,
+        for more information.
+      </p></div><p>
+      To rescind the <code class="literal">EVENT</code> privilege, use the
+      <code class="literal">REVOKE</code> statement. In this example, the
+      <code class="literal">EVENT</code> privilege on the schema
+      <code class="literal">myschema</code> is removed from the
+      <code class="literal">jon@ghidora</code> user account:
+    </p><pre class="programlisting">REVOKE EVENT ON myschema.* FROM jon@ghidora;
+</pre><div class="important" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Important</h3><p>
+        Revoking the <code class="literal">EVENT</code> privilege from a user does
+        not delete or disable any events that may have been created by
+        that user.
+      </p><p>
+        An event is not migrated or dropped as a result of renaming or
+        dropping the user who created it.
+      </p></div><p>
+      For example, suppose that the user <code class="literal">jon@ghidora</code>
+      has been granted the <code class="literal">EVENT</code> and
+      <code class="literal">INSERT</code> privileges on the
+      <code class="literal">myschema</code> schema. This user then creates the
+      following event:
+    </p><pre class="programlisting">CREATE EVENT e_insert
+    ON SCHEDULE 
+      EVERY 7 SECOND
+    DO 
+      INSERT INTO myschema.mytable;
+</pre><p>
+      After this event has been created, <code class="literal">root</code> revokes
+      the <code class="literal">EVENT</code> privilege for
+      <code class="literal">jon@ghidora</code>. However,
+      <code class="literal">e_insert</code> continues to execute, inserting a new
+      row into <code class="literal">mytable</code> each seven seconds. The same
+      would be true if <code class="literal">root</code> had issued either of
+      these statements:
+    </p><div class="itemizedlist"><ul type="disc"><li><p>
+          <code class="literal">DROP USER jon@ghidora;</code>
+        </p></li><li><p>
+          <code class="literal">RENAME USER jon@ghidora TO
+          someotherguy@ghidora;</code>
+        </p></li></ul></div><p>
+      You can verify that this is true by examining the
+      <code class="literal">mysql.event</code> table (discussed later in this
+      section) or the <code class="literal">INFORMATION_SCHEMA.EVENTS</code> table
+      (see <a href="information-schema.html#events-table" title="27.20. The INFORMATION_SCHEMA EVENTS Table">Section 27.20, “The <code class="literal">INFORMATION_SCHEMA EVENTS</code> Table”</a>) before and after issuing a
+      <code class="literal">DROP USER</code> or <code class="literal">RENAME USER</code>
+      statement.
+    </p><a class="indexterm" name="id2441805"></a><p>
+      Event definitions are stored in the <code class="literal">mysql.event</code>
+      table, which was added in MySQL 5.1.6. To drop an event created by
+      another user account, the MySQL <code class="literal">root</code> user (or
+      another user with the necessary privileges) can delete rows from
+      this table. For example, to remove the event
+      <code class="literal">e_insert</code> shown previously,
+      <code class="literal">root</code> can use the following statement:
+    </p><pre class="programlisting">DELETE FROM mysql.event
+    WHERE db = 'myschema' 
+      AND definer = 'jon@ghidora' 
+      AND name = 'e_insert';
+</pre><p>
+      It is very important to match the event name, database schema
+      name, and user account when deleting rows from the
+      <code class="literal">mysql.event</code> table. This is because the same
+      user can create different events of the same name in different
+      schemas.
+    </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Note</h3><p>
+        The namespace for scheduled events changed in MySQL 5.1.12.
+        Prior to that MySQL version, different users could create
+        different events having the same name in the same database; in
+        MySQL 5.1.12 and later, that is no longer the case. When
+        upgrading to MySQL 5.1.12 or later from MySQL 5.1.11 or earlier,
+        it is extremely important to make sure that no events in the
+        same database share the same name, <span class="emphasis"><em>prior to performing
+        the upgrade</em></span>.
+      </p></div><p>
+      Users' <code class="literal">EVENT</code> privileges are stored in the
+      <code class="literal">Event_priv</code> columns of the
+      <code class="literal">mysql.user</code> and <code class="literal">mysql.db</code>
+      tables. In both cases, this column holds one of the values
+      '<code class="literal">Y</code>' or '<code class="literal">N</code>'.
+      '<code class="literal">N</code>' is the default.
+      <code class="literal">mysql.user.Event_priv</code> is set to
+      '<code class="literal">Y</code>' for a given user only if that user has the
+      global <code class="literal">EVENT</code> privilege (that is, if the
+      privilege was bestowed using <code class="literal">GRANT EVENT ON
+      *.*</code>). For a schema-level <code class="literal">EVENT</code>
+      privilege, <code class="literal">GRANT</code> creates a row in
+      <code class="literal">mysql.db</code> and sets that row's
+      <code class="literal">Db</code> column to the name of the schema, the
+      <code class="literal">User</code> column to the name of the user, and the
+      <code class="literal">Event_priv</code> column to '<code class="literal">Y</code>'.
+      There should never be any need to manipulate these tables
+      directly, since the <code class="literal">GRANT EVENT</code> and
+      <code class="literal">REVOKE EVENT</code> statement perform the required
+      operations on them.
+    </p><a class="indexterm" name="id2442007"></a><p>
+      MySQL 5.1.6 introduces five status variables providing counts of
+      event-related operations (but <span class="emphasis"><em>not</em></span> of
+      statements executed by events — see
+      <a href="events.html#events-limitations-restrictions" title="25.6. Event Scheduler Limitations and Restrictions">Section 25.6, “Event Scheduler Limitations and Restrictions”</a>). These are:
+    </p><div class="itemizedlist"><ul type="disc"><li><p>
+          <code class="literal">Com_create_event</code>: The number of
+          <code class="literal">CREATE EVENT</code> statements executed since the
+          last server restart.
+        </p></li><li><p>
+          <code class="literal">Com_alter_event</code>: The number of
+          <code class="literal">ALTER EVENT</code> statements executed since the
+          last server restart.
+        </p></li><li><p>
+          <code class="literal">Com_drop_event</code>: The number of <code class="literal">DROP
+          EVENT</code> statements executed since the last server
+          restart.
+        </p></li><li><p>
+          <code class="literal">Com_show_create_event</code>: The number of
+          <code class="literal">SHOW CREATE EVENT</code> statements executed since
+          the last server restart.
+        </p></li><li><p>
+          <code class="literal">Com_show_events</code>: The number of
+          <code class="literal">SHOW EVENTS</code> statements executed since the
+          last server restart.
+        </p></li></ul></div><p>
+      You can view current values for all of these at one time by
+      running the statement <code class="literal">SHOW STATUS LIKE
+      '%event%';</code>.
+    </p></div><div class="section" lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="events-limitations-restrictions"></a>25.6. Event Scheduler Limitations and Restrictions</h2></div></div></div><a class="indexterm" name="id2442157"></a><p>
+      This section lists restrictions and limitations applying to event
+      scheduling in MySQL 5.1.
+    </p><p><b>Qualification of identifiers. </b>
+        In MySQL 5.1.6 only, any table referenced in an event's action
+        statement must be fully qualified with the name of the schema in
+        which it occurs (that is, as
+        <code class="literal"><em class="replaceable"><code>schema_name</code></em>.<em class="replaceable"><code>table_name</code></em></code>).
+      </p><p><b>Case sensitivity of event identifiers. </b>
+        Beginning with MySQL 5.1.8, event names are handled in
+        case-insensitive fashion. For example, this means that you
+        cannot have two events in the same database (and — prior
+        to MySQL 5.1.12 — with the same definer) with the names
+        <code class="literal">anEvent</code> and <code class="literal">AnEvent</code>.
+
+        </p><div class="important" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Important</h3><p>
+            If you have events created in MySQL 5.1.7 or earlier which
+            are assigned to the same database and have the same definer,
+            and whose names differ only with respect to lettercase, then
+            you must rename these events to respect case-sensitive
+            handling before upgrading to MySQL 5.1.8 or later.
+          </p></div><p>
+      </p><p><b>Modification of events by stored routines and triggers. </b>
+        An event may not be created, altered, or dropped by a trigger,
+        stored routine, or another event. An event also may not create,
+        alter, or drop triggers or stored routines. (<a href="http://bugs.mysql.com/16409" target="_top">Bug#16409</a>, <a href="http://bugs.mysql.com/18896" target="_top">Bug#18896</a>)
+      </p><p><b>Resolution of event timings. </b>
+        Event timings using the intervals <code class="literal">YEAR</code>,
+        <code class="literal">QUARTER</code>, <code class="literal">MONTH</code>, and
+        <code class="literal">YEAR_MONTH</code> are resolved in months; those
+        using any other interval are resolved in seconds. There is no
+        way to cause events scheduled to occur at the same second to
+        execute in a given order. In addition — due to rounding,
+        the nature of threaded applications, and the fact that a
+        non-zero length of time is required to create events and to
+        signal their execution — events may be delayed by as much
+        as 1 or 2 seconds. However, the time shown in the
+        <code class="literal">INFORMATION_SCHEMA.EVENTS</code> table's
+        <code class="literal">LAST_EXECUTED</code> column or the
+        <code class="literal">mysql.event</code> table's
+        <code class="literal">last_executed</code> column is always accurate to
+        within one second of the time the event was actually executed.
+        (See also <a href="http://bugs.mysql.com/16522" target="_top">Bug#16522</a>.)
+      </p><p><b>Effects on statement counts. </b>
+        Each execution of the statements contained in the body of an
+        event takes place in a new connection; thus, these statements
+        has no effect in a given user session on the server's statement
+        counts such as <code class="literal">Com_select</code> and
+        <code class="literal">Com_insert</code> that are displayed by
+        <code class="literal">SHOW STATUS</code>. However, such counts
+        <span class="emphasis"><em>are</em></span> updated in the global scope. (<a href="http://bugs.mysql.com/16422" target="_top">Bug#16422</a>)
+      </p><p><b>Visibility of events belonging to other users. </b>
+        Prior to MySQL 5.1.12, you could not view another user's events
+        in the <code class="literal">INFORMATION_SCHEMA.EVENTS</code> table. In
+        other words, any query made against this table was treated as
+        though it contained the condition <code class="literal">DEFINER =
+        CURRENT_USER()</code> in the <code class="literal">WHERE</code> clause.
+      </p><p><b>Start times. </b>
+        Events cannot be created with a start time that is in the past.
+      </p><p><b>Latest time supported. </b>
+        Events do not support times later than the end of the Unix
+        Epoch; this is approximately the beginning of the year 2038.
+        Prior to MySQL 5.1.8, handling in scheduled events of dates
+        later than this was buggy; starting with MySQL 5.1.8, such dates
+        are specifically disallowed by the Event Scheduler. (<a href="http://bugs.mysql.com/16396" target="_top">Bug#16396</a>)
+      </p><p><b>Server SQL mode. </b>
+        In MySQL 5.1.6, <code class="literal">INFORMATION_SCHEMA.EVENTS</code>
+        shows <code class="literal">NULL</code> in the <code class="literal">SQL_MODE</code>
+        column. Beginning with MySQL 5.1.7, the
+        <code class="literal">SQL_MODE</code> displayed is that in effect when the
+        event was created.
+      </p><p><b>Dropping or altering events. </b>
+        In MySQL 5.1.6, the only way to drop or alter an event created
+        by a user who was not the definer of that event was by
+        manipulation of the <code class="literal">mysql.event</code> system table
+        by the MySQL <code class="literal">root</code> user or by another user
+        with privileges on this table. Beginning with MySQL 5.1.7,
+        <code class="literal">DROP USER</code> drops all events for which that
+        user was the definer; also beginning with MySQL 5.1.7
+        <code class="literal">DROP SCHEMA</code> drops all events associated with
+        the dropped schema.
+      </p><p><b>Database object references in <code class="literal">ON SCHEDULE</code> clauses. </b>
+        References to stored functions, user-defined functions, and
+        tables in the <code class="literal">ON SCHEDULE</code> clauses of
+        <code class="literal">CREATE EVENT</code> and <code class="literal">ALTER
+        EVENT</code> statements are not supported. Beginning with
+        MySQL 5.1.13, these sorts of references are disallowed. (See <a href="http://bugs.mysql.com/22830" target="_top">Bug#22830</a> for more information.)
+      </p><p><b>Disallowed statements. </b>
+        Generally speaking, statements which are not permitted in stored
+        routines or in SQL prepared statements are also not allowed in
+        the body of an event. See
+        <a href="restrictions.html#routine-restrictions" title="D.1. Restrictions on Stored Routines, Triggers, and Events">Section D.1, “Restrictions on Stored Routines, Triggers, and Events”</a>, and
+        <a href="sql-syntax.html#sql-syntax-prepared-statements" title="12.7. SQL Syntax for Prepared Statements">Section 12.7, “SQL Syntax for Prepared Statements”</a>, for more
+        information.
+      </p><p><b>Upgrading to MySQL 5.1.18 or later. </b>
+        When upgrading to MySQL 5.1.18 or later from a previous MySQL
+        version where scheduled events were in use, the upgrade
+        utilities <span><strong class="command">mysql_upgrade</strong></span> and
+        <span><strong class="command">mysql_fix_privilege_tables</strong></span> do not accomodate
+        changes in system tables relating to the Event Scheduler. As a
+        workaround, you can dump events before the upgrade, then restore
+        them from the dump afterwards. This issue was fixed in MySQL
+        5.1.20 (see <a href="http://bugs.mysql.com/28521" target="_top">Bug#28521</a>).
+      </p></div></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="triggers.html">Prev</a> </td><td width="20%" align="center"> </td><td width="40%" align="right"> <a accesskey="n" href="views.html">Next</a></td></tr><tr><td width="40%" align="left" valign="top">Chapter 24. Triggers </td><td width="20%" align="center"><a accesskey="h" href="index.html">Home</a></td><td width="40%" align="right" valign="top"> Chapter 26. Views</td></tr></table></div></body></html>

@@ -1,0 +1,579 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>Network File System (NFS)</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.79" />
+<link rel="HOME" title="FreeBSD 使用手冊" href="index.html" />
+<link rel="UP" title="Network Servers" href="network-servers.html" />
+<link rel="PREVIOUS" title="The inetd Super-Server" href="network-inetd.html" />
+<link rel="NEXT" title="Network Information System (NIS/YP)" href="network-nis.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD 使用手冊</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="network-inetd.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 27 Network Servers</td>
+<td width="10%" align="right" valign="bottom"><a href="network-nis.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="NETWORK-NFS" name="NETWORK-NFS">27.3 Network File System
+(NFS)</a></h1>
+
+<i class="AUTHORGROUP"><span class="CONTRIB">Reorganized and enhanced by</span> Tom
+Rhodes.</i> <i class="AUTHORGROUP"><span class="CONTRIB">Written by</span> Bill
+Swingle.</i> 
+
+<p>網路文件系統(Network File System)， 是 FreeBSD 支援的眾多檔案系統之一，也被稱為
+<acronym title="Network File System" class="ACRONYM">NFS</acronym>。 <acronym
+title="Network File System" class="ACRONYM">NFS</acronym>
+允許一個系統分享其目錄與檔案給網路上的其他人。 透過使用 <acronym
+title="Network File System" class="ACRONYM">NFS</acronym>
+使用者和程式可以像在本地端一般地存取遠端系統中的檔案。</p>
+
+<p><acronym class="ACRONYM">NFS</acronym> 可以提供最顯而易見的好處是：</p>
+
+<ul>
+<li>
+<p>本地端工作站可以使用更少的硬碟空間， 因為一般用途的資料可以儲存在單一機器上，
+而且網路上的其他人仍然可以存取到。</p>
+</li>
+
+<li>
+<p>使用者並不需要在每一個網路機器上都有一個家目錄。 家目錄可以設定在 <acronym
+class="ACRONYM">NFS</acronym> server 上， 並在網路處處可得。</p>
+</li>
+
+<li>
+<p>軟碟，CDROM，以及 <span class="TRADEMARK">Zip</span>&reg;
+這類的儲存裝置可以透過網路由其他機器取得。 這樣可以減少整個網路中可移動裝置的數量。</p>
+</li>
+</ul>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN34845" name="AEN34845">27.3.1 <acronym
+class="ACRONYM">NFS</acronym> 如何運作？</a></h2>
+
+<p><acronym class="ACRONYM">NFS</acronym> 至少包含兩項主要部份：
+一個伺服器以及一或多個客戶端。 客戶端遠端存取儲存在伺服器上的資料。
+為了讓這一切正確地運作， 必須配置並執行一些程序。</p>
+
+<p>伺服器必須執行下列的 daemons：</p>
+
+<div class="INFORMALTABLE"><a id="AEN34866" name="AEN34866"></a>
+<table border="0" frame="void" width="100%" class="CALSTABLE">
+<col width="25%" />
+<col width="75%" />
+<thead>
+<tr>
+<th>Daemon</th>
+<th>Description</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><b class="APPLICATION">nfsd</b></td>
+<td>用來服務 <acronym class="ACRONYM">NFS</acronym> 客戶端請求的 <acronym
+class="ACRONYM">NFS</acronym> daemon。</td>
+</tr>
+
+<tr>
+<td><b class="APPLICATION">mountd</b></td>
+<td><acronym class="ACRONYM">NFS</acronym> 的掛載 daemon， 用來實行由 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=nfsd&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">nfsd</span>(8)</span></a>
+傳過來的請求。</td>
+</tr>
+
+<tr>
+<td><b class="APPLICATION">rpcbind</b></td>
+<td>這個 daemon 允許 <acronym class="ACRONYM">NFS</acronym> 客戶端查詢 <acronym
+class="ACRONYM">NFS</acronym> 伺服器使用了哪一個連接埠(port)。</td>
+</tr>
+</tbody>
+</table>
+</div>
+
+<p>客戶端也可以跑一種 daemon，稱為 <b class="APPLICATION">nfsiod</b>。 <b
+class="APPLICATION">nfsiod</b> daemon 處理從 <acronym class="ACRONYM">NFS</acronym>
+伺服器發出的請求。 這是可以選擇的，它可以增加效能，但對於普通和正確的操作來說並非必要。
+參閱 <a href="http://www.FreeBSD.org/cgi/man.cgi?query=nfsiod&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">nfsiod</span>(8)</span></a>
+來獲得更多資訊。</p>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="NETWORK-CONFIGURING-NFS" name="NETWORK-CONFIGURING-NFS">27.3.2
+設定 <acronym class="ACRONYM">NFS</acronym></a></h2>
+
+<p><acronym class="ACRONYM">NFS</acronym> 設定起來相對地簡單。
+若要讓其在啟動過程中跑起來，只需要對你的 <tt class="FILENAME">/etc/rc.conf</tt>
+做一點點修改。</p>
+
+<p>在 <acronym class="ACRONYM">NFS</acronym> server 上面， 確保下列選項都被設定在 <tt
+class="FILENAME">/etc/rc.conf</tt> 當中：</p>
+
+<pre class="PROGRAMLISTING">
+rpcbind_enable="YES"
+nfs_server_enable="YES"
+mountd_flags="-r"
+</pre>
+
+<p>一旦 <acronym class="ACRONYM">NFS</acronym> 伺服器啟動了， <b
+class="APPLICATION">mountd</b> 便會自動跑起來。</p>
+
+<p>在客戶端，確保下面這個選項出現在 <tt class="FILENAME">/etc/rc.conf</tt>：</p>
+
+<pre class="PROGRAMLISTING">
+nfs_client_enable="YES"
+</pre>
+
+<p><tt class="FILENAME">/etc/exports</tt> 這個檔案指定了 哪些檔案系統 <acronym
+class="ACRONYM">NFS</acronym> 應該輸出 (有時也被稱為 “分享”)。 <tt
+class="FILENAME">/etc/exports</tt> 當中的每一行都指定了一個會被輸出的檔案系統，
+以及有哪些機器可以存取這個檔案系統。
+在指定哪些機器可以存取這個檔案系統的同時，存取選項通常也會被指定。
+有許多這類的存取選項可以被使用在這個檔案中，但在這裡我們只會提到一些。 透過瀏覽 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=exports&amp;sektion=5"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">exports</span>(5)</span></a>
+手冊，你可以很輕易地找到其他的選項。</p>
+
+<p>這裡有一些 <tt class="FILENAME">/etc/exports</tt> 的設定例子：</p>
+
+<p>下面給了一個如何輸出檔案系統的例子， 雖然其設定可能會因你的環境和網路設定而有所不同。
+例如，要把 <tt class="FILENAME">/cdrom</tt> 目錄輸出到三台 具有和伺服器相同網域名稱的機器
+(因此每個都少了網域名稱)， 或者是在 <tt class="FILENAME">/etc/hosts</tt> 中有指定。 <code
+class="OPTION">-ro</code> flag 表示讓被輸出的檔案系統為只能讀取。 有了這個
+flag，遠端系統便不能寫入或更動這個被輸出的檔案系統。</p>
+
+<pre class="PROGRAMLISTING">
+/cdrom -ro host1 host2 host3
+</pre>
+
+<p>下面這行將 <tt class="FILENAME">/home</tt> 輸出到三台以 IP 位址表示的主機。
+對於沒有設置 <acronym class="ACRONYM">DNS</acronym> 伺服器的私人網路來說，這相當地有用。
+你也可以在 <tt class="FILENAME">/etc/hosts</tt> 中設定內部的 hostname； 參考 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=hosts&amp;sektion=5"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">hosts</span>(5)</span></a>
+可以獲得更多資訊。 <code class="OPTION">-alldirs</code> flag 允許子目錄也可以當作掛載點
+(mount point)。 換句話說，除非允許客戶端可以依照需求只掛載需要的目錄，
+否則客戶端是不能掛載子目錄的。</p>
+
+<pre class="PROGRAMLISTING">
+/home  -alldirs  10.0.0.2 10.0.0.3 10.0.0.4
+</pre>
+
+<p>The following line exports <tt class="FILENAME">/a</tt> so that two clients from
+different domains may access the file system. The <code
+class="OPTION">-maproot=root</code> flag allows the <tt class="USERNAME">root</tt> user
+on the remote system to write data on the exported file system as <tt
+class="USERNAME">root</tt>. If the <tt class="LITERAL">-maproot=root</tt> flag is not
+specified, then even if a user has <tt class="USERNAME">root</tt> access on the remote
+system, he will not be able to modify files on the exported file system.</p>
+
+<pre class="PROGRAMLISTING">
+/a  -maproot=root  host.example.com box.example.org
+</pre>
+
+<p>In order for a client to access an exported file system, the client must have
+permission to do so. Make sure the client is listed in your <tt
+class="FILENAME">/etc/exports</tt> file.</p>
+
+<p>In <tt class="FILENAME">/etc/exports</tt>, each line represents the export information
+for one file system to one host. A remote host can only be specified once per file
+system, and may only have one default entry. For example, assume that <tt
+class="FILENAME">/usr</tt> is a single file system. The following <tt
+class="FILENAME">/etc/exports</tt> would be invalid:</p>
+
+<pre class="PROGRAMLISTING">
+# Invalid when /usr is one file system
+/usr/src   client
+/usr/ports client
+</pre>
+
+<p>One file system, <tt class="FILENAME">/usr</tt>, has two lines specifying exports to
+the same host, <tt class="HOSTID">client</tt>. The correct format for this situation
+is:</p>
+
+<pre class="PROGRAMLISTING">
+/usr/src /usr/ports  client
+</pre>
+
+<p>The properties of one file system exported to a given host must all occur on one line.
+Lines without a client specified are treated as a single host. This limits how you can
+export file systems, but for most people this is not an issue.</p>
+
+<p>The following is an example of a valid export list, where <tt
+class="FILENAME">/usr</tt> and <tt class="FILENAME">/exports</tt> are local file
+systems:</p>
+
+<pre class="PROGRAMLISTING">
+# Export src and ports to client01 and client02, but only
+# client01 has root privileges on it
+/usr/src /usr/ports -maproot=root    client01
+/usr/src /usr/ports               client02
+# The client machines have root and can mount anywhere
+# on /exports. Anyone in the world can mount /exports/obj read-only
+/exports -alldirs -maproot=root      client01 client02
+/exports/obj -ro
+</pre>
+
+<p>The <b class="APPLICATION">mountd</b> daemon must be forced to recheck the <tt
+class="FILENAME">/etc/exports</tt> file whenever it has been modified, so the changes can
+take effect. This can be accomplished either by sending a HUP signal to the running
+daemon:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">kill -HUP `cat /var/run/mountd.pid`</kbd>
+</pre>
+
+<p>or by invoking the <tt class="COMMAND">mountd</tt> <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=rc&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">rc</span>(8)</span></a> script with the
+appropriate parameter:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">/etc/rc.d/mountd onereload</kbd>
+</pre>
+
+<p>Please refer to <a href="configtuning-rcd.html">Section 11.7</a> for more information
+about using rc scripts.</p>
+
+<p>Alternatively, a reboot will make FreeBSD set everything up properly. A reboot is not
+necessary though. Executing the following commands as <tt class="USERNAME">root</tt>
+should start everything up.</p>
+
+<p>On the <acronym class="ACRONYM">NFS</acronym> server:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">rpcbind</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">nfsd -u -t -n 4</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">mountd -r</kbd>
+</pre>
+
+<p>On the <acronym class="ACRONYM">NFS</acronym> client:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">nfsiod -n 4</kbd>
+</pre>
+
+<p>Now everything should be ready to actually mount a remote file system. In these
+examples the server's name will be <tt class="HOSTID">server</tt> and the client's name
+will be <tt class="HOSTID">client</tt>. If you only want to temporarily mount a remote
+file system or would rather test the configuration, just execute a command like this as
+<tt class="USERNAME">root</tt> on the client:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">mount server:/home /mnt</kbd>
+</pre>
+
+<p>This will mount the <tt class="FILENAME">/home</tt> directory on the server at <tt
+class="FILENAME">/mnt</tt> on the client. If everything is set up correctly you should be
+able to enter <tt class="FILENAME">/mnt</tt> on the client and see all the files that are
+on the server.</p>
+
+<p>If you want to automatically mount a remote file system each time the computer boots,
+add the file system to the <tt class="FILENAME">/etc/fstab</tt> file. Here is an
+example:</p>
+
+<pre class="PROGRAMLISTING">
+server:/home   /mnt    nfs rw  0   0
+</pre>
+
+<p>The <a href="http://www.FreeBSD.org/cgi/man.cgi?query=fstab&amp;sektion=5"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">fstab</span>(5)</span></a> manual page
+lists all the available options.</p>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN35025" name="AEN35025">27.3.3 Locking</a></h2>
+
+<p>Some applications (e.g. <b class="APPLICATION">mutt</b>) require file locking to
+operate correctly. In the case of <acronym class="ACRONYM">NFS</acronym>, <b
+class="APPLICATION">rpc.lockd</b> can be used for file locking. To enable it, add the
+following to the <tt class="FILENAME">/etc/rc.conf</tt> file on both client and server
+(it is assumed that the <acronym class="ACRONYM">NFS</acronym> client and server are
+configured already):</p>
+
+<pre class="PROGRAMLISTING">
+rpc_lockd_enable="YES"
+rpc_statd_enable="YES"
+</pre>
+
+<p>Start the application by using:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">/etc/rc.d/nfslocking start</kbd>
+</pre>
+
+<p>If real locking between the <acronym class="ACRONYM">NFS</acronym> clients and
+<acronym class="ACRONYM">NFS</acronym> server is not required, it is possible to let the
+<acronym class="ACRONYM">NFS</acronym> client do locking locally by passing <code
+class="OPTION">-L</code> to <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=mount_nfs&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">mount_nfs</span>(8)</span></a>. Refer to
+the <a href="http://www.FreeBSD.org/cgi/man.cgi?query=mount_nfs&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">mount_nfs</span>(8)</span></a> manual
+page for further details.</p>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN35049" name="AEN35049">27.3.4 Practical Uses</a></h2>
+
+<p><acronym class="ACRONYM">NFS</acronym> has many practical uses. Some of the more
+common ones are listed below:</p>
+
+<ul>
+<li>
+<p>Set several machines to share a CDROM or other media among them. This is cheaper and
+often a more convenient method to install software on multiple machines.</p>
+</li>
+
+<li>
+<p>On large networks, it might be more convenient to configure a central <acronym
+class="ACRONYM">NFS</acronym> server in which to store all the user home directories.
+These home directories can then be exported to the network so that users would always
+have the same home directory, regardless of which workstation they log in to.</p>
+</li>
+
+<li>
+<p>Several machines could have a common <tt class="FILENAME">/usr/ports/distfiles</tt>
+directory. That way, when you need to install a port on several machines, you can quickly
+access the source without downloading it on each machine.</p>
+</li>
+</ul>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="NETWORK-AMD" name="NETWORK-AMD">27.3.5 Automatic Mounts with <b
+class="APPLICATION">amd</b></a></h2>
+
+<i class="AUTHORGROUP"><span class="CONTRIB">Contributed by</span> Wylie Stilwell.</i> <i
+class="AUTHORGROUP"><span class="CONTRIB">Rewritten by</span> Chern Lee.</i> 
+
+<p><a href="http://www.FreeBSD.org/cgi/man.cgi?query=amd&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">amd</span>(8)</span></a> (the automatic
+mounter daemon) automatically mounts a remote file system whenever a file or directory
+within that file system is accessed. Filesystems that are inactive for a period of time
+will also be automatically unmounted by <b class="APPLICATION">amd</b>. Using <b
+class="APPLICATION">amd</b> provides a simple alternative to permanent mounts, as
+permanent mounts are usually listed in <tt class="FILENAME">/etc/fstab</tt>.</p>
+
+<p><b class="APPLICATION">amd</b> operates by attaching itself as an NFS server to the
+<tt class="FILENAME">/host</tt> and <tt class="FILENAME">/net</tt> directories. When a
+file is accessed within one of these directories, <b class="APPLICATION">amd</b> looks up
+the corresponding remote mount and automatically mounts it. <tt
+class="FILENAME">/net</tt> is used to mount an exported file system from an IP address,
+while <tt class="FILENAME">/host</tt> is used to mount an export from a remote
+hostname.</p>
+
+<p>An access to a file within <tt class="FILENAME">/host/foobar/usr</tt> would tell <b
+class="APPLICATION">amd</b> to attempt to mount the <tt class="FILENAME">/usr</tt> export
+on the host <tt class="HOSTID">foobar</tt>.</p>
+
+<div class="EXAMPLE"><a id="AEN35102" name="AEN35102"></a>
+<p><b>Example 27-2. Mounting an Export with amd</b></p>
+
+<p>You can view the available mounts of a remote host with the <tt
+class="COMMAND">showmount</tt> command. For example, to view the mounts of a host named
+<tt class="HOSTID">foobar</tt>, you can use:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">%</samp> <kbd class="USERINPUT">showmount -e foobar</kbd>
+Exports list on foobar:
+/usr                               10.10.10.0
+/a                                 10.10.10.0
+<samp class="PROMPT">%</samp> <kbd class="USERINPUT">cd /host/foobar/usr</kbd>
+</pre>
+</div>
+
+<p>As seen in the example, the <tt class="COMMAND">showmount</tt> shows <tt
+class="FILENAME">/usr</tt> as an export. When changing directories to <tt
+class="FILENAME">/host/foobar/usr</tt>, <b class="APPLICATION">amd</b> attempts to
+resolve the hostname <tt class="HOSTID">foobar</tt> and automatically mount the desired
+export.</p>
+
+<p><b class="APPLICATION">amd</b> can be started by the startup scripts by placing the
+following lines in <tt class="FILENAME">/etc/rc.conf</tt>:</p>
+
+<pre class="PROGRAMLISTING">
+amd_enable="YES"
+</pre>
+
+<p>Additionally, custom flags can be passed to <b class="APPLICATION">amd</b> from the
+<code class="VARNAME">amd_flags</code> option. By default, <code
+class="VARNAME">amd_flags</code> is set to:</p>
+
+<pre class="PROGRAMLISTING">
+amd_flags="-a /.amd_mnt -l syslog /host /etc/amd.map /net /etc/amd.map"
+</pre>
+
+<p>The <tt class="FILENAME">/etc/amd.map</tt> file defines the default options that
+exports are mounted with. The <tt class="FILENAME">/etc/amd.conf</tt> file defines some
+of the more advanced features of <b class="APPLICATION">amd</b>.</p>
+
+<p>Consult the <a href="http://www.FreeBSD.org/cgi/man.cgi?query=amd&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">amd</span>(8)</span></a> and <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=amd.conf&amp;sektion=5"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">amd.conf</span>(5)</span></a> manual
+pages for more information.</p>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="NETWORK-NFS-INTEGRATION" name="NETWORK-NFS-INTEGRATION">27.3.6
+Problems Integrating with Other Systems</a></h2>
+
+<i class="AUTHORGROUP"><span class="CONTRIB">Contributed by</span> John Lind.</i> 
+
+<p>Certain Ethernet adapters for ISA PC systems have limitations which can lead to
+serious network problems, particularly with NFS. This difficulty is not specific to
+FreeBSD, but FreeBSD systems are affected by it.</p>
+
+<p>The problem nearly always occurs when (FreeBSD) PC systems are networked with
+high-performance workstations, such as those made by Silicon Graphics, Inc., and Sun
+Microsystems, Inc. The NFS mount will work fine, and some operations may succeed, but
+suddenly the server will seem to become unresponsive to the client, even though requests
+to and from other systems continue to be processed. This happens to the client system,
+whether the client is the FreeBSD system or the workstation. On many systems, there is no
+way to shut down the client gracefully once this problem has manifested itself. The only
+solution is often to reset the client, because the NFS situation cannot be resolved.</p>
+
+<p>Though the “correct” solution is to get a higher performance and capacity Ethernet
+adapter for the FreeBSD system, there is a simple workaround that will allow satisfactory
+operation. If the FreeBSD system is the <span class="emphasis"><b
+class="EMPHASIS">server</b></span>, include the option <code
+class="OPTION">-w=1024</code> on the mount from the client. If the FreeBSD system is the
+<span class="emphasis"><b class="EMPHASIS">client</b></span>, then mount the NFS file
+system with the option <code class="OPTION">-r=1024</code>. These options may be
+specified using the fourth field of the <tt class="FILENAME">fstab</tt> entry on the
+client for automatic mounts, or by using the <code class="OPTION">-o</code> parameter of
+the <a href="http://www.FreeBSD.org/cgi/man.cgi?query=mount&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">mount</span>(8)</span></a> command for
+manual mounts.</p>
+
+<p>It should be noted that there is a different problem, sometimes mistaken for this one,
+when the NFS servers and clients are on different networks. If that is the case, make
+<span class="emphasis"><b class="EMPHASIS">certain</b></span> that your routers are
+routing the necessary <acronym class="ACRONYM">UDP</acronym> information, or you will not
+get anywhere, no matter what else you are doing.</p>
+
+<p>In the following examples, <tt class="HOSTID">fastws</tt> is the host (interface) name
+of a high-performance workstation, and <tt class="HOSTID">freebox</tt> is the host
+(interface) name of a FreeBSD system with a lower-performance Ethernet adapter. Also, <tt
+class="FILENAME">/sharedfs</tt> will be the exported NFS file system (see <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=exports&amp;sektion=5"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">exports</span>(5)</span></a>), and <tt
+class="FILENAME">/project</tt> will be the mount point on the client for the exported
+file system. In all cases, note that additional options, such as <code
+class="OPTION">hard</code> or <code class="OPTION">soft</code> and <code
+class="OPTION">bg</code> may be desirable in your application.</p>
+
+<p>Examples for the FreeBSD system (<tt class="HOSTID">freebox</tt>) as the client in <tt
+class="FILENAME">/etc/fstab</tt> on <tt class="HOSTID">freebox</tt>:</p>
+
+<pre class="PROGRAMLISTING">
+fastws:/sharedfs /project nfs rw,-r=1024 0 0
+</pre>
+
+<p>As a manual mount command on <tt class="HOSTID">freebox</tt>:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">mount -t nfs -o -r=1024 fastws:/sharedfs /project</kbd>
+</pre>
+
+<p>Examples for the FreeBSD system as the server in <tt class="FILENAME">/etc/fstab</tt>
+on <tt class="HOSTID">fastws</tt>:</p>
+
+<pre class="PROGRAMLISTING">
+freebox:/sharedfs /project nfs rw,-w=1024 0 0
+</pre>
+
+<p>As a manual mount command on <tt class="HOSTID">fastws</tt>:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">mount -t nfs -o -w=1024 freebox:/sharedfs /project</kbd>
+</pre>
+
+<p>Nearly any 16-bit Ethernet adapter will allow operation without the above restrictions
+on the read or write size.</p>
+
+<p>For anyone who cares, here is what happens when the failure occurs, which also
+explains why it is unrecoverable. NFS typically works with a “block” size of 8&nbsp;K
+(though it may do fragments of smaller sizes). Since the maximum Ethernet packet is
+around 1500&nbsp;bytes, the NFS “block” gets split into multiple Ethernet packets, even
+though it is still a single unit to the upper-level code, and must be received,
+assembled, and <span class="emphasis"><b class="EMPHASIS">acknowledged</b></span> as a
+unit. The high-performance workstations can pump out the packets which comprise the NFS
+unit one right after the other, just as close together as the standard allows. On the
+smaller, lower capacity cards, the later packets overrun the earlier packets of the same
+unit before they can be transferred to the host and the unit as a whole cannot be
+reconstructed or acknowledged. As a result, the workstation will time out and try again,
+but it will try again with the entire 8&nbsp;K unit, and the process will be repeated, ad
+infinitum.</p>
+
+<p>By keeping the unit size below the Ethernet packet size limitation, we ensure that any
+complete Ethernet packet received can be acknowledged individually, avoiding the deadlock
+situation.</p>
+
+<p>Overruns may still occur when a high-performance workstations is slamming data out to
+a PC system, but with the better cards, such overruns are not guaranteed on NFS
+“units”. When an overrun occurs, the units affected will be retransmitted, and there
+will be a fair chance that they will be received, assembled, and acknowledged.</p>
+</div>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="network-inetd.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="network-nis.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">The <b class="APPLICATION">inetd</b>
+“Super-Server”</td>
+<td width="34%" align="center" valign="top"><a href="network-servers.html"
+accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">Network Information System (NIS/YP)</td>
+</tr>
+</table>
+</div>
+
+<p align="center"><small>本文及其他文件，可由此下載：<a
+href="ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/">ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/</a>。</small></p>
+
+<p align="center"><small>若有 FreeBSD 方面疑問，請先閱讀 <a
+href="http://www.FreeBSD.org/docs.html">FreeBSD 相關文件</a>，如不能解決的話，再洽詢
+&#60;<a href="mailto:questions@FreeBSD.org">questions@FreeBSD.org</a>&#62;。<br />
+關於本文件的問題，請洽詢 &#60;<a
+href="mailto:doc@FreeBSD.org">doc@FreeBSD.org</a>&#62;。</small></p>
+</body>
+</html>
+

@@ -1,0 +1,218 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>Adding Swap Space</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.79" />
+<link rel="HOME" title="FreeBSD 使用手冊" href="index.html" />
+<link rel="UP" title="設定與效能調校(Tuning)" href="config-tuning.html" />
+<link rel="PREVIOUS" title="Tuning Kernel Limits"
+href="configtuning-kernel-limits.html" />
+<link rel="NEXT" title="Power and Resource Management" href="acpi-overview.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD 使用手冊</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="configtuning-kernel-limits.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 11 設定與效能調校(Tuning)</td>
+<td width="10%" align="right" valign="bottom"><a href="acpi-overview.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="ADDING-SWAP-SPACE" name="ADDING-SWAP-SPACE">11.14 Adding Swap
+Space</a></h1>
+
+<p>No matter how well you plan, sometimes a system does not run as you expect. If you
+find you need more swap space, it is simple enough to add. You have three ways to
+increase swap space: adding a new hard drive, enabling swap over NFS, and creating a swap
+file on an existing partition.</p>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="NEW-DRIVE-SWAP" name="NEW-DRIVE-SWAP">11.14.1 Swap on a New Hard
+Drive</a></h2>
+
+<p>The best way to add swap, of course, is to use this as an excuse to add another hard
+drive. You can always use another hard drive, after all. If you can do this, go reread
+the discussion of swap space in <a href="configtuning-initial.html">Section 11.2</a> of
+the Handbook for some suggestions on how to best arrange your swap.</p>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="NFS-SWAP" name="NFS-SWAP">11.14.2 Swapping over NFS</a></h2>
+
+<p>Swapping over NFS is only recommended if you do not have a local hard disk to swap to.
+Swapping over NFS is slow and inefficient in versions of FreeBSD prior to 4.X. It is
+reasonably fast and efficient in 4.0-RELEASE and newer. Even with newer versions of
+FreeBSD, NFS swapping will be limited by the available network bandwidth and puts an
+additional burden on the NFS server.</p>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="CREATE-SWAPFILE" name="CREATE-SWAPFILE">11.14.3
+Swapfiles</a></h2>
+
+<p>You can create a file of a specified size to use as a swap file. In our example here
+we will use a 64MB file called <tt class="FILENAME">/usr/swap0</tt>. You can use any name
+you want, of course.</p>
+
+<div class="EXAMPLE"><a id="AEN17038" name="AEN17038"></a>
+<p><b>Example 11-1. Creating a Swapfile on FreeBSD 4.X</b></p>
+
+<ol type="1">
+<li>
+<p>Be certain that your kernel configuration includes the vnode driver. It is <span
+class="emphasis"><i class="EMPHASIS">not</i></span> in recent versions of <tt
+class="FILENAME">GENERIC</tt>.</p>
+
+<pre class="PROGRAMLISTING">
+pseudo-device   vn 1   #Vnode driver (turns a file into a device)
+</pre>
+</li>
+
+<li>
+<p>Create a vn-device:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">cd /dev</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">sh MAKEDEV vn0</kbd>
+</pre>
+</li>
+
+<li>
+<p>Create a swapfile (<tt class="FILENAME">/usr/swap0</tt>):</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">dd if=/dev/zero of=/usr/swap0 bs=1024k count=64</kbd>
+</pre>
+</li>
+
+<li>
+<p>Set proper permissions on (<tt class="FILENAME">/usr/swap0</tt>):</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">chmod 0600 /usr/swap0</kbd>
+</pre>
+</li>
+
+<li>
+<p>Enable the swap file in <tt class="FILENAME">/etc/rc.conf</tt>:</p>
+
+<pre class="PROGRAMLISTING">
+swapfile="/usr/swap0"   # Set to name of swapfile if aux swapfile desired.
+</pre>
+</li>
+
+<li>
+<p>Reboot the machine or to enable the swap file immediately, type:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">vnconfig -e /dev/vn0b /usr/swap0 swap</kbd>
+</pre>
+</li>
+</ol>
+</div>
+
+<div class="EXAMPLE"><a id="AEN17074" name="AEN17074"></a>
+<p><b>Example 11-2. Creating a Swapfile on FreeBSD 5.X</b></p>
+
+<ol type="1">
+<li>
+<p>Be certain that your kernel configuration includes the memory disk driver (<a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=md&amp;sektion=4"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">md</span>(4)</span></a>). It is default
+in <tt class="FILENAME">GENERIC</tt> kernel.</p>
+
+<pre class="PROGRAMLISTING">
+device   md   # Memory "disks"
+</pre>
+</li>
+
+<li>
+<p>Create a swapfile (<tt class="FILENAME">/usr/swap0</tt>):</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">dd if=/dev/zero of=/usr/swap0 bs=1024k count=64</kbd>
+</pre>
+</li>
+
+<li>
+<p>Set proper permissions on (<tt class="FILENAME">/usr/swap0</tt>):</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">chmod 0600 /usr/swap0</kbd>
+</pre>
+</li>
+
+<li>
+<p>Enable the swap file in <tt class="FILENAME">/etc/rc.conf</tt>:</p>
+
+<pre class="PROGRAMLISTING">
+swapfile="/usr/swap0"   # Set to name of swapfile if aux swapfile desired.
+</pre>
+</li>
+
+<li>
+<p>Reboot the machine or to enable the swap file immediately, type:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">mdconfig -a -t vnode -f /usr/swap0 -u 0 &#38;&#38; swapon /dev/md0</kbd>
+</pre>
+</li>
+</ol>
+</div>
+</div>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="configtuning-kernel-limits.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="acpi-overview.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">Tuning Kernel Limits</td>
+<td width="34%" align="center" valign="top"><a href="config-tuning.html"
+accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">Power and Resource Management</td>
+</tr>
+</table>
+</div>
+
+<p align="center"><small>This, and other documents, can be downloaded from <a
+href="ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/">ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/</a>.</small></p>
+
+<p align="center"><small>For questions about FreeBSD, read the <a
+href="http://www.FreeBSD.org/docs.html">documentation</a> before contacting &#60;<a
+href="mailto:questions@FreeBSD.org">questions@FreeBSD.org</a>&#62;.<br />
+For questions about this documentation, e-mail &#60;<a
+href="mailto:doc@FreeBSD.org">doc@FreeBSD.org</a>&#62;.</small></p>
+</body>
+</html>
+

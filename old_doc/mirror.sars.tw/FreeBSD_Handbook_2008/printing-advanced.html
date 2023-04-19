@@ -1,0 +1,2272 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>Advanced Printer Setup</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.79" />
+<link rel="HOME" title="FreeBSD 使用手冊" href="index.html" />
+<link rel="UP" title="列印" href="printing.html" />
+<link rel="PREVIOUS" title="基礎設定" href="printing-intro-setup.html" />
+<link rel="NEXT" title="Using Printers" href="printing-using.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD 使用手冊</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="printing-intro-setup.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 9 列印</td>
+<td width="10%" align="right" valign="bottom"><a href="printing-using.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="PRINTING-ADVANCED" name="PRINTING-ADVANCED">9.4 Advanced Printer
+Setup</a></h1>
+
+<p>This section describes filters for printing specially formatted files, header pages,
+printing across networks, and restricting and accounting for printer usage.</p>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="PRINTING-ADVANCED-FILTER-INTRO"
+name="PRINTING-ADVANCED-FILTER-INTRO">9.4.1 Filters</a></h2>
+
+<p>Although <b class="APPLICATION">LPD</b> handles network protocols, queuing, access
+control, and other aspects of printing, most of the <span class="emphasis"><b
+class="EMPHASIS">real</b></span> work happens in the <span class="emphasis"><b
+class="EMPHASIS">filters</b></span>. Filters are programs that communicate with the
+printer and handle its device dependencies and special requirements. In the simple
+printer setup, we installed a plain text filter——an extremely simple one that should
+work with most printers (section <a
+href="printing-intro-setup.html#PRINTING-TEXTFILTER">Installing the Text Filter</a>).</p>
+
+<p>However, in order to take advantage of format conversion, printer accounting, specific
+printer quirks, and so on, you should understand how filters work. It will ultimately be
+the filter's responsibility to handle these aspects. And the bad news is that most of the
+time <span class="emphasis"><b class="EMPHASIS">you</b></span> have to provide filters
+yourself. The good news is that many are generally available; when they are not, they are
+usually easy to write.</p>
+
+<p>Also, FreeBSD comes with one, <tt class="FILENAME">/usr/libexec/lpr/lpf</tt>, that
+works with many printers that can print plain text. (It handles backspacing and tabs in
+the file, and does accounting, but that is about all it does.) There are also several
+filters and filter components in the FreeBSD Ports Collection.</p>
+
+<p>Here is what you will find in this section:</p>
+
+<ul>
+<li>
+<p>Section <a href="printing-advanced.html#PRINTING-ADVANCED-FILTERS">How Filters
+Work</a>, tries to give an overview of a filter's role in the printing process. You
+should read this section to get an understanding of what is happening “under the hood”
+when <b class="APPLICATION">LPD</b> uses filters. This knowledge could help you
+anticipate and debug problems you might encounter as you install more and more filters on
+each of your printers.</p>
+</li>
+
+<li>
+<p><b class="APPLICATION">LPD</b> expects every printer to be able to print plain text by
+default. This presents a problem for <span class="TRADEMARK">PostScript</span>&reg; (or
+other language-based printers) which cannot directly print plain text. Section <a
+href="printing-advanced.html#PRINTING-ADVANCED-IF-CONVERSION">Accommodating Plain Text
+Jobs on <span class="TRADEMARK">PostScript</span> Printers</a> tells you what you should
+do to overcome this problem. You should read this section if you have a <span
+class="TRADEMARK">PostScript</span> printer.</p>
+</li>
+
+<li>
+<p><span class="TRADEMARK">PostScript</span> is a popular output format for many
+programs. Some people even write <span class="TRADEMARK">PostScript</span> code directly.
+Unfortunately, <span class="TRADEMARK">PostScript</span> printers are expensive. Section
+<a href="printing-advanced.html#PRINTING-ADVANCED-PS">Simulating <span
+class="TRADEMARK">PostScript</span> on Non <span class="TRADEMARK">PostScript</span>
+Printers</a> tells how you can further modify a printer's text filter to accept and print
+<span class="TRADEMARK">PostScript</span> data on a <span class="emphasis"><b
+class="EMPHASIS">non <span class="TRADEMARK">PostScript</span></b></span> printer. You
+should read this section if you do not have a <span class="TRADEMARK">PostScript</span>
+printer.</p>
+</li>
+
+<li>
+<p>Section <a href="printing-advanced.html#PRINTING-ADVANCED-CONVFILTERS">Conversion
+Filters</a> tells about a way you can automate the conversion of specific file formats,
+such as graphic or typesetting data, into formats your printer can understand. After
+reading this section, you should be able to set up your printers such that users can type
+<tt class="COMMAND">lpr -t</tt> to print troff data, or <tt class="COMMAND">lpr -d</tt>
+to print <b class="APPLICATION">TeX</b> DVI data, or <tt class="COMMAND">lpr -v</tt> to
+print raster image data, and so forth. I recommend reading this section.</p>
+</li>
+
+<li>
+<p>Section <a href="printing-advanced.html#PRINTING-ADVANCED-OF">Output Filters</a> tells
+all about a not often used feature of <b class="APPLICATION">LPD</b>: output filters.
+Unless you are printing header pages (see <a
+href="printing-advanced.html#PRINTING-ADVANCED-HEADER-PAGES">Header Pages</a>), you can
+probably skip that section altogether.</p>
+</li>
+
+<li>
+<p>Section <a href="printing-advanced.html#PRINTING-ADVANCED-LPF">lpf: a Text Filter</a>
+describes <tt class="COMMAND">lpf</tt>, a fairly complete if simple text filter for line
+printers (and laser printers that act like line printers) that comes with FreeBSD. If you
+need a quick way to get printer accounting working for plain text, or if you have a
+printer which emits smoke when it sees backspace characters, you should definitely
+consider <tt class="COMMAND">lpf</tt>.</p>
+</li>
+</ul>
+
+<div class="NOTE">
+<blockquote class="NOTE">
+<p><b>Note:</b> A copy of the various scripts described below can be found in the <tt
+class="FILENAME">/usr/share/examples/printing</tt> directory.</p>
+</blockquote>
+</div>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="PRINTING-ADVANCED-FILTERS"
+name="PRINTING-ADVANCED-FILTERS">9.4.1.1 How Filters Work</a></h3>
+
+<p>As mentioned before, a filter is an executable program started by <b
+class="APPLICATION">LPD</b> to handle the device-dependent part of communicating with the
+printer.</p>
+
+<p>When <b class="APPLICATION">LPD</b> wants to print a file in a job, it starts a filter
+program. It sets the filter's standard input to the file to print, its standard output to
+the printer, and its standard error to the error logging file (specified in the <tt
+class="LITERAL">lf</tt> capability in <tt class="FILENAME">/etc/printcap</tt>, or <tt
+class="FILENAME">/dev/console</tt> by default).</p>
+
+<p>Which filter <b class="APPLICATION">LPD</b> starts and the filter's arguments depend
+on what is listed in the <tt class="FILENAME">/etc/printcap</tt> file and what arguments
+the user specified for the job on the <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=lpr&amp;sektion=1"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">lpr</span>(1)</span></a> command line.
+For example, if the user typed <tt class="COMMAND">lpr -t</tt>, <b
+class="APPLICATION">LPD</b> would start the troff filter, listed in the <tt
+class="LITERAL">tf</tt> capability for the destination printer. If the user wanted to
+print plain text, it would start the <tt class="LITERAL">if</tt> filter (this is mostly
+true: see <a href="printing-advanced.html#PRINTING-ADVANCED-OF">Output Filters</a> for
+details).</p>
+
+<p>There are three kinds of filters you can specify in <tt
+class="FILENAME">/etc/printcap</tt>:</p>
+
+<ul>
+<li>
+<p>The <span class="emphasis"><b class="EMPHASIS">text filter</b></span>, confusingly
+called the <span class="emphasis"><b class="EMPHASIS">input filter</b></span> in <b
+class="APPLICATION">LPD</b> documentation, handles regular text printing. Think of it as
+the default filter. <b class="APPLICATION">LPD</b> expects every printer to be able to
+print plain text by default, and it is the text filter's job to make sure backspaces,
+tabs, or other special characters do not confuse the printer. If you are in an
+environment where you have to account for printer usage, the text filter must also
+account for pages printed, usually by counting the number of lines printed and comparing
+that to the number of lines per page the printer supports. The text filter is started
+with the following argument list:</p>
+
+<p><tt class="COMMAND">filter-name</tt> [-c] -w<tt class="REPLACEABLE"><i>width</i></tt>
+-l<tt class="REPLACEABLE"><i>length</i></tt> -i<tt class="REPLACEABLE"><i>indent</i></tt>
+-n <tt class="REPLACEABLE"><i>login</i></tt> -h <tt class="REPLACEABLE"><i>host</i></tt>
+<tt class="REPLACEABLE"><i>acct-file</i></tt></p>
+
+where 
+
+<div class="VARIABLELIST">
+<dl>
+<dt><code class="OPTION">-c</code></dt>
+
+<dd>
+<p>appears if the job is submitted with <tt class="COMMAND">lpr -l</tt></p>
+</dd>
+
+<dt><tt class="REPLACEABLE"><i>width</i></tt></dt>
+
+<dd>
+<p>is the value from the <tt class="LITERAL">pw</tt> (page width) capability specified in
+<tt class="FILENAME">/etc/printcap</tt>, default 132</p>
+</dd>
+
+<dt><tt class="REPLACEABLE"><i>length</i></tt></dt>
+
+<dd>
+<p>is the value from the <tt class="LITERAL">pl</tt> (page length) capability, default
+66</p>
+</dd>
+
+<dt><tt class="REPLACEABLE"><i>indent</i></tt></dt>
+
+<dd>
+<p>is the amount of the indentation from <tt class="COMMAND">lpr -i</tt>, default 0</p>
+</dd>
+
+<dt><tt class="REPLACEABLE"><i>login</i></tt></dt>
+
+<dd>
+<p>is the account name of the user printing the file</p>
+</dd>
+
+<dt><tt class="REPLACEABLE"><i>host</i></tt></dt>
+
+<dd>
+<p>is the host name from which the job was submitted</p>
+</dd>
+
+<dt><tt class="REPLACEABLE"><i>acct-file</i></tt></dt>
+
+<dd>
+<p>is the name of the accounting file from the <tt class="LITERAL">af</tt>
+capability.</p>
+</dd>
+</dl>
+</div>
+
+<br />
+<br />
+</li>
+
+<li>
+<p>A <span class="emphasis"><b class="EMPHASIS">conversion filter</b></span> converts a
+specific file format into one the printer can render onto paper. For example, ditroff
+typesetting data cannot be directly printed, but you can install a conversion filter for
+ditroff files to convert the ditroff data into a form the printer can digest and print.
+Section <a href="printing-advanced.html#PRINTING-ADVANCED-CONVFILTERS">Conversion
+Filters</a> tells all about them. Conversion filters also need to do accounting, if you
+need printer accounting. Conversion filters are started with the following arguments:</p>
+
+<p><tt class="COMMAND">filter-name</tt> -x<tt class="REPLACEABLE"><i>pixel-width</i></tt>
+-y<tt class="REPLACEABLE"><i>pixel-height</i></tt> -n <tt
+class="REPLACEABLE"><i>login</i></tt> -h <tt class="REPLACEABLE"><i>host</i></tt> <tt
+class="REPLACEABLE"><i>acct-file</i></tt></p>
+
+where <tt class="REPLACEABLE"><i>pixel-width</i></tt> is the value from the <tt
+class="LITERAL">px</tt> capability (default 0) and <tt
+class="REPLACEABLE"><i>pixel-height</i></tt> is the value from the <tt
+class="LITERAL">py</tt> capability (default 0).<br />
+<br />
+</li>
+
+<li>
+<p>The <span class="emphasis"><b class="EMPHASIS">output filter</b></span> is used only
+if there is no text filter, or if header pages are enabled. In my experience, output
+filters are rarely used. Section <a
+href="printing-advanced.html#PRINTING-ADVANCED-OF">Output Filters</a> describe them.
+There are only two arguments to an output filter:</p>
+
+<p><tt class="COMMAND">filter-name</tt> -w<tt class="REPLACEABLE"><i>width</i></tt> -l<tt
+class="REPLACEABLE"><i>length</i></tt></p>
+
+which are identical to the text filters <code class="OPTION">-w</code> and <code
+class="OPTION">-l</code> arguments.<br />
+<br />
+</li>
+</ul>
+
+<p>Filters should also <span class="emphasis"><b class="EMPHASIS">exit</b></span> with
+the following exit status:</p>
+
+<div class="VARIABLELIST">
+<dl>
+<dt>exit 0</dt>
+
+<dd>
+<p>If the filter printed the file successfully.</p>
+</dd>
+
+<dt>exit 1</dt>
+
+<dd>
+<p>If the filter failed to print the file but wants <b class="APPLICATION">LPD</b> to try
+to print the file again. <b class="APPLICATION">LPD</b> will restart a filter if it exits
+with this status.</p>
+</dd>
+
+<dt>exit 2</dt>
+
+<dd>
+<p>If the filter failed to print the file and does not want <b
+class="APPLICATION">LPD</b> to try again. <b class="APPLICATION">LPD</b> will throw out
+the file.</p>
+</dd>
+</dl>
+</div>
+
+<p>The text filter that comes with the FreeBSD release, <tt
+class="FILENAME">/usr/libexec/lpr/lpf</tt>, takes advantage of the page width and length
+arguments to determine when to send a form feed and how to account for printer usage. It
+uses the login, host, and accounting file arguments to make the accounting entries.</p>
+
+<p>If you are shopping for filters, see if they are LPD-compatible. If they are, they
+must support the argument lists described above. If you plan on writing filters for
+general use, then have them support the same argument lists and exit codes.</p>
+</div>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="PRINTING-ADVANCED-IF-CONVERSION"
+name="PRINTING-ADVANCED-IF-CONVERSION">9.4.1.2 Accommodating Plain Text Jobs on <span
+class="TRADEMARK">PostScript</span>&reg; Printers</a></h3>
+
+<p>If you are the only user of your computer and <span
+class="TRADEMARK">PostScript</span> (or other language-based) printer, and you promise to
+never send plain text to your printer and to never use features of various programs that
+will want to send plain text to your printer, then you do not need to worry about this
+section at all.</p>
+
+<p>But, if you would like to send both <span class="TRADEMARK">PostScript</span> and
+plain text jobs to the printer, then you are urged to augment your printer setup. To do
+so, we have the text filter detect if the arriving job is plain text or <span
+class="TRADEMARK">PostScript</span>. All <span class="TRADEMARK">PostScript</span> jobs
+must start with <tt class="LITERAL">%!</tt> (for other printer languages, see your
+printer documentation). If those are the first two characters in the job, we have <span
+class="TRADEMARK">PostScript</span>, and can pass the rest of the job directly. If those
+are not the first two characters in the file, then the filter will convert the text into
+<span class="TRADEMARK">PostScript</span> and print the result.</p>
+
+<p>How do we do this?</p>
+
+<p>If you have got a serial printer, a great way to do it is to install <tt
+class="COMMAND">lprps</tt>. <tt class="COMMAND">lprps</tt> is a <span
+class="TRADEMARK">PostScript</span> printer filter which performs two-way communication
+with the printer. It updates the printer's status file with verbose information from the
+printer, so users and administrators can see exactly what the state of the printer is
+(such as “<tt class="ERRORNAME">toner low</tt>” or “<tt class="ERRORNAME">paper
+jam</tt>”). But more importantly, it includes a program called <tt
+class="COMMAND">psif</tt> which detects whether the incoming job is plain text and calls
+<tt class="COMMAND">textps</tt> (another program that comes with <tt
+class="COMMAND">lprps</tt>) to convert it to <span class="TRADEMARK">PostScript</span>.
+It then uses <tt class="COMMAND">lprps</tt> to send the job to the printer.</p>
+
+<p><tt class="COMMAND">lprps</tt> is part of the FreeBSD Ports Collection (see <a
+href="ports.html">The Ports Collection</a>). You can fetch, build and install it
+yourself, of course. After installing <tt class="COMMAND">lprps</tt>, just specify the
+pathname to the <tt class="COMMAND">psif</tt> program that is part of <tt
+class="COMMAND">lprps</tt>. If you installed <tt class="COMMAND">lprps</tt> from the
+Ports Collection, use the following in the serial <span
+class="TRADEMARK">PostScript</span> printer's entry in <tt
+class="FILENAME">/etc/printcap</tt>:</p>
+
+<pre class="PROGRAMLISTING">
+:if=/usr/local/libexec/psif:
+</pre>
+
+<p>You should also specify the <tt class="LITERAL">rw</tt> capability; that tells <b
+class="APPLICATION">LPD</b> to open the printer in read-write mode.</p>
+
+<p>If you have a parallel <span class="TRADEMARK">PostScript</span> printer (and
+therefore cannot use two-way communication with the printer, which <tt
+class="COMMAND">lprps</tt> needs), you can use the following shell script as the text
+filter:</p>
+
+<pre class="PROGRAMLISTING">
+#!/bin/sh
+#
+#  psif - Print PostScript or plain text on a PostScript printer
+#  Script version; NOT the version that comes with lprps
+#  Installed in /usr/local/libexec/psif
+#
+
+IFS="" read -r first_line
+first_two_chars=`expr "$first_line" : '\(..\)'`
+
+if [ "$first_two_chars" = "%!" ]; then
+    #
+    #  PostScript job, print it.
+    #
+    echo "$first_line" &amp;&amp; cat &amp;&amp; printf "\004" &amp;&amp; exit 0
+    exit 2
+else
+    #
+    #  Plain text, convert it, then print it.
+    #
+    ( echo "$first_line"; cat ) | /usr/local/bin/textps &amp;&amp; printf "\004" &amp;&amp; exit 0
+    exit 2
+fi
+</pre>
+
+<p>In the above script, <tt class="COMMAND">textps</tt> is a program we installed
+separately to convert plain text to <span class="TRADEMARK">PostScript</span>. You can
+use any text-to-<span class="TRADEMARK">PostScript</span> program you wish. The FreeBSD
+Ports Collection (see <a href="ports.html">The Ports Collection</a>) includes a full
+featured text-to-<span class="TRADEMARK">PostScript</span> program called <tt
+class="LITERAL">a2ps</tt> that you might want to investigate.</p>
+</div>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="PRINTING-ADVANCED-PS" name="PRINTING-ADVANCED-PS">9.4.1.3
+Simulating <span class="TRADEMARK">PostScript</span> on Non <span
+class="TRADEMARK">PostScript</span> Printers</a></h3>
+
+<p><span class="TRADEMARK">PostScript</span> is the <span class="emphasis"><b
+class="EMPHASIS">de facto</b></span> standard for high quality typesetting and printing.
+<span class="TRADEMARK">PostScript</span> is, however, an <span class="emphasis"><b
+class="EMPHASIS">expensive</b></span> standard. Thankfully, Aladdin Enterprises has a
+free <span class="TRADEMARK">PostScript</span> work-alike called <b
+class="APPLICATION">Ghostscript</b> that runs with FreeBSD. Ghostscript can read most
+<span class="TRADEMARK">PostScript</span> files and can render their pages onto a variety
+of devices, including many brands of non-PostScript printers. By installing Ghostscript
+and using a special text filter for your printer, you can make your non <span
+class="TRADEMARK">PostScript</span> printer act like a real <span
+class="TRADEMARK">PostScript</span> printer.</p>
+
+<p>Ghostscript is in the FreeBSD Ports Collection, if you would like to install it from
+there. You can fetch, build, and install it quite easily yourself, as well.</p>
+
+<p>To simulate <span class="TRADEMARK">PostScript</span>, we have the text filter detect
+if it is printing a <span class="TRADEMARK">PostScript</span> file. If it is not, then
+the filter will pass the file directly to the printer; otherwise, it will use Ghostscript
+to first convert the file into a format the printer will understand.</p>
+
+<p>Here is an example: the following script is a text filter for Hewlett Packard DeskJet
+500 printers. For other printers, substitute the <code class="OPTION">-sDEVICE</code>
+argument to the <tt class="COMMAND">gs</tt> (Ghostscript) command. (Type <tt
+class="COMMAND">gs -h</tt> to get a list of devices the current installation of
+Ghostscript supports.)</p>
+
+<pre class="PROGRAMLISTING">
+#!/bin/sh
+#
+#  ifhp - Print Ghostscript-simulated PostScript on a DeskJet 500
+#  Installed in /usr/local/libexec/ifhp
+
+#
+#  Treat LF as CR+LF (to avoid the "staircase effect" on HP/PCL
+#  printers):
+#
+printf "\033&amp;k2G" || exit 2
+
+#
+#  Read first two characters of the file
+#
+IFS="" read -r first_line
+first_two_chars=`expr "$first_line" : '\(..\)'`
+
+if [ "$first_two_chars" = "%!" ]; then
+    #
+    #  It is PostScript; use Ghostscript to scan-convert and print it.
+    #
+    /usr/local/bin/gs -dSAFER -dNOPAUSE -q -sDEVICE=djet500 \
+      -sOutputFile=- - &amp;&amp; exit 0
+else
+    #
+    #  Plain text or HP/PCL, so just print it directly; print a form feed
+    #  at the end to eject the last page.
+    #
+    echo "$first_line" &amp;&amp; cat &amp;&amp; printf "\033&amp;l0H" &amp;&amp; 
+exit 0
+fi
+
+exit 2
+</pre>
+
+<p>Finally, you need to notify <b class="APPLICATION">LPD</b> of the filter via the <tt
+class="LITERAL">if</tt> capability:</p>
+
+<pre class="PROGRAMLISTING">
+:if=/usr/local/libexec/ifhp:
+</pre>
+
+<p>That is it. You can type <tt class="COMMAND">lpr plain.text</tt> and <tt
+class="FILENAME">lpr whatever.ps</tt> and both should print successfully.</p>
+</div>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="PRINTING-ADVANCED-CONVFILTERS"
+name="PRINTING-ADVANCED-CONVFILTERS">9.4.1.4 Conversion Filters</a></h3>
+
+<p>After completing the simple setup described in <a
+href="printing-intro-setup.html#PRINTING-SIMPLE">Simple Printer Setup</a>, the first
+thing you will probably want to do is install conversion filters for your favorite file
+formats (besides plain ASCII text).</p>
+
+<div class="SECT4">
+<h4 class="SECT4"><a id="AEN10865" name="AEN10865">9.4.1.4.1 Why Install Conversion
+Filters?</a></h4>
+
+<p>Conversion filters make printing various kinds of files easy. As an example, suppose
+we do a lot of work with the <b class="APPLICATION">TeX</b> typesetting system, and we
+have a <span class="TRADEMARK">PostScript</span> printer. Every time we generate a DVI
+file from <b class="APPLICATION">TeX</b>, we cannot print it directly until we convert
+the DVI file into <span class="TRADEMARK">PostScript</span>. The command sequence goes
+like this:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">%</samp> <kbd class="USERINPUT">dvips seaweed-analysis.dvi</kbd>
+<samp class="PROMPT">%</samp> <kbd class="USERINPUT">lpr seaweed-analysis.ps</kbd>
+</pre>
+
+<p>By installing a conversion filter for DVI files, we can skip the hand conversion step
+each time by having <b class="APPLICATION">LPD</b> do it for us. Now, each time we get a
+DVI file, we are just one step away from printing it:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">%</samp> <kbd class="USERINPUT">lpr -d seaweed-analysis.dvi</kbd>
+</pre>
+
+<p>We got <b class="APPLICATION">LPD</b> to do the DVI file conversion for us by
+specifying the <code class="OPTION">-d</code> option. Section <a
+href="printing-using.html#PRINTING-LPR-OPTIONS-FORMAT">Formatting and Conversion
+Options</a> lists the conversion options.</p>
+
+<p>For each of the conversion options you want a printer to support, install a <span
+class="emphasis"><b class="EMPHASIS">conversion filter</b></span> and specify its
+pathname in <tt class="FILENAME">/etc/printcap</tt>. A conversion filter is like the text
+filter for the simple printer setup (see section <a
+href="printing-intro-setup.html#PRINTING-TEXTFILTER">Installing the Text Filter</a>)
+except that instead of printing plain text, the filter converts the file into a format
+the printer can understand.</p>
+</div>
+
+<div class="SECT4">
+<h4 class="SECT4"><a id="AEN10894" name="AEN10894">9.4.1.4.2 Which Conversion Filters
+Should I Install?</a></h4>
+
+<p>You should install the conversion filters you expect to use. If you print a lot of DVI
+data, then a DVI conversion filter is in order. If you have got plenty of troff to print
+out, then you probably want a troff filter.</p>
+
+<p>The following table summarizes the filters that <b class="APPLICATION">LPD</b> works
+with, their capability entries for the <tt class="FILENAME">/etc/printcap</tt> file, and
+how to invoke them with the <tt class="COMMAND">lpr</tt> command:</p>
+
+<div class="INFORMALTABLE"><a id="AEN10901" name="AEN10901"></a>
+<table border="0" frame="void" width="100%" class="CALSTABLE">
+<col />
+<col />
+<col />
+<thead>
+<tr>
+<th>File type</th>
+<th><tt class="FILENAME">/etc/printcap</tt> capability</th>
+<th><tt class="COMMAND">lpr</tt> option</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>cifplot</td>
+<td><tt class="LITERAL">cf</tt></td>
+<td><code class="OPTION">-c</code></td>
+</tr>
+
+<tr>
+<td>DVI</td>
+<td><tt class="LITERAL">df</tt></td>
+<td><code class="OPTION">-d</code></td>
+</tr>
+
+<tr>
+<td>plot</td>
+<td><tt class="LITERAL">gf</tt></td>
+<td><code class="OPTION">-g</code></td>
+</tr>
+
+<tr>
+<td>ditroff</td>
+<td><tt class="LITERAL">nf</tt></td>
+<td><code class="OPTION">-n</code></td>
+</tr>
+
+<tr>
+<td>FORTRAN text</td>
+<td><tt class="LITERAL">rf</tt></td>
+<td><code class="OPTION">-f</code></td>
+</tr>
+
+<tr>
+<td>troff</td>
+<td><tt class="LITERAL">tf</tt></td>
+<td><code class="OPTION">-f</code></td>
+</tr>
+
+<tr>
+<td>raster</td>
+<td><tt class="LITERAL">vf</tt></td>
+<td><code class="OPTION">-v</code></td>
+</tr>
+
+<tr>
+<td>plain text</td>
+<td><tt class="LITERAL">if</tt></td>
+<td>none, <code class="OPTION">-p</code>, or <code class="OPTION">-l</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+
+<p>In our example, using <tt class="COMMAND">lpr -d</tt> means the printer needs a <tt
+class="LITERAL">df</tt> capability in its entry in <tt
+class="FILENAME">/etc/printcap</tt>.</p>
+
+<p>Despite what others might contend, formats like FORTRAN text and plot are probably
+obsolete. At your site, you can give new meanings to these or any of the formatting
+options just by installing custom filters. For example, suppose you would like to
+directly print Printerleaf files (files from the Interleaf desktop publishing program),
+but will never print plot files. You could install a Printerleaf conversion filter under
+the <tt class="LITERAL">gf</tt> capability and then educate your users that <tt
+class="COMMAND">lpr -g</tt> mean “print Printerleaf files.”</p>
+</div>
+
+<div class="SECT4">
+<h4 class="SECT4"><a id="AEN10970" name="AEN10970">9.4.1.4.3 Installing Conversion
+Filters</a></h4>
+
+<p>Since conversion filters are programs you install outside of the base FreeBSD
+installation, they should probably go under <tt class="FILENAME">/usr/local</tt>. The
+directory <tt class="FILENAME">/usr/local/libexec</tt> is a popular location, since they
+are specialized programs that only <b class="APPLICATION">LPD</b> will run; regular users
+should not ever need to run them.</p>
+
+<p>To enable a conversion filter, specify its pathname under the appropriate capability
+for the destination printer in <tt class="FILENAME">/etc/printcap</tt>.</p>
+
+<p>In our example, we will add the DVI conversion filter to the entry for the printer
+named <tt class="LITERAL">bamboo</tt>. Here is the example <tt
+class="FILENAME">/etc/printcap</tt> file again, with the new <tt class="LITERAL">df</tt>
+capability for the printer <tt class="LITERAL">bamboo</tt>.</p>
+
+<pre class="PROGRAMLISTING">
+#
+#  /etc/printcap for host rose - added df filter for bamboo
+#
+rattan|line|diablo|lp|Diablo 630 Line Printer:\
+        :sh:sd=/var/spool/lpd/rattan:\
+        :lp=/dev/lpt0:\
+        :if=/usr/local/libexec/if-simple:
+
+bamboo|ps|PS|S|panasonic|Panasonic KX-P4455 PostScript v51.4:\
+        :sh:sd=/var/spool/lpd/bamboo:\
+        :lp=/dev/ttyd5:ms#-parenb cs8 clocal crtscts:rw:\
+        :if=/usr/local/libexec/psif:\
+        :df=/usr/local/libexec/psdf:
+</pre>
+
+<p>The DVI filter is a shell script named <tt
+class="FILENAME">/usr/local/libexec/psdf</tt>. Here is that script:</p>
+
+<pre class="PROGRAMLISTING">
+#!/bin/sh
+#
+#  psdf - DVI to PostScript printer filter
+#  Installed in /usr/local/libexec/psdf
+#
+# Invoked by lpd when user runs lpr -d
+#
+exec /usr/local/bin/dvips -f | /usr/local/libexec/lprps "$@"
+</pre>
+
+<p>This script runs <tt class="COMMAND">dvips</tt> in filter mode (the <code
+class="OPTION">-f</code> argument) on standard input, which is the job to print. It then
+starts the <span class="TRADEMARK">PostScript</span> printer filter <tt
+class="COMMAND">lprps</tt> (see section <a
+href="printing-advanced.html#PRINTING-ADVANCED-IF-CONVERSION">Accommodating Plain Text
+Jobs on <span class="TRADEMARK">PostScript</span> Printers</a>) with the arguments <b
+class="APPLICATION">LPD</b> passed to this script. <tt class="COMMAND">lprps</tt> will
+use those arguments to account for the pages printed.</p>
+</div>
+
+<div class="SECT4">
+<h4 class="SECT4"><a id="AEN10996" name="AEN10996">9.4.1.4.4 More Conversion Filter
+Examples</a></h4>
+
+<p>Since there is no fixed set of steps to install conversion filters, let me instead
+provide more examples. Use these as guidance to making your own filters. Use them
+directly, if appropriate.</p>
+
+<p>This example script is a raster (well, GIF file, actually) conversion filter for a
+Hewlett Packard LaserJet III-Si printer:</p>
+
+<pre class="PROGRAMLISTING">
+#!/bin/sh
+#
+#  hpvf - Convert GIF files into HP/PCL, then print
+#  Installed in /usr/local/libexec/hpvf
+                  
+PATH=/usr/X11R6/bin:$PATH; export PATH
+giftopnm | ppmtopgm | pgmtopbm | pbmtolj -resolution 300 \
+    &amp;&amp; exit 0 \
+    || exit 2
+</pre>
+
+<p>It works by converting the GIF file into a portable anymap, converting that into a
+portable graymap, converting that into a portable bitmap, and converting that into
+LaserJet/PCL-compatible data.</p>
+
+<p>Here is the <tt class="FILENAME">/etc/printcap</tt> file with an entry for a printer
+using the above filter:</p>
+
+<pre class="PROGRAMLISTING">
+#
+#  /etc/printcap for host orchid
+#
+teak|hp|laserjet|Hewlett Packard LaserJet 3Si:\
+        :lp=/dev/lpt0:sh:sd=/var/spool/lpd/teak:mx#0:\
+        :if=/usr/local/libexec/hpif:\
+        :vf=/usr/local/libexec/hpvf:
+</pre>
+
+<p>The following script is a conversion filter for troff data from the groff typesetting
+system for the <span class="TRADEMARK">PostScript</span> printer named <tt
+class="LITERAL">bamboo</tt>:</p>
+
+<pre class="PROGRAMLISTING">
+#!/bin/sh
+#
+#  pstf - Convert groff's troff data into PS, then print.
+#  Installed in /usr/local/libexec/pstf
+#
+exec grops | /usr/local/libexec/lprps "$@"
+</pre>
+
+<p>The above script makes use of <tt class="COMMAND">lprps</tt> again to handle the
+communication with the printer. If the printer were on a parallel port, we would use this
+script instead:</p>
+
+<pre class="PROGRAMLISTING">
+#!/bin/sh
+#
+#  pstf - Convert groff's troff data into PS, then print.
+#  Installed in /usr/local/libexec/pstf
+#
+exec grops
+</pre>
+
+<p>That is it. Here is the entry we need to add to <tt
+class="FILENAME">/etc/printcap</tt> to enable the filter:</p>
+
+<pre class="PROGRAMLISTING">
+:tf=/usr/local/libexec/pstf:
+</pre>
+
+<p>Here is an example that might make old hands at FORTRAN blush. It is a FORTRAN-text
+filter for any printer that can directly print plain text. We will install it for the
+printer <tt class="LITERAL">teak</tt>:</p>
+
+<pre class="PROGRAMLISTING">
+#!/bin/sh
+#
+# hprf - FORTRAN text filter for LaserJet 3si:
+# Installed in /usr/local/libexec/hprf
+#
+
+printf "\033&amp;k2G" &amp;&amp; fpr &amp;&amp; printf "\033&amp;l0H" &amp;&amp;
+ exit 0
+exit 2
+</pre>
+
+<p>And we will add this line to the <tt class="FILENAME">/etc/printcap</tt> for the
+printer <tt class="LITERAL">teak</tt> to enable this filter:</p>
+
+<pre class="PROGRAMLISTING">
+:rf=/usr/local/libexec/hprf:
+</pre>
+
+<p>Here is one final, somewhat complex example. We will add a DVI filter to the LaserJet
+printer <tt class="LITERAL">teak</tt> introduced earlier. First, the easy part: updating
+<tt class="FILENAME">/etc/printcap</tt> with the location of the DVI filter:</p>
+
+<pre class="PROGRAMLISTING">
+:df=/usr/local/libexec/hpdf:
+</pre>
+
+<p>Now, for the hard part: making the filter. For that, we need a DVI-to-LaserJet/PCL
+conversion program. The FreeBSD Ports Collection (see <a href="ports.html">The Ports
+Collection</a>) has one: <tt class="COMMAND">dvi2xx</tt> is the name of the package.
+Installing this package gives us the program we need, <tt class="COMMAND">dvilj2p</tt>,
+which converts DVI into LaserJet IIp, LaserJet III, and LaserJet 2000 compatible
+codes.</p>
+
+<p><tt class="COMMAND">dvilj2p</tt> makes the filter <tt class="COMMAND">hpdf</tt> quite
+complex since <tt class="COMMAND">dvilj2p</tt> cannot read from standard input. It wants
+to work with a filename. What is worse, the filename has to end in <tt
+class="FILENAME">.dvi</tt> so using <tt class="FILENAME">/dev/fd/0</tt> for standard
+input is problematic. We can get around that problem by linking (symbolically) a
+temporary file name (one that ends in <tt class="FILENAME">.dvi</tt>) to <tt
+class="FILENAME">/dev/fd/0</tt>, thereby forcing <tt class="COMMAND">dvilj2p</tt> to read
+from standard input.</p>
+
+<p>The only other fly in the ointment is the fact that we cannot use <tt
+class="FILENAME">/tmp</tt> for the temporary link. Symbolic links are owned by user and
+group <tt class="USERNAME">bin</tt>. The filter runs as user <tt
+class="USERNAME">daemon</tt>. And the <tt class="FILENAME">/tmp</tt> directory has the
+sticky bit set. The filter can create the link, but it will not be able clean up when
+done and remove it since the link will belong to a different user.</p>
+
+<p>Instead, the filter will make the symbolic link in the current working directory,
+which is the spooling directory (specified by the <tt class="LITERAL">sd</tt> capability
+in <tt class="FILENAME">/etc/printcap</tt>). This is a perfect place for filters to do
+their work, especially since there is (sometimes) more free disk space in the spooling
+directory than under <tt class="FILENAME">/tmp</tt>.</p>
+
+<p>Here, finally, is the filter:</p>
+
+<pre class="PROGRAMLISTING">
+#!/bin/sh
+#
+#  hpdf - Print DVI data on HP/PCL printer
+#  Installed in /usr/local/libexec/hpdf
+
+PATH=/usr/local/bin:$PATH; export PATH
+
+#
+#  Define a function to clean up our temporary files.  These exist
+#  in the current directory, which will be the spooling directory
+#  for the printer.
+#
+cleanup() {
+   rm -f hpdf$$.dvi
+}
+
+#
+#  Define a function to handle fatal errors: print the given message
+#  and exit 2.  Exiting with 2 tells LPD to do not try to reprint the
+#  job.
+#
+fatal() {
+    echo "$@" 1&gt;&amp;2
+    cleanup
+    exit 2
+}
+
+#
+#  If user removes the job, LPD will send SIGINT, so trap SIGINT
+#  (and a few other signals) to clean up after ourselves.
+#
+trap cleanup 1 2 15 
+
+#
+#  Make sure we are not colliding with any existing files.
+#
+cleanup
+
+#
+#  Link the DVI input file to standard input (the file to print).
+#
+ln -s /dev/fd/0 hpdf$$.dvi || fatal "Cannot symlink /dev/fd/0"
+
+#
+#  Make LF = CR+LF
+#
+printf "\033&amp;k2G" || fatal "Cannot initialize printer"
+
+# 
+#  Convert and print.  Return value from dvilj2p does not seem to be
+#  reliable, so we ignore it.
+#
+dvilj2p -M1 -q -e- dfhp$$.dvi
+
+#
+#  Clean up and exit
+#
+cleanup
+exit 0
+</pre>
+</div>
+
+<div class="SECT4">
+<h4 class="SECT4"><a id="PRINTING-ADVANCED-AUTOCONV"
+name="PRINTING-ADVANCED-AUTOCONV">9.4.1.4.5 Automated Conversion: an Alternative to
+Conversion Filters</a></h4>
+
+<p>All these conversion filters accomplish a lot for your printing environment, but at
+the cost forcing the user to specify (on the <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=lpr&amp;sektion=1"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">lpr</span>(1)</span></a> command line)
+which one to use. If your users are not particularly computer literate, having to specify
+a filter option will become annoying. What is worse, though, is that an incorrectly
+specified filter option may run a filter on the wrong type of file and cause your printer
+to spew out hundreds of sheets of paper.</p>
+
+<p>Rather than install conversion filters at all, you might want to try having the text
+filter (since it is the default filter) detect the type of file it has been asked to
+print and then automatically run the right conversion filter. Tools such as <tt
+class="COMMAND">file</tt> can be of help here. Of course, it will be hard to determine
+the differences between <span class="emphasis"><b class="EMPHASIS">some</b></span> file
+types——and, of course, you can still provide conversion filters just for them.</p>
+
+<p>The FreeBSD Ports Collection has a text filter that performs automatic conversion
+called <tt class="COMMAND">apsfilter</tt>. It can detect plain text, <span
+class="TRADEMARK">PostScript</span>, and DVI files, run the proper conversions, and
+print.</p>
+</div>
+</div>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="PRINTING-ADVANCED-OF" name="PRINTING-ADVANCED-OF">9.4.1.5 Output
+Filters</a></h3>
+
+<p>The <b class="APPLICATION">LPD</b> spooling system supports one other type of filter
+that we have not yet explored: an output filter. An output filter is intended for
+printing plain text only, like the text filter, but with many simplifications. If you are
+using an output filter but no text filter, then:</p>
+
+<ul>
+<li>
+<p><b class="APPLICATION">LPD</b> starts an output filter once for the entire job instead
+of once for each file in the job.</p>
+</li>
+
+<li>
+<p><b class="APPLICATION">LPD</b> does not make any provision to identify the start or
+the end of files within the job for the output filter.</p>
+</li>
+
+<li>
+<p><b class="APPLICATION">LPD</b> does not pass the user's login or host to the filter,
+so it is not intended to do accounting. In fact, it gets only two arguments:</p>
+
+<p><tt class="COMMAND">filter-name</tt> -w<tt class="REPLACEABLE"><i>width</i></tt> -l<tt
+class="REPLACEABLE"><i>length</i></tt></p>
+
+<p>Where <tt class="REPLACEABLE"><i>width</i></tt> is from the <tt
+class="LITERAL">pw</tt> capability and <tt class="REPLACEABLE"><i>length</i></tt> is from
+the <tt class="LITERAL">pl</tt> capability for the printer in question.</p>
+</li>
+</ul>
+
+<p>Do not be seduced by an output filter's simplicity. If you would like each file in a
+job to start on a different page an output filter <span class="emphasis"><b
+class="EMPHASIS">will not work</b></span>. Use a text filter (also known as an input
+filter); see section <a href="printing-intro-setup.html#PRINTING-TEXTFILTER">Installing
+the Text Filter</a>. Furthermore, an output filter is actually <span class="emphasis"><b
+class="EMPHASIS">more complex</b></span> in that it has to examine the byte stream being
+sent to it for special flag characters and must send signals to itself on behalf of <b
+class="APPLICATION">LPD</b>.</p>
+
+<p>However, an output filter is <span class="emphasis"><b
+class="EMPHASIS">necessary</b></span> if you want header pages and need to send escape
+sequences or other initialization strings to be able to print the header page. (But it is
+also <span class="emphasis"><b class="EMPHASIS">futile</b></span> if you want to charge
+header pages to the requesting user's account, since <b class="APPLICATION">LPD</b> does
+not give any user or host information to the output filter.)</p>
+
+<p>On a single printer, <b class="APPLICATION">LPD</b> allows both an output filter and
+text or other filters. In such cases, <b class="APPLICATION">LPD</b> will start the
+output filter to print the header page (see section <a
+href="printing-advanced.html#PRINTING-ADVANCED-HEADER-PAGES">Header Pages</a>) only. <b
+class="APPLICATION">LPD</b> then expects the output filter to <span class="emphasis"><b
+class="EMPHASIS">stop itself</b></span> by sending two bytes to the filter: ASCII 031
+followed by ASCII 001. When an output filter sees these two bytes (031, 001), it should
+stop by sending <tt class="LITERAL">SIGSTOP</tt> to itself. When <b
+class="APPLICATION">LPD</b>'s done running other filters, it will restart the output
+filter by sending <tt class="LITERAL">SIGCONT</tt> to it.</p>
+
+<p>If there is an output filter but <span class="emphasis"><b
+class="EMPHASIS">no</b></span> text filter and <b class="APPLICATION">LPD</b> is working
+on a plain text job, <b class="APPLICATION">LPD</b> uses the output filter to do the job.
+As stated before, the output filter will print each file of the job in sequence with no
+intervening form feeds or other paper advancement, and this is probably <span
+class="emphasis"><b class="EMPHASIS">not</b></span> what you want. In almost all cases,
+you need a text filter.</p>
+
+<p>The program <tt class="COMMAND">lpf</tt>, which we introduced earlier as a text
+filter, can also run as an output filter. If you need a quick-and-dirty output filter but
+do not want to write the byte detection and signal sending code, try <tt
+class="COMMAND">lpf</tt>. You can also wrap <tt class="COMMAND">lpf</tt> in a shell
+script to handle any initialization codes the printer might require.</p>
+</div>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="PRINTING-ADVANCED-LPF" name="PRINTING-ADVANCED-LPF">9.4.1.6 <tt
+class="COMMAND">lpf</tt>: a Text Filter</a></h3>
+
+<p>The program <tt class="FILENAME">/usr/libexec/lpr/lpf</tt> that comes with FreeBSD
+binary distribution is a text filter (input filter) that can indent output (job submitted
+with <tt class="COMMAND">lpr -i</tt>), allow literal characters to pass (job submitted
+with <tt class="COMMAND">lpr -l</tt>), adjust the printing position for backspaces and
+tabs in the job, and account for pages printed. It can also act like an output
+filter.</p>
+
+<p><tt class="COMMAND">lpf</tt> is suitable for many printing environments. And although
+it has no capability to send initialization sequences to a printer, it is easy to write a
+shell script to do the needed initialization and then execute <tt
+class="COMMAND">lpf</tt>.</p>
+
+<p>In order for <tt class="COMMAND">lpf</tt> to do page accounting correctly, it needs
+correct values filled in for the <tt class="LITERAL">pw</tt> and <tt
+class="LITERAL">pl</tt> capabilities in the <tt class="FILENAME">/etc/printcap</tt> file.
+It uses these values to determine how much text can fit on a page and how many pages were
+in a user's job. For more information on printer accounting, see <a
+href="printing-advanced.html#PRINTING-ADVANCED-ACCT">Accounting for Printer
+Usage</a>.</p>
+</div>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="PRINTING-ADVANCED-HEADER-PAGES"
+name="PRINTING-ADVANCED-HEADER-PAGES">9.4.2 Header Pages</a></h2>
+
+<p>If you have <span class="emphasis"><b class="EMPHASIS">lots</b></span> of users, all
+of them using various printers, then you probably want to consider <span
+class="emphasis"><b class="EMPHASIS">header pages</b></span> as a necessary evil.</p>
+
+<p>Header pages, also known as <span class="emphasis"><b
+class="EMPHASIS">banner</b></span> or <span class="emphasis"><b class="EMPHASIS">burst
+pages</b></span> identify to whom jobs belong after they are printed. They are usually
+printed in large, bold letters, perhaps with decorative borders, so that in a stack of
+printouts they stand out from the real documents that comprise users' jobs. They enable
+users to locate their jobs quickly. The obvious drawback to a header page is that it is
+yet one more sheet that has to be printed for every job, their ephemeral usefulness
+lasting not more than a few minutes, ultimately finding themselves in a recycling bin or
+rubbish heap. (Note that header pages go with each job, not each file in a job, so the
+paper waste might not be that bad.)</p>
+
+<p>The <b class="APPLICATION">LPD</b> system can provide header pages automatically for
+your printouts <span class="emphasis"><b class="EMPHASIS">if</b></span> your printer can
+directly print plain text. If you have a <span class="TRADEMARK">PostScript</span>
+printer, you will need an external program to generate the header page; see <a
+href="printing-advanced.html#PRINTING-ADVANCED-HEADER-PAGES-PS">Header Pages on <span
+class="TRADEMARK">PostScript</span> Printers</a>.</p>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="PRINTING-ADVANCED-HEADER-PAGES-ENABLING"
+name="PRINTING-ADVANCED-HEADER-PAGES-ENABLING">9.4.2.1 Enabling Header Pages</a></h3>
+
+<p>In the <a href="printing-intro-setup.html#PRINTING-SIMPLE">Simple Printer Setup</a>
+section, we turned off header pages by specifying <tt class="LITERAL">sh</tt> (meaning
+“suppress header”) in the <tt class="FILENAME">/etc/printcap</tt> file. To enable
+header pages for a printer, just remove the <tt class="LITERAL">sh</tt> capability.</p>
+
+<p>Sounds too easy, right?</p>
+
+<p>You are right. You <span class="emphasis"><b class="EMPHASIS">might</b></span> have to
+provide an output filter to send initialization strings to the printer. Here is an
+example output filter for Hewlett Packard PCL-compatible printers:</p>
+
+<pre class="PROGRAMLISTING">
+#!/bin/sh
+#
+#  hpof - Output filter for Hewlett Packard PCL-compatible printers
+#  Installed in /usr/local/libexec/hpof
+
+printf "\033&amp;k2G" || exit 2
+exec /usr/libexec/lpr/lpf
+</pre>
+
+<p>Specify the path to the output filter in the <tt class="LITERAL">of</tt> capability.
+See the <a href="printing-advanced.html#PRINTING-ADVANCED-OF">Output Filters</a> section
+for more information.</p>
+
+<p>Here is an example <tt class="FILENAME">/etc/printcap</tt> file for the printer <tt
+class="LITERAL">teak</tt> that we introduced earlier; we enabled header pages and added
+the above output filter:</p>
+
+<pre class="PROGRAMLISTING">
+#
+#  /etc/printcap for host orchid
+#
+teak|hp|laserjet|Hewlett Packard LaserJet 3Si:\
+        :lp=/dev/lpt0:sd=/var/spool/lpd/teak:mx#0:\
+        :if=/usr/local/libexec/hpif:\
+        :vf=/usr/local/libexec/hpvf:\
+        :of=/usr/local/libexec/hpof:
+</pre>
+
+<p>Now, when users print jobs to <tt class="LITERAL">teak</tt>, they get a header page
+with each job. If users want to spend time searching for their printouts, they can
+suppress header pages by submitting the job with <tt class="COMMAND">lpr -h</tt>; see the
+<a href="printing-using.html#PRINTING-LPR-OPTIONS-MISC">Header Page Options</a> section
+for more <a href="http://www.FreeBSD.org/cgi/man.cgi?query=lpr&amp;sektion=1"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">lpr</span>(1)</span></a> options.</p>
+
+<div class="NOTE">
+<blockquote class="NOTE">
+<p><b>Note:</b> <b class="APPLICATION">LPD</b> prints a form feed character after the
+header page. If your printer uses a different character or sequence of characters to
+eject a page, specify them with the <tt class="LITERAL">ff</tt> capability in <tt
+class="FILENAME">/etc/printcap</tt>.</p>
+</blockquote>
+</div>
+</div>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="PRINTING-ADVANCED-HEADER-PAGES-CONTROLLING"
+name="PRINTING-ADVANCED-HEADER-PAGES-CONTROLLING">9.4.2.2 Controlling Header
+Pages</a></h3>
+
+<p>By enabling header pages, <b class="APPLICATION">LPD</b> will produce a <span
+class="emphasis"><b class="EMPHASIS">long header</b></span>, a full page of large letters
+identifying the user, host, and job. Here is an example (kelly printed the job named
+outline from host <tt class="HOSTID">rose</tt>):</p>
+
+<pre class="PROGRAMLISTING">
+      k                   ll       ll
+      k                    l        l
+      k                    l        l
+      k   k     eeee       l        l     y    y
+      k  k     e    e      l        l     y    y
+      k k      eeeeee      l        l     y    y
+      kk k     e           l        l     y    y
+      k   k    e    e      l        l     y   yy
+      k    k    eeee      lll      lll     yyy y
+                                               y
+                                          y    y
+                                           yyyy
+
+
+                                   ll
+                          t         l        i
+                          t         l
+       oooo    u    u   ttttt       l       ii     n nnn     eeee
+      o    o   u    u     t         l        i     nn   n   e    e
+      o    o   u    u     t         l        i     n    n   eeeeee
+      o    o   u    u     t         l        i     n    n   e
+      o    o   u   uu     t  t      l        i     n    n   e    e
+       oooo     uuu u      tt      lll      iii    n    n    eeee
+
+
+
+
+
+
+
+
+
+      r rrr     oooo     ssss     eeee
+      rr   r   o    o   s    s   e    e
+      r        o    o    ss      eeeeee
+      r        o    o      ss    e
+      r        o    o   s    s   e    e
+      r         oooo     ssss     eeee
+
+
+
+
+
+
+
+                                              Job:  outline
+                                              Date: Sun Sep 17 11:04:58 1995
+</pre>
+
+<p><b class="APPLICATION">LPD</b> appends a form feed after this text so the job starts
+on a new page (unless you have <tt class="LITERAL">sf</tt> (suppress form feeds) in the
+destination printer's entry in <tt class="FILENAME">/etc/printcap</tt>).</p>
+
+<p>If you prefer, <b class="APPLICATION">LPD</b> can make a <span class="emphasis"><b
+class="EMPHASIS">short header</b></span>; specify <tt class="LITERAL">sb</tt> (short
+banner) in the <tt class="FILENAME">/etc/printcap</tt> file. The header page will look
+like this:</p>
+
+<pre class="PROGRAMLISTING">
+rose:kelly  Job: outline  Date: Sun Sep 17 11:07:51 1995
+</pre>
+
+<p>Also by default, <b class="APPLICATION">LPD</b> prints the header page first, then the
+job. To reverse that, specify <tt class="LITERAL">hl</tt> (header last) in <tt
+class="FILENAME">/etc/printcap</tt>.</p>
+</div>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="PRINTING-ADVANCED-HEADER-PAGES-ACCOUNTING"
+name="PRINTING-ADVANCED-HEADER-PAGES-ACCOUNTING">9.4.2.3 Accounting for Header
+Pages</a></h3>
+
+<p>Using <b class="APPLICATION">LPD</b>'s built-in header pages enforces a particular
+paradigm when it comes to printer accounting: header pages must be <span
+class="emphasis"><b class="EMPHASIS">free of charge</b></span>.</p>
+
+<p>Why?</p>
+
+<p>Because the output filter is the only external program that will have control when the
+header page is printed that could do accounting, and it is not provided with any <span
+class="emphasis"><b class="EMPHASIS">user or host</b></span> information or an accounting
+file, so it has no idea whom to charge for printer use. It is also not enough to just
+“add one page” to the text filter or any of the conversion filters (which do have user
+and host information) since users can suppress header pages with <tt class="COMMAND">lpr
+-h</tt>. They could still be charged for header pages they did not print. Basically, <tt
+class="COMMAND">lpr -h</tt> will be the preferred option of environmentally-minded users,
+but you cannot offer any incentive to use it.</p>
+
+<p>It is <span class="emphasis"><b class="EMPHASIS">still not enough</b></span> to have
+each of the filters generate their own header pages (thereby being able to charge for
+them). If users wanted the option of suppressing the header pages with <tt
+class="COMMAND">lpr -h</tt>, they will still get them and be charged for them since <b
+class="APPLICATION">LPD</b> does not pass any knowledge of the <code
+class="OPTION">-h</code> option to any of the filters.</p>
+
+<p>So, what are your options?</p>
+
+<p>You can:</p>
+
+<ul>
+<li>
+<p>Accept <b class="APPLICATION">LPD</b>'s paradigm and make header pages free.</p>
+</li>
+
+<li>
+<p>Install an alternative to <b class="APPLICATION">LPD</b>, such as <b
+class="APPLICATION">LPRng</b>. Section <a
+href="printing-lpd-alternatives.html">Alternatives to the Standard Spooler</a> tells more
+about other spooling software you can substitute for <b class="APPLICATION">LPD</b>.</p>
+</li>
+
+<li>
+<p>Write a <span class="emphasis"><b class="EMPHASIS">smart</b></span> output filter.
+Normally, an output filter is not meant to do anything more than initialize a printer or
+do some simple character conversion. It is suited for header pages and plain text jobs
+(when there is no text (input) filter). But, if there is a text filter for the plain text
+jobs, then <b class="APPLICATION">LPD</b> will start the output filter only for the
+header pages. And the output filter can parse the header page text that <b
+class="APPLICATION">LPD</b> generates to determine what user and host to charge for the
+header page. The only other problem with this method is that the output filter still does
+not know what accounting file to use (it is not passed the name of the file from the <tt
+class="LITERAL">af</tt> capability), but if you have a well-known accounting file, you
+can hard-code that into the output filter. To facilitate the parsing step, use the <tt
+class="LITERAL">sh</tt> (short header) capability in <tt
+class="FILENAME">/etc/printcap</tt>. Then again, all that might be too much trouble, and
+users will certainly appreciate the more generous system administrator who makes header
+pages free.</p>
+</li>
+</ul>
+</div>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="PRINTING-ADVANCED-HEADER-PAGES-PS"
+name="PRINTING-ADVANCED-HEADER-PAGES-PS">9.4.2.4 Header Pages on <span
+class="TRADEMARK">PostScript</span> Printers</a></h3>
+
+<p>As described above, <b class="APPLICATION">LPD</b> can generate a plain text header
+page suitable for many printers. Of course, <span class="TRADEMARK">PostScript</span>
+cannot directly print plain text, so the header page feature of <b
+class="APPLICATION">LPD</b> is useless——or mostly so.</p>
+
+<p>One obvious way to get header pages is to have every conversion filter and the text
+filter generate the header page. The filters should use the user and host arguments to
+generate a suitable header page. The drawback of this method is that users will always
+get a header page, even if they submit jobs with <tt class="COMMAND">lpr -h</tt>.</p>
+
+<p>Let us explore this method. The following script takes three arguments (user login
+name, host name, and job name) and makes a simple <span
+class="TRADEMARK">PostScript</span> header page:</p>
+
+<pre class="PROGRAMLISTING">
+#!/bin/sh
+#
+#  make-ps-header - make a PostScript header page on stdout
+#  Installed in /usr/local/libexec/make-ps-header
+#
+
+#
+#  These are PostScript units (72 to the inch).  Modify for A4 or
+#  whatever size paper you are using:
+#
+page_width=612
+page_height=792
+border=72
+
+#
+#  Check arguments
+#
+if [ $# -ne 3 ]; then
+    echo "Usage: `basename $0` &lt;user&gt; &lt;host&gt; &lt;job&gt;" 1&gt;&amp;2
+    exit 1
+fi
+
+#
+#  Save these, mostly for readability in the PostScript, below.
+#
+user=$1
+host=$2
+job=$3
+date=`date`
+
+#
+#  Send the PostScript code to stdout.
+#
+exec cat &lt;&lt;EOF
+%!PS
+
+%
+%  Make sure we do not interfere with user's job that will follow
+%
+save
+
+%
+%  Make a thick, unpleasant border around the edge of the paper.
+%
+$border $border moveto
+$page_width $border 2 mul sub 0 rlineto
+0 $page_height $border 2 mul sub rlineto
+currentscreen 3 -1 roll pop 100 3 1 roll setscreen
+$border 2 mul $page_width sub 0 rlineto closepath
+0.8 setgray 10 setlinewidth stroke 0 setgray
+
+%
+%  Display user's login name, nice and large and prominent
+%
+/Helvetica-Bold findfont 64 scalefont setfont
+$page_width ($user) stringwidth pop sub 2 div $page_height 200 sub moveto
+($user) show
+
+%
+%  Now show the boring particulars
+%
+/Helvetica findfont 14 scalefont setfont
+/y 200 def
+[ (Job:) (Host:) (Date:) ] {
+200 y moveto show /y y 18 sub def }
+forall
+
+/Helvetica-Bold findfont 14 scalefont setfont
+/y 200 def
+[ ($job) ($host) ($date) ] {
+        270 y moveto show /y y 18 sub def
+} forall
+
+%
+% That is it
+%
+restore
+showpage
+EOF
+</pre>
+
+<p>Now, each of the conversion filters and the text filter can call this script to first
+generate the header page, and then print the user's job. Here is the DVI conversion
+filter from earlier in this document, modified to make a header page:</p>
+
+<pre class="PROGRAMLISTING">
+#!/bin/sh
+#
+#  psdf - DVI to PostScript printer filter
+#  Installed in /usr/local/libexec/psdf
+#
+#  Invoked by lpd when user runs lpr -d
+#
+                
+orig_args="$@"
+
+fail() {
+    echo "$@" 1&gt;&amp;2
+    exit 2
+}
+
+while getopts "x:y:n:h:" option; do
+    case $option in
+        x|y)  ;; # Ignore
+        n)    login=$OPTARG ;;
+        h)    host=$OPTARG ;;
+        *)    echo "LPD started `basename $0` wrong." 1&gt;&amp;2
+              exit 2
+              ;;
+    esac
+done
+
+[ "$login" ] || fail "No login name"
+[ "$host" ] || fail "No host name"
+
+( /usr/local/libexec/make-ps-header $login $host "DVI File"
+  /usr/local/bin/dvips -f ) | eval /usr/local/libexec/lprps $orig_args
+</pre>
+
+<p>Notice how the filter has to parse the argument list in order to determine the user
+and host name. The parsing for the other conversion filters is identical. The text filter
+takes a slightly different set of arguments, though (see section <a
+href="printing-advanced.html#PRINTING-ADVANCED-FILTERS">How Filters Work</a>).</p>
+
+<p>As we have mentioned before, the above scheme, though fairly simple, disables the
+“suppress header page” option (the <code class="OPTION">-h</code> option) to <tt
+class="COMMAND">lpr</tt>. If users wanted to save a tree (or a few pennies, if you charge
+for header pages), they would not be able to do so, since every filter's going to print a
+header page with every job.</p>
+
+<p>To allow users to shut off header pages on a per-job basis, you will need to use the
+trick introduced in section <a
+href="printing-advanced.html#PRINTING-ADVANCED-HEADER-PAGES-ACCOUNTING">Accounting for
+Header Pages</a>: write an output filter that parses the LPD-generated header page and
+produces a <span class="TRADEMARK">PostScript</span> version. If the user submits the job
+with <tt class="COMMAND">lpr -h</tt>, then <b class="APPLICATION">LPD</b> will not
+generate a header page, and neither will your output filter. Otherwise, your output
+filter will read the text from <b class="APPLICATION">LPD</b> and send the appropriate
+header page <span class="TRADEMARK">PostScript</span> code to the printer.</p>
+
+<p>If you have a <span class="TRADEMARK">PostScript</span> printer on a serial line, you
+can make use of <tt class="COMMAND">lprps</tt>, which comes with an output filter, <tt
+class="COMMAND">psof</tt>, which does the above. Note that <tt class="COMMAND">psof</tt>
+does not charge for header pages.</p>
+</div>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="PRINTING-ADVANCED-NETWORK-PRINTERS"
+name="PRINTING-ADVANCED-NETWORK-PRINTERS">9.4.3 Networked Printing</a></h2>
+
+<p>FreeBSD supports networked printing: sending jobs to remote printers. Networked
+printing generally refers to two different things:</p>
+
+<ul>
+<li>
+<p>Accessing a printer attached to a remote host. You install a printer that has a
+conventional serial or parallel interface on one host. Then, you set up <b
+class="APPLICATION">LPD</b> to enable access to the printer from other hosts on the
+network. Section <a href="printing-advanced.html#PRINTING-ADVANCED-NETWORK-RM">Printers
+Installed on Remote Hosts</a> tells how to do this.</p>
+</li>
+
+<li>
+<p>Accessing a printer attached directly to a network. The printer has a network
+interface in addition (or in place of) a more conventional serial or parallel interface.
+Such a printer might work as follows:</p>
+
+<ul>
+<li>
+<p>It might understand the <b class="APPLICATION">LPD</b> protocol and can even queue
+jobs from remote hosts. In this case, it acts just like a regular host running <b
+class="APPLICATION">LPD</b>. Follow the same procedure in section <a
+href="printing-advanced.html#PRINTING-ADVANCED-NETWORK-RM">Printers Installed on Remote
+Hosts</a> to set up such a printer.</p>
+</li>
+
+<li>
+<p>It might support a data stream network connection. In this case, you “attach” the
+printer to one host on the network by making that host responsible for spooling jobs and
+sending them to the printer. Section <a
+href="printing-advanced.html#PRINTING-ADVANCED-NETWORK-NET-IF">Printers with Networked
+Data Stream Interfaces</a> gives some suggestions on installing such printers.</p>
+</li>
+</ul>
+</li>
+</ul>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="PRINTING-ADVANCED-NETWORK-RM"
+name="PRINTING-ADVANCED-NETWORK-RM">9.4.3.1 Printers Installed on Remote Hosts</a></h3>
+
+<p>The <b class="APPLICATION">LPD</b> spooling system has built-in support for sending
+jobs to other hosts also running <b class="APPLICATION">LPD</b> (or are compatible with
+<b class="APPLICATION">LPD</b>). This feature enables you to install a printer on one
+host and make it accessible from other hosts. It also works with printers that have
+network interfaces that understand the <b class="APPLICATION">LPD</b> protocol.</p>
+
+<p>To enable this kind of remote printing, first install a printer on one host, the <span
+class="emphasis"><b class="EMPHASIS">printer host</b></span>, using the simple printer
+setup described in the <a href="printing-intro-setup.html#PRINTING-SIMPLE">Simple Printer
+Setup</a> section. Do any advanced setup in <a href="printing-advanced.html">Advanced
+Printer Setup</a> that you need. Make sure to test the printer and see if it works with
+the features of <b class="APPLICATION">LPD</b> you have enabled. Also ensure that the
+<span class="emphasis"><b class="EMPHASIS">local host</b></span> has authorization to use
+the <b class="APPLICATION">LPD</b> service in the <span class="emphasis"><b
+class="EMPHASIS">remote host</b></span> (see <a
+href="printing-advanced.html#PRINTING-ADVANCED-RESTRICTING-REMOTE">Restricting Jobs from
+Remote Printers</a>).</p>
+
+<p>If you are using a printer with a network interface that is compatible with <b
+class="APPLICATION">LPD</b>, then the <span class="emphasis"><b class="EMPHASIS">printer
+host</b></span> in the discussion below is the printer itself, and the <span
+class="emphasis"><b class="EMPHASIS">printer name</b></span> is the name you configured
+for the printer. See the documentation that accompanied your printer and/or
+printer-network interface.</p>
+
+<div class="TIP">
+<blockquote class="TIP">
+<p><b>Tip:</b> If you are using a Hewlett Packard Laserjet then the printer name <tt
+class="LITERAL">text</tt> will automatically perform the LF to CRLF conversion for you,
+so you will not require the <tt class="FILENAME">hpif</tt> script.</p>
+</blockquote>
+</div>
+
+<p>Then, on the other hosts you want to have access to the printer, make an entry in
+their <tt class="FILENAME">/etc/printcap</tt> files with the following:</p>
+
+<ol type="1">
+<li>
+<p>Name the entry anything you want. For simplicity, though, you probably want to use the
+same name and aliases as on the printer host.</p>
+</li>
+
+<li>
+<p>Leave the <tt class="LITERAL">lp</tt> capability blank, explicitly (<tt
+class="LITERAL">:lp=:</tt>).</p>
+</li>
+
+<li>
+<p>Make a spooling directory and specify its location in the <tt class="LITERAL">sd</tt>
+capability. <b class="APPLICATION">LPD</b> will store jobs here before they get sent to
+the printer host.</p>
+</li>
+
+<li>
+<p>Place the name of the printer host in the <tt class="LITERAL">rm</tt> capability.</p>
+</li>
+
+<li>
+<p>Place the printer name on the <span class="emphasis"><b class="EMPHASIS">printer
+host</b></span> in the <tt class="LITERAL">rp</tt> capability.</p>
+</li>
+</ol>
+
+<p>That is it. You do not need to list conversion filters, page dimensions, or anything
+else in the <tt class="FILENAME">/etc/printcap</tt> file.</p>
+
+<p>Here is an example. The host <tt class="HOSTID">rose</tt> has two printers, <tt
+class="LITERAL">bamboo</tt> and <tt class="LITERAL">rattan</tt>. We will enable users on
+the host <tt class="HOSTID">orchid</tt> to print to those printers. Here is the <tt
+class="FILENAME">/etc/printcap</tt> file for <tt class="HOSTID">orchid</tt> (back from
+section <a href="printing-advanced.html#PRINTING-ADVANCED-HEADER-PAGES-ENABLING">Enabling
+Header Pages</a>). It already had the entry for the printer <tt
+class="LITERAL">teak</tt>; we have added entries for the two printers on the host <tt
+class="HOSTID">rose</tt>:</p>
+
+<pre class="PROGRAMLISTING">
+#
+#  /etc/printcap for host orchid - added (remote) printers on rose
+#
+
+#
+#  teak is local; it is connected directly to orchid:
+#
+teak|hp|laserjet|Hewlett Packard LaserJet 3Si:\
+        :lp=/dev/lpt0:sd=/var/spool/lpd/teak:mx#0:\
+        :if=/usr/local/libexec/ifhp:\
+        :vf=/usr/local/libexec/vfhp:\
+        :of=/usr/local/libexec/ofhp:
+
+#
+#  rattan is connected to rose; send jobs for rattan to rose:
+#
+rattan|line|diablo|lp|Diablo 630 Line Printer:\
+        :lp=:rm=rose:rp=rattan:sd=/var/spool/lpd/rattan:
+
+#
+#  bamboo is connected to rose as well:
+#
+bamboo|ps|PS|S|panasonic|Panasonic KX-P4455 PostScript v51.4:\
+        :lp=:rm=rose:rp=bamboo:sd=/var/spool/lpd/bamboo:
+</pre>
+
+<p>Then, we just need to make spooling directories on <tt class="HOSTID">orchid</tt>:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">mkdir -p /var/spool/lpd/rattan /var/spool/lpd/bamboo</kbd>
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">chmod 770 /var/spool/lpd/rattan /var/spool/lpd/bamboo</kbd>
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">chown daemon:daemon /var/spool/lpd/rattan /var/spool/lpd/bamboo</kbd>
+</pre>
+
+<p>Now, users on <tt class="HOSTID">orchid</tt> can print to <tt
+class="LITERAL">rattan</tt> and <tt class="LITERAL">bamboo</tt>. If, for example, a user
+on <tt class="HOSTID">orchid</tt> typed</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">%</samp> <kbd
+class="USERINPUT">lpr -P bamboo -d sushi-review.dvi</kbd>
+</pre>
+
+the <b class="APPLICATION">LPD</b> system on <tt class="HOSTID">orchid</tt> would copy
+the job to the spooling directory <tt class="FILENAME">/var/spool/lpd/bamboo</tt> and
+note that it was a DVI job. As soon as the host <tt class="HOSTID">rose</tt> has room in
+its <tt class="LITERAL">bamboo</tt> spooling directory, the two <b
+class="APPLICATION">LPDs</b> would transfer the file to <tt class="HOSTID">rose</tt>. The
+file would wait in <tt class="HOSTID">rose</tt>'s queue until it was finally printed. It
+would be converted from DVI to <span class="TRADEMARK">PostScript</span> (since <tt
+class="LITERAL">bamboo</tt> is a <span class="TRADEMARK">PostScript</span> printer) on
+<tt class="HOSTID">rose</tt>.<br />
+<br />
+</div>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="PRINTING-ADVANCED-NETWORK-NET-IF"
+name="PRINTING-ADVANCED-NETWORK-NET-IF">9.4.3.2 Printers with Networked Data Stream
+Interfaces</a></h3>
+
+<p>Often, when you buy a network interface card for a printer, you can get two versions:
+one which emulates a spooler (the more expensive version), or one which just lets you
+send data to it as if you were using a serial or parallel port (the cheaper version).
+This section tells how to use the cheaper version. For the more expensive one, see the
+previous section <a href="printing-advanced.html#PRINTING-ADVANCED-NETWORK-RM">Printers
+Installed on Remote Hosts</a>.</p>
+
+<p>The format of the <tt class="FILENAME">/etc/printcap</tt> file lets you specify what
+serial or parallel interface to use, and (if you are using a serial interface), what baud
+rate, whether to use flow control, delays for tabs, conversion of newlines, and more. But
+there is no way to specify a connection to a printer that is listening on a TCP/IP or
+other network port.</p>
+
+<p>To send data to a networked printer, you need to develop a communications program that
+can be called by the text and conversion filters. Here is one such example: the script
+<tt class="COMMAND">netprint</tt> takes all data on standard input and sends it to a
+network-attached printer. We specify the hostname of the printer as the first argument
+and the port number to which to connect as the second argument to <tt
+class="COMMAND">netprint</tt>. Note that this supports one-way communication only
+(FreeBSD to printer); many network printers support two-way communication, and you might
+want to take advantage of that (to get printer status, perform accounting, etc.).</p>
+
+<pre class="PROGRAMLISTING">
+#!/usr/bin/perl
+#
+#  netprint - Text filter for printer attached to network
+#  Installed in /usr/local/libexec/netprint
+#
+$#ARGV eq 1 || die "Usage: $0 &lt;printer-hostname&gt; &lt;port-number&gt;";
+
+$printer_host = $ARGV[0];
+$printer_port = $ARGV[1];
+
+require 'sys/socket.ph';
+
+($ignore, $ignore, $protocol) = getprotobyname('tcp');
+($ignore, $ignore, $ignore, $ignore, $address)
+    = gethostbyname($printer_host);
+
+$sockaddr = pack('S n a4 x8', &amp;AF_INET, $printer_port, $address);
+
+socket(PRINTER, &amp;PF_INET, &amp;SOCK_STREAM, $protocol)
+    || die "Can't create TCP/IP stream socket: $!";
+connect(PRINTER, $sockaddr) || die "Can't contact $printer_host: $!";
+while (&lt;STDIN&gt;) { print PRINTER; }
+exit 0;
+</pre>
+
+<p>We can then use this script in various filters. Suppose we had a Diablo 750-N line
+printer connected to the network. The printer accepts data to print on port number 5100.
+The host name of the printer is scrivener. Here is the text filter for the printer:</p>
+
+<pre class="PROGRAMLISTING">
+#!/bin/sh
+#
+#  diablo-if-net - Text filter for Diablo printer `scrivener' listening
+#  on port 5100.   Installed in /usr/local/libexec/diablo-if-net
+#
+exec /usr/libexec/lpr/lpf "$@" | /usr/local/libexec/netprint scrivener 5100
+</pre>
+</div>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="PRINTING-ADVANCED-RESTRICTING"
+name="PRINTING-ADVANCED-RESTRICTING">9.4.4 Restricting Printer Usage</a></h2>
+
+<p>This section gives information on restricting printer usage. The <b
+class="APPLICATION">LPD</b> system lets you control who can access a printer, both
+locally or remotely, whether they can print multiple copies, how large their jobs can be,
+and how large the printer queues can get.</p>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="PRINTING-ADVANCED-RESTRICTING-COPIES"
+name="PRINTING-ADVANCED-RESTRICTING-COPIES">9.4.4.1 Restricting Multiple Copies</a></h3>
+
+<p>The <b class="APPLICATION">LPD</b> system makes it easy for users to print multiple
+copies of a file. Users can print jobs with <tt class="COMMAND">lpr -#5</tt> (for
+example) and get five copies of each file in the job. Whether this is a good thing is up
+to you.</p>
+
+<p>If you feel multiple copies cause unnecessary wear and tear on your printers, you can
+disable the <code class="OPTION">-#</code> option to <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=lpr&amp;sektion=1"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">lpr</span>(1)</span></a> by adding the
+<tt class="LITERAL">sc</tt> capability to the <tt class="FILENAME">/etc/printcap</tt>
+file. When users submit jobs with the <code class="OPTION">-#</code> option, they will
+see:</p>
+
+<pre class="SCREEN">
+lpr: multiple copies are not allowed
+</pre>
+
+<p>Note that if you have set up access to a printer remotely (see section <a
+href="printing-advanced.html#PRINTING-ADVANCED-NETWORK-RM">Printers Installed on Remote
+Hosts</a>), you need the <tt class="LITERAL">sc</tt> capability on the remote <tt
+class="FILENAME">/etc/printcap</tt> files as well, or else users will still be able to
+submit multiple-copy jobs by using another host.</p>
+
+<p>Here is an example. This is the <tt class="FILENAME">/etc/printcap</tt> file for the
+host <tt class="HOSTID">rose</tt>. The printer <tt class="LITERAL">rattan</tt> is quite
+hearty, so we will allow multiple copies, but the laser printer <tt
+class="LITERAL">bamboo</tt> is a bit more delicate, so we will disable multiple copies by
+adding the <tt class="LITERAL">sc</tt> capability:</p>
+
+<pre class="PROGRAMLISTING">
+#
+#  /etc/printcap for host rose - restrict multiple copies on bamboo
+#
+rattan|line|diablo|lp|Diablo 630 Line Printer:\
+        :sh:sd=/var/spool/lpd/rattan:\
+        :lp=/dev/lpt0:\
+        :if=/usr/local/libexec/if-simple:
+
+bamboo|ps|PS|S|panasonic|Panasonic KX-P4455 PostScript v51.4:\
+        :sh:sd=/var/spool/lpd/bamboo:sc:\
+        :lp=/dev/ttyd5:ms#-parenb cs8 clocal crtscts:rw:\
+        :if=/usr/local/libexec/psif:\
+        :df=/usr/local/libexec/psdf:
+</pre>
+
+<p>Now, we also need to add the <tt class="LITERAL">sc</tt> capability on the host <tt
+class="HOSTID">orchid</tt>'s <tt class="FILENAME">/etc/printcap</tt> (and while we are at
+it, let us disable multiple copies for the printer <tt class="LITERAL">teak</tt>):</p>
+
+<pre class="PROGRAMLISTING">
+#
+#  /etc/printcap for host orchid - no multiple copies for local
+#  printer teak or remote printer bamboo
+teak|hp|laserjet|Hewlett Packard LaserJet 3Si:\
+        :lp=/dev/lpt0:sd=/var/spool/lpd/teak:mx#0:sc:\
+        :if=/usr/local/libexec/ifhp:\
+        :vf=/usr/local/libexec/vfhp:\
+        :of=/usr/local/libexec/ofhp:
+
+rattan|line|diablo|lp|Diablo 630 Line Printer:\
+        :lp=:rm=rose:rp=rattan:sd=/var/spool/lpd/rattan:
+
+bamboo|ps|PS|S|panasonic|Panasonic KX-P4455 PostScript v51.4:\
+        :lp=:rm=rose:rp=bamboo:sd=/var/spool/lpd/bamboo:sc:
+</pre>
+
+<p>By using the <tt class="LITERAL">sc</tt> capability, we prevent the use of <tt
+class="COMMAND">lpr -#</tt>, but that still does not prevent users from running <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=lpr&amp;sektion=1"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">lpr</span>(1)</span></a> multiple times,
+or from submitting the same file multiple times in one job like this:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">%</samp> <kbd
+class="USERINPUT">lpr forsale.sign forsale.sign forsale.sign forsale.sign forsale.sign</kbd>
+</pre>
+
+<p>There are many ways to prevent this abuse (including ignoring it) which you are free
+to explore.</p>
+</div>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="PRINTING-ADVANCED-RESTRICTING-ACCESS"
+name="PRINTING-ADVANCED-RESTRICTING-ACCESS">9.4.4.2 Restricting Access to
+Printers</a></h3>
+
+<p>You can control who can print to what printers by using the <span
+class="TRADEMARK">UNIX</span>&reg; group mechanism and the <tt class="LITERAL">rg</tt>
+capability in <tt class="FILENAME">/etc/printcap</tt>. Just place the users you want to
+have access to a printer in a certain group, and then name that group in the <tt
+class="LITERAL">rg</tt> capability.</p>
+
+<p>Users outside the group (including <tt class="USERNAME">root</tt>) will be greeted
+with “<tt class="ERRORNAME">lpr: Not a member of the restricted group</tt>” if they try
+to print to the controlled printer.</p>
+
+<p>As with the <tt class="LITERAL">sc</tt> (suppress multiple copies) capability, you
+need to specify <tt class="LITERAL">rg</tt> on remote hosts that also have access to your
+printers, if you feel it is appropriate (see section <a
+href="printing-advanced.html#PRINTING-ADVANCED-NETWORK-RM">Printers Installed on Remote
+Hosts</a>).</p>
+
+<p>For example, we will let anyone access the printer <tt class="LITERAL">rattan</tt>,
+but only those in group <tt class="LITERAL">artists</tt> can use <tt
+class="LITERAL">bamboo</tt>. Here is the familiar <tt class="FILENAME">/etc/printcap</tt>
+for host <tt class="HOSTID">rose</tt>:</p>
+
+<pre class="PROGRAMLISTING">
+#
+#  /etc/printcap for host rose - restricted group for bamboo
+#
+rattan|line|diablo|lp|Diablo 630 Line Printer:\
+        :sh:sd=/var/spool/lpd/rattan:\
+        :lp=/dev/lpt0:\
+        :if=/usr/local/libexec/if-simple:
+
+bamboo|ps|PS|S|panasonic|Panasonic KX-P4455 PostScript v51.4:\
+        :sh:sd=/var/spool/lpd/bamboo:sc:rg=artists:\
+        :lp=/dev/ttyd5:ms#-parenb cs8 clocal crtscts:rw:\
+        :if=/usr/local/libexec/psif:\
+        :df=/usr/local/libexec/psdf:
+</pre>
+
+<p>Let us leave the other example <tt class="FILENAME">/etc/printcap</tt> file (for the
+host <tt class="HOSTID">orchid</tt>) alone. Of course, anyone on <tt
+class="HOSTID">orchid</tt> can print to <tt class="LITERAL">bamboo</tt>. It might be the
+case that we only allow certain logins on <tt class="HOSTID">orchid</tt> anyway, and want
+them to have access to the printer. Or not.</p>
+
+<div class="NOTE">
+<blockquote class="NOTE">
+<p><b>Note:</b> There can be only one restricted group per printer.</p>
+</blockquote>
+</div>
+</div>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="PRINTING-ADVANCED-RESTRICTING-SIZES"
+name="PRINTING-ADVANCED-RESTRICTING-SIZES">9.4.4.3 Controlling Sizes of Jobs
+Submitted</a></h3>
+
+<p>If you have many users accessing the printers, you probably need to put an upper limit
+on the sizes of the files users can submit to print. After all, there is only so much
+free space on the filesystem that houses the spooling directories, and you also need to
+make sure there is room for the jobs of other users.</p>
+
+<p><b class="APPLICATION">LPD</b> enables you to limit the maximum byte size a file in a
+job can be with the <tt class="LITERAL">mx</tt> capability. The units are in <tt
+class="LITERAL">BUFSIZ</tt> blocks, which are 1024 bytes. If you put a zero for this
+capability, there will be no limit on file size; however, if no <tt
+class="LITERAL">mx</tt> capability is specified, then a default limit of 1000 blocks will
+be used.</p>
+
+<div class="NOTE">
+<blockquote class="NOTE">
+<p><b>Note:</b> The limit applies to <span class="emphasis"><b
+class="EMPHASIS">files</b></span> in a job, and <span class="emphasis"><b
+class="EMPHASIS">not</b></span> the total job size.</p>
+</blockquote>
+</div>
+
+<p><b class="APPLICATION">LPD</b> will not refuse a file that is larger than the limit
+you place on a printer. Instead, it will queue as much of the file up to the limit, which
+will then get printed. The rest will be discarded. Whether this is correct behavior is up
+for debate.</p>
+
+<p>Let us add limits to our example printers <tt class="LITERAL">rattan</tt> and <tt
+class="LITERAL">bamboo</tt>. Since those artists' <span
+class="TRADEMARK">PostScript</span> files tend to be large, we will limit them to five
+megabytes. We will put no limit on the plain text line printer:</p>
+
+<pre class="PROGRAMLISTING">
+#
+#  /etc/printcap for host rose
+#
+
+#
+#  No limit on job size:
+#
+rattan|line|diablo|lp|Diablo 630 Line Printer:\
+        :sh:mx#0:sd=/var/spool/lpd/rattan:\
+        :lp=/dev/lpt0:\
+        :if=/usr/local/libexec/if-simple:
+
+#
+#  Limit of five megabytes:
+#
+bamboo|ps|PS|S|panasonic|Panasonic KX-P4455 PostScript v51.4:\
+        :sh:sd=/var/spool/lpd/bamboo:sc:rg=artists:mx#5000:\
+        :lp=/dev/ttyd5:ms#-parenb cs8 clocal crtscts:rw:\
+        :if=/usr/local/libexec/psif:\
+        :df=/usr/local/libexec/psdf:
+</pre>
+
+<p>Again, the limits apply to the local users only. If you have set up access to your
+printers remotely, remote users will not get those limits. You will need to specify the
+<tt class="LITERAL">mx</tt> capability in the remote <tt
+class="FILENAME">/etc/printcap</tt> files as well. See section <a
+href="printing-advanced.html#PRINTING-ADVANCED-NETWORK-RM">Printers Installed on Remote
+Hosts</a> for more information on remote printing.</p>
+
+<p>There is another specialized way to limit job sizes from remote printers; see section
+<a href="printing-advanced.html#PRINTING-ADVANCED-RESTRICTING-REMOTE">Restricting Jobs
+from Remote Printers</a>.</p>
+</div>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="PRINTING-ADVANCED-RESTRICTING-REMOTE"
+name="PRINTING-ADVANCED-RESTRICTING-REMOTE">9.4.4.4 Restricting Jobs from Remote
+Printers</a></h3>
+
+<p>The <b class="APPLICATION">LPD</b> spooling system provides several ways to restrict
+print jobs submitted from remote hosts:</p>
+
+<div class="VARIABLELIST">
+<dl>
+<dt>Host restrictions</dt>
+
+<dd>
+<p>You can control from which remote hosts a local <b class="APPLICATION">LPD</b> accepts
+requests with the files <tt class="FILENAME">/etc/hosts.equiv</tt> and <tt
+class="FILENAME">/etc/hosts.lpd</tt>. <b class="APPLICATION">LPD</b> checks to see if an
+incoming request is from a host listed in either one of these files. If not, <b
+class="APPLICATION">LPD</b> refuses the request.</p>
+
+<p>The format of these files is simple: one host name per line. Note that the file <tt
+class="FILENAME">/etc/hosts.equiv</tt> is also used by the <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=ruserok&amp;sektion=3"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">ruserok</span>(3)</span></a> protocol,
+and affects programs like <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=rsh&amp;sektion=1"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">rsh</span>(1)</span></a> and <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=rcp&amp;sektion=1"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">rcp</span>(1)</span></a>, so be
+careful.</p>
+
+<p>For example, here is the <tt class="FILENAME">/etc/hosts.lpd</tt> file on the host <tt
+class="HOSTID">rose</tt>:</p>
+
+<pre class="PROGRAMLISTING">
+orchid
+violet
+madrigal.fishbaum.de
+</pre>
+
+<p>This means <tt class="HOSTID">rose</tt> will accept requests from the hosts <tt
+class="HOSTID">orchid</tt>, <tt class="HOSTID">violet</tt>, and <tt
+class="HOSTID">madrigal.fishbaum.de</tt>. If any other host tries to access <tt
+class="HOSTID">rose</tt>'s <b class="APPLICATION">LPD</b>, the job will be refused.</p>
+</dd>
+
+<dt>Size restrictions</dt>
+
+<dd>
+<p>You can control how much free space there needs to remain on the filesystem where a
+spooling directory resides. Make a file called <tt class="FILENAME">minfree</tt> in the
+spooling directory for the local printer. Insert in that file a number representing how
+many disk blocks (512 bytes) of free space there has to be for a remote job to be
+accepted.</p>
+
+<p>This lets you insure that remote users will not fill your filesystem. You can also use
+it to give a certain priority to local users: they will be able to queue jobs long after
+the free disk space has fallen below the amount specified in the <tt
+class="FILENAME">minfree</tt> file.</p>
+
+<p>For example, let us add a <tt class="FILENAME">minfree</tt> file for the printer <tt
+class="LITERAL">bamboo</tt>. We examine <tt class="FILENAME">/etc/printcap</tt> to find
+the spooling directory for this printer; here is <tt class="LITERAL">bamboo</tt>'s
+entry:</p>
+
+<pre class="PROGRAMLISTING">
+bamboo|ps|PS|S|panasonic|Panasonic KX-P4455 PostScript v51.4:\
+        :sh:sd=/var/spool/lpd/bamboo:sc:rg=artists:mx#5000:\
+        :lp=/dev/ttyd5:ms#-parenb cs8 clocal crtscts:rw:mx#5000:\
+        :if=/usr/local/libexec/psif:\
+        :df=/usr/local/libexec/psdf:
+</pre>
+
+<p>The spooling directory is given in the <tt class="LITERAL">sd</tt> capability. We will
+make three megabytes (which is 6144 disk blocks) the amount of free disk space that must
+exist on the filesystem for <b class="APPLICATION">LPD</b> to accept remote jobs:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">echo 6144 &gt; /var/spool/lpd/bamboo/minfree
+             </kbd>
+</pre>
+</dd>
+
+<dt>User restrictions</dt>
+
+<dd>
+<p>You can control which remote users can print to local printers by specifying the <tt
+class="LITERAL">rs</tt> capability in <tt class="FILENAME">/etc/printcap</tt>. When <tt
+class="LITERAL">rs</tt> appears in the entry for a locally-attached printer, <b
+class="APPLICATION">LPD</b> will accept jobs from remote hosts <span class="emphasis"><b
+class="EMPHASIS">if</b></span> the user submitting the job also has an account of the
+same login name on the local host. Otherwise, <b class="APPLICATION">LPD</b> refuses the
+job.</p>
+
+<p>This capability is particularly useful in an environment where there are (for example)
+different departments sharing a network, and some users transcend departmental
+boundaries. By giving them accounts on your systems, they can use your printers from
+their own departmental systems. If you would rather allow them to use <span
+class="emphasis"><b class="EMPHASIS">only</b></span> your printers and not your computer
+resources, you can give them “token” accounts, with no home directory and a useless
+shell like <tt class="FILENAME">/usr/bin/false</tt>.</p>
+</dd>
+</dl>
+</div>
+</div>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="PRINTING-ADVANCED-ACCT" name="PRINTING-ADVANCED-ACCT">9.4.5
+Accounting for Printer Usage</a></h2>
+
+<p>So, you need to charge for printouts. And why not? Paper and ink cost money. And then
+there are maintenance costs——printers are loaded with moving parts and tend to break
+down. You have examined your printers, usage patterns, and maintenance fees and have come
+up with a per-page (or per-foot, per-meter, or per-whatever) cost. Now, how do you
+actually start accounting for printouts?</p>
+
+<p>Well, the bad news is the <b class="APPLICATION">LPD</b> spooling system does not
+provide much help in this department. Accounting is highly dependent on the kind of
+printer in use, the formats being printed, and <span class="emphasis"><b
+class="EMPHASIS">your</b></span> requirements in charging for printer usage.</p>
+
+<p>To implement accounting, you have to modify a printer's text filter (to charge for
+plain text jobs) and the conversion filters (to charge for other file formats), to count
+pages or query the printer for pages printed. You cannot get away with using the simple
+output filter, since it cannot do accounting. See section <a
+href="printing-advanced.html#PRINTING-ADVANCED-FILTER-INTRO">Filters</a>.</p>
+
+<p>Generally, there are two ways to do accounting:</p>
+
+<ul>
+<li>
+<p><span class="emphasis"><b class="EMPHASIS">Periodic accounting</b></span> is the more
+common way, possibly because it is easier. Whenever someone prints a job, the filter logs
+the user, host, and number of pages to an accounting file. Every month, semester, year,
+or whatever time period you prefer, you collect the accounting files for the various
+printers, tally up the pages printed by users, and charge for usage. Then you truncate
+all the logging files, starting with a clean slate for the next period.</p>
+</li>
+
+<li>
+<p><span class="emphasis"><b class="EMPHASIS">Timely accounting</b></span> is less
+common, probably because it is more difficult. This method has the filters charge users
+for printouts as soon as they use the printers. Like disk quotas, the accounting is
+immediate. You can prevent users from printing when their account goes in the red, and
+might provide a way for users to check and adjust their “print quotas.” But this method
+requires some database code to track users and their quotas.</p>
+</li>
+</ul>
+
+<p>The <b class="APPLICATION">LPD</b> spooling system supports both methods easily: since
+you have to provide the filters (well, most of the time), you also have to provide the
+accounting code. But there is a bright side: you have enormous flexibility in your
+accounting methods. For example, you choose whether to use periodic or timely accounting.
+You choose what information to log: user names, host names, job types, pages printed,
+square footage of paper used, how long the job took to print, and so forth. And you do so
+by modifying the filters to save this information.</p>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="AEN11606" name="AEN11606">9.4.5.1 Quick and Dirty Printer
+Accounting</a></h3>
+
+<p>FreeBSD comes with two programs that can get you set up with simple periodic
+accounting right away. They are the text filter <tt class="COMMAND">lpf</tt>, described
+in section <a href="printing-advanced.html#PRINTING-ADVANCED-LPF">lpf: a Text Filter</a>,
+and <a href="http://www.FreeBSD.org/cgi/man.cgi?query=pac&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">pac</span>(8)</span></a>, a program to
+gather and total entries from printer accounting files.</p>
+
+<p>As mentioned in the section on filters (<a
+href="printing-advanced.html#PRINTING-ADVANCED-FILTERS">Filters</a>), <b
+class="APPLICATION">LPD</b> starts the text and the conversion filters with the name of
+the accounting file to use on the filter command line. The filters can use this argument
+to know where to write an accounting file entry. The name of this file comes from the <tt
+class="LITERAL">af</tt> capability in <tt class="FILENAME">/etc/printcap</tt>, and if not
+specified as an absolute path, is relative to the spooling directory.</p>
+
+<p><b class="APPLICATION">LPD</b> starts <tt class="COMMAND">lpf</tt> with page width and
+length arguments (from the <tt class="LITERAL">pw</tt> and <tt class="LITERAL">pl</tt>
+capabilities). <tt class="COMMAND">lpf</tt> uses these arguments to determine how much
+paper will be used. After sending the file to the printer, it then writes an accounting
+entry in the accounting file. The entries look like this:</p>
+
+<pre class="PROGRAMLISTING">
+2.00 rose:andy
+3.00 rose:kelly
+3.00 orchid:mary
+5.00 orchid:mary
+2.00 orchid:zhang
+</pre>
+
+<p>You should use a separate accounting file for each printer, as <tt
+class="COMMAND">lpf</tt> has no file locking logic built into it, and two <tt
+class="COMMAND">lpf</tt>s might corrupt each other's entries if they were to write to the
+same file at the same time. An easy way to insure a separate accounting file for each
+printer is to use <tt class="LITERAL">af=acct</tt> in <tt
+class="FILENAME">/etc/printcap</tt>. Then, each accounting file will be in the spooling
+directory for a printer, in a file named <tt class="FILENAME">acct</tt>.</p>
+
+<p>When you are ready to charge users for printouts, run the <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=pac&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">pac</span>(8)</span></a> program. Just
+change to the spooling directory for the printer you want to collect on and type <tt
+class="LITERAL">pac</tt>. You will get a dollar-centric summary like the following:</p>
+
+<pre class="SCREEN">
+  Login               pages/feet   runs    price
+orchid:kelly                5.00    1   $  0.10
+orchid:mary                31.00    3   $  0.62
+orchid:zhang                9.00    1   $  0.18
+rose:andy                   2.00    1   $  0.04
+rose:kelly                177.00  104   $  3.54
+rose:mary                  87.00   32   $  1.74
+rose:root                  26.00   12   $  0.52
+
+total                     337.00  154   $  6.74
+</pre>
+
+<p>These are the arguments <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=pac&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">pac</span>(8)</span></a> expects:</p>
+
+<div class="VARIABLELIST">
+<dl>
+<dt><code class="OPTION">-P<tt class="REPLACEABLE"><i>printer</i></tt></code></dt>
+
+<dd>
+<p>Which <tt class="REPLACEABLE"><i>printer</i></tt> to summarize. This option works only
+if there is an absolute path in the <tt class="LITERAL">af</tt> capability in <tt
+class="FILENAME">/etc/printcap</tt>.</p>
+</dd>
+
+<dt><code class="OPTION">-c</code></dt>
+
+<dd>
+<p>Sort the output by cost instead of alphabetically by user name.</p>
+</dd>
+
+<dt><code class="OPTION">-m</code></dt>
+
+<dd>
+<p>Ignore host name in the accounting files. With this option, user <tt
+class="USERNAME">smith</tt> on host <tt class="HOSTID">alpha</tt> is the same user <tt
+class="USERNAME">smith</tt> on host <tt class="HOSTID">gamma</tt>. Without, they are
+different users.</p>
+</dd>
+
+<dt><code class="OPTION">-p<tt class="REPLACEABLE"><i>price</i></tt></code></dt>
+
+<dd>
+<p>Compute charges with <tt class="REPLACEABLE"><i>price</i></tt> dollars per page or per
+foot instead of the price from the <tt class="LITERAL">pc</tt> capability in <tt
+class="FILENAME">/etc/printcap</tt>, or two cents (the default). You can specify <tt
+class="REPLACEABLE"><i>price</i></tt> as a floating point number.</p>
+</dd>
+
+<dt><code class="OPTION">-r</code></dt>
+
+<dd>
+<p>Reverse the sort order.</p>
+</dd>
+
+<dt><code class="OPTION">-s</code></dt>
+
+<dd>
+<p>Make an accounting summary file and truncate the accounting file.</p>
+</dd>
+
+<dt><tt class="REPLACEABLE"><i>name</i></tt> <tt class="REPLACEABLE"><i>...</i></tt></dt>
+
+<dd>
+<p>Print accounting information for the given user <tt
+class="REPLACEABLE"><i>names</i></tt> only.</p>
+</dd>
+</dl>
+</div>
+
+<p>In the default summary that <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=pac&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">pac</span>(8)</span></a> produces, you
+see the number of pages printed by each user from various hosts. If, at your site, host
+does not matter (because users can use any host), run <tt class="COMMAND">pac -m</tt>, to
+produce the following summary:</p>
+
+<pre class="SCREEN">
+  Login               pages/feet   runs    price
+andy                        2.00    1   $  0.04
+kelly                     182.00  105   $  3.64
+mary                      118.00   35   $  2.36
+root                       26.00   12   $  0.52
+zhang                       9.00    1   $  0.18
+
+total                     337.00  154   $  6.74
+</pre>
+
+<p>To compute the dollar amount due, <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=pac&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">pac</span>(8)</span></a> uses the <tt
+class="LITERAL">pc</tt> capability in the <tt class="FILENAME">/etc/printcap</tt> file
+(default of 200, or 2 cents per page). Specify, in hundredths of cents, the price per
+page or per foot you want to charge for printouts in this capability. You can override
+this value when you run <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=pac&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">pac</span>(8)</span></a> with the <code
+class="OPTION">-p</code> option. The units for the <code class="OPTION">-p</code> option
+are in dollars, though, not hundredths of cents. For example,</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">pac -p1.50</kbd>
+</pre>
+
+makes each page cost one dollar and fifty cents. You can really rake in the profits by
+using this option.<br />
+<br />
+<p>Finally, running <tt class="COMMAND">pac -s</tt> will save the summary information in
+a summary accounting file, which is named the same as the printer's accounting file, but
+with <tt class="LITERAL">_sum</tt> appended to the name. It then truncates the accounting
+file. When you run <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=pac&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">pac</span>(8)</span></a> again, it
+rereads the summary file to get starting totals, then adds information from the regular
+accounting file.</p>
+</div>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="AEN11719" name="AEN11719">9.4.5.2 How Can You Count Pages
+Printed?</a></h3>
+
+<p>In order to perform even remotely accurate accounting, you need to be able to
+determine how much paper a job uses. This is the essential problem of printer
+accounting.</p>
+
+<p>For plain text jobs, the problem is not that hard to solve: you count how many lines
+are in a job and compare it to how many lines per page your printer supports. Do not
+forget to take into account backspaces in the file which overprint lines, or long logical
+lines that wrap onto one or more additional physical lines.</p>
+
+<p>The text filter <tt class="COMMAND">lpf</tt> (introduced in <a
+href="printing-advanced.html#PRINTING-ADVANCED-LPF">lpf: a Text Filter</a>) takes into
+account these things when it does accounting. If you are writing a text filter which
+needs to do accounting, you might want to examine <tt class="COMMAND">lpf</tt>'s source
+code.</p>
+
+<p>How do you handle other file formats, though?</p>
+
+<p>Well, for DVI-to-LaserJet or DVI-to-<span class="TRADEMARK">PostScript</span>
+conversion, you can have your filter parse the diagnostic output of <tt
+class="COMMAND">dvilj</tt> or <tt class="COMMAND">dvips</tt> and look to see how many
+pages were converted. You might be able to do similar things with other file formats and
+conversion programs.</p>
+
+<p>But these methods suffer from the fact that the printer may not actually print all
+those pages. For example, it could jam, run out of toner, or explode——and the user
+would still get charged.</p>
+
+<p>So, what can you do?</p>
+
+<p>There is only one <span class="emphasis"><b class="EMPHASIS">sure</b></span> way to do
+<span class="emphasis"><b class="EMPHASIS">accurate</b></span> accounting. Get a printer
+that can tell you how much paper it uses, and attach it via a serial line or a network
+connection. Nearly all <span class="TRADEMARK">PostScript</span> printers support this
+notion. Other makes and models do as well (networked Imagen laser printers, for example).
+Modify the filters for these printers to get the page usage after they print each job and
+have them log accounting information based on that value <span class="emphasis"><b
+class="EMPHASIS">only</b></span>. There is no line counting nor error-prone file
+examination required.</p>
+
+<p>Of course, you can always be generous and make all printouts free.</p>
+</div>
+</div>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="printing-intro-setup.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="printing-using.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">基礎設定</td>
+<td width="34%" align="center" valign="top"><a href="printing.html"
+accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">Using Printers</td>
+</tr>
+</table>
+</div>
+
+<p align="center"><small>本文及其他文件，可由此下載：<a
+href="ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/">ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/</a>。</small></p>
+
+<p align="center"><small>若有 FreeBSD 方面疑問，請先閱讀 <a
+href="http://www.FreeBSD.org/docs.html">FreeBSD 相關文件</a>，如不能解決的話，再洽詢
+&#60;<a href="mailto:questions@FreeBSD.org">questions@FreeBSD.org</a>&#62;。<br />
+關於本文件的問題，請洽詢 &#60;<a
+href="mailto:doc@FreeBSD.org">doc@FreeBSD.org</a>&#62;。</small></p>
+</body>
+</html>
+

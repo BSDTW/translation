@@ -1,0 +1,246 @@
+<HTML>
+
+<LINK HREF="style.css" REL="STYLESHEET" TYPE="text/css">
+
+<HEAD>
+<TITLE>Transparent Bitmaps</TITLE>
+</HEAD>
+
+<BODY>
+<FONT SIZE="-1">
+[ <A HREF="./index.html">contents</A>
+| <A HREF="http://www.winprog.org/">#winprog</A>
+]
+</FONT>
+<HR>
+
+
+<H1>Transparent Bitmaps</H1>
+
+<P>Example: bmp_two</P>
+<IMG SRC="images/bmp_two.gif" ALT="[images/bmp_two.gif]" ALIGN="right">
+
+<H2>Transparency</H2>
+
+Giving bitmaps the appearance of having transparent sections is quite simple, and involves
+the use of a black and white <I>Mask</I> image in addition to the colour image that we want
+to look transparent.
+
+<P>
+The following conditions need to be met for the effect to work correctly:  First off, <B>the colour
+image must be black in all areas that we want to display as transparent</B>.  And second, 
+<B>the mask image must be white in the areas we want transparent</B>, and black elsewhere.
+The colour and mask images are displayed as the two left most images in the example picture on this page.
+
+<H3>BitBlt operations</H3>
+
+<P>
+How does this get us transparency?  First we <CODE>BitBlt()</CODE> the mask image using the <CODE>SRCAND</CODE> 
+operation as the last parameter, and then on top of that we <CODE>BitBlt()</CODE> the colour image using 
+the <CODE>SRCPAINT</CODE> operation.  The result is that the areas we wanted transparent don't change
+on the destination <CODE>HDC</CODE> while the rest of the image is drawn as usual.
+
+<PRE CLASS="SNIP">
+    SelectObject(hdcMem, g_hbmMask);
+    BitBlt(hdc, 0, 0, bm.bmWidth, bm.bmHeight, hdcMem, 0, 0, SRCAND);
+
+    SelectObject(hdcMem, g_hbmBall);
+    BitBlt(hdc, 0, bm.bmHeight, bm.bmWidth, bm.bmHeight, hdcMem, 0, 0, SRCPAINT);
+</PRE>
+
+<P>
+Pretty simple eh?  Fortunately it is, but one question remains... where does the mask come from?
+
+There are basically two ways to get the mask...  
+
+<UL>
+<LI>Make it yourself in whatever graphics program
+you made the colour bitmap in, and this is a reasonable solution if you are using a limited number of 
+graphics in your program.  This way you can just add the mask resource to your program and load it with 
+<CODE>LoadBitmap()</CODE>.
+<LI>Generate it when your program runs, by selecting one colour in your original image to be your "transparent" colour, and
+create a mask that is white everywhere that colour exists, and black everywhere else.
+</UL>
+
+<P>
+Since the first one is nothing new, you should be able to do things that way yourself if you want to.  The second
+way involves from <CODE>BitBlt()</CODE> trickery, and so I will show one way of accomplishing this.  
+
+<H3>Mask Creation</H3>
+
+<P>
+The simplest way to do it, would be to loop through every pixel on the colour image, check it's value and then set the corresponding
+pixel on the mask to black or white... <CODE>SetPixel()</CODE> is a <I>very</I> slow way to draw images however,
+and it's not really practical.
+
+<P>
+A much more efficient way involves using the way <CODE>BitBlt()</CODE> converts from colour images to black and
+white.  If you <CODE>BitBlt()</CODE> (using <CODE>SRCCOPY</CODE>) from an <CODE>HDC</CODE> holding a colour image into an <CODE>HDC</CODE> holding
+a black and white image, it will check what colour is set as the <I>Background Colour</I> on the colour image, and
+set all of those pixels to <B>White</B>, any pixel that is not the background colour will end up <B>Black</B>.
+
+<P>
+This works perfectly to our advantage, since all we need to do is set the background colour to the colour we want
+transparent, and <CODE>BitBlt()</CODE> from the colour image to the mask image.  Note that <B>this only works with
+a mask bitmap that is monochrome</B> (black and white)... that is bitmaps with a bit depth of 1 bit per pixel.
+If you try it with a colour image that only has black and white pixels, but the bitmap itself is greater than 1 bit (say
+16 or 24 bit) then it won't work.
+
+<P>
+Remember the first condition for succesful masking above?  It was that the colour image needs to be black everywhere
+we want transparent.  Since the bitmap I used in this example already meets that condition it doesn't really need anything
+special done, but if you're going to use this code for another image that has a different colour that you want transparent
+(hot pink is a common choice) then we need to take a second step, and that is use the mask we just created to alter 
+the original image, so that everywhere we want transparent is black.  It's ok if other places are black too, because
+they aren't white on the mask, they won't end up transparent.  We can accomplish this by <CODE>BitBlt()</CODE>ing from
+the new mask to the original colour image, using the <CODE>SRCINVERT</CODE> operation, which sets all the areas that
+are white in the mask to black in the colour image.
+
+<P>
+This is all a bit of a complex process, and so it's nice to have a handy utility function that does this all for us,
+and here it is:
+
+<PRE CLASS="SNIP">
+HBITMAP CreateBitmapMask(HBITMAP hbmColour, COLORREF crTransparent)
+{
+    HDC hdcMem, hdcMem2;
+    HBITMAP hbmMask;
+    BITMAP bm;
+
+    // Create monochrome (1 bit) mask bitmap.  
+
+    GetObject(hbmColour, sizeof(BITMAP), &bm);
+    hbmMask = CreateBitmap(bm.bmWidth, bm.bmHeight, 1, 1, NULL);
+
+    // Get some HDCs that are compatible with the display driver
+
+    hdcMem = CreateCompatibleDC(0);
+    hdcMem2 = CreateCompatibleDC(0);
+
+    SelectBitmap(hdcMem, hbmColour);
+    SelectBitmap(hdcMem2, hbmMask);
+
+    // Set the background colour of the colour image to the colour
+    // you want to be transparent.
+    SetBkColor(hdcMem, crTransparent);
+
+    // Copy the bits from the colour image to the B+W mask... everything
+    // with the background colour ends up white while everythig else ends up
+    // black...Just what we wanted.
+
+    BitBlt(hdcMem2, 0, 0, bm.bmWidth, bm.bmHeight, hdcMem, 0, 0, SRCCOPY);
+
+    // Take our new mask and use it to turn the transparent colour in our
+    // original colour image to black so the transparency effect will
+    // work right.
+    BitBlt(hdcMem, 0, 0, bm.bmWidth, bm.bmHeight, hdcMem2, 0, 0, SRCINVERT);
+
+    // Clean up.
+
+    DeleteDC(hdcMem);
+    DeleteDC(hdcMem2);
+
+    return hbmMask;
+}
+</PRE>
+
+NOTE: This function call <CODE>SelectObject()</CODE> to temporarily select the colour bitmap we pass it into an
+<CODE>HDC</CODE>.  A bitmap can't be selected into more than one <CODE>HDC</CODE> at a time, 
+so <B>make sure the bitmap isn't selected in to another <CODE>HDC</CODE></B> when you call this function or it will fail.
+
+Now that we have our handy dandy function, we can create a mask from the original picture as soon as we load it:
+
+<PRE CLASS="SNIP">
+    case WM_CREATE:
+        g_hbmBall = LoadBitmap(GetModuleHandle(NULL), MAKEINTRESOURCE(IDB_BALL));
+        if(g_hbmBall == NULL)
+            MessageBox(hwnd, "Could not load IDB_BALL!", "Error", MB_OK | MB_ICONEXCLAMATION);
+
+        g_hbmMask = CreateBitmapMask(g_hbmBall, RGB(0, 0, 0));
+        if(g_hbmMask == NULL)
+            MessageBox(hwnd, "Could not create mask!", "Error", MB_OK | MB_ICONEXCLAMATION);
+    break;
+</PRE>
+
+<P>
+The second parameter is of course the colour from the original image that we want to be transparent, in this case black.
+
+<H2>How does all this work?</H2>
+
+.. you may be asking.  Well hopefully your experience with C or C++ means that you understand binary operations such
+as OR, XOR, AND, NOT and so on.  I'm not going to explain this process completely, but I will try to show how I used
+it for this example.  If my explanation isn't clear enough (which it's bound to not be), reading up on binary
+operations should help you understand it.  Understanding it isn't critical for using it right now, and you can
+just get away with trusting that it works if you want.
+
+<H3>SRCAND</H3>
+
+The <CODE>SRCAND</CODE> raster operation, or ROP code for <CODE>BitBlt()</CODE> means to combine the bits using <CODE>AND</CODE>.
+That is: only bits that are set both in the source AND the destination get set in the final result.  We use this with our
+mask to set to black all the pixels that will eventually have colour on them from the colour image.  The mask image
+has black (which in binary is all 0's) where we want colour, and white (all 1's) where we want transparency.  Any value
+combined with 0 using AND is 0, and therefor all the pixels that are black in the mask are set to 0 in the result and end up black as well.  
+Any value that is combined with 1 using AND is left unaffected, so if it was 1 to begin with it stays 1, and if it was 0 to begin
+with it stays 0... therefor all the pixels that are white in our mask, are completely unaffected after the 
+<CODE>BitBlt()</CODE> call.  The result is the top right image in the example picture.
+
+<H3>SRCPAINT</H3>
+
+<CODE>SRCPAINT</CODE> uses the OR operation, so if either (or both) of the bits are set, then they will be set in the
+result.  We use this on the colour image.  When the black (transparent) part of our colour image is combined with
+the data on the destination using OR, the result is that the data is untouched, because any value combined with 0 using 
+the OR operation is left unaffected.
+
+<P>
+However, the rest of our colour image isn't black, and if the destination also isn't black, then we get a combination
+of the source and destination colours, the result you can see in the second ball on the second row in the example picture.
+This is the whole reason for using the mask to set the pixels we want to colour to black first, so that when we use
+OR with the colour image, the coloured pixels don't get mixed up with whatever is underneath them.
+
+<H3>SRCINVERT</H3>
+
+This is the <CODE>XOR</CODE> operation used to set the transparent colour in our original image to black (if it isn't black
+already).  Combining a black pixel from the mask with a non-background colour pixel in the destination leaves it
+untouched, while combining a white pixel from the mask (which remember we generated by setting a particular colour
+as the "background") with the background colour pixel on the destination cancels it out, and sets it to black.  
+
+<P>
+This is all a little GDI mojo that depends on it's colour vs. monochrome handling, and it hurts my head to think about it 
+too much, but it really makes sense... honest.
+
+<H2>Example</H2>
+
+The example code in the project bmp_two that goes along with this section contains the code for the example picture 
+on this page.  It consists of first drawing the mask and the colour image exactly as they are using <CODE>SRCCOPY</CODE>,
+then using each one alone with the <CODE>SRCAND</CODE> and <CODE>SRCPAINT</CODE> operations respectively, and finally
+combining them to produce the final product.
+
+<P>
+The background in this example is set to gray to make the transparency more obvious, as using these operations
+on a white or black background makes it hard to tell if they're actually working or not.
+
+<HR>
+<FONT SIZE="-1">
+Copyright &copy; 1998-2003, Brook Miles (<A HREF="mailto:forger(nospam)winprog.org">theForger</A>).  All rights reserved.
+</FONT>
+
+<SCRIPT language="JavaScript">
+<!--
+   var re = /\(nospam\)/ig;
+   var str;
+
+   for(i = 0;i < document.links.length;i++) 
+   {
+      str = "" + document.links(i).href;
+      if(str.search(re) != -1)
+         document.links(i).href = str.replace(re, "@");
+
+      str = "" + document.links(i).innerHTML;
+      if(str.search(re) != -1)
+         document.links(i).innerHTML = str.replace(re, "@");
+   }
+-->
+</SCRIPT>
+
+</BODY>
+</HTML>

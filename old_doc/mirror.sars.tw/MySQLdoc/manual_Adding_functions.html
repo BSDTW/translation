@@ -1,0 +1,339 @@
+<html>
+
+<head>
+<meta HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=big5">
+<style type="text/css">
+<!--
+.p14{font-size:14.8px;font-family:宋體;line-height:14pt;}
+.p5{ border: 1px solid rgb(146,201,201) }
+.a:hover{color:red;}
+a.t1:visited{color:red;}
+-->
+</style>
+<title>MySQL中文參考手冊-14 向MySQL增加新函數</title>
+</head>
+
+<body BGCOLOR="#FFFFFF" TEXT="#000000" LINK="#101090" VLINK="#7030B0" class="p4">
+
+<h1><img src="Img/mysql-logo.gif" alt="mysql-logo.gif (3082 bytes)" WIDTH="127" HEIGHT="60"><font color="#FF0000">MySQL中文參考手冊</font></h1>
+
+<p>譯者：晏子 <a href="mailto:(clyan@sohu.com">(clyan@sohu.com</a>）<br>
+GB 碼主頁：<a href="http://linuxdb.yeah.net">http://linuxdb.yeah.net</a></p>
+
+<p>Big5 轉碼者：statue <a href="mailto:statue.bbs@bbs.yzu.edu.tw">
+(statue@bbs.yzu.edu.tw</a>） <br>
+詞彙轉換：彭武興 (<a href="mailto:wilson@mailbox.com.tw">wilson@mailbox.com.tw</a>)<br>
+Big5 碼主頁：
+<a href="http://cnpa.yzu.edu.tw/~cfc/docs/mysqldoc_big5/manual_toc.html">
+http://cnpa.yzu.edu.tw/~cfc/docs/mysqldoc_big5/manual_toc.html</a><br>
+Big5 碼分站：
+<a href="http://php.wilson.gs/mysqldoc/big5/manual_toc.html">
+http://php.wilson.gs/mysqldoc/big5/manual_toc.html
+</p>
+<hr>
+
+<p><a HREF="manual_Introduction.html">第一章</a>, <a HREF="manual_Maintenance.html">前一章</a>, 
+<a HREF="manual_Adding_procedures.html">下一章</a>, <a HREF="manual_Concept_Index.html">最後一章</a>，<a HREF="manual_toc.html">目錄</a>. </p>
+
+<hr>
+
+<h1><a NAME="Adding_functions" HREF="manual_toc.html#Adding_functions">14 為MySQL增加新函數</a></h1>
+
+<p>有2種方法把新函數加到<strong>MySQL</strong>中： 
+
+<ul>
+  <li>你可以通過用戶定義函數(UDF)介面加入函數。用戶定義函數用<code>CREATE 
+    FUNCTION</code>和<code>DROP FUNCTION</code>語句動態地增加和刪除。見<a HREF="manual_Reference.html#CREATE_FUNCTION">7.30<code> CREATE FUNCTION/DROP FUNCTION</code>句法</a>。</li>
+  <li>你可以加入函數作為一個原生的(內置的)<strong>MySQL</strong>函數。原生函數被編譯進<code>mysqld</code>伺服器並且在一個永久的基礎上可得到。</li>
+</ul>
+
+<p>每種方法都有優點和缺點： 
+
+<ul>
+  <li>如果你編寫一個用戶定義函數，你必須安裝伺服器外還得自己安裝對像文件。如果你編譯函數進伺服器中，你不需要那樣做。</li>
+  <li>你能把UDF加到<strong>MySQL</strong>二進制代碼發行中。原生函數要求你修改原始碼版本。</li>
+  <li>如果你升級你的<strong>MySQL</strong>分發，你能繼續使用你的以前安裝的UDF。對於原生函數，你必須在每次升級時重複你的修改。 
+  </li>
+</ul>
+
+<p>無論你使用哪種方法增加新函數，他們可以像原生函數例如<code>ABS()</code>或<code>SOUNDEX()</code>那樣使用。</p>
+
+<p><a NAME="IDX674"></a> <a NAME="IDX675"></a> <a NAME="IDX676"></a> </p>
+
+<h2><a NAME="Adding_UDF" HREF="manual_toc.html#Adding_UDF">14.1 
+增加一個新的用戶定義函數</a></h2>
+
+<p>對於UDF的工作機制，函數必須用C或C++編寫並且你的作業系統必須支援動態裝載。<strong>MySQL</strong>原始碼版本包括一個文件<tt>“sql/udf_example.cc”</tt>，它定義了5個新函數。請教這個文件看UDF調用約定怎樣工作。</p>
+
+<p>對每一個你想在SQL語句中使用的函數，你應該定義對應的C(或 C++)函數。在下面的討論中，“xxx”用於一個函數名的例子。為了區別SQL和C/C++用法，<code>XXX()</code>(大寫)表明SQL函數調用，而<code>xxx()</code>((小寫)表明C/C++函數調用。</p>
+
+<p>你編寫實現<code>XXX()</code>的介面的C/C++函數是： 
+
+<dl COMPACT="Adding_UDF">
+  <dt><code>xxx()</code>（必需的）</dt>
+  <dd>主函數。這是計算函數結果的地方。SQL 類型於你的C/C++函數返回類型的對應關系如下：<table BORDER="1" WIDTH="100%" NOSAVE="#101090" class="p4">
+      <tr>
+        <td><strong>SQL 類型</strong> </td>
+        <td><strong>C/C++ 類型</strong> </td>
+      </tr>
+      <tr>
+        <td><code>STRING</code> </td>
+        <td><code>char *</code> </td>
+      </tr>
+      <tr>
+        <td><code>INTEGER</code> </td>
+        <td><code>long long</code> </td>
+      </tr>
+      <tr>
+        <td><code>REAL</code> </td>
+        <td><code>double</code> </td>
+      </tr>
+    </table>
+  </dd>
+  <dt><code>xxx_init()</code>（可選）</dt>
+  <dd>為<code>xxx()</code>的初始化函數，它可用於： <ul>
+      <li>檢查傳到<code>XXX()</code>的參數數量。 </li>
+      <li>檢查參數是一種所需的類型，或，另外地，當主函數被調用時，告訴<strong>MySQL</strong>，為了強制參數到你想要的類型。</li>
+      <li>分配任何由主函數所需的內存。</li>
+      <li>指定結果的最大長度。</li>
+      <li>指定(對<code>REAL</code>函數)小數位的最大數目。</li>
+      <li>指定結果是否能是<code>NULL</code>。</li>
+    </ul>
+  </dd>
+  <dt><code>xxx_deinit()</code>（可選）</dt>
+  <dd>為<code>xxx()</code>的結束函數，它應該釋放初始化函數分配了的任何內存。</dd>
+</dl>
+
+<p>當一條SQL語句調用<code>XXX()</code>時，<strong>MySQL</strong>調用初始化函數<code>xxx_init()</code>，讓它執行任何所需的設置，例如參數檢查或內存分配。如果<code>xxx_init()</code>返回一個錯誤，SQL語句用一條錯誤消息並被放棄而主函數和結束函數不被調用，否則，為每行調用主函數<code>xxx()</code>一次。在所有行被處理完後，結束函數<code>xxx_deinit()</code>被調用，因此它能執行任何必要的清除。</p>
+
+<p>所有函必須是執行緒安全的(不只是主函數，還有初始化和結束函數)。這意味著，你不允許分配任何改變的全局或靜態變數！如果你需要內存，你應該在<code>xxx_init()</code>種分配它並且在<code>xxx_deinit()</code>中釋放它。</p>
+
+<h3><a NAME="UDF_calling_sequences" HREF="manual_toc.html#UDF_calling_sequences">14.1.1 
+UDF的調用順序</a></h3>
+
+<p>主函數應該如下定義。注意返回類型和參數不同，取決於你是否在<code>CREATE 
+FUNCTION</code>語句中聲明SQL函數<code>XXX()</code>返回<code>STRING</code>、<code>INTEGER</code>或<code>REAL</code>： 
+</p>
+
+<p>對<code>STRING</code>函數：</p>
+
+<pre>char *xxx(UDF_INIT *initid, UDF_ARGS *args,
+              char *result, unsigned long *length,
+              char *is_null, char *error);
+</pre>
+
+<p>對<code>INTEGER</code>函數： </p>
+
+<pre>long long xxx(UDF_INIT *initid, UDF_ARGS *args,
+              char *is_null, char *error);
+</pre>
+
+<p>對於<code>REAL</code>函數： </p>
+
+<pre>double xxx(UDF_INIT *initid, UDF_ARGS *args,
+              char *is_null, char *error);
+</pre>
+
+<p>初始化和結束函數像這樣被聲明：</p>
+
+<pre>my_bool xxx_init(UDF_INIT *initid, UDF_ARGS *args, char *message);
+
+void xxx_deinit(UDF_INIT *initid);
+</pre>
+
+<p><code>initid</code>參數被傳給所有3個函數，它指向一個<code>UDF_INIT</code>結構，被用來在函數之間傳遞資訊。<code>UDF_INIT</code>結構成員列在下面。初始化函數應該填寫它想要改變的任何成員。（對一個成員使用內定值，不改變它。） 
+
+<dl COMPACT="UDF_calling_sequences">
+  <dt><code>my_bool maybe_null</code> </dt>
+  <dd>如果<code>xxx()</code>能返回<code>NULL</code>，<code>xxx_init()</code>應該設置<code>maybe_null</code>為<code>1</code>。如果參數的任何一個被聲明<code>maybe_null</code>，內定值是<code>1。</code></dd>
+  <dt><code>unsigned int decimals</code> </dt>
+  <dd>小數位數目。內定值是在被傳給主函數的參數中小數位的最大數目。（例如，如果函數傳遞<code>1.34</code>、<code>1.345</code>和<code>1.3</code>，內定值將是3，因為<code>1.345</code>有3個小數位。</dd>
+  <dt><code>unsigned int max_length</code> </dt>
+  <dd>字符串結果的最大長度。內定值不同，取決於函數的結果類型。對字符串函數，內定是最長的參數的長度。對整數函數，內定是21位。對實數函數，內定是13加上由<code>initid-&gt;decimals</code>指出的小數位數。（對數字函數，長度包括任何符號位或小數點字符。）</dd>
+  <dt><code>char *ptr</code> </dt>
+  <dd>函數可為它自己的目的使用的一個指針。例如，函數能使用<code>initid-&gt;ptr</code>在函數之間傳遞分配的內存。在<code>xxx_init()</code>中，分配內存並將它賦給這個指針：<pre>initid-&gt;ptr = allocated_memory;
+</pre>
+    <p>在<code>xxx()</code>和<code>xxx_deinit()</code>中，參照<code>initid-&gt;ptr</code>來使用或釋放內存。</p>
+  </dd>
+</dl>
+
+<h3><a NAME="UDF_arguments" HREF="manual_toc.html#UDF_arguments">14.1.2 參數處理</a></h3>
+
+<p><code>args</code>參數指向一個<code>UDF_ARGS</code>成員，其結構列在下面： 
+
+<dl COMPACT="UDF_arguments">
+  <dt><code>unsigned int arg_count</code> </dt>
+  <dd>參數個數。如果你想要函數用一個特定數量的參數被調用，在初始化函數中檢查這個值。例如：<pre>if (args-&gt;arg_count != 2)
+{
+    strcpy(message,&quot;XXX() requires two arguments&quot;);
+    return 1;
+}
+</pre>
+  </dd>
+  <dt><code>enum Item_result *arg_type</code> </dt>
+  <dd>為每個參數的類型。可能的類型值是<code>STRING_RESULT</code>、<code>INT_RESULT</code>和<code>REAL_RESULT</code>。為了確保參數是一種給定的類型，而如果他們不是，返回一個錯誤，在初始化函數中檢查<code>arg_type</code>數組。例如：<pre>if (args-&gt;arg_type[0] != STRING_RESULT
+      &amp;&amp; args-&gt;arg_type[1] != INT_RESULT)
+{
+    strcpy(message,&quot;XXX() requires a string and an integer&quot;);
+    return 1;
+}
+</pre>
+    <p>作為另一種要求你的函數的參數類型是特定類型的選擇，你可以使用初始化函數設置<code>arg_type</code>成員是你想要的類型。這導致<strong>MySQL</strong>為每個<code>xxx()</code>調用強制參數為那些類型，例如，為了指定頭 
+    2個參數到字符串和整數的強制，在<code>xxx_init()</code>中做這些：</p>
+    <pre>args-&gt;arg_type[0] = STRING_RESULT;
+args-&gt;arg_type[1] = INT_RESULT;
+</pre>
+  </dd>
+  <dt><code>char **args</code> </dt>
+  <dd><code>args-&gt;args</code>將關於你的函數用它調用的參數的一般特性的資訊傳遞到初始化函數。對一個常數參數<code>i</code>，<code>args-&gt;args[i]</code>指向參數值。（見下面關於如何正確存取值的指令) 
+    對一個非常數的參數，<code>args-&gt;args[i]</code>是<code>0</code>。一個常數參數只是使用常數的一個表達式，例如<code>3</code>或<code>4*7-2</code>或<code>SI(3.14)</code>。一個非常數參數是引用可能每行不同的值的一個表達式，例如列名字或用非常數參數調用的函數。對主函數的每次調用，<code>args-&gt;args</code>包含對當前正在處理的行所傳遞的實際參數。函數可以如下地引用一個參數<code>i</code>：<ul>
+      <li>一個<code>STRING_RESULT</code>類型的參數由一個字符串指針加一個長度給出，允許處理任意的長度的二進制的數據或數據。字符串內容可由<code>args-&gt;args[i]</code>得到並且字符串長度是<code>args-&gt;lengths[i]</code>。你不應該假設字符串是以空(null)結束的。</li>
+      <li>對於一個<code>INT_RESULT</code>類型的參數，你必須強制轉換<code>args-&gt;args[i]</code>為一個<code>long 
+        long</code>值： <pre>long long int_val;
+int_val = *((long long*) args-&gt;args[i]);
+</pre>
+      </li>
+      <li>對一個<code>REAL_RESULT</code>類型的參數，你必須強制轉換<code>args-&gt;args[i]</code>為一個<code>double</code>值： 
+        <pre>double    real_val;
+real_val = *((double*) args-&gt;args[i]);
+
+</pre>
+      </li>
+    </ul>
+  </dd>
+  <dt><code>unsigned long *lengths</code> </dt>
+  <dd>對初始化函數，<code>lengths</code>數組指出每個參數的最大字符串長度。對於主函數調用，<code>lengths</code>包含為當前正在被處理的行傳遞的任何字符串參數的實際長度。對<code>INT_RESULT</code>或<code>REAL_RESULT</code>類型的參數，<code>lengths</code>仍然包含參數的最大長度(就像對初始化函數)。 
+  </dd>
+</dl>
+
+<h3><a NAME="UDF_return_values" HREF="manual_toc.html#UDF_return_values">14.1.3 
+返回值和出錯處理</a></h3>
+
+<p>如果沒有出現錯誤，初始化函數應該返回<code>0</code>，否則返回<code>1</code>。如果發生一個錯誤，<code>xxx_init()</code>應該在<code>message</code>參數中儲存一條空字符結束的錯誤消息，消息將被返回給客戶。消息緩衝區是<code>MYSQL_ERRMSG_SIZE</code>個字符長，但是你應該試著保持消息不到80個字符以便它適合一幅標準終端屏幕的寬度。</p>
+
+<p>對<code>long long</code>和<code>double</code>函數，主函數<code>xxx()</code>的返回值是函數值。對字符串函數，字符串在<code>result</code>和<code>length</code>參數中被返回。<code>result</code>是至少255個字節長的一個緩衝區，設置這些為返回值的內容和長度。例如：</p>
+
+<pre>memcpy(result, &quot;result string&quot;, 13);
+*length = 13;
+</pre>
+
+<p>字符串函數返回值也通常指向結果。</p>
+
+<p>為了在主函數中表明一個<code>NULL</code>返回值，設定<code>is_null</code>為<code>1</code>：</p>
+
+<pre>*is_null = 1; 
+</pre>
+
+<p>為了在函數中表明一個錯誤返回，設定<code>error</code>參數<code>為1</code>： 
+</p>
+
+<pre>*error = 1; 
+</pre>
+
+<p>如果對任何行<code>xxx()</code>設置<code>*error</code>為<code>1</code>，對當前行函數值是<code>NULL</code>，並且在該語句中處理的後續行，<code>XXX()</code>被調用。(<code>xxx()</code>甚至將不為隨後的行被調用。）<strong>注意：</strong>在<strong>MySQL</strong> 
+3.22.10以前的版本中，你應該都設置<code>*error</code>和<code>*is_null</code>：</p>
+
+<pre>*error = 1;
+*is_null = 1;
+</pre>
+
+<h3><a NAME="UDF_compiling" HREF="manual_toc.html#UDF_compiling">14.1.4 
+編譯並安裝用戶定義函數</a></h3>
+
+<p>實現UDF的文件必須在伺服器運行的主機上被編譯並且安裝。這個程序下面描述，UDF例子文件包含在<strong>MySQL</strong>原始碼版本的<tt>“udf_example.cc”</tt>中，這個文件包含下列函數： 
+
+<ul>
+  <li><code>metaphon()</code>返回字符串參數的一個變音位(metaphon)字符串。這有點像一個soundex字符串，但是它更針對英語音調。</li>
+  <li><code>myfunc_double()</code>返回在其參數中所有字符的ASCII值的和，除以其參數長度之和。</li>
+  <li><code>myfunc_int()</code>返回其參數長度之和。 </li>
+  <li><code>lookup()</code>返回對主機名的IP數。</li>
+  <li><code>reverse_lookup()</code>返回對一個IP數的主機名。函數可以以一個字符串<code>&quot;xxx.xxx.xxx.xxx&quot;</code>或4位數字被調用。</li>
+</ul>
+
+<p>一個可動態裝載的文件應該編譯為一個共享的對像文件，使用像這樣的命令：</p>
+
+<pre>shell&gt; gcc -shared -o udf_example.so myfunc.cc
+</pre>
+
+<p>通過運行在你的<strong>MySQL</strong>原始程式樹的<tt>“sql”</tt>目錄下的下列命令，你能很容易地找出對你的系統正確的編譯器選項：</p>
+
+<pre>shell&gt; make udf_example.o
+</pre>
+
+<p>你應該運行一個類似於<code>make</code>顯示的編譯命令，除了你應該刪除接近行結尾的<code>-c</code>選項並且在行最後增加<code>-o 
+udf_example.so</code>。（在一些系統上，你可能需要在命令上保留<code>-c</code>。）</p>
+
+<p>一旦你編譯了包含UDF 
+的一個共享對像，你必須安裝它並且把它告訴<strong>MySQL</strong>。自<tt>“udf_example.cc”</tt>編譯一個共享對像產生一個名字類似<tt>“udf_example.so”</tt>的文件（準確的名字可以依平台不同而不同)。拷貝這個文件到被某個<code>ld</code>尋找的目錄，例如<tt>“/usr/lib”</tt>。在許多系統上，你能設定<code>LD_LIBRARY</code>或<code>LD_LIBRARY_PATH</code>環境變數，指向有UDF函數文件的目錄。<code>dopen</code>手冊頁告訴你你應該在你的系統上使用哪個變數。你應該在<code>mysql.server</code>或<code>safe_mysqld</code>中設置它並且重啟<code>mysqld</code>。</p>
+
+<p>在庫被安裝以後，用這些命令通知<code>mysqld</code>有關新的函數的資訊：</p>
+
+<pre>mysql&gt; CREATE FUNCTION metaphon RETURNS STRING SONAME &quot;udf_example.so&quot;;
+mysql&gt; CREATE FUNCTION myfunc_double RETURNS REAL SONAME &quot;udf_example.so&quot;;
+mysql&gt; CREATE FUNCTION myfunc_int RETURNS INTEGER SONAME &quot;udf_example.so&quot;;
+mysql&gt; CREATE FUNCTION lookup RETURNS STRING SONAME &quot;udf_example.so&quot;;
+mysql&gt; CREATE FUNCTION reverse_lookup RETURNS STRING SONAME &quot;udf_example.so&quot;;
+</pre>
+
+<p>函數可使用<code>DROP FUNCTION</code>刪除：</p>
+
+<pre>mysql&gt; DROP FUNCTION metaphon;
+mysql&gt; DROP FUNCTION myfunc_double;
+mysql&gt; DROP FUNCTION myfunc_int;
+mysql&gt; DROP FUNCTION lookup;
+mysql&gt; DROP FUNCTION reverse_lookup;
+</pre>
+
+<p><code>CREATE FUNCTION</code>和<code>DROP FUNCTION</code>語句在<code>mysql</code>資料庫中更新系統表<code>func</code>。函數名、類型和共享庫名被保存在該表中。你必須有對<code>mysql</code>的<strong>insert</strong>和<strong>delete</strong>權限以創建和拋棄函數。</p>
+
+<p>你不應該使用<code>CREATE FUNCTION</code>增加一個已經被創建的函數。如果你需要重新安裝函數，你應該用<code>DROP 
+FUNCTION</code>刪除它，然後用<code>CREATE FUNCTION</code>重新安裝它。你將需要這樣做，例如，如果你重新編譯你的函數的一個新版本，以便<code>mysqld</code>獲得新版本，否則伺服器將繼續使用舊版本。</p>
+
+<p>活躍函數在每次伺服器啟動時再次裝載，除非你使用<code>--skip-grant-tables</code>選項啟動<code>mysqld</code>。在這種情況下，UDF初始化被跳過並且UDF不可用。（活躍函數是一個用<code>CREATE 
+FUNCTION</code>裝載並且沒有用<code>DROP FUNCTION</code>刪除的函數。) </p>
+
+<p><a NAME="IDX677"></a> <a NAME="IDX678"></a> <a NAME="IDX679"></a> </p>
+
+<h2><a NAME="Adding_native_function" HREF="manual_toc.html#Adding_native_function">14.2 
+增加一個新的原生函數</a></h2>
+
+<p>增加一個新的原生函數的程序在下面描述。注意，你不能往一個可執行檔版本刈莨入新函數，因為該程序涉及修改<strong>MySQL</strong>原始程式。你必須從原始碼版本自行編譯<strong>MySQL</strong>。也要注意，如果你遷移到<strong>MySQL</strong>的其他版本（例如，當一個新版本被釋放時)，你將需要用新版本重複該程序。</p>
+
+<p>為了加入一個新的原生<strong>MySQL</strong>函數，遵循這些步驟： 
+
+<ol>
+  <li>在<tt>“lex.h”</tt>加入1行，它在<code>sql_functions[]</code>數組中定義函數名。 
+  </li>
+  <li>在<tt>“sql_yacc.yy”</tt>加入2行。一行指出示<code>yacc</code>應該定義的預處理器符號(這應該加在文件的開始)，然後定義函數參數並且將一個具有這些參數“項目”加到<code>simple_expr</code>語法分析規則中。有一個例子，檢查在<tt>“sql_yacc.yy 
+    </tt>所有的<code>SOUNDEX</code>出現看看它使怎樣做的。</li>
+  <li>在<tt>“item_func.h”</tt>中，聲明一個繼承<code>Item_num_func</code>或<code>Item_str_func</code>的類，取決於你的函數是返回一個數字或是一個字符串。</li>
+  <li>在<tt>“item_func.cc”</tt>，增加下列聲明之一，取決於你是正在定義一個數字或是字符串函數： 
+    <pre>double   Item_func_newname::val()
+longlong Item_func_newname::val_int()
+String  *Item_func_newname::Str(String *str)
+</pre>
+  </li>
+  <li>你也可能應該定義下列函數：<pre>void Item_func_newname::fix_length_and_dec()
+</pre>
+    <p>這個函數至少應該基於給定的參數計算<code>max_length</code>，<code>max_length</code>是函數可以返回的字符的最大數目。如果主函數不能返回一個<code>NULL</code>值，這個函數也應該設置<code>maybe_null 
+    = 0</code>。函數可以通過檢查參數的<code>maybe_null</code>變數以便檢查函數參數的任何一個是否能返回<code>NULL</code>。</p>
+  </li>
+</ol>
+
+<p>所有函數必須是執行緒安全的（thread-safed）。 </p>
+
+<p>對字符串函數，已知有一些額外的考慮： 
+
+<ul>
+  <li><code>String *str</code>參數提供一個可以用來保存結果的字符串緩衝區。 
+  </li>
+  <li>函數應該返回保存結果的字符串。</li>
+  <li>所有的當前字符串函數試圖避免分配任何內存，除非絕對必要！</li>
+</ul>
+
+<hr>
+
+<p><a HREF="manual_Introduction.html">第一章</a>, <a HREF="manual_Maintenance.html">前一章</a>, 
+<a HREF="manual_Adding_procedures.html">下一章</a>, <a HREF="manual_Concept_Index.html">最後一章</a>，<a HREF="manual_toc.html">目錄</a>. </p>
+</body>
+</html>

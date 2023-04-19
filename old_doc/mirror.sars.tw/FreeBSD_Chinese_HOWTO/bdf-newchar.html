@@ -1,0 +1,142 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>如何造字？</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.7" />
+<link rel="HOME" title="FreeBSD Chinese HOWTO" href="index.html" />
+<link rel="UP" title="常見問題解答" href="faq.html" />
+<link rel="PREVIOUS" title="wget 中文檔名變亂碼" href="wget.html" />
+<link rel="NEXT" title="內建 ftpd 的中文問題" href="ftpd.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD Chinese HOWTO</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="wget.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 21. 常見問題解答</td>
+<td width="10%" align="right" valign="bottom"><a href="ftpd.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="BDF-NEWCHAR" name="BDF-NEWCHAR">21.33. 如何造字？</a></h1>
+
+<p>造字的問題，目前筆者會的只有造點陣字而已。</p>
+
+<p>首先，找到您要改的字型檔，在這邊假設是 <tt class="FILENAME">kc15f.bdf</tt>，我只會改
+BDF 格式的， 然後把點陣的格式嵌入該字型檔內。</p>
+
+<p>以 '文' 為例，先得到他的 ENCODING：</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">echo "文" | hexdump</kbd>
+0000000 e5a4 000a
+0000003
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">printf %d 0xa4e5</kbd>
+42213
+</pre>
+
+<p>以及他的 ucs-2：</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">echo "文" | iconv -f big5 -t ucs-2 | hexdump</kbd>
+0000000 8765 0a00
+0000004
+</pre>
+
+<p>在這邊以 (方方土) 為例，他的 big5 code 是 0x964f(38479)，ucs-2 code 是 0x5803。</p>
+
+<p>先找到 <var class="OPTION">CHARS 13867</var>，因為要加新字， 所以改成 <var
+class="OPTION">CHARS 13868</var>。</p>
+
+<p>然後到這個檔的最後，找最後一個 <var class="OPTION">STARTCHAR</var> 加一，在這邊是
+STARTCHAR 13868 為最後一個，所以也加一， 然後將字塞最後，並在 <var
+class="OPTION">ENDFONT</var> 之前。</p>
+
+<pre class="PROGRAMLISTING">
+STARTCHAR 13869
+ENCODING 38479
+SWIDTH 31 0   
+DWIDTH 16 0   
+BBX 15 15 1 -3
+BITMAP
+1830  
+1424  
+FEFE  
+2040   
+3C78
+2488
+4488
+5528
+8A10
+0180   
+0110   
+3FF8
+0100
+0104   
+FFFE   
+ENDCHAR
+</pre>
+
+<p>然後跟著以下的方式作來讓 X 認識您所造的字：</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">cd /usr/X11R6/lib/X11/fonts/encodings/large/</kbd>
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">cp big5.eten-0.enc.gz big5.eten-0.enc.gz.bak</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">gunzip big5.eten-0.enc.gz</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">chmod 644 big5.eten-0.enc</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">vim big5.eten-0.enc</kbd>
+0x964F  0x5803
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">chmod 444 big5.eten-0.enc</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">gzip big5.eten-0.enc</kbd>
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">cd /usr/X11R6/lib/X11/fonts/local</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">fetch kc15f.bdf</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">mkfontdir</kbd>
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">crxvt -fm -kc-fixed-medium-r-normal--16-160-72-72-c-160-big5-0</kbd>
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">perl -e 'print pack("CC", 0x96, 0x4F);'</kbd>
+</pre>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="wget.html" accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="ftpd.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">wget 中文檔名變亂碼</td>
+<td width="34%" align="center" valign="top"><a href="faq.html" accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">內建 ftpd 的中文問題</td>
+</tr>
+</table>
+</div>
+</body>
+</html>
+

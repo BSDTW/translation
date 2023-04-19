@@ -1,0 +1,214 @@
+
+
+<!-- Vignette StoryServer 4 Sat Mar 11 15:43:24 2000 --> 
+<style type=text/css>
+<!--
+p,div {font-size:12pt; line-height:14pt; font-family:宋體;}
+.p1{font-size:12pt;font-family:宋體;}
+.p2{font-size:12pt;font-family:宋體;line-height:14pt;}
+.p3{font-size:14.8px;font-family:宋體;}
+.p4{font-size:14.8px;font-family:宋體;line-height:14pt;}
+.p5{font-size:1pt}
+a:hover{color:red;}
+a.t1:visited{color:red;}
+-->
+</style>
+<title>FreeBSD使用大全</title></head>
+
+<body bgcolor="#FFFFFF" text="#000000" link="#383098" vlink="#336699" alink="#FF0000" topmargin="0">
+<!-- Vignette StoryServer 4 Thu Mar 23 10:01:54 2000 --> <!-- Vignette StoryServer 4 Thu Mar 23 15:34:35 2000 --> 
+
+<!--開始：新聞內容-->
+<TABLE WIDTH=750 BORDER=0 CELLSPACING=0 CELLPADDING=0>
+
+<tr valign=top>
+
+
+
+<TD  valign=top>
+<CENTER><FONT COLOR=#000066 size=5><B>FreeBSD連載(68)：根據Windows網路設置Samba</B><br></FONT></CENTER>
+
+<HR  ALIGN="center" SIZE=1>
+<CENTER><FONT FACE="Arial" SIZE=2> 2000年1月9日 18:26 </FONT><FONT COLOR="#990000" SIZE=2>王波</FONT></CENTER><p>
+
+<h1 align=center>根據Windows網路設置Samba</h1>
+
+<p>　　使用SMB協議實現的網路的情況非常不同，有的網路僅僅由幾台Windows電腦組成，只需要提供電腦之
+間最簡單的資源共享，並不需要一個中心控制點 ── 檔案伺服器提供服務，而有的網路由多個物理網路通過路由器連接而
+成，網路中擁有多種檔案/打印伺服器，網路中的操作系統也各不相同，包括Windows和Unix。</p>
+
+<p>　　Samba伺服器能適應這些不同要求的網路的不同要求，然而由於網路的需要各不相同，因此對Samba的設置
+也不相同。如何根據需要來規劃網路、設置Samba是一個靈活但複雜的問題，同時存在各種各樣的設置方式都能滿足用戶
+的需要，這裡給出的只是一種可行性建議。</p>
+
+<ul><h2><P><LI>小型網路，無NT伺服器</LI></P></h2></ul>
+
+<p>　　這種網路的特征是網路資源的使用程度不大，通常所有的電腦都位於一個局域網內，幾乎沒有專用檔案/打印服務
+器。所有的電腦均使用工作組方式相互訪問。此時使用Samba伺服器的目的是為了更好的利用網路資源，提供方便的文
+件/打印服務。</p>
+
+<p>　　在這樣的網路中，僅僅需要最簡單的檔案/打印共享服務。雖然共享級認証方式能夠滿足此時的需要，但是最好使用
+用戶級認証方式，因為只有這樣才能充分發揮伺服器提供服務的優勢。需要為每個使用者在FreeBSD伺服器上分別建立
+帳戶，這樣預設設置就自動為用戶共享其個人目錄，用做私人數據的保存。為了網路用戶之間的相互交換數據，可以設定一個
+公用共享目錄，例如上面例子中的[public]共享目錄。</p>
+
+<p>　　由於Samba伺服器具有優秀性能，最好將Samba伺服器設置為本地的Browser，僅需要設置local
+master參數，並給os leverl一個較大的值就能達到目的。可以不使用nmbd的名字解析能力用做名字
+伺服器，因為此時都在一個物理網路內，b-node廣播方式能夠提供正確的解析。</p>
+
+<p>　　當為Windows 98或者Windows NT SP3提供認証的時候，它們將使用加密過的密碼進行認証
+，這能提供更大的網路安全性。Samba伺服器也能提供這種認証，然而對於這樣的小型網路，使用原有的非加密密碼認証
+方式就足夠了，因為密碼不會跨越網路傳輸，安全問題限制於本地網路內部。在Samba的文檔中，提供了將Windows
+98或Windows NT SP3設置為原有認証方式的注冊表信息，分別為/usr/local/share/examples/samba
+目錄下的Win95_PlainPassword.reg和NT4_PlainPasswor.reg檔案。</p>
+
+
+<ul><h2><P><LI>小型網路，與NT伺服器相互協作</LI></P></h2></ul>
+
+<p>　　這種網路中存在一個或幾個Windows NT伺服器，因此網路中的關鍵問題是認証的策略問題。有的網路中使
+用分散式的認証策略，即各個伺服器各自認証使用自己資源的客戶，適合網路上伺服器屬於不同管理者的情況，另一種情況是
+希望在訪問多個伺服器時使用一致的認証，無論是在NT伺服器還是在Samba伺服器，對於同一個用戶只需要使用一個口
+令就能使用網路資源。</p>
+
+<p>　　當使用分散認証策略的時候，Samba伺服器可以使用預設設置security=user，當要求Samba
+伺服器和NT伺服器認証同樣的用戶的時候，可以使用security=server，讓NT伺服器來認証用戶，此時還
+需要設置password server的名字，以設置提供認証的NT伺服器的名字。</p>
+
+<p>　　由於是使用NT伺服器對用戶進行認証，然而NT上的用戶與FreeBSD用戶的名字可能不同，為了將NT用戶
+重新映射到FreeBSD上的Samba用戶，就需要進行用戶名的映射。這需要使用username map參數，這
+個參數設置一個用於用戶名映射的檔案名，在這個指定的檔案中，可以設置FreeBSD用戶（或用戶組）等價於哪個NT
+用戶（或用戶組）。</p>
+
+<ul><h2><P><LI>具備多個物理網段的網路</LI></P></h2></ul>
+
+<p>　　如果用戶的網路跨越了多個物理網路，為了實現瀏覽，最重要的問題就是設置使用名字伺服器進行名字解析。此時可
+以選擇使用Samba的nmbd作為名字伺服器，也可以使用Windows NT的WINS伺服器作為名字伺服器。</p>
+
+<p>　　但如果計劃在網路上使用多個NetBIOS伺服器，以提供相互備份的能力，就只能使用多個Windows NT
+來運行WINS，WINS的一項功能是具備相互復制的能力，而nmbd不能和其他WINS伺服器相互復制數據。WINS
+使用這個功能主要是用於克服系統操作本身的故障，以提高可靠性。對於一般的網路，使用一個名字伺服器，尤其是運行
+在高穩定性的FreeBSD系統之上的Samba，可靠性就能滿足網路的需要。當然偶然發生的物理故障是無法避免的，
+這樣將使用分布在不同地點的多個伺服器會有一定的幫助。</p>
+
+<p>　　當選擇好了名字伺服器的設置策略，就可以決定Samba是用作名字伺服器，還是普通的使用名字伺服器的客戶機
+。Samba可以同時設置為名字伺服器和客戶，這並不衝突。還可以設置Samba為wins proxy和dns proxy
+，為不能使用wins和dns進行名字解析的NetBIOS客戶提供b-node方式的代理解析。</p>
+
+<p>　　當網路使用的是分散式的工作組方式的時候，要實現跨越子網的瀏覽，Samba伺服器就擔任了重要的角色。因為
+不存在域控制器，此時Samba要設置成為Domain master Browser，以提供不同子網間的Local
+master Browser相互交換瀏覽信息。</p>
+
+<p>　　如果遠程網路中的電腦不使用本地的Samba作名字伺服器，該網路中的Domain master Browser
+也不與本地網路的Local Master Browser交換信息，那麼那個網路上的Brower就無法了
+解本地上的資源列表。作為本地Browser的Samba伺服器能使用一種折衷的方法來通知遠程網路上的Browser
+，告訴它本地網路提供的資源服務，這就稱為remote announce，並能用於遠程網路中的瀏覽信息與本地網
+絡同步。為了使用remote announce，需要設置remote announce和remote brow
+se sync參數，使用的設置值為遠程網路的廣播地址，如192.168.1.255，可以同時設置多個地址，以同
+步多個遠程Browser。</p>
+
+<p>　　如果網路中使用NT域認証方式，就不要讓Samba和域控制器爭奪Domain master Browser
+的權利，Samba還不能設置為PDC為整個域服務。因此需要設置domain master=no，但可以讓Samba
+伺服器在沒有PDC的子網中擔當Local master Browser的任務，即設置local master=yes。</p>
+
+<p>　　目前NT伺服器使用SAM數據庫用於保存認証信息，但是下一代NT伺服器將轉向kerberos認証方式，這
+種認証方式本來就是在Unix上開發的，更有利於與Samba軟體集成在一起。</p>
+
+<p>　　此時也可以使用NT的域控制器提供認証（設置security=server，並將password server
+設置為PDC或BDC），以使得Samba伺服器能承認域控制器認証過的用戶。這樣客戶技術就可以使用加密認証
+方式，因為Samba伺服器不進行認証，僅僅是把認証信息轉發給相應的NT伺服器進行認証。</p>
+
+<ul><h2><P><LI>支持加密密碼認証</LI></P></h2></ul>
+
+<p>　　前面提到過為了適應Windows 98和Windows NT 4.0 SP3之後的客戶使用加密過的密碼
+認証方式，可以將客戶電腦再次設回使用普通密碼認証方式來解決認証問題，然而當客戶可能跨越子網進行認証的時候，就
+應該使用加密認証，以防止密碼明文跨越子網傳輸，提供更高的安全性。</p>
+
+<p>　　為了支持加密密碼認証，就需要使用獨立於FreeBSD系統密碼檔案之外的認証系統，需要在smb.conf
+中的[globals]中增加設置為：</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>      encrypt passwords = yes
+      null passwords = yes
+      smbpasswd file = /usr/local/private/smbpasswd</td></pre></tr></table>
+
+<p>　　然後使用命令smbpasswd -a user，將用戶user及其密碼加入指定的密碼檔案smbpasswd
+檔案中，這樣在進行認証時，就能通過這個smbpasswd檔案中的設置，通過密碼的加密認証方式進行認証了。然
+而此時將繞過系統標準認証過程，原有的用戶數據必須重新一個一個加入smbpasswd檔案中才能完成認証，沒有添加
+到這個檔案中的用戶就無法完成認証以使用系統資源。其中null passwords的設置不是必須的，只是Windows
+NT中一般許可用戶使用空密碼，這項設置用來與Windows NT的設置保持一致。加密密碼檔案smbpasswd
+在FreeBSD系統下預設位於/usr/local/private目錄中。</p>
+
+<p>　　Samba手冊中使用的目錄可能會與FreeBSD中的具體目錄不一致，這是因為使用Packages Collection
+或Ports Collection安裝的Samba，其軟體的安裝目錄均按照FreeBSD的習慣
+做了調整，因此會與Samba手冊提到的位置不太相同。</p>
+
+<p>　　此時，使用SWAT的PASSWORD設置選項可以直接將一個用戶加入密碼數據庫，並打開訪問這個用戶的許可
+，對於加密密碼的管理更為簡便。因此應該使用SWAT來管理加密密碼數據檔案，而不必直接使用smbpasswd命令。</p>
+
+<ul><h2><P><LI>將Samba伺服器加入域</LI></P></h2></ul>
+
+<p>　　使用域代替工作組的好處是，所有的客戶能使用同一個認証來訪問所有的資源。雖然域的概念還是一種非常初級的目
+錄服務的概念，但由於Microsoft網路的流行，它的重要性也非常之大。</p>
+
+<p>　　在一個以域為認証方式的網路中，可以將Samba加入域中去，以採用與域一致的認証和管理方式。在一個域中的
+SMB電腦有各種形式，一種為提供認証服務的域控制器，分為PDC（Primary Domain Controller）
+和BDC（Backup Domain Controller），另一種為不提供認証服務的成員伺服器，還有
+就是普通客戶機。Samba目前能作為普通成員伺服器加入域。</p>
+
+<p>　　為了將Samba加入域，首先要為Samba伺服器在PDC伺服器中創建一個帳戶，這個操作就如同為普通NT
+成員伺服器創建用戶一樣，通過NT伺服器的Server Manager for Domain來完成。</p>
+
+<p>　　加入NT域的時候首先需要停止Samba伺服器的正常工作，使用smbpasswd將這個Samba伺服器登
+記進域，這需要使用：</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># smbpasswd -j DOMAINNAME -r SAMBASRV</td></pre></tr></table>
+
+<P>其中DOMAINNAME為域的名字，SAMBASRV為前面PDC上為Samba伺服器創建的帳戶名，這樣Samba伺服器就加入了域。然後需要更改smb.conf的設置：</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>       security = domain
+       workgroup = DOMAINNAME
+       password server = PDC_name BDC1 BDC2</td></pre></tr></table>
+
+<p>　　password server設置為這個域內的PDC和BDC的名字。此後，再次啟動Samba伺服器，則
+伺服器就為這個域的一個成員伺服器了。</p>
+
+<p>　　雖然使用域認証方式和伺服器認証方式都能讓同樣的用戶訪問Samba伺服器上的資源，然而對於認証細節是不同
+的，使用域認証方式能利用域提供的更安全的認証通道。</p>
+
+<ul><h2><P><LI>設置lmhosts</LI></P></h2></ul>
+
+<P>　　在Miscrosfot擴展的NetBIOS協議中，可以使用查詢設置檔案的方法來進行名字解析，這個靜態檔案為
+lmhosts。在Windows下的這個檔案位於系統目錄中，Samba將其放在與smb.conf相同的目錄下，FreeBSD系統中
+為/usr/local/etc中。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># Sample Samba lmhosts file. 
+192.168.1.24  WIN95 
+192.168.1.21  NTSRV#20 
+192.168.1.121 FBSDSRV&#9;&#9;   #PRE</td></pre></tr></table>
+
+<p>　　lmhosts的檔案格式與/etc/hosts檔案非常類似，也是IP地址/主機名字對，除了這個檔案中使
+用的名字是NetBIOS名字。此外NetBIOS名字有一個定義屬性類別的字節（NetBIOS中的第16個字節）
+，這個屬性字節可以在lmhosts中直接設置，以回應特定類別的請求，不設置這個屬性，就對應所有類別。例如上例中
+的第二項定義的NTSRV，就明確指定了其屬性為16進制的0x20。</p>
+
+<p>　　此外，lmhosts也支持一些特殊的語法，例如用在一個設置項之後的#PRE選項將使得這項設置在啟動Samba
+時自動載入系統緩衝區中，使得能最先識別。標準情況下的lmhosts檔案在名字解析查詢順序的後部，在經過wins
+和b-node廣播之後才會檢查lmhosts設置，而#PRE選項設置的名字就會在此之前進行解析。</p>
+
+<p>　　一般情況下不必設置這個檔案，因為使用其他方法進行名字查詢就足夠了，這種方法用於輔助解析的，例如在跨越子
+網進行瀏覽，但wins伺服器不能提供訪問時的一個備份措施。其中的#PRE方式也能在系統啟動時的進行一些初始名字
+解析設置。</p>
+
+
+<BR>
+
+</TD>
+</TR></TABLE>
+
+
+
+</BODY>
+</HTML>

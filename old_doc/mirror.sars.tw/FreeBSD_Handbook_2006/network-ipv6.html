@@ -1,0 +1,562 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>IPv6</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.79" />
+<link rel="HOME" title="FreeBSD 使用手冊" href="index.html" />
+<link rel="UP" title="Advanced Networking" href="advanced-networking.html" />
+<link rel="PREVIOUS" title="Parallel Line IP (PLIP)" href="network-plip.html" />
+<link rel="NEXT" title="Asynchronous Transfer Mode (ATM)" href="network-atm.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD 使用手冊</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="network-plip.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 27 Advanced Networking</td>
+<td width="10%" align="right" valign="bottom"><a href="network-atm.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="NETWORK-IPV6" name="NETWORK-IPV6">27.10 IPv6</a></h1>
+
+<i class="AUTHORGROUP"><span class="CONTRIB">Originally Written by</span> Aaron
+Kaplan.</i> <i class="AUTHORGROUP"><span class="CONTRIB">Restructured and Added by</span>
+Tom Rhodes.</i> <i class="AUTHORGROUP"><span class="CONTRIB">Extended by</span> Brad
+Davis.</i> 
+
+<p>IPv6 (also know as IPng “IP next generation”) is the new version of the well known
+IP protocol (also know as <acronym class="ACRONYM">IPv4</acronym>). Like the other
+current *BSD systems, FreeBSD includes the KAME IPv6 reference implementation. So your
+FreeBSD system comes with all you will need to experiment with IPv6. This section focuses
+on getting IPv6 configured and running.</p>
+
+<p>In the early 1990s, people became aware of the rapidly diminishing address space of
+IPv4. Given the expansion rate of the Internet there were two major concerns:</p>
+
+<ul>
+<li>
+<p>Running out of addresses. Today this is not so much of a concern anymore since RFC1918
+private address space (<tt class="HOSTID">10.0.0.0/8</tt>, <tt
+class="HOSTID">172.16.0.0/12</tt>, and <tt class="HOSTID">192.168.0.0/16</tt>) and
+Network Address Translation (<acronym class="ACRONYM">NAT</acronym>) are being
+employed.</p>
+</li>
+
+<li>
+<p>Router table entries were getting too large. This is still a concern today.</p>
+</li>
+</ul>
+
+<p>IPv6 deals with these and many other issues:</p>
+
+<ul>
+<li>
+<p>128 bit address space. In other words theoretically there are
+340,282,366,920,938,463,463,374,607,431,768,211,456 addresses available. This means there
+are approximately 6.67 * 10^27 IPv6 addresses per square meter on our planet.</p>
+</li>
+
+<li>
+<p>Routers will only store network aggregation addresses in their routing tables thus
+reducing the average space of a routing table to 8192 entries.</p>
+</li>
+</ul>
+
+<p>There are also lots of other useful features of IPv6 such as:</p>
+
+<ul>
+<li>
+<p>Address autoconfiguration (<a href="http://www.ietf.org/rfc/rfc2462.txt"
+target="_top">RFC2462</a>)</p>
+</li>
+
+<li>
+<p>Anycast addresses (“one-out-of many”)</p>
+</li>
+
+<li>
+<p>Mandatory multicast addresses</p>
+</li>
+
+<li>
+<p>IPsec (IP security)</p>
+</li>
+
+<li>
+<p>Simplified header structure</p>
+</li>
+
+<li>
+<p>Mobile <acronym class="ACRONYM">IP</acronym></p>
+</li>
+
+<li>
+<p>IPv6-to-IPv4 transition mechanisms</p>
+</li>
+</ul>
+
+<p>For more information see:</p>
+
+<ul>
+<li>
+<p>IPv6 overview at <a href="http://playground.sun.com/pub/ipng/html/ipng-main.html"
+target="_top">playground.sun.com</a></p>
+</li>
+
+<li>
+<p><a href="http://www.kame.net" target="_top">KAME.net</a></p>
+</li>
+
+<li>
+<p><a href="http://www.6bone.net" target="_top">6bone.net</a></p>
+</li>
+</ul>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN40665" name="AEN40665">27.10.1 Background on IPv6
+Addresses</a></h2>
+
+<p>There are different types of IPv6 addresses: Unicast, Anycast and Multicast.</p>
+
+<p>Unicast addresses are the well known addresses. A packet sent to a unicast address
+arrives exactly at the interface belonging to the address.</p>
+
+<p>Anycast addresses are syntactically indistinguishable from unicast addresses but they
+address a group of interfaces. The packet destined for an anycast address will arrive at
+the nearest (in router metric) interface. Anycast addresses may only be used by
+routers.</p>
+
+<p>Multicast addresses identify a group of interfaces. A packet destined for a multicast
+address will arrive at all interfaces belonging to the multicast group.</p>
+
+<div class="NOTE">
+<blockquote class="NOTE">
+<p><b>Note:</b> The IPv4 broadcast address (usually <tt
+class="HOSTID">xxx.xxx.xxx.255</tt>) is expressed by multicast addresses in IPv6.</p>
+</blockquote>
+</div>
+
+<div class="TABLE"><a id="AEN40674" name="AEN40674"></a>
+<p><b>Table 27-2. Reserved IPv6 addresses</b></p>
+
+<table border="0" frame="void" class="CALSTABLE">
+<col />
+<col />
+<col />
+<col />
+<thead>
+<tr>
+<th>IPv6 address</th>
+<th>Prefixlength (Bits)</th>
+<th>Description</th>
+<th>Notes</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><tt class="HOSTID">::</tt></td>
+<td>128 bits</td>
+<td>unspecified</td>
+<td>cf. <tt class="HOSTID">0.0.0.0</tt> in IPv4</td>
+</tr>
+
+<tr>
+<td><tt class="HOSTID">::1</tt></td>
+<td>128 bits</td>
+<td>loopback address</td>
+<td>cf. <tt class="HOSTID">127.0.0.1</tt> in IPv4</td>
+</tr>
+
+<tr>
+<td><tt class="HOSTID">::00:xx:xx:xx:xx</tt></td>
+<td>96 bits</td>
+<td>embedded IPv4</td>
+<td>The lower 32 bits are the IPv4 address. Also called “IPv4 compatible IPv6
+address”</td>
+</tr>
+
+<tr>
+<td><tt class="HOSTID">::ff:xx:xx:xx:xx</tt></td>
+<td>96 bits</td>
+<td>IPv4 mapped IPv6 address</td>
+<td>The lower 32 bits are the IPv4 address. For hosts which do not support IPv6.</td>
+</tr>
+
+<tr>
+<td><tt class="HOSTID">fe80::</tt> - <tt class="HOSTID">feb::</tt></td>
+<td>10 bits</td>
+<td>link-local</td>
+<td>cf. loopback address in IPv4</td>
+</tr>
+
+<tr>
+<td><tt class="HOSTID">fec0::</tt> - <tt class="HOSTID">fef::</tt></td>
+<td>10 bits</td>
+<td>site-local</td>
+<td>&nbsp;</td>
+</tr>
+
+<tr>
+<td><tt class="HOSTID">ff::</tt></td>
+<td>8 bits</td>
+<td>multicast</td>
+<td>&nbsp;</td>
+</tr>
+
+<tr>
+<td><tt class="HOSTID">001</tt> (base 2)</td>
+<td>3 bits</td>
+<td>global unicast</td>
+<td>All global unicast addresses are assigned from this pool. The first 3 bits are
+“001”.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN40738" name="AEN40738">27.10.2 Reading IPv6
+Addresses</a></h2>
+
+<p>The canonical form is represented as: <tt class="HOSTID">x:x:x:x:x:x:x:x</tt>, each
+“x” being a 16 Bit hex value. For example <tt
+class="HOSTID">FEBC:A574:382B:23C1:AA49:4592:4EFE:9982</tt></p>
+
+<p>Often an address will have long substrings of all zeros therefore one such substring
+per address can be abbreviated by “::”. Also up to three leading “0”s per hexquad can
+be omitted. For example <tt class="HOSTID">fe80::1</tt> corresponds to the canonical form
+<tt class="HOSTID">fe80:0000:0000:0000:0000:0000:0000:0001</tt>.</p>
+
+<p>A third form is to write the last 32 Bit part in the well known (decimal) IPv4 style
+with dots “.” as separators. For example <tt class="HOSTID">2002::10.0.0.1</tt>
+corresponds to the (hexadecimal) canonical representation <tt
+class="HOSTID">2002:0000:0000:0000:0000:0000:0a00:0001</tt> which in turn is equivalent
+to writing <tt class="HOSTID">2002::a00:1</tt>.</p>
+
+<p>By now the reader should be able to understand the following:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">ifconfig</kbd>
+</pre>
+
+<pre class="PROGRAMLISTING">
+rl0: flags=8943&lt;UP,BROADCAST,RUNNING,PROMISC,SIMPLEX,MULTICAST&gt; mtu 1500
+         inet 10.0.0.10 netmask 0xffffff00 broadcast 10.0.0.255
+         inet6 fe80::200:21ff:fe03:8e1%rl0 prefixlen 64 scopeid 0x1
+         ether 00:00:21:03:08:e1
+         media: Ethernet autoselect (100baseTX )
+         status: active
+</pre>
+
+<p><tt class="HOSTID">fe80::200:21ff:fe03:8e1%rl0</tt> is an auto configured link-local
+address. It is generated from the MAC address as part of the auto configuration.</p>
+
+<p>For further information on the structure of IPv6 addresses see <a
+href="http://www.ietf.org/rfc/rfc3513.txt" target="_top">RFC3513</a>.</p>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN40763" name="AEN40763">27.10.3 Getting Connected</a></h2>
+
+<p>Currently there are four ways to connect to other IPv6 hosts and networks:</p>
+
+<ul>
+<li>
+<p>Join the experimental 6bone</p>
+</li>
+
+<li>
+<p>Getting an IPv6 network from your upstream provider. Talk to your Internet provider
+for instructions.</p>
+</li>
+
+<li>
+<p>Tunnel via 6-to-4 (<a href="http://www.ietf.org/rfc/rfc3068.txt"
+target="_top">RFC3068</a>)</p>
+</li>
+
+<li>
+<p>Use the <a href="http://www.FreeBSD.org/cgi/url.cgi?ports/net/freenet6/pkg-descr"><tt
+class="FILENAME">net/freenet6</tt></a> port if you are on a dial-up connection.</p>
+</li>
+</ul>
+
+<p>Here we will talk on how to connect to the 6bone since it currently seems to be the
+most popular way.</p>
+
+<p>First take a look at the <a href="http://www.6bone.net/" target="_top">6bone</a> site
+and find a 6bone connection nearest to you. Write to the responsible person and with a
+little bit of luck you will be given instructions on how to set up your connection.
+Usually this involves setting up a GRE (gif) tunnel.</p>
+
+<p>Here is a typical example on setting up a <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=gif&amp;sektion=4"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">gif</span>(4)</span></a> tunnel:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">ifconfig gif0 create</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">ifconfig gif0</kbd>
+gif0: flags=8010&lt;POINTOPOINT,MULTICAST&gt; mtu 1280
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">ifconfig gif0 tunnel <tt
+class="REPLACEABLE"><i>MY_IPv4_ADDR MY_IPv4_REMOTE_TUNNEL_ENDPOINT_ADDR</i></tt></kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">ifconfig gif0 inet6 alias <tt
+class="REPLACEABLE"><i>MY_ASSIGNED_IPv6_TUNNEL_ENDPOINT_ADDR MY_IPv6_REMOTE_TUNNEL_ENDPOINT_ADDR</i></tt></kbd>
+</pre>
+
+<p>Replace the capitalized words by the information you received from the upstream 6bone
+node.</p>
+
+<p>This establishes the tunnel. Check if the tunnel is working by <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=ping6&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">ping6</span>(8)</span></a> 'ing <tt
+class="HOSTID">ff02::1%gif0</tt>. You should receive two ping replies.</p>
+
+<div class="NOTE">
+<blockquote class="NOTE">
+<p><b>Note:</b> In case you are intrigued by the address <tt
+class="HOSTID">ff02:1%gif0</tt>, this is a multicast address. <tt
+class="LITERAL">%gif0</tt> states that the multicast address at network interface <tt
+class="DEVICENAME">gif0</tt> is to be used. Since we <tt class="COMMAND">ping</tt> a
+multicast address the other endpoint of the tunnel should reply as well.</p>
+</blockquote>
+</div>
+
+<p>By now setting up a route to your 6bone uplink should be rather straightforward:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">route add -inet6 default -interface gif0</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">ping6 -n <tt
+class="REPLACEABLE"><i>MY_UPLINK</i></tt></kbd>
+</pre>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">traceroute6 www.jp.FreeBSD.org</kbd>
+(3ffe:505:2008:1:2a0:24ff:fe57:e561) from 3ffe:8060:100::40:2, 30 hops max, 12 byte packets
+     1  atnet-meta6  14.147 ms  15.499 ms  24.319 ms
+     2  6bone-gw2-ATNET-NT.ipv6.tilab.com  103.408 ms  95.072 ms *
+     3  3ffe:1831:0:ffff::4  138.645 ms  134.437 ms  144.257 ms
+     4  3ffe:1810:0:6:290:27ff:fe79:7677  282.975 ms  278.666 ms  292.811 ms
+     5  3ffe:1800:0:ff00::4  400.131 ms  396.324 ms  394.769 ms
+     6  3ffe:1800:0:3:290:27ff:fe14:cdee  394.712 ms  397.19 ms  394.102 ms
+</pre>
+
+<p>This output will differ from machine to machine. By now you should be able to reach
+the IPv6 site <a href="http://www.kame.net" target="_top">www.kame.net</a> and see the
+dancing tortoise -- that is if you have a IPv6 enabled browser such as <a
+href="http://www.FreeBSD.org/cgi/url.cgi?ports/www/mozilla/pkg-descr"><tt
+class="FILENAME">www/mozilla</tt></a>, <b class="APPLICATION">Konqueror</b>, which is
+part of <a href="http://www.FreeBSD.org/cgi/url.cgi?ports/x11/kdebase3/pkg-descr"><tt
+class="FILENAME">x11/kdebase3</tt></a>, or <a
+href="http://www.FreeBSD.org/cgi/url.cgi?ports/www/epiphany/pkg-descr"><tt
+class="FILENAME">www/epiphany</tt></a>.</p>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN40823" name="AEN40823">27.10.4 DNS in the IPv6 World</a></h2>
+
+<p>There used to be two types of DNS records for IPv6. The IETF has declared A6 records
+obsolete. AAAA records are the standard now.</p>
+
+<p>Using AAAA records is straightforward. Assign your hostname to the new IPv6 address
+you just received by adding:</p>
+
+<pre class="PROGRAMLISTING">
+MYHOSTNAME           AAAA    MYIPv6ADDR
+</pre>
+
+<p>To your primary zone DNS file. In case you do not serve your own <acronym
+class="ACRONYM">DNS</acronym> zones ask your <acronym class="ACRONYM">DNS</acronym>
+provider. Current versions of <b class="APPLICATION">bind</b> (version 8.3 and 9) and <a
+href="http://www.FreeBSD.org/cgi/url.cgi?ports/dns/djbdns/pkg-descr"><tt
+class="FILENAME">dns/djbdns</tt></a> (with the IPv6 patch) support AAAA records.</p>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN40833" name="AEN40833">27.10.5 Applying the needed changes to
+<tt class="FILENAME">/etc/rc.conf</tt></a></h2>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="AEN40836" name="AEN40836">27.10.5.1 IPv6 Client
+Settings</a></h3>
+
+<p>These settings will help you configure a machine that will be on your LAN and act as a
+client, not a router. To have <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=rtsol&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">rtsol</span>(8)</span></a> autoconfigure
+your interface on boot all you need to add is:</p>
+
+<pre class="PROGRAMLISTING">
+ipv6_enable="YES"
+</pre>
+
+<p>To statically assign an IP address such as <tt
+class="HOSTID">2001:471:1f11:251:290:27ff:fee0:2093</tt>, to your <tt
+class="DEVICENAME">fxp0</tt> interface, add:</p>
+
+<pre class="PROGRAMLISTING">
+ipv6_ifconfig_fxp0="2001:471:1f11:251:290:27ff:fee0:2093"
+</pre>
+
+<p>To assign a default router of <tt class="HOSTID">2001:471:1f11:251::1</tt> add the
+following to <tt class="FILENAME">/etc/rc.conf</tt>:</p>
+
+<pre class="PROGRAMLISTING">
+ipv6_defaultrouter="2001:471:1f11:251::1"
+</pre>
+</div>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="AEN40851" name="AEN40851">27.10.5.2 IPv6 Router/Gateway
+Settings</a></h3>
+
+<p>This will help you take the directions that your tunnel provider, such as the <a
+href="http://www.6bone.net/" target="_top">6bone</a>, has given you and convert it into
+settings that will persist through reboots. To restore your tunnel on startup use
+something like the following in <tt class="FILENAME">/etc/rc.conf</tt>:</p>
+
+<p>List the Generic Tunneling interfaces that will be configured, for example <tt
+class="DEVICENAME">gif0</tt>:</p>
+
+<pre class="PROGRAMLISTING">
+gif_interfaces="gif0"
+</pre>
+
+<p>To configure the interface with a local endpoint of <tt
+class="REPLACEABLE"><i>MY_IPv4_ADDR</i></tt> to a remote endpoint of <tt
+class="REPLACEABLE"><i>REMOTE_IPv4_ADDR</i></tt>:</p>
+
+<pre class="PROGRAMLISTING">
+gifconfig_gif0="<tt class="REPLACEABLE"><i>MY_IPv4_ADDR REMOTE_IPv4_ADDR</i></tt>"
+</pre>
+
+<p>To apply the IPv6 address you have been assigned for use as your IPv6 tunnel endpoint,
+add:</p>
+
+<pre class="PROGRAMLISTING">
+ipv6_ifconfig_gif0="<tt
+class="REPLACEABLE"><i>MY_ASSIGNED_IPv6_TUNNEL_ENDPOINT_ADDR</i></tt>"
+</pre>
+
+<p>Then all you have to do is set the default route for IPv6. This is the other side of
+the IPv6 tunnel:</p>
+
+<pre class="PROGRAMLISTING">
+ipv6_defaultrouter="<tt
+class="REPLACEABLE"><i>MY_IPv6_REMOTE_TUNNEL_ENDPOINT_ADDR</i></tt>"
+</pre>
+</div>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="AEN40870" name="AEN40870">27.10.5.3 IPv6 Tunnel
+Settings</a></h3>
+
+<p>If the server is to route IPv6 between the rest of your network and the world, the
+following <tt class="FILENAME">/etc/rc.conf</tt> setting will also be needed:</p>
+
+<pre class="PROGRAMLISTING">
+ipv6_gateway_enable="YES"
+</pre>
+</div>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN40875" name="AEN40875">27.10.6 Router Advertisement and Host
+Auto Configuration</a></h2>
+
+<p>This section will help you setup <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=rtadvd&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">rtadvd</span>(8)</span></a> to advertise
+the IPv6 default route.</p>
+
+<p>To enable <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=rtadvd&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">rtadvd</span>(8)</span></a> you will
+need the following in your <tt class="FILENAME">/etc/rc.conf</tt>:</p>
+
+<pre class="PROGRAMLISTING">
+rtadvd_enable="YES"
+</pre>
+
+<p>It is important that you specify the interface on which to do IPv6 router
+solicitation. For example to tell <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=rtadvd&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">rtadvd</span>(8)</span></a> to use <tt
+class="DEVICENAME">fxp0</tt>:</p>
+
+<pre class="PROGRAMLISTING">
+rtadvd_interfaces="fxp0"
+</pre>
+
+<p>Now we must create the configuration file, <tt class="FILENAME">/etc/rtadvd.conf</tt>.
+Here is an example:</p>
+
+<pre class="PROGRAMLISTING">
+fxp0:\
+    :addrs#1:addr="2001:471:1f11:246::":prefixlen#64:tc=ether:
+</pre>
+
+<p>Replace <tt class="DEVICENAME">fxp0</tt> with the interface you are going to be
+using.</p>
+
+<p>Next, replace <tt class="HOSTID">2001:471:1f11:246::</tt> with the prefix of your
+allocation.</p>
+
+<p>If you are dedicated a <tt class="HOSTID">/64</tt> subnet you will not need to change
+anything else. Otherwise, you will need to change the <tt class="LITERAL">prefixlen#</tt>
+to the correct value.</p>
+</div>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="network-plip.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="network-atm.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">Parallel Line IP (PLIP)</td>
+<td width="34%" align="center" valign="top"><a href="advanced-networking.html"
+accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">Asynchronous Transfer Mode (ATM)</td>
+</tr>
+</table>
+</div>
+
+<p align="center"><small>This, and other documents, can be downloaded from <a
+href="ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/">ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/</a>.</small></p>
+
+<p align="center"><small>For questions about FreeBSD, read the <a
+href="http://www.FreeBSD.org/docs.html">documentation</a> before contacting &#60;<a
+href="mailto:questions@FreeBSD.org">questions@FreeBSD.org</a>&#62;.<br />
+For questions about this documentation, e-mail &#60;<a
+href="mailto:doc@FreeBSD.org">doc@FreeBSD.org</a>&#62;.</small></p>
+</body>
+</html>
+

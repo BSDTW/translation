@@ -1,0 +1,672 @@
+<html>
+
+<head>
+<meta HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=big5">
+<title>MySQL中文參考手冊-18 問題和常見錯誤</title>
+<style type="text/css">
+<!--
+.p14{font-size:14.8px;font-family:宋體;line-height:14pt;}
+.p5{ border: 1px solid rgb(146,201,201) }
+.a:hover{color:red;}
+a.t1:visited{color:red;}
+-->
+</style>
+</head>
+
+<body BGCOLOR="#FFFFFF" TEXT="#000000" LINK="#101090" VLINK="#7030B0" class="p4">
+
+<h1><img src="Img/mysql-logo.gif" alt="mysql-logo.gif (3082 bytes)" WIDTH="127" HEIGHT="60"><font color="#FF0000">MySQL中文參考手冊</font></h1>
+
+<p>譯者：晏子 <a href="mailto:(clyan@sohu.com">(clyan@sohu.com</a>）<br>
+GB 碼主頁：<a href="http://linuxdb.yeah.net">http://linuxdb.yeah.net</a></p>
+
+<p>Big5 轉碼者：statue <a href="mailto:statue.bbs@bbs.yzu.edu.tw">
+(statue@bbs.yzu.edu.tw</a>） <br>
+詞彙轉換：彭武興 (<a href="mailto:wilson@mailbox.com.tw">wilson@mailbox.com.tw</a>)<br>
+Big5 碼主頁：
+<a href="http://cnpa.yzu.edu.tw/~cfc/docs/mysqldoc_big5/manual_toc.html">
+http://cnpa.yzu.edu.tw/~cfc/docs/mysqldoc_big5/manual_toc.html</a><br>
+Big5 碼分站：
+<a href="http://php.wilson.gs/mysqldoc/big5/manual_toc.html">
+http://php.wilson.gs/mysqldoc/big5/manual_toc.html
+</p>
+
+<hr>
+
+<p><a HREF="manual_Introduction.html">第一章</a>, <a HREF="manual_Common_programs.html">前一章</a>, 
+<a HREF="manual_Common_problems.html">下一章</a>, <a HREF="manual_Concept_Index.html">最後一章</a>，<a HREF="manual_toc.html">目錄</a>. </p>
+
+<hr>
+
+<h1><a NAME="Problems" HREF="manual_toc.html#Problems">18 問題和常見錯誤</a></h1>
+
+<h2><a NAME="Crashing" HREF="manual_toc.html#Crashing">18.1 如果MySQL總是崩潰怎麼辦</a></h2>
+
+<p>所有<strong>MySQL</strong>在發布它們之前，在許多平台上被測試。這並不意味著在<strong>MySQL</strong>中沒有任何錯誤，但是如果有錯誤，它們是很少的並且很能難發現。如果你有一個問題並且如果你嘗試找出究竟是什麼摧毀了你的系統，它將總是有幫助的，因為你將有一個更好機會使得它被快速修復。</p>
+
+<p>首先你應該試著找出問題<code>mysqld</code>背景執行程式是否死掉或你的問題是否與你的客戶有關。你可以用<code>mysqladmin 
+version</code>檢查你的<code>mysqld</code>伺服器正常執行了多長時間，如果<code>mysqld</code>死了，你可以在文件<tt>“mysql-data-directory/'hostname'.err”</tt>中找到其原因。 
+</p>
+
+<p>因為很難知道一些東西為什麼崩潰，首先試著檢查為其它人工作的東西是否使你崩潰。請嘗試下列事情： 
+
+<ul>
+  <li>與<code>mysqladmin shutdown</code>停止<code>mysqld</code>背景執行程式，在所有表上運行<code>myisamchk 
+    --silent --force */*.MYI</code>並重啟<code>mysqld</code>守護經進程。這將保証你從一個干淨的狀態運行。見<a HREF="manual_Maintenance.html#Maintenance">13 維護MySQL安裝</a>。</li>
+  <li>使用<code>mysqld --log</code>並且試著從日誌資訊確定是否是某個特定的查詢殺死了伺服器。全部錯誤的95%與特定的查詢有關！通常它是在日誌文件中就在<strong>MySQL</strong>重啟之前的最後查詢之一。你也許可以使用下列程序驗証它：<ul>
+      <li>停止<strong>MySQL</strong>背景執行程式(用<code>mysqladmin shutdown</code>)。</li>
+      <li>在<strong>MySQL</strong>資料庫目錄下做文件的一個備份。 </li>
+      <li>與<code>myisamchk -s */*.MYI</code>檢查表以驗証所有表是正確的。如果有任何表被損壞，用<code>myisamchk 
+        -r path-to-table.MYI</code>修復它。</li>
+      <li>從<strong>MySQL</strong>數據目錄刪除(或移走)任何舊的日誌文件。 </li>
+      <li>用<code>safe_mysql --log</code>啟動伺服器。</li>
+      <li>如果<code>mysqld</code>現在死掉，你可以通過恢復備份並執行<code>mysql 
+        &lt; mysql-log-file</code>來測試問題是否是一個特定的查詢引起的。當然你可以通過用<code>safe_mysqld 
+        --data=path-to-backup-directory</code>啟動另一個<strong>MySQL</strong>伺服器，在某個其他目錄而不是標準<strong>MySQL</strong>資料庫目錄下做後面的測試。</li>
+    </ul>
+  </li>
+  <li>你試用了效能測試嗎？他們應該很好地測試<strong>MySQL</strong>。你也可以增加代碼模擬你的應用程式！效能程式可在原始碼版本的<tt>“bench”</tt>目錄下找到，或對可執行檔版本，在你的<strong>MySQL</strong>安裝目錄下<tt>“sql-bench”</tt>目錄。 
+  </li>
+  <li>試一下<code>fork_test.pl</code>和<code>fork2_test.pl</code>。</li>
+  <li>對任何錯誤檢查文件<tt>“mysql-data-directory/'hostname'.err”</tt>。 </li>
+  <li>如果你配置<strong>MySQL</strong>以便調試，如果出錯，收集可能的錯誤資訊將更容易。使用<code>--with-debug</code>選項的<code>configure</code>重新配置<strong>MySQL</strong>然後重新編譯。見<a HREF="manual_Porting.html#Debugging_server">G.1 調試一個 MySQL 伺服器</a>。</li>
+  <li>為調試而配置<strong>MySQL</strong>使它包含一個安全的內存分配器以便能發現一些錯誤。它也提供關於正在發生什麼的大量輸出。</li>
+  <li>你為你的作業系統使用了最新的修補嗎？ </li>
+  <li>使用<code>mysql</code>的<code>--skip-locking</code>選項.在一些系統上，<code>lockd</code>鎖管理器不能正確工作﹔<code>--skip-locking</code>選項告訴<code>mysqld</code>不使用外部鎖。（這意味著你不能在同一個數據上運行兩個<code>mysqld</code>伺服器而且如果你使用<code>myisamchk</code>，你一定要小心，但是它對為了測試試用選項可能有益。）</li>
+  <li>當<code>mysqld</code>好像正在運行但沒有反應時，你嘗試過<code>mysqladmin 
+    -u root processlist</code>嗎？有時<code>mysqld</code>不是毫無反應，盡管你可能這樣認為。問題可能是所有在用的連接，或可能用內部鎖定問題。<code>mysqladmin 
+    processlist</code>甚至在這些情況下將通常可以進行一個連接，並且能提供有關當前連接數量及其狀態的有用資訊。</li>
+  <li>在你運行其他查詢時，在一個單獨窗口中運行命令<code>mysqladmin -i 5 
+    status</code>，產生統計。</li>
+  <li>嘗試下列步驟： <ol>
+      <li>通過<code>gdb</code>（或其他調試器)啟動<code>mysqld</code>。</li>
+      <li>運行你的測試腳本。 </li>
+      <li>當<code>mysqld</code>核心傾倒(core dump)，做<code>back</code>（或你調試器中的回溯-backtrace命令)。</li>
+    </ol>
+  </li>
+  <li>嘗試用一個Perl腳本模擬你的應用程式以強制<strong>MySQL</strong>崩潰或表現不正確。</li>
+  <li>或發一份正式的錯誤報告。見<a HREF="manual_Questions.html#Bug_reports">2.3 
+    如何報告錯誤或問題</a>，但是要不平常更詳細。因為<strong>MySQL</strong>為很多人的工作，導致崩潰的東西可能只存在於你的計算機上(例如，與你的特定系統庫有關的一個錯誤)。</li>
+  <li>如果你的問題有具有動態長度行的表有關，並且你不使用<code>BLOB/TEXT</code>列(但是僅<code>VARCHAR</code>列)，你可以用<code>ALTER 
+    TABLE</code>試著將全部<code>VARCHAR</code>改為<code>CHAR</code>，這將強制<strong>MySQL</strong>使用固定尺寸的行。固定尺寸的行占據很小的額外空間，但是更能容忍崩潰！當前動態行的代碼在 
+    TCX 至少使用3 
+    年的時間，沒有任何問題，但是從本質上講，動態長度的行對錯誤更敏感，因此如果上述對你有幫助，嘗試一下可能是一個好主意！</li>
+</ul>
+
+<h2><a NAME="Common_errors" HREF="manual_toc.html#Common_errors">18.2 使用MySQL時的一些常見錯誤</a></h2>
+
+<h3><a NAME="Gone_away" HREF="manual_toc.html#Gone_away">18.2.1<code> MySQL server has 
+gone away</code>錯誤</a></h3>
+
+<p>本小節也涉及有關<code>Lost connection to server during query</code>的錯誤。</p>
+
+<p>對<code>MySQL server has gone away</code>錯誤最常見的原因是伺服器超時了並且關閉了連接。內定地，如果沒有事情發生，伺服器在 
+8個小時後關閉連接。你可在啟動mysqld時通過設置<code>wait_timeout</code>變數改變時間限制。</p>
+
+<p>你可以通過執行<code>mysqladmin version</code>並且檢驗正常運行的時間來檢查<strong>MySQL</strong>還沒死掉。</p>
+
+<p>如果你有一個腳本，你只須再發出查詢讓客護進行一次自動的重新連接。</p>
+
+<p>在這種請下，你通常能獲得下列錯誤代碼(你得到的是OS相關的)：</p>
+
+<table BORDER="1" WIDTH="100%" NOSAVE="#101090" class="p4">
+  <tr>
+    <td><code>CR_SERVER_GONE_ERROR</code> </td>
+    <td>客戶不能發送一個問題給伺服器。 </td>
+  </tr>
+  <tr>
+    <td><code>CR_SERVER_LOST</code> </td>
+    <td>當寫伺服器時，客戶沒有出錯，但是它沒有得到對問題的一個完整的答案(或任何答案)。 
+    </td>
+  </tr>
+</table>
+
+<p>如果你向伺服器發送不正確的或太大的查詢，你也可能得到這些錯誤。如果<code>mysqld</code>得到一個太大或不正常的包，它認為客戶出錯了並關閉連接。如果你需要較大的查詢(例如，如果你正在處理較大的<code>BLOB</code>列)，你可以使用<code>-O 
+max_allowed_packet=#</code>選項(內定1M)啟動<code>mysqld</code>以增加查詢限制。多餘的內存按需分配，這樣<code>mysqld</code>只有在你發出較大差詢時或<code>mysqld</code>必須返回較大的結果行時，才使用更多的內存！</p>
+
+<h3><a NAME="Can_not_connect_to_server" HREF="manual_toc.html#Can_not_connect_to_server">18.2.2<code> 
+Can't connect to [local] MySQL server</code>錯誤</a></h3>
+
+<p>一個<strong>MySQL</strong>客戶可以兩種不同的方式連接<code>mysqld</code>伺服器：Unix套接字，它通過在文件系統中的一個文件(內定<tt>“/tmp/mysqld.sock”</tt>)進行連接﹔或TCP/IP，它通過一個端口號連接。Unix套接字比TCP/IP更快，但是只有用在連接同一台計算機上的伺服器。如果你不指定主機名或如果你指定特殊的主機名<code>localhost</code>，使用Unix套接字。</p>
+
+<p>錯誤(2002）<code>Can't connect to ...</code>通常意味著沒有一個<strong>MySQL</strong>伺服器運行在系統上或當試圖連接<code>mysqld</code>伺服器時，你正在使用一個錯誤的套接字文件或TCP/IP端口。 
+</p>
+
+<p>由檢查(使用<code>ps</code>)在你的伺服器上有一個名為<code>mysqld</code>的進程啟動！如果沒有任何<code>mysqld</code>程序，你應該啟動一個。見<a HREF="manual_Installing.html#Starting_server">4.15.2 啟動MySQL伺服器的問題</a>。</p>
+
+<p>如果一個<code>mysqld</code>程序正在運行，你可以通過嘗試這些不同的連接來檢查伺服器(當然，端口號和套接字路徑名可能在你的安裝中是不同的)：</p>
+
+<pre>shell&gt; mysqladmin version
+shell&gt; mysqladmin variables
+shell&gt; mysqladmin -h `hostname` version variables
+shell&gt; mysqladmin -h `hostname` --port=3306 version
+shell&gt; mysqladmin -h 'ip for your host' version
+shell&gt; mysqladmin --socket=/tmp/mysql.sock version
+</pre>
+
+<p>注意<code>hostname</code>命令使用反引號“`”而非正引號“'”﹔這些導致<code>hostname</code>輸出（即，當前主機名)被代替進<code>mysqladmin</code>命令中。</p>
+
+<p>這是可能造成<code>Can't connect to local MySQL server</code>錯誤的一些原因： 
+
+<ul>
+  <li><code>mysqld</code>不在運行。 </li>
+  <li>你正在使用MIT-pthreads的一個系統上運行。如果正在運行在一個沒有原生執行緒的系統上，<code>mysqld</code>使用 
+    MIT-pthreads 軟件包。見<a HREF="manual_Installing.html#Which_OS">4.2 由MySQL支援的作業系統</a>。然而，MIT-pthreads不支援Unix套接字，因此當與伺服器連接時，在這樣一個系統上，你總是必須明確地指定主機名。試試使用這個命令檢查到伺服器的連接：<pre>shell&gt; mysqladmin -h `hostname` version
+</pre>
+  </li>
+  <li>某人刪除了<code>mysqld</code>使用的Unix套接字(內定<tt>“/tmp/mysqld.sock”</tt>)。你可能有一個<code>cron</code>任務刪除了<strong>MySQL</strong>套接字(例如，一個把舊文件從<tt>“/tmp”</tt>目錄中刪除的任務)。你總是可以運行<code>mysqladmin 
+    version</code>並且檢查<code>mysqladmin</code>正在試圖使用的套接字確實存在。在這種情況下，修復方法是刪除<code>cron</code>任務而不刪除<tt>“mysqld.sock 
+    </tt>或將套接字放在其他地方。你能用這個命令在<strong>MySQL</strong>配置時指定一個不同的套接字地點：<pre>shell&gt; ./configure --with-unix-socket-path=/path/to/socket
+</pre>
+    <p>你也可以使用<code>--socket=/path/to/socket</code>選項啟動<code>safe_mysqld</code>和在啟動你的<strong>MySQL</strong>客戶前設置環境變數<code>MYSQL_UNIX_PORT</code>為套接字路徑名。你可用<code>--socket=/path/to/socket</code>選項啟動<code>mysqld</code>伺服器。如果你改變了伺服器的套接字路徑名，你也必須通知<strong>MySQL</strong>客戶關於新路徑的情況。你可以通過設置環境變數<code>MYSQL_UNIX_PORT</code>為套接字路徑名或由提供套接字路徑名作為客戶的參數做到。你可用這個命令測試套接字：</p>
+    <pre>shell&gt; mysqladmin --socket=/path/to/socket version
+</pre>
+  </li>
+  <li>你正在使用 Linux和執行緒已經死了(核心傾倒了)。在這種情況中，你必須殺死其它<code>mysqld</code>執行緒(例如在啟動一個新的<strong>MySQL</strong>伺服器之前，可以用<code>mysql_zap</code>腳本）。見<a HREF="manual_Problems.html#Crashing">18.1 如果MySQL總是崩潰怎麼辦</a>。</li>
+</ul>
+
+<p>如果你得到錯誤<code>Can't connect to MySQL server on some_hostname</code>，你可以嘗試下列步驟找出問題是什麼： 
+
+<ul>
+  <li>通過執行<code>telnet your-host-name tcp-ip-port-number</code>並且按幾次回車來檢查伺服器是否正常運行。如果有一個<strong>MySQL</strong>運行在這個端口上，你應該得到一個包含正在運行的<strong>MySQL</strong>伺服器的版本號的應答。如果你得到類似於<code>telnet: 
+    Unable to connect to remote host: Connection refused</code>的一個錯誤，那麼沒有伺服器在使用的端口上運行。</li>
+  <li>嘗試連接本地機器上的<code>mysqld</code>背景執行程式，並用<code>mysqladmin 
+    variables</code>檢查mysqld被配置使用的TCP/IP端口(變數<code>port</code>)。 </li>
+  <li>檢查你的<code>mysqld</code>伺服器沒有用<code>--skip-networking</code>選項啟動。 
+  </li>
+</ul>
+
+<h3><a NAME="Blocked_host" HREF="manual_toc.html#Blocked_host">18.2.3<code> Host '...' is 
+blocked</code>錯誤</a></h3>
+
+<p>如果你得到像這樣的一個錯誤：</p>
+
+<pre>Host 'hostname' is blocked because of many connection errors.
+Unblock with 'mysqladmin flush-hosts'
+</pre>
+
+<p>這意味著，<code>mysqld</code>已經得到了大量(<code>max_connect_errors</code>)的主機<code>'hostname'</code>的在中途被中斷了的連接請求。在<code>max_connect_errors</code>次失敗請求後，<code>mysqld</code>認定出錯了(像來字一個黑客的攻擊)，並且阻止該站點進一步的連接，直到某人執行命令<code>mysqladmin 
+flush-hosts</code>。</p>
+
+<p>內定地，<code>mysqld</code>在10個連接錯誤後阻塞一台主機。你可以通過像這樣啟動伺服器很容易地調整它：</p>
+
+<pre>shell&gt; safe_mysqld -O max_connect_errors=10000 &amp;
+</pre>
+
+<p>注意，對給定的主機，如果得到這條錯誤消息，你應該首先檢查該主機的TCP/IP連接有沒有問題。如果你的TCP/IP連接不在運行，增加<code>max_connect_errors</code>變數的值對你也不會有幫助！</p>
+
+<h3><a NAME="Too_many_connections" HREF="manual_toc.html#Too_many_connections">18.2.4<code> 
+Too many connections</code>錯誤</a></h3>
+
+<p>如果在你試土連接<strong>MySQL</strong>時，你得到錯誤<code>Too many 
+connections</code>，這意味著已經有<code>max_connections</code>個客戶連接了mysqld伺服器。</p>
+
+<p>如果你需要比內定(100)更多的連接，那麼你應該重啟<code>mysqld</code>，用更大的 
+max_connections 變數值。</p>
+
+<p>注意，<code>mysqld</code>實際上允許(max_connections+1)個客戶連接。最後一個連接是為一個用<code>Process</code>權限的用戶保留的。通過不把這個權限給一般用戶(他們不應該需要它)，有這個權限一個管理員可以登錄並且使用<code>SHOW 
+PROCESSLIST</code>找出什麼可能出錯。見<a HREF="manual_Reference.html#SHOW">7.21<code> 
+SHOW</code>句法(得到表，列的資訊）</a>。</p>
+
+<h3><a NAME="Out_of_memory" HREF="manual_toc.html#Out_of_memory">18.2.5<code> Out of 
+memory</code>錯誤</a></h3>
+
+<p>如果你發出查詢並且得到類似於下面的錯誤： </p>
+
+<pre>mysql: Out of memory at line 42, 'malloc.c'
+mysql: needed 8136 byte (8k), memory in use: 12481367 bytes (12189k)
+ERROR 2008: MySQL client ran out of memory
+</pre>
+
+<p>注意，錯誤指向了<strong>MySQL</strong>客<code>戶mysql</code>。這個錯誤的原因很簡單，客戶沒有足夠的內存儲存全部結果。</p>
+
+<p>為了修正這個問題，首先檢查你的查詢是否正確。它應該返回這麼多的行，這合理嗎？如果是這樣，你可以使用<code>mysql 
+--quick</code>，它使用<code>mysql_use_result()</code>檢索結果集合。這將較少的負擔放在了客戶端(只是伺服器更多)。</p>
+
+<h3><a NAME="Packet_too_large" HREF="manual_toc.html#Packet_too_large">18.2.6<code> Packet 
+too large</code>錯誤</a></h3>
+
+<p>當一個<strong>MySQL</strong>客戶或<code>mysqld</code>伺服器得到一個比<code>max_allowed_packet</code>個字節長的包，它發出一個<code>Packet 
+too large</code>錯誤並終止連接。</p>
+
+<p>如果你正在使用<code>mysql</code>客戶，你可以通過用<code>mysql 
+--set-variable=max_allowed_packet=8M</code>指定一個更大的緩衝區來啟動客戶程式。</p>
+
+<p>如果你正在使用不允許你指定最大包大小的其他客戶(例如<code> DBI</code>)，你需要在你啟動伺服器時設置包大小。你可以使用<code>mysqld</code>的命令行選項設置<code>max_allowed_packet</code>為一個更大的尺寸。例如，如果你正期望將一個全長的<code>BLOB</code>存入一張表中，你將需要用<code>--set-variable=max_allowed_packet=24M</code>選項來啟動伺服器。</p>
+
+<p>　</p>
+
+<h3><a NAME="Full_table" HREF="manual_toc.html#Full_table">18.2.7<code> The table is full</code>錯誤</a></h3>
+
+<p>這個錯誤發生在內存臨時表變得比<code>tmp_table_size</code>字節大時。為了避免這個問題，你可以使用<code>mysqld</code>的<code>-O 
+tmp_table_size=#</code>選項來增加臨時表的大小，或在你發出有疑問的查詢之前使用SQL選項<code>SQL_BIG_TABLES</code>。見<a HREF="manual_Reference.html#SET_OPTION">7.25<code> SET OPTION</code>句法</a>。</p>
+
+<p>你也可以使用<code>--big-tables</code>選項啟動<code>mysqld</code>。這與為所有查詢使用<code>SQL_BIG_TABLES</code>完全相同。</p>
+
+<p><a NAME="IDX684"></a> </p>
+
+<h3><a NAME="Commands_out_of_sync" HREF="manual_toc.html#Commands_out_of_sync">18.2.8<code> 
+Commands out of sync</code> in client錯誤</a></h3>
+
+<p>如果你在你的客戶代碼中得到<code>Commands out of sync; You can't run this 
+command now</code>，你正在以錯誤的次序調用客戶函數！</p>
+
+<p>這可能發生，例如，如果你正在使用<code>mysql_use_result()</code>並且在你已經調用了<code>mysql_free_result()</code>之前試圖執行新查詢。如果你在<code>mysql_use_result()</code>或<code>mysql_store_result()</code>之間試圖執行返回數據的2個查詢，它也可能發生。</p>
+
+<h3><a NAME="Ignoring_user" HREF="manual_toc.html#Ignoring_user">18.2.9<code> Ignoring 
+user</code>錯誤</a></h3>
+
+<p>如果你得到下列錯誤： </p>
+
+<p><code>Found wrong password for user: 'some_user@some_host'; Ignoring user</code> </p>
+
+<p>這意味著在<code>mysqld</code>啟動時或在它再次裝載權限表時，它在<code>user</code>表中找到了一個有一個無效密碼的條目。結果，條目簡單地被權限系統忽略。</p>
+
+<p>可能導致這個問題的原因和修正： 
+
+<ul>
+  <li>你可能正在運行一個有一個老的<code>user</code>表的新版本<code>mysqld</code>。你可以通過執行<code>mysqlshow 
+    mysql user</code>看看密碼字段是否少於 16個字符來檢查它。如果是這樣，你可以通過運行<code>scripts/add_long_password</code>腳本改正這種情況。</li>
+  <li>用戶有一個老式的密碼(8個字符長)並且你沒使用<code>--old-protocol</code>選項啟動<code>mysqld</code>。用一個新密碼更新在<code>user</code>表中的用戶或用<code>--old-protocol</code>重啟<code>mysqld</code>。</li>
+  <li><a NAME="IDX685"></a>你沒有使用<code>PASSWORD()</code>函數在在<code>user</code>表中指定了一個密碼。使用<code>mysql</code>以一個新密碼更新在<code>user</code>表中的用戶。確保使用<code>PASSWORD()</code>函數：<pre>mysql&gt; update user set password=PASSWORD('your password')
+           where user='XXX';
+</pre>
+  </li>
+</ul>
+
+<h3><a NAME="Cannot_find_table" HREF="manual_toc.html#Cannot_find_table">18.2.10<code> 
+Table 'xxx' doesn't exist</code>錯誤</a></h3>
+
+<p>如果你得到錯誤<code>Table 'xxx' doesn't exist</code>或<code>Can't find file: 
+'xxx' (errno: 2)</code>，這意味著在當前資料庫中沒有名為<code>xxx</code>的表存在。</p>
+
+<p>注意，因為<strong>MySQL</strong>使用目錄和文件儲存資料庫和表，資料庫和表名件是<strong>區分大小寫的</strong>！（在Win32上，資料庫和表名不是區分大小寫的，但是在查詢中對所有表的引用必須使用相同的大小寫！）</p>
+
+<p>你可以用<code>SHOW TABLES</code>檢查你在當前資料庫中有哪個表。見<a HREF="manual_Reference.html#SHOW">7.21<code> SHOW</code>句法(得到表、列的資訊）</a>。 
+</p>
+
+<p><a NAME="IDX686"></a> <a NAME="IDX687"></a> </p>
+
+<h2><a NAME="Full_disk" HREF="manual_toc.html#Full_disk">18.3 MySQL怎樣處理一個溢出的磁碟</a></h2>
+
+<p>當出現一個磁碟溢出的情況時，<strong>MySQL</strong>做下列事情： 
+
+<ul>
+  <li>它每分鐘檢查一次看是否有足夠空間寫入當前行。如果有足夠的空間，它繼續好像發生什麼事情。</li>
+  <li>每6分鐘它將有關磁碟溢出的警告寫入日誌文件。</li>
+</ul>
+
+<p>為了緩和這個問題，你可以采取下列行動： 
+
+<ul>
+  <li>繼續，你只需釋放足夠的空閑磁碟空間以便插入所有記錄。</li>
+  <li>放棄執行緒，你必須發一個<code>mysqladmin kill</code>到執行緒。在下一次檢查磁碟時，執行緒將被放棄(在1分鐘內)。</li>
+  <li>注意，其他執行緒可能正在等待引起“磁碟溢出”條件的表。如果你有幾個“鎖定的”的執行緒，殺死正在等待磁碟溢出條件的那個執行緒將允許其他執行緒繼續。</li>
+</ul>
+
+<h2><a NAME="Multiple_sql_commands" HREF="manual_toc.html#Multiple_sql_commands">18.4 
+如何從一個文本文件運行SQL命令</a></h2>
+
+<p>一般地，<code>mysql</code>客戶被交互性地使用，像這樣：</p>
+
+<pre>shell&gt; mysql database</pre>
+
+<p>然而，也可以把你的SQL命令放在一個文件中並且告訴<code>mysql</code>從該文件讀取其輸入。要想這樣做，創造一個文本文件<tt>“text_file”</tt>，它包含你想要執行的命令。然後如下那樣調用<code>mysql</code>：</p>
+
+<pre>shell&gt; mysql database &lt; text_file
+</pre>
+
+<p>你也能啟動有一個<code>USE db_name</code>語句的文本文件。在這種情況下，在命令行上指定資料庫名是不必要的：</p>
+
+<pre>shell&gt; mysql &lt; text_file
+</pre>
+
+<pre>見<a HREF="manual_Tools.html#Programs">12.1 不同的MySQL程式概述</a>。 </pre>
+
+<h2><a NAME="Temporary_files" HREF="manual_toc.html#Temporary_files">18.5 MySQL在哪兒儲存臨時文件</a></h2>
+
+<p><strong>MySQL</strong>使用<code>TMPDIR</code>環境變數的值作為儲存臨時文件的目錄的路徑名。如果你沒有設置<code>TMPDIR</code>，<strong>MySQL</strong>使用系統內定值，它通常是<tt>“/tmp”</tt>或<tt>“/usr/tmp”</tt>。如果包含你的臨時文件目錄的文件系統太小，你應該編輯<code>safe_mysqld</code>設定<code>TMPDIR</code>指向你有足夠空間的一個文件系統！你也可以使用<code>mysqld的--tmpdir</code>選項目設置臨時目錄。</p>
+
+<p><strong>MySQL</strong>以“隱含文件”創建所有臨時文件。這保証了如果<code>mysqld</code>被終止，臨時文件也將被刪除。使用隱含文件的缺點是你將看不到一個大的臨時文件填滿了臨時文件目錄所在的文件系統。</p>
+
+<p>當排序(<code>ORDER BY</code>或<code>GROUP BY</code>)時，<strong>MySQL</strong>通常使用一個或兩個臨時文件。最大磁碟空間需求是：</p>
+
+<pre>
+(儲存東西的長度 + sizeof (資料庫指針))
+* 匹配的行數
+* 2
+</pre>
+
+<p><code>sizeof(資料庫指針)</code>通常是4，但是在未來對確實很大的表可能增加。</p>
+
+<p>對一些<code>SELECT</code>查詢，<strong>MySQL</strong>也創建臨時SQL表。這些沒被隱含且有<tt>“SQL_*”</tt>格式的名字。</p>
+
+<p><code>ALTER TABLE</code>和<code>OPTIMIZE TABLE</code>在原資料庫表的同一個目錄中創建一張臨時表。</p>
+
+<h2><a NAME="Problems_with_mysql.sock" HREF="manual_toc.html#Problems_with_mysql.sock">18.6 
+怎樣保護<tt>“/tmp/mysql.sock ”</tt>不被刪除</a></h2>
+
+<p>如果你有這個問題，事實上任何人可以刪除<strong>MySQL</strong>通訊套接字<tt>“/tmp/mysql.sock”</tt>，在Unix的大多數版本上，你能通過為其設置<code>sticky</code>（t）位來保護你的<tt>“/tmp”</tt>文件系統。作為<code>root</code>登錄並且做下列事情：</p>
+
+<pre>shell&gt; chmod +t /tmp
+</pre>
+
+<p>這將保護你的<tt>“/tmp”</tt>文件系統使得文件僅能由他們的所有者或超級用戶(<code>root</code>)刪除。</p>
+
+<p>你能執行<code>ls -ld /tmp</code>檢查<code>sticky</code>位是否被設置，如果最後一位許可位是<code>t</code>，該位被設置了。</p>
+
+<h2><a NAME="Error_Access_denied" HREF="manual_toc.html#Error_Access_denied">18.7<code> 
+Access denied</code>錯誤</a></h2>
+
+<p>見<a HREF="manual_Privilege_system.html#Privileges">6.6 權限系統如何工作</a>。並且特別要看<a href="manual_Privilege_system.html#Access_denied">6.13 引起<code>Access denied</code>錯誤的原因</a>。 
+</p>
+
+<h2><a NAME="Changing_MySQL_user" HREF="manual_toc.html#Changing_MySQL_user">18.8 
+怎樣作為一個一般用戶運行MySQL</a></h2>
+
+<p><strong>MySQL</strong>伺服器<code>mysqld</code>能被任何用戶啟動並運行。為了將<code>mysqld</code>改由Unix用戶<code>user_name</code>來運行，你必須做下列事情： 
+
+<ol>
+  <li>如果它正在運行，停止伺服器(使用<code>mysqladmin shutdown</code>)。</li>
+  <li>改變資料庫目錄和文件以便<code>user_name</code>有權限讀和寫文件(你可能需要作為Unix的<code>root</code>用戶才能做到)：<pre>shell&gt; chown -R user_name /path/to/mysql/datadir
+</pre>
+    <p>如果在<strong>MySQL</strong>數據目錄中的目錄或文件是符號鏈接，你也將需要順著那些鏈接並改變他們指向的目錄和文件。<code>chown 
+    -R</code>不能跟隨符號鏈接。</p>
+  </li>
+  <li>以<code>user_name</code>用戶啟動伺服器，或如果你正在使用<strong>MySQL</strong> 
+    3.22或以後版本，以Unix<code> root</code>用戶啟動<code>mysqld</code>並使用<code>--user=user_name</code>選項，<code>mysqld</code>將在接受任何連接之前切換到以Unix 
+    <code>user_name</code>用戶運行。</li>
+  <li>如果在系統被重新啟動時，你使用<code>mysql.server</code>腳本啟動<code>mysqld</code>，你應該編輯<code>mysql.server</code>用<code>su</code>以用戶<code>user_name</code>運行<code>mysqld</code>，或使用<code>--user</code>選項調用<code>mysqld</code>。（不改變<code>safe_mysqld</code>是必要的。）</li>
+</ol>
+
+<p>現在，你的<code>mysqld</code>進程應該正在作為Unix用戶<code>user_name</code>運行，並運行完好。盡管有一件事情沒有變化：權限表的內容。內定 
+地(就在運行了腳本<code>mysql_install_db</code>安裝的權限表後)，<strong>MySQL</strong>用戶<code>root</code>是唯一有存取<code>mysql</code>資料庫或創建或拋棄資料庫權限的用戶。除非你改變了那些權限，否則他們仍然保持。當你作為一個Unix用戶而不是<code>root</code>登錄時，這不應該阻止你作為<strong>MySQL</strong> 
+<code>root</code>用戶來存取<strong>MySQL</strong>﹔只要為客戶程式指定<code>-u 
+root</code>的選項。</p>
+
+<p>注意通過在命令行上提供<code>-u root</code>，作為<code>root</code>存取<strong>MySQL</strong>，與作為Unix 
+<code>root</code>用戶或其他Unix用戶運行<strong>MySQL</strong><em>沒有關系</em>。<strong>MySQL</strong>的存取權限和用戶名與Unix用戶名字是完全分開的。唯一與Unix用戶名有關的是，如果當你調用一個客戶程式時，你不提供一個<code>-u</code>選項，客戶將試圖使用你的Unix登錄名作為你的<strong>MySQL</strong>用戶名進行連接。</p>
+
+<p>如果你的Unix機器本身不安全，你可能應該至少在存取表中為<strong>MySQL</strong> 
+<code>root</code>用戶放上一個密碼。否則，在那台機器上有一個帳號的任何用戶能運行<code>mysql 
+-u root db_name</code>並且做他喜歡做的任何事情。</p>
+
+<h2><a NAME="Resetting_permissions" HREF="manual_toc.html#Resetting_permissions">18.9 
+怎樣重新設置一個忘記的密碼</a></h2>
+
+<p>如果你忘記了<strong>MySQL</strong>的<code>root</code>用戶的密碼，你可以用下列程序恢復它。 
+
+<ol>
+  <li>通過發送一個<code>kill</code>（不是<code>kill -9</code>)到<code>mysqld</code>伺服器來關閉mysqld伺服器。pid 
+    被保存在一個<code>.pid</code>文件中，通常在<strong>MySQL</strong>資料庫目錄中：<pre>kill `cat /mysql-data-directory/hostname.pid`
+</pre>
+    <p>你必須是一個UNIX<code> root</code>用戶或運行伺服器的相同用戶做這個。</p>
+  </li>
+  <li>使用<code>--skip-grant-tables</code>選項重啟<code>mysqld</code>。 </li>
+  <li>用<code>mysql -h hostname mysql</code>連接mysqld伺服器並且用一條<code>GRANT</code>命令改變密碼。見<a HREF="manual_Reference.html#GRANT">7.26<code> GRANT</code>和<code>REVOKE</code>句法</a>。你也可以用<code>mysqladmin 
+    -h hostname -u user password 'new password'</code> 進行。</li>
+  <li>用<code>mysqladmin -h hostname flush-privileges</code>或用SQL命令<code>FLUSH 
+    PRIVILEGES</code>來裝載權限表。</li>
+</ol>
+
+<h2><a NAME="File_permissions" HREF="manual_toc.html#File_permissions">18.10 
+文件許可權限問題</a></h2>
+
+<p>如果你有與文件許可有關的問題，例如，如果當你創建一張表時，<code>mysql</code>發出下列錯誤消息： 
+</p>
+
+<pre>ERROR: Can't find file: 'path/with/filename.frm' (Errcode: 13) 
+</pre>
+
+<p><a NAME="IDX688"></a>那麼可能是在<code>mysqld</code>啟動時，環境變數<code>UMASK</code>可能設置不正確。內定的umask值是<code>0660</code>。你可以如下啟動<code>safe_mysqld</code>改變其行為：</p>
+
+<pre>shell&gt; UMASK=384  # = 600 in octal
+shell&gt; export UMASK
+shell&gt; /path/to/safe_mysqld &amp;
+</pre>
+
+<h2><a NAME="Not_enough_file_handles" HREF="manual_toc.html#Not_enough_file_handles">18.11 
+文件沒找到</a></h2>
+
+<p>如果你從<strong>MySQL</strong>得到<code>ERROR '...' not found (errno: 23)</code>, 
+<code>Can't open file: ... (errno: 24)</code>或任何其他有<code>errno 23</code>或<code>errno 
+24</code>的錯誤，它意味著，你沒有為<strong>MySQL</strong>分配足夠的文件描述符。你能使用<code>perror</code>實用程式得到錯誤號含義是什麼的描述：</p>
+
+<pre>shell&gt; perror 23
+File table overflow
+shell&gt; perror 24
+Too many open files
+</pre>
+
+<p>這裡的問題是<code>mysqld</code>正在試圖同時保持打開太多的文件。你也可以告訴<code>mysqld</code>一次不打開那麼多的文件，或增加<code>mysqld</code>可得到的文件描述符數量。</p>
+
+<p>為了告訴<code>mysqld</code>一次保持打開更少的文件，你可以通過使用<code>safe_mysqld</code>的<code>-O 
+table_cache=32</code>選項（內定值是64)使表緩沖更小。減小<code>max_connections</code>值也將減少打開文件的數量(內定值是90)。</p>
+
+<p>要想<a NAME="IDX690"></a>改變<code>mysqld</code>可用的文件描述符數量，修改<code>safe_mysqld</code>腳本。腳本中有一條注釋了的行<code>ulimit 
+-n 256</code>。你可以刪除<code>'#'</code>字符來去掉該行的注釋，並且改變數字256改變為<code>mysqld</code>可用的文件描述符的數量。</p>
+
+<p><code>ulimit</code>能增加文件描述符的數量，但是只能到作業系統強加的限制。如果你需要增加每個進程可用的文件描述符數量的OS限制，參見你的作業系統文檔。</p>
+
+<p>注意，如果你運行<code>tcsh</code>外殼，<code>ulimit</code>將不工作！當你請求當前限制時，<code>tcsh</code>也將報告不正確的值！在這種情況下，你應該用<code>sh</code>啟動<code>safe_mysqld</code>！</p>
+
+<h2><a NAME="Using_DATE" HREF="manual_toc.html#Using_DATE">18.12 使用<code>DATE</code>列的問題</a></h2>
+
+<p>一個<code>DATE</code>值的格式是<code>'YYYY-MM-DD'</code>。根據ANSI SQL，不允許其他格式。你應該在<code>UPDATE</code>表達式和<code>SELECT</code>語句的WHERE子句中使用這個格式。例如：</p>
+
+<pre>mysql&gt; SELECT * FROM tbl_name WHERE date &gt;= '1997-05-05';
+</pre>
+
+<p>為了方便，如果日期用在數字上下文，<strong>MySQL</strong>自動變換一個日期到一個數字(並且反過來也如此)。當更新時和將一個日期與<code>TIMESTAMP</code>、<code>DATE</code>或<code>DATETIME</code>列比較的一個<code>WHERE</code>子句中，也是足夠靈活以允許一種“寬鬆”的字符串格式。（寬鬆格式意味著任何標點字符用作在部件之間的分割符。例如，<code>'1998-08-15'</code>和<code>'1998#08#15'</code>是等價的。）<strong>MySQL</strong>也能變換不包含分割符的一個字符串(例如<code> 
+'19980815'</code>)，如果它作為一個日期說得通。</p>
+
+<p>特殊日期<code>'0000-00-00'</code>可以作為<code>'0000-00-00'</code>被儲存和檢索<code>。</code>當通過<strong>MyODBC</strong>使用一個<code>'0000-00-00'</code>日期時，在<strong>MyODBC</strong> 
+2.50.12和以上版本，它將自動被轉換為<code>NULL</code>，因為ODBC不能處理這種日期。</p>
+
+<p>因為<strong>MySQL</strong>實行了上述的變換，下列語句可以工作：</p>
+
+<pre>mysql&gt; INSERT INTO tbl_name (idate) VALUES (19970505);
+mysql&gt; INSERT INTO tbl_name (idate) VALUES ('19970505');
+mysql&gt; INSERT INTO tbl_name (idate) VALUES ('97-05-05');
+mysql&gt; INSERT INTO tbl_name (idate) VALUES ('1997.05.05');
+mysql&gt; INSERT INTO tbl_name (idate) VALUES ('1997 05 05');
+mysql&gt; INSERT INTO tbl_name (idate) VALUES ('0000-00-00');
+
+mysql&gt; SELECT idate FROM tbl_name WHERE idate &gt;= '1997-05-05';
+mysql&gt; SELECT idate FROM tbl_name WHERE idate &gt;= 19970505;
+mysql&gt; SELECT mod(idate,100) FROM tbl_name WHERE idate &gt;= 19970505;
+mysql&gt; SELECT idate FROM tbl_name WHERE idate &gt;= '19970505';
+</pre>
+
+<p>然而，下列將不工作： </p>
+
+<pre>mysql&gt; SELECT idate FROM tbl_name WHERE STRCMP(idate,'19970505')=0;
+</pre>
+
+<p><code>STRCMP()</code>是字符串函數，因此它將<code>idate</code>轉換為一個字符串並且實施字符串比較。它不將<code>'19970505'</code>轉換為一個日期並實施日期比較。</p>
+
+<p>注意，<strong>MySQL</strong>不檢查日期是否正確。如果你儲存一個不正確的日期，例如<code>'1998-2-31'</code>，錯誤的日期將被儲存。如果日期不能被變換到任何合理的值，在<code>DATE</code>字段中儲存一個<code>0</code>。這主要是一個速度問題並且我們認為檢查日期是應用程式的責任，而不伺服器。</p>
+
+<p><a NAME="IDX691"></a> </p>
+
+<h2><a NAME="Timezone_problems" HREF="manual_toc.html#Timezone_problems">18.13 
+時區問題</a></h2>
+
+<p>如果你有一個問題，<code>SELECT NOW()</code>以GMT時間返回值而不是你的本地時間，你必須設定<code>TZ</code>環境變數為你的當前時區。這應該在伺服器運行的環境進行，例如在<code>safe_mysqld</code>或<code>mysql.server</code>中。</p>
+
+<p><a NAME="IDX694"></a> <a NAME="IDX695"></a> <a NAME="IDX696"></a> </p>
+
+<h2><a NAME="Case_sensitivity" HREF="manual_toc.html#Case_sensitivity">18.14 
+在搜索中的大小寫敏感性</a></h2>
+
+<p>內定地，<strong>MySQL</strong>搜索是大小寫不敏感的(盡管有一些字符集從來不是忽略大小寫的，例如<code>捷克語</code>)。這意味著，如果你用<code>col_name 
+LIKE 'a%'</code>搜尋，你將得到所有以<code>A</code>或<code>a</code>開始的列值。如果你想要使這個搜索大小寫敏感，使用像<code>INDEX(col_name, 
+&quot;A&quot;)=0</code>檢查一個前綴。或如果列值必須確切是<code>&quot;A&quot;</code>，使用<code>STRCMP(col_name, 
+&quot;A&quot;) = 0</code>。</p>
+
+<p>簡單的比較操作(<code>&gt;=、&gt;、= 、&lt; 、&lt;=</code>、排序和聚合)是基於每個字符的“排序值”。有同樣排序值的字符(像E，e和'e)被視為相同的字符！</p>
+
+<p><code>LIKE</code>比較在每個字符的大寫值上進行(E==e 但是E&lt;&gt;'e）。</p>
+
+<p>如果你想要一個列總是被當作大小寫敏感的方式，聲明它為<code>BINARY</code>。見<a HREF="manual_Reference.html#CREATE_TABLE">7.7<code> CREATE TABLE</code>句法</a>。</p>
+
+<p>如果你使用以所謂的big5編碼的中文數據，你要使所有的字符列是<code>BINARY</code>，它可行，是因為big5編碼字符的排序順序基於 
+ASCII代碼的順序。</p>
+
+<p><a NAME="IDX697"></a></p>
+
+<h2><a NAME="Problems_with_NULL" HREF="manual_toc.html#Problems_with_NULL">18.15 <code>NULL</code>值問題</a></h2>
+
+<p><code>NULL</code>值的概念是造成SQL的新手的混淆的普遍原因，他們經常認為<code>NULL</code>是和一個空字符串<code>''</code>的一樣的東西。不是這樣的！例如，下列語句是完全不同的：</p>
+
+<pre>mysql&gt; INSERT INTO my_table (phone) VALUES (NULL);
+mysql&gt; INSERT INTO my_table (phone) VALUES (&quot;&quot;);
+</pre>
+
+<p>兩個語句把值插入到<code>phone</code>列，但是第一個插入一個<code>NULL</code>值而第二個插入一個空字符串。第一個的含義可以認為是“電話號碼不知道”，而第二個則可意味著“她沒有電話”。 
+</p>
+
+<p>在SQL中，<code>NULL</code>值在於任何其他值甚至<code>NULL</code>值比較時總是假的（FALSE）。包含<code>NULL</code>的一個表達式總是產生一個<code>NULL</code>值，除非在包含在表達式中的運算符和函數的文檔中指出。在下列例子，所有的列返回<code>NULL</code>：</p>
+
+<pre>mysql&gt; SELECT NULL,1+NULL,CONCAT('Invisible',NULL);
+</pre>
+
+<p>如果你想要尋找值是<code>NULL</code>的列，你不能使用<code>=NULL</code>測試。下列語句不返回任何行，因為對任何表達式，<code>expr 
+= NULL</code>是假的：</p>
+
+<pre>mysql&gt; SELECT * FROM my_table WHERE phone = NULL;
+</pre>
+
+<p>要想尋找<code>NULL</code>值，你必須使用<code>IS NULL</code>測試。下例顯示如何找出<code>NULL</code>電話號碼和空的電話號碼：</p>
+
+<pre>mysql&gt; SELECT * FROM my_table WHERE phone IS NULL;
+mysql&gt; SELECT * FROM my_table WHERE phone = &quot;&quot;;
+</pre>
+
+<p>在<strong>MySQL</strong>中，就像很多其他的SQL伺服器一樣，你不能索引可以有<code>NULL</code>值的列。你必須聲明這樣的列為<code>NOT 
+NULL</code>，而且，你不能插入<code>NULL</code>到索引的列中。</p>
+
+<p><a NAME="IDX699"></a>當用<code>LOAD DATA INFILE</code>讀取數據時，空列用<code>''</code>更新。如果你想要在一個列中有<code>NULL</code>值，你應該在文本文件中使用<code>\N</code>。字面上的詞<code>'NULL'</code>也可以在某些情形下使用。見<a HREF="manual_Reference.html#LOAD_DATA">7.16<code> LOAD DATA INFILE</code>句法</a>。</p>
+
+<p>當使用<code>ORDER BY</code>時，首先呈現<code>NULL</code>值。如果你用<code>DESC</code>以降序排序，<code>NULL</code>值最後顯示。當使用<code>GROUP 
+BY</code>時，所有的<code>NULL</code>值被認為是相等的。</p>
+
+<p>為了有助於<code>NULL</code>的處理，你能使用<code>IS NULL</code>和<code>IS 
+NOT NULL</code>運算符和<code>IFNULL()</code>函數。</p>
+
+<p><a NAME="IDX700"></a>對某些列類型，<code>NULL</code>值被特殊地處理。如果你將<code>NULL</code>插入表的第一個<code>TIMESTAMP</code>列，則插入當前的日期和時間。如果你將<code>NULL</code>插入一個<code>AUTO_INCREMENT</code>列，則插入順序中的下一個數字。</p>
+
+<p>　</p>
+
+<h2><a NAME="Problems_with_alias" HREF="manual_toc.html#Problems_with_alias">18.16 <code>alias</code>問題</a></h2>
+
+<p>你可以在<code>GROUP BY</code>、<code>ORDER BY</code>或在<code>HAVING</code>部分中使用別名引用列。別名也可以用來為列取一個更好點的名字：</p>
+
+<pre>SELECT SQRT(a*b) as rt FROM table_name GROUP BY rt HAVING rt &gt; 0;
+SELECT id,COUNT(*) AS cnt FROM table_name GROUP BY id HAVING cnt &gt; 0;
+SELECT id AS &quot;Customer identity&quot; FROM table_name;
+</pre>
+
+<p>注意，你的 ANSI SQL 不允許你在一個<code>WHERE</code>子句中引用一個別名。這是因為在<code>WHERE</code>代碼被執行時，列值還可能沒有終結。例如下列查詢是<strong>不合法</strong>：</p>
+
+<pre>SELECT id,COUNT(*) AS cnt FROM table_name WHERE cnt &gt; 0 GROUP BY id;
+</pre>
+
+<p><code>WHERE</code>語句被執行以確定哪些行應該包括<code>GROUP BY</code>部分中，而<code>HAVING</code>用來決定應該只用結果集合中的哪些行。 
+</p>
+
+<h2><a NAME="Deleting_from_related_tables" HREF="manual_toc.html#Deleting_from_related_tables">18.17 從關聯的表中刪除行</a></h2>
+
+<p>因為<strong>MySQL</strong>不支援子選擇或在<code>DELETE</code>語句中使用多個表，你應該使用下列方法從2個關聯的表中刪除行： 
+
+<ol>
+  <li>在主表中基於某個<code>WHERE</code>條件<code>SELECT</code>行。</li>
+  <li>在主表中基於相同的條件<code>DELETE</code>行。</li>
+  <li><code>DELETE FROM related_table WHERE related_column IN (selected_rows)</code> </li>
+</ol>
+
+<p>如果在<code>related_column</code>查詢中的字符的全部數量超過1,048,576(內定值<code>max_allowed_packet</code>），你應該分成更小的部分並且執行多個<code>DELETE</code>語句。如果<code>related_column</code>是一個索引，你每次只刪除100-1000個<code>related_column</code> 
+id將可能使得<code>DELETE</code>最快。如果<code>related_column</code>不是一個索引，速度與<code>IN</code>子句中參數的數量無關。</p>
+
+<h2><a NAME="No_matching_rows" HREF="manual_toc.html#No_matching_rows">18.18 
+解決沒有匹配行的問題</a></h2>
+
+<p>如果你有一個複雜的查詢，涉及多個表，但沒有返回任何行，你應該使用下列程序查找你的詢問有什麼不對： 
+
+<ol>
+  <li><code>EXPLAIN</code>測試查詢並且檢查你是否能找出顯然是錯誤的一些東西。見<a HREF="manual_Reference.html#EXPLAIN">7.22<code> EXPLAIN</code>句法(得到關於一個<code>SELECT</code>的資訊)</a>。</li>
+  <li>僅選擇那些在<code>WHERE</code>子句中使用的字段。 </li>
+  <li>一次從查詢中刪除一個表，直到它返回一些行。如果表很大，對查詢使用<code>LIMIT 
+    10</code>是一個好主意。 </li>
+  <li>對應該已經匹配一行的列做一個<code>SELECT</code>，針對從詢問中做後被刪除的表。</li>
+  <li>如果你將<code>FLOAT</code>或<code>DOUBLE</code>列與有小數的數字進行比較，你不能使用<code>=</code>!。這個問題在大多數計算機語言是常見的，因為浮點值不是準確的值。<pre>mysql&gt; SELECT * FROM table_name WHERE float_column=3.5;
+   -&gt;
+mysql&gt; SELECT * FROM table_name WHERE float_column between 3.45 and 3.55;
+</pre>
+    <p>在大多數情況下，將<code>FLOAT</code>改成一個<code>DOUBLE</code>將修正它！</p>
+  </li>
+  <li>如果你仍然不能發現錯誤是什麼，創建一個最小的可運行<code>mysql 
+    test &lt; query.sql</code>的測試來顯示你的問題。你可以用<code>mysqldump 
+    --quick database tables &gt; query.sql</code>創建一個測試文件，在一個編輯器編輯文件，刪除一些插入行(如果有太多這些語句)並且在文件末尾加入你的選擇語句。測試你仍然有問題，可以這樣做：<pre>shell&gt; mysqladmin create test2
+shell&gt; mysql test2 &lt; query.sql
+</pre>
+    <p>使用<code>mysqlbug</code>的郵寄測試文件到<a HREF="mailto:mysql@lists.mysql.com">mysql@lists.mysql.com</a>。</p>
+  </li>
+</ol>
+
+<h2><a NAME="ALTER_TABLE_problems" HREF="manual_toc.html#ALTER_TABLE_problems">18.19 與<code>ALTER 
+TABLE</code>有關的問題</a></h2>
+
+<p>如果<code>ALTER TABLE</code>死於這樣一個錯誤：</p>
+
+<pre>Error on rename of './database/name.frm' to './database/B-a.frm' (Errcode: 17)
+</pre>
+
+<p>問題可能是<strong>MySQL</strong>在前一個<code>ALTER TABLE</code>中已經崩潰並且留下了一個名為<tt>“A-xxx”</tt>或<tt>“B-xxx”</tt>的老的資料庫表。在這種情況下，到<strong>MySQL</strong>數據目錄中並刪除所有名字以<code>A-</code>或<code>B-</code>開始的文件。（你可以把他們移到別的地方而不是刪除他們)。</p>
+
+<p><code>ALTER TABLE</code>工作方式是： 
+
+<ul>
+  <li>以要求的改變創建一個名為<tt>“A-xxx”</tt>的新表。 </li>
+  <li>從老表把所有行拷貝到<tt>“A-xxx”</tt>。</li>
+  <li>老表被改名為<tt>“B-xxx”</tt>。 </li>
+  <li><tt>“A-xxx”</tt>被改名為你的老表的名字。</li>
+  <li><tt>“B-xxx”</tt>被刪除。 </li>
+</ul>
+
+<p>如果某些改名操作出錯，<strong>MySQL</strong>試圖還原改變。如果出錯嚴重(當然，這不應該發生。)，<strong>MySQL</strong>可能留下了老表為<tt>“B-xxx”</tt>但是一個簡單改名就應該恢復你的數據。</p>
+
+<h2><a NAME="Change_column_order" HREF="manual_toc.html#Change_column_order">18.20 
+怎樣改變一張表中列的順序</a></h2>
+
+<p>SQL的要點是中抽像應用程式以避免數據儲存格式。你應該總是以你想要檢索數據的意願指定順序。例如：</p>
+
+<pre>SELECT col_name1, col_name2, col_name3 FROM tbl_name;
+</pre>
+
+<p>將以<code>col_name1</code>、<code>col_name2</code>、<code>col_name3</code>的順序返回列，而：</p>
+
+<pre>SELECT col_name1, col_name3, col_name2 FROM tbl_name; 
+</pre>
+
+<p>將以<code>col_name1</code>、<code>col_name3</code>、<code>col_name2</code>的順序返回列。</p>
+
+<p>在一個應用程式中，你應該<strong>決不</strong>基於他們的位置使用<code>SELECT 
+*</code> 檢索列，因為被返回的列的順序永遠<strong>不能</strong>保証﹔對你的資料庫的一個簡單改變可能導致你的應用程式相當有戲劇性地失敗。</p>
+
+<p>不管怎樣，如果你想要改變列的順序，你可以這樣做： 
+
+<ol>
+  <li>以正確的列順序創建一張新表。</li>
+  <li>執行<code>INSERT INTO new_table SELECT fields-in-new_table-order FROM old_table</code>. 
+  </li>
+  <li>刪除或改名<code>old_table</code>。</li>
+  <li><code>ALTER TABLE new_table RENAME old_table</code>。</li>
+</ol>
+
+<hr>
+
+<p>去<a HREF="manual_Introduction.html">首先</a>, <a HREF="manual_Common_programs.html">先前</a>, 
+<a HREF="manual_Common_problems.html">下一個</a>, <a HREF="manual_Concept_Index.html">最終</a>部分，<a HREF="manual_toc.html">目錄</a>. </p>
+</body>
+</html>

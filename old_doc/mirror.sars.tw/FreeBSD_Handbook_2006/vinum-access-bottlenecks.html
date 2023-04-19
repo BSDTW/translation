@@ -1,0 +1,168 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>Access Bottlenecks</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.79" />
+<link rel="HOME" title="FreeBSD 使用手冊" href="index.html" />
+<link rel="UP" title="The Vinum Volume Manager" href="vinum-vinum.html" />
+<link rel="PREVIOUS" title="Disks Are Too Small" href="vinum-intro.html" />
+<link rel="NEXT" title="Data Integrity" href="vinum-data-integrity.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD 使用手冊</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="vinum-intro.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 19 The Vinum Volume Manager</td>
+<td width="10%" align="right" valign="bottom"><a href="vinum-data-integrity.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="VINUM-ACCESS-BOTTLENECKS" name="VINUM-ACCESS-BOTTLENECKS">19.3
+Access Bottlenecks</a></h1>
+
+<p>Modern systems frequently need to access data in a highly concurrent manner. For
+example, large FTP or HTTP servers can maintain thousands of concurrent sessions and have
+multiple 100&nbsp;Mbit/s connections to the outside world, well beyond the sustained
+transfer rate of most disks.</p>
+
+<p>Current disk drives can transfer data sequentially at up to 70&nbsp;MB/s, but this
+value is of little importance in an environment where many independent processes access a
+drive, where they may achieve only a fraction of these values. In such cases it is more
+interesting to view the problem from the viewpoint of the disk subsystem: the important
+parameter is the load that a transfer places on the subsystem, in other words the time
+for which a transfer occupies the drives involved in the transfer.</p>
+
+<p>In any disk transfer, the drive must first position the heads, wait for the first
+sector to pass under the read head, and then perform the transfer. These actions can be
+considered to be atomic: it does not make any sense to interrupt them.</p>
+
+<p><a id="VINUM-LATENCY" name="VINUM-LATENCY"></a> Consider a typical transfer of about
+10&nbsp;kB: the current generation of high-performance disks can position the heads in an
+average of 3.5&nbsp;ms. The fastest drives spin at 15,000&nbsp;rpm, so the average
+rotational latency (half a revolution) is 2&nbsp;ms. At 70&nbsp;MB/s, the transfer itself
+takes about 150&nbsp;&mu;s, almost nothing compared to the positioning time. In such a
+case, the effective transfer rate drops to a little over 1&nbsp;MB/s and is clearly
+highly dependent on the transfer size.</p>
+
+<p>The traditional and obvious solution to this bottleneck is “more spindles”: rather
+than using one large disk, it uses several smaller disks with the same aggregate storage
+space. Each disk is capable of positioning and transferring independently, so the
+effective throughput increases by a factor close to the number of disks used.</p>
+
+<p>The exact throughput improvement is, of course, smaller than the number of disks
+involved: although each drive is capable of transferring in parallel, there is no way to
+ensure that the requests are evenly distributed across the drives. Inevitably the load on
+one drive will be higher than on another.</p>
+
+<p>The evenness of the load on the disks is strongly dependent on the way the data is
+shared across the drives. In the following discussion, it is convenient to think of the
+disk storage as a large number of data sectors which are addressable by number, rather
+like the pages in a book. The most obvious method is to divide the virtual disk into
+groups of consecutive sectors the size of the individual physical disks and store them in
+this manner, rather like taking a large book and tearing it into smaller sections. This
+method is called <span class="emphasis"><i class="EMPHASIS">concatenation</i></span> and
+has the advantage that the disks are not required to have any specific size
+relationships. It works well when the access to the virtual disk is spread evenly about
+its address space. When access is concentrated on a smaller area, the improvement is less
+marked. <a href="vinum-access-bottlenecks.html#VINUM-CONCAT">Figure 19-1</a> illustrates
+the sequence in which storage units are allocated in a concatenated organization.</p>
+
+<p></p>
+
+<div class="FIGURE"><a id="VINUM-CONCAT" name="VINUM-CONCAT"></a>
+<p><b>Figure 19-1. Concatenated Organization</b></p>
+
+<p><img src="vinum/vinum-concat.png" /></p>
+</div>
+
+<br />
+<br />
+<p>An alternative mapping is to divide the address space into smaller, equal-sized
+components and store them sequentially on different devices. For example, the first 256
+sectors may be stored on the first disk, the next 256 sectors on the next disk and so on.
+After filling the last disk, the process repeats until the disks are full. This mapping
+is called <span class="emphasis"><i class="EMPHASIS">striping</i></span> or <acronym
+class="ACRONYM">RAID-0</acronym> <a id="AEN26970" name="AEN26970"
+href="#FTN.AEN26970"><span class="footnote">[1]</span></a>. Striping requires somewhat
+more effort to locate the data, and it can cause additional I/O load where a transfer is
+spread over multiple disks, but it can also provide a more constant load across the
+disks. <a href="vinum-access-bottlenecks.html#VINUM-STRIPED">Figure 19-2</a> illustrates
+the sequence in which storage units are allocated in a striped organization.</p>
+
+<p></p>
+
+<div class="FIGURE"><a id="VINUM-STRIPED" name="VINUM-STRIPED"></a>
+<p><b>Figure 19-2. Striped Organization</b></p>
+
+<p><img src="vinum/vinum-striped.png" /></p>
+</div>
+
+<br />
+<br />
+</div>
+
+<h3 class="FOOTNOTES">Notes</h3>
+
+<table border="0" class="FOOTNOTES" width="100%">
+<tr>
+<td align="LEFT" valign="TOP" width="5%"><a id="FTN.AEN26970" name="FTN.AEN26970"
+href="vinum-access-bottlenecks.html#AEN26970"><span class="footnote">[1]</span></a></td>
+<td align="LEFT" valign="TOP" width="95%">
+<p><acronym class="ACRONYM">RAID</acronym> stands for <span class="emphasis"><i
+class="EMPHASIS">Redundant Array of Inexpensive Disks</i></span> and offers various forms
+of fault tolerance, though the latter term is somewhat misleading: it provides no
+redundancy.</p>
+</td>
+</tr>
+</table>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="vinum-intro.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="vinum-data-integrity.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">Disks Are Too Small</td>
+<td width="34%" align="center" valign="top"><a href="vinum-vinum.html"
+accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">Data Integrity</td>
+</tr>
+</table>
+</div>
+
+<p align="center"><small>This, and other documents, can be downloaded from <a
+href="ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/">ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/</a>.</small></p>
+
+<p align="center"><small>For questions about FreeBSD, read the <a
+href="http://www.FreeBSD.org/docs.html">documentation</a> before contacting &#60;<a
+href="mailto:questions@FreeBSD.org">questions@FreeBSD.org</a>&#62;.<br />
+For questions about this documentation, e-mail &#60;<a
+href="mailto:doc@FreeBSD.org">doc@FreeBSD.org</a>&#62;.</small></p>
+</body>
+</html>
+

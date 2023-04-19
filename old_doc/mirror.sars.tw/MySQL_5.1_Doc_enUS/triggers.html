@@ -1,0 +1,539 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><title>Chapter 24. Triggers</title><link rel="stylesheet" href="mysql-html.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.69.1"><link rel="start" href="index.html" title="MySQL 5.1 Reference Manual"><link rel="up" href="index.html" title="MySQL 5.1 Reference Manual"><link rel="prev" href="stored-procedures.html" title="Chapter 23. Stored Procedures and Functions"><link rel="next" href="events.html" title="Chapter 25. Event Scheduler"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">Chapter 24. Triggers</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="stored-procedures.html">Prev</a> </td><th width="60%" align="center"> </th><td width="20%" align="right"> <a accesskey="n" href="events.html">Next</a></td></tr></table><hr></div><div class="chapter" lang="en"><div class="titlepage"><div><div><h2 class="title"><a name="triggers"></a>Chapter 24. Triggers</h2></div></div></div><div class="toc"><p><b>Table of Contents</b></p><dl><dt><span class="section"><a href="triggers.html#create-trigger">24.1. <code class="literal">CREATE TRIGGER</code> Syntax</a></span></dt><dt><span class="section"><a href="triggers.html#drop-trigger">24.2. <code class="literal">DROP TRIGGER</code> Syntax</a></span></dt><dt><span class="section"><a href="triggers.html#using-triggers">24.3. Using Triggers</a></span></dt></dl></div><a class="indexterm" name="id2435805"></a><p>
+    A trigger is a named database object that is associated with a table
+    and that is activated when a particular event occurs for the table.
+    For example, the following statements create a table and an
+    <code class="literal">INSERT</code> trigger. The trigger sums the values
+    inserted into one of the table's columns:
+  </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>CREATE TABLE account (acct_num INT, amount DECIMAL(10,2));</code></strong>
+Query OK, 0 rows affected (0.03 sec)
+
+mysql&gt; <strong class="userinput"><code>CREATE TRIGGER ins_sum BEFORE INSERT ON account</code></strong>
+    -&gt; <strong class="userinput"><code>FOR EACH ROW SET @sum = @sum + NEW.amount;</code></strong>
+Query OK, 0 rows affected (0.06 sec)
+</pre><div class="important" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Important</h3><p>
+      MySQL triggers are activated by SQL statements
+      <span class="emphasis"><em>only</em></span>. They are not activated by changes in
+      tables made by APIs that do not transmit SQL statements to the
+      MySQL Server; in particular, they are not activated by updates
+      made using the <code class="literal">NDB</code> API.
+    </p></div><p>
+    This chapter describes the syntax for creating and dropping
+    triggers, and shows some examples of how to use them. Discussion of
+    restrictions on use of triggers is given in
+    <a href="restrictions.html#routine-restrictions" title="D.1. Restrictions on Stored Routines, Triggers, and Events">Section D.1, “Restrictions on Stored Routines, Triggers, and Events”</a>. Remarks regarding binary
+    logging as it applies to triggers are given in
+    <a href="stored-procedures.html#stored-procedure-logging" title="23.4. Binary Logging of Stored Routines and Triggers">Section 23.4, “Binary Logging of Stored Routines and Triggers”</a>.
+  </p><p>
+    For answers to some common questions about triggers in MySQL
+    5.1, see <a href="faqs.html#faqs-triggers" title="A.5. MySQL 5.1 FAQ — Triggers">Section A.5, “MySQL 5.1 FAQ — Triggers”</a>.
+  </p><div class="section" lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="create-trigger"></a>24.1. <code class="literal">CREATE TRIGGER</code> Syntax</h2></div></div></div><a class="indexterm" name="id2435912"></a><a class="indexterm" name="id2435921"></a><pre class="programlisting">CREATE
+    [DEFINER = { <em class="replaceable"><code>user</code></em> | CURRENT_USER }]
+    TRIGGER <em class="replaceable"><code>trigger_name</code></em> <em class="replaceable"><code>trigger_time</code></em> <em class="replaceable"><code>trigger_event</code></em>
+    ON <em class="replaceable"><code>tbl_name</code></em> FOR EACH ROW <em class="replaceable"><code>trigger_stmt</code></em>
+</pre><p>
+      This statement creates a new trigger. A trigger is a named
+      database object that is associated with a table, and that
+      activates when a particular event occurs for the table. The
+      trigger becomes associated with the table named
+      <em class="replaceable"><code>tbl_name</code></em>, which must refer to a
+      permanent table. You cannot associate a trigger with a
+      <code class="literal">TEMPORARY</code> table or a view.
+    </p><p class="mnmas"><b>MySQL Enterprise</b>
+        For expert advice on creating triggers subscribe to the MySQL
+        Enterprise Monitor. For more information, see
+        <a href="http://www.mysql.com/products/enterprise/advisors.html" target="_top">http://www.mysql.com/products/enterprise/advisors.html</a>.
+      </p><p>
+      <code class="literal">CREATE TRIGGER</code> requires the
+      <code class="literal">TRIGGER</code> privilege for the table associated with
+      the trigger. (Before MySQL 5.1.6, this statement requires the
+      <code class="literal">SUPER</code> privilege.)
+    </p><p>
+      The <code class="literal">DEFINER</code> clause determines the security
+      context to be used when checking access privileges at trigger
+      activation time.
+    </p><p>
+      <em class="replaceable"><code>trigger_time</code></em> is the trigger action
+      time. It can be <code class="literal">BEFORE</code> or
+      <code class="literal">AFTER</code> to indicate that the trigger activates
+      before or after each row to be modified.
+    </p><p>
+      <em class="replaceable"><code>trigger_event</code></em> indicates the kind of
+      statement that activates the trigger. The
+      <em class="replaceable"><code>trigger_event</code></em> can be one of the
+      following:
+    </p><div class="itemizedlist"><ul type="disc"><li><p>
+          <code class="literal">INSERT</code>: The trigger is activated whenever a
+          new row is inserted into the table; for example, through
+          <code class="literal">INSERT</code>, <code class="literal">LOAD DATA</code>, and
+          <code class="literal">REPLACE</code> statements.
+        </p></li><li><p>
+          <code class="literal">UPDATE</code>: The trigger is activated whenever a
+          row is modified; for example, through
+          <code class="literal">UPDATE</code> statements.
+        </p></li><li><p>
+          <code class="literal">DELETE</code>: The trigger is activated whenever a
+          row is deleted from the table; for example, through
+          <code class="literal">DELETE</code> and <code class="literal">REPLACE</code>
+          statements. However, <code class="literal">DROP TABLE</code> and
+          <code class="literal">TRUNCATE</code> statements on the table do
+          <span class="emphasis"><em>not</em></span> activate this trigger, because they
+          do not use <code class="literal">DELETE</code>. Dropping a partition
+          does not activate <code class="literal">DELETE</code> triggers, either.
+          See <a href="sql-syntax.html#truncate" title="12.2.9. TRUNCATE Syntax">Section 12.2.9, “<code class="literal">TRUNCATE</code> Syntax”</a>.
+        </p></li></ul></div><p>
+      It is important to understand that the
+      <em class="replaceable"><code>trigger_event</code></em> does not represent a
+      literal type of SQL statement that activates the trigger so much
+      as it represents a type of table operation. For example, an
+      <code class="literal">INSERT</code> trigger is activated by not only
+      <code class="literal">INSERT</code> statements but also <code class="literal">LOAD
+      DATA</code> statements because both statements insert rows into
+      a table.
+    </p><p>
+      A potentially confusing example of this is the <code class="literal">INSERT
+      INTO ... ON DUPLICATE KEY UPDATE ...</code> syntax: a
+      <code class="literal">BEFORE INSERT</code> trigger will activate for every
+      row, followed by either an <code class="literal">AFTER INSERT</code> trigger
+      or both the <code class="literal">BEFORE UPDATE</code> and <code class="literal">AFTER
+      UPDATE</code> triggers, depending on whether there was a
+      duplicate key for the row.
+    </p><p>
+      There cannot be two triggers for a given table that have the same
+      trigger action time and event. For example, you cannot have two
+      <code class="literal">BEFORE UPDATE</code> triggers for a table. But you can
+      have a <code class="literal">BEFORE UPDATE</code> and a <code class="literal">BEFORE
+      INSERT</code> trigger, or a <code class="literal">BEFORE UPDATE</code>
+      and an <code class="literal">AFTER UPDATE</code> trigger.
+    </p><p>
+      <em class="replaceable"><code>trigger_stmt</code></em> is the statement to
+      execute when the trigger activates. If you want to execute
+      multiple statements, use the <code class="literal">BEGIN ... END</code>
+      compound statement construct. This also enables you to use the
+      same statements that are allowable within stored routines. See
+      <a href="stored-procedures.html#begin-end" title="23.2.7. BEGIN ... END Compound Statement Syntax">Section 23.2.7, “<code class="literal">BEGIN ... END</code> Compound Statement Syntax”</a>. Some statements are not allowed in
+      triggers; see <a href="restrictions.html#routine-restrictions" title="D.1. Restrictions on Stored Routines, Triggers, and Events">Section D.1, “Restrictions on Stored Routines, Triggers, and Events”</a>.
+    </p><p>
+      MySQL stores the <code class="literal">sql_mode</code> system variable
+      setting that is in effect at the time a trigger is created, and
+      always executes the trigger with this setting in force,
+      <span class="emphasis"><em>regardless of the current server SQL mode</em></span>.
+    </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Note</h3><p>
+        Currently, triggers are not activated by cascaded foreign key
+        actions. This limitation will be lifted as soon as possible.
+      </p></div><p>
+      In MySQL 5.1, you can write triggers containing
+      direct references to tables by name, such as the trigger named
+      <code class="literal">testref</code> shown in this example:
+    </p><pre class="programlisting">CREATE TABLE test1(a1 INT);
+CREATE TABLE test2(a2 INT);
+CREATE TABLE test3(a3 INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
+CREATE TABLE test4(
+  a4 INT NOT NULL AUTO_INCREMENT PRIMARY KEY, 
+  b4 INT DEFAULT 0
+);
+
+DELIMITER |
+
+CREATE TRIGGER testref BEFORE INSERT ON test1
+  FOR EACH ROW BEGIN
+    INSERT INTO test2 SET a2 = NEW.a1;
+    DELETE FROM test3 WHERE a3 = NEW.a1;  
+    UPDATE test4 SET b4 = b4 + 1 WHERE a4 = NEW.a1;
+  END;
+|
+
+DELIMITER ;
+
+INSERT INTO test3 (a3) VALUES 
+  (NULL), (NULL), (NULL), (NULL), (NULL), 
+  (NULL), (NULL), (NULL), (NULL), (NULL);
+
+INSERT INTO test4 (a4) VALUES 
+  (0), (0), (0), (0), (0), (0), (0), (0), (0), (0);
+</pre><p>
+      Suppose that you insert the following values into table
+      <code class="literal">test1</code> as shown here:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>INSERT INTO test1 VALUES </code></strong>
+    -&gt; <strong class="userinput"><code>(1), (3), (1), (7), (1), (8), (4), (4);</code></strong>
+Query OK, 8 rows affected (0.01 sec)
+Records: 8  Duplicates: 0  Warnings: 0
+</pre><p>
+      As a result, the data in the four tables will be as follows:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SELECT * FROM test1;</code></strong>
++------+
+| a1   |
++------+
+|    1 |
+|    3 |
+|    1 |
+|    7 |
+|    1 |
+|    8 |
+|    4 |
+|    4 |
++------+
+8 rows in set (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>SELECT * FROM test2;</code></strong>
++------+
+| a2   |
++------+
+|    1 |
+|    3 |
+|    1 |
+|    7 |
+|    1 |
+|    8 |
+|    4 |
+|    4 |
++------+
+8 rows in set (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>SELECT * FROM test3;</code></strong>
++----+
+| a3 |
++----+
+|  2 |
+|  5 |
+|  6 |
+|  9 |
+| 10 |
++----+
+5 rows in set (0.00 sec)
+
+mysql&gt; <strong class="userinput"><code>SELECT * FROM test4;</code></strong>
++----+------+
+| a4 | b4   |
++----+------+
+|  1 |    3 |
+|  2 |    0 |
+|  3 |    1 |
+|  4 |    2 |
+|  5 |    0 |
+|  6 |    0 |
+|  7 |    1 |
+|  8 |    1 |
+|  9 |    0 |
+| 10 |    0 |
++----+------+
+10 rows in set (0.00 sec)
+</pre><p>
+      You can refer to columns in the subject table (the table
+      associated with the trigger) by using the aliases
+      <code class="literal">OLD</code> and <code class="literal">NEW</code>.
+      <code class="literal">OLD.<em class="replaceable"><code>col_name</code></em></code> refers
+      to a column of an existing row before it is updated or deleted.
+      <code class="literal">NEW.<em class="replaceable"><code>col_name</code></em></code> refers
+      to the column of a new row to be inserted or an existing row after
+      it is updated.
+    </p><p>
+      The <code class="literal">DEFINER</code> clause specifies the MySQL account
+      to be used when checking access privileges at trigger activation
+      time. If a <em class="replaceable"><code>user</code></em> value is given, it
+      should be a MySQL account in
+      <code class="literal">'<em class="replaceable"><code>user_name</code></em>'@'<em class="replaceable"><code>host_name</code></em>'</code>
+      format (the same format used in the <code class="literal">GRANT</code>
+      statement). The <em class="replaceable"><code>user_name</code></em> and
+      <em class="replaceable"><code>host_name</code></em> values both are required. The
+      definer can also be given as
+      <a href="functions.html#function_current-user"><code class="literal">CURRENT_USER</code></a> or
+      <a href="functions.html#function_current-user"><code class="literal">CURRENT_USER()</code></a>. The default
+      <code class="literal">DEFINER</code> value is the user who executes the
+      <code class="literal">CREATE TRIGGER</code> statement. (This is the same as
+      <code class="literal">DEFINER = CURRENT_USER</code>.)
+    </p><p>
+      If you specify the <code class="literal">DEFINER</code> clause, these rules
+      determine the legal <code class="literal">DEFINER</code> user values:
+    </p><div class="itemizedlist"><ul type="disc"><li><p>
+          If you do not have the <code class="literal">SUPER</code> privilege, the
+          only legal <em class="replaceable"><code>user</code></em> value is your own
+          account, either specified literally or by using
+          <a href="functions.html#function_current-user"><code class="literal">CURRENT_USER</code></a>. You cannot set
+          the definer to some other account.
+        </p></li><li><p>
+          If you have the <code class="literal">SUPER</code> privilege, you can
+          specify any syntactically legal account name. If the account
+          does not actually exist, a warning is generated.
+        </p><p>
+          Although it is possible to create triggers with a non-existent
+          <code class="literal">DEFINER</code> value, it is not a good idea for
+          such triggers to be activated until the definer actually does
+          exist. Otherwise, the behavior with respect to privilege
+          checking is undefined.
+        </p></li></ul></div><p>
+      Note: Prior to MySQL 5.1.6, MySQL requires the
+      <code class="literal">SUPER</code> privilege for the use of <code class="literal">CREATE
+      TRIGGER</code>, so only the second of the preceding rules
+      applies. As of 5.1.6, <code class="literal">CREATE TRIGGER</code> requires
+      the <code class="literal">TRIGGER</code> privilege and
+      <code class="literal">SUPER</code> is required only to be able to set
+      <code class="literal">DEFINER</code> to a value other than your own account.
+    </p><p>
+      MySQL checks trigger privileges like this:
+    </p><div class="itemizedlist"><ul type="disc"><li><p>
+          At <code class="literal">CREATE TRIGGER</code> time, the user that
+          issues the statement must have the <code class="literal">TRIGGER</code>
+          privilege. (<code class="literal">SUPER</code> prior to MySQL 5.1.6.)
+        </p></li><li><p>
+          At trigger activation time, privileges are checked against the
+          <code class="literal">DEFINER</code> user. This user must have these
+          privileges:
+        </p><div class="itemizedlist"><ul type="circle"><li><p>
+              The <code class="literal">TRIGGER</code> privilege.
+              (<code class="literal">SUPER</code> prior to MySQL 5.1.6.)
+            </p></li><li><p>
+              The <code class="literal">SELECT</code> privilege for the subject
+              table if references to table columns occur via
+              <code class="literal">OLD.<em class="replaceable"><code>col_name</code></em></code>
+              or
+              <code class="literal">NEW.<em class="replaceable"><code>col_name</code></em></code>
+              in the trigger definition.
+            </p></li><li><p>
+              The <code class="literal">UPDATE</code> privilege for the subject
+              table if table columns are targets of <code class="literal">SET
+              NEW.<em class="replaceable"><code>col_name</code></em> =
+              <em class="replaceable"><code>value</code></em></code> assignments in
+              the trigger definition.
+            </p></li><li><p>
+              Whatever other privileges normally are required for the
+              statements executed by the trigger.
+            </p></li></ul></div></li></ul></div></div><div class="section" lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="drop-trigger"></a>24.2. <code class="literal">DROP TRIGGER</code> Syntax</h2></div></div></div><a class="indexterm" name="id2436801"></a><a class="indexterm" name="id2436810"></a><pre class="programlisting">DROP TRIGGER [IF EXISTS] [<em class="replaceable"><code>schema_name</code></em>.]<em class="replaceable"><code>trigger_name</code></em>
+</pre><p>
+      This statement drops a trigger. The schema (database) name is
+      optional. If the schema is omitted, the trigger is dropped from
+      the default schema. <code class="literal">DROP TRIGGER</code> was added in
+      MySQL 5.0.2. Its use requires the <code class="literal">TRIGGER</code>
+      privilege for the table associated with the trigger. (This
+      statement requires the <code class="literal">SUPER</code> privilege prior to
+      MySQL 5.1.6.)
+    </p><p>
+      Use <code class="literal">IF EXISTS</code> to prevent an error from
+      occurring for a trigger that does not exist. A
+      <code class="literal">NOTE</code> is generated for a non-existent trigger
+      when using <code class="literal">IF EXISTS</code>. See
+      <a href="sql-syntax.html#show-warnings" title="12.5.5.37. SHOW WARNINGS Syntax">Section 12.5.5.37, “<code class="literal">SHOW WARNINGS</code> Syntax”</a>. The <code class="literal">IF EXISTS</code>
+      clause was added in MySQL 5.1.14.
+    </p><p>
+      Triggers for a table are also dropped if you drop the table.
+    </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Note</h3><p>
+        When upgrading from a version of MySQL older than MySQL 5.0.10
+        to 5.0.10 or newer — including all MySQL 5.1
+        releases — you must drop all triggers <span class="emphasis"><em>before
+        upgrading</em></span> and re-create them afterward, or else
+        <code class="literal">DROP TRIGGER</code> does not work after the upgrade.
+        See <a href="installing.html#upgrading-from-5-0" title="2.11.1. Upgrading from MySQL 5.0 to 5.1">Section 2.11.1, “Upgrading from MySQL 5.0 to 5.1”</a>, for a suggested
+        upgrade procedure.
+      </p></div></div><div class="section" lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="using-triggers"></a>24.3. Using Triggers</h2></div></div></div><p>
+      This section discusses how to use triggers in MySQL
+      5.1 and some limitations regarding their use.
+      Additional information about trigger limitations is given in
+      <a href="restrictions.html#routine-restrictions" title="D.1. Restrictions on Stored Routines, Triggers, and Events">Section D.1, “Restrictions on Stored Routines, Triggers, and Events”</a>.
+    </p><p>
+      A trigger is a named database object that is associated with a
+      table, and that activates when a particular event occurs for the
+      table. Some uses for triggers are to perform checks of values to
+      be inserted into a table or to perform calculations on values
+      involved in an update.
+    </p><p>
+      A trigger is associated with a table and is defined to activate
+      when an <code class="literal">INSERT</code>, <code class="literal">DELETE</code>, or
+      <code class="literal">UPDATE</code> statement for the table executes. A
+      trigger can be set to activate either before or after the
+      triggering statement. For example, you can have a trigger activate
+      before each row that is deleted from a table or after each row
+      that is updated.
+    </p><div class="important" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Important</h3><p>
+        MySQL triggers are activated by SQL statements
+        <span class="emphasis"><em>only</em></span>. They are not activated by changes in
+        tables made by APIs that do not transmit SQL statements to the
+        MySQL Server; in particular, they are not activated by updates
+        made using the <code class="literal">NDB</code> API.
+      </p></div><p>
+      To create a trigger or drop a trigger, use the <code class="literal">CREATE
+      TRIGGER</code> or <code class="literal">DROP TRIGGER</code> statement.
+      The syntax for these statements is described in
+      <a href="triggers.html#create-trigger" title="24.1. CREATE TRIGGER Syntax">Section 24.1, “<code class="literal">CREATE TRIGGER</code> Syntax”</a>, and
+      <a href="triggers.html#drop-trigger" title="24.2. DROP TRIGGER Syntax">Section 24.2, “<code class="literal">DROP TRIGGER</code> Syntax”</a>.
+    </p><p>
+      Here is a simple example that associates a trigger with a table
+      for <code class="literal">INSERT</code> statements. It acts as an
+      accumulator to sum the values inserted into one of the columns of
+      the table.
+    </p><p>
+      The following statements create a table and a trigger for it:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>CREATE TABLE account (acct_num INT, amount DECIMAL(10,2));</code></strong>
+mysql&gt; <strong class="userinput"><code>CREATE TRIGGER ins_sum BEFORE INSERT ON account</code></strong>
+    -&gt; <strong class="userinput"><code>FOR EACH ROW SET @sum = @sum + NEW.amount;</code></strong>
+</pre><p>
+      The <code class="literal">CREATE TRIGGER</code> statement creates a trigger
+      named <code class="literal">ins_sum</code> that is associated with the
+      <code class="literal">account</code> table. It also includes clauses that
+      specify the trigger activation time, the triggering event, and
+      what to do with the trigger activates:
+    </p><div class="itemizedlist"><ul type="disc"><li><p>
+          The keyword <code class="literal">BEFORE</code> indicates the trigger
+          action time. In this case, the trigger should activate before
+          each row inserted into the table. The other allowable keyword
+          here is <code class="literal">AFTER</code>.
+        </p></li><li><p>
+          The keyword <code class="literal">INSERT</code> indicates the event that
+          activates the trigger. In the example,
+          <code class="literal">INSERT</code> statements cause trigger activation.
+          You can also create triggers for <code class="literal">DELETE</code> and
+          <code class="literal">UPDATE</code> statements.
+        </p></li><li><p>
+          The statement following <code class="literal">FOR EACH ROW</code>
+          defines the statement to execute each time the trigger
+          activates, which occurs once for each row affected by the
+          triggering statement In the example, the triggered statement
+          is a simple <code class="literal">SET</code> that accumulates the values
+          inserted into the <code class="literal">amount</code> column. The
+          statement refers to the column as
+          <code class="literal">NEW.amount</code> which means “<span class="quote">the value of
+          the <code class="literal">amount</code> column to be inserted into the
+          new row.</span>”
+        </p></li></ul></div><p>
+      To use the trigger, set the accumulator variable to zero, execute
+      an <code class="literal">INSERT</code> statement, and then see what value
+      the variable has afterward:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>SET @sum = 0;</code></strong>
+mysql&gt; <strong class="userinput"><code>INSERT INTO account VALUES(137,14.98),(141,1937.50),(97,-100.00);</code></strong>
+mysql&gt; <strong class="userinput"><code>SELECT @sum AS 'Total amount inserted';</code></strong>
++-----------------------+
+| Total amount inserted |
++-----------------------+
+| 1852.48               |
++-----------------------+
+</pre><p>
+      In this case, the value of <code class="literal">@sum</code> after the
+      <code class="literal">INSERT</code> statement has executed is <code class="literal">14.98
+      + 1937.50 - 100</code>, or <code class="literal">1852.48</code>.
+    </p><p>
+      To destroy the trigger, use a <code class="literal">DROP TRIGGER</code>
+      statement. You must specify the schema name if the trigger is not
+      in the default schema:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>DROP TRIGGER test.ins_sum;</code></strong>
+</pre><p>
+      Triggers for a table are also dropped if you drop the table.
+    </p><p>
+      Trigger names exist in the schema namespace, meaning that all
+      triggers must have unique names within a schema. Triggers in
+      different schemas can have the same name.
+    </p><p>
+      In addition to the requirement that trigger names be unique for a
+      schema, there are other limitations on the types of triggers you
+      can create. In particular, you cannot have two triggers for a
+      table that have the same activation time and activation event. For
+      example, you cannot define two <code class="literal">BEFORE INSERT</code>
+      triggers or two <code class="literal">AFTER UPDATE</code> triggers for a
+      table. This should rarely be a significant limitation, because it
+      is possible to define a trigger that executes multiple statements
+      by using the <code class="literal">BEGIN ... END</code> compound statement
+      construct after <code class="literal">FOR EACH ROW</code>. (An example
+      appears later in this section.)
+    </p><p>
+      The <code class="literal">OLD</code> and <code class="literal">NEW</code> keywords
+      enable you to access columns in the rows affected by a trigger.
+      (<code class="literal">OLD</code> and <code class="literal">NEW</code> are not case
+      sensitive.) In an <code class="literal">INSERT</code> trigger, only
+      <code class="literal">NEW.<em class="replaceable"><code>col_name</code></em></code> can be
+      used; there is no old row. In a <code class="literal">DELETE</code> trigger,
+      only <code class="literal">OLD.<em class="replaceable"><code>col_name</code></em></code>
+      can be used; there is no new row. In an <code class="literal">UPDATE</code>
+      trigger, you can use
+      <code class="literal">OLD.<em class="replaceable"><code>col_name</code></em></code> to
+      refer to the columns of a row before it is updated and
+      <code class="literal">NEW.<em class="replaceable"><code>col_name</code></em></code> to
+      refer to the columns of the row after it is updated.
+    </p><p>
+      A column named with <code class="literal">OLD</code> is read only. You can
+      refer to it (if you have the <code class="literal">SELECT</code> privilege),
+      but not modify it. A column named with <code class="literal">NEW</code> can
+      be referred to if you have the <code class="literal">SELECT</code> privilege
+      for it. In a <code class="literal">BEFORE</code> trigger, you can also
+      change its value with <code class="literal">SET
+      NEW.<em class="replaceable"><code>col_name</code></em> =
+      <em class="replaceable"><code>value</code></em></code> if you have the
+      <code class="literal">UPDATE</code> privilege for it. This means you can use
+      a trigger to modify the values to be inserted into a new row or
+      that are used to update a row.
+    </p><p>
+      In a <code class="literal">BEFORE</code> trigger, the <code class="literal">NEW</code>
+      value for an <code class="literal">AUTO_INCREMENT</code> column is 0, not
+      the automatically generated sequence number that will be generated
+      when the new record actually is inserted.
+    </p><p>
+      <code class="literal">OLD</code> and <code class="literal">NEW</code> are MySQL
+      extensions to triggers.
+    </p><p>
+      By using the <code class="literal">BEGIN ... END</code> construct, you can
+      define a trigger that executes multiple statements. Within the
+      <code class="literal">BEGIN</code> block, you also can use other syntax that
+      is allowed within stored routines such as conditionals and loops.
+      However, just as for stored routines, if you use the
+      <span><strong class="command">mysql</strong></span> program to define a trigger that executes
+      multiple statements, it is necessary to redefine the
+      <span><strong class="command">mysql</strong></span> statement delimiter so that you can use
+      the <code class="literal">;</code> statement delimiter within the trigger
+      definition. The following example illustrates these points. It
+      defines an <code class="literal">UPDATE</code> trigger that checks the new
+      value to be used for updating each row, and modifies the value to
+      be within the range from 0 to 100. This must be a
+      <code class="literal">BEFORE</code> trigger because the value needs to be
+      checked before it is used to update the row:
+    </p><pre class="programlisting">mysql&gt; <strong class="userinput"><code>delimiter //</code></strong>
+mysql&gt; <strong class="userinput"><code>CREATE TRIGGER upd_check BEFORE UPDATE ON account</code></strong>
+    -&gt; <strong class="userinput"><code>FOR EACH ROW</code></strong>
+    -&gt; <strong class="userinput"><code>BEGIN</code></strong>
+    -&gt;     <strong class="userinput"><code>IF NEW.amount &lt; 0 THEN</code></strong>
+    -&gt;         <strong class="userinput"><code>SET NEW.amount = 0;</code></strong>
+    -&gt;     <strong class="userinput"><code>ELSEIF NEW.amount &gt; 100 THEN</code></strong>
+    -&gt;         <strong class="userinput"><code>SET NEW.amount = 100;</code></strong>
+    -&gt;     <strong class="userinput"><code>END IF;</code></strong>
+    -&gt; <strong class="userinput"><code>END;//</code></strong>
+mysql&gt; <strong class="userinput"><code>delimiter ;</code></strong>
+</pre><p>
+      It can be easier to define a stored procedure separately and then
+      invoke it from the trigger using a simple <code class="literal">CALL</code>
+      statement. This is also advantageous if you want to invoke the
+      same routine from within several triggers.
+    </p><p>
+      There are some limitations on what can appear in statements that a
+      trigger executes when activated:
+    </p><div class="itemizedlist"><ul type="disc"><li><p>
+          The trigger cannot use the <code class="literal">CALL</code> statement
+          to invoke stored procedures that return data to the client or
+          that use dynamic SQL. (Stored procedures are allowed to return
+          data to the trigger through <code class="literal">OUT</code> or
+          <code class="literal">INOUT</code> parameters.)
+        </p></li><li><p>
+          The trigger cannot use statements that explicitly or
+          implicitly begin or end a transaction such as <code class="literal">START
+          TRANSACTION</code>, <code class="literal">COMMIT</code>, or
+          <code class="literal">ROLLBACK</code>.
+        </p></li></ul></div><p>
+      MySQL handles errors during trigger execution as follows:
+    </p><div class="itemizedlist"><ul type="disc"><li><p>
+          If a <code class="literal">BEFORE</code> trigger fails, the operation on
+          the corresponding row is not performed.
+        </p></li><li><p>
+          A <code class="literal">BEFORE</code> trigger is activated by the
+          <span class="emphasis"><em>attempt</em></span> to insert or modify the row,
+          regardless of whether the attempt subsequently succeeds.
+        </p></li><li><p>
+          An <code class="literal">AFTER</code> trigger is executed only if the
+          <code class="literal">BEFORE</code> trigger (if any) and the row
+          operation both execute successfully.
+        </p></li><li><p>
+          An error during either a <code class="literal">BEFORE</code> or
+          <code class="literal">AFTER</code> trigger results in failure of the
+          entire statement that caused trigger invocation.
+        </p></li><li><p>
+          For transactional tables, failure of a statement should cause
+          rollback of all changes performed by the statement. Failure of
+          a trigger causes the statement to fail, so trigger failure
+          also causes rollback. For non-transactional tables, such
+          rollback cannot be done, so although the statement fails, any
+          changes performed prior to the point of the error remain in
+          effect.
+        </p></li></ul></div></div></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="stored-procedures.html">Prev</a> </td><td width="20%" align="center"> </td><td width="40%" align="right"> <a accesskey="n" href="events.html">Next</a></td></tr><tr><td width="40%" align="left" valign="top">Chapter 23. Stored Procedures and Functions </td><td width="20%" align="center"><a accesskey="h" href="index.html">Home</a></td><td width="40%" align="right" valign="top"> Chapter 25. Event Scheduler</td></tr></table></div></body></html>

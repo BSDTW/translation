@@ -1,0 +1,183 @@
+<title>Appendix E Regular Expression</title>
+<h1>Regular Expression 簡介</h1>
+<pre><h4>
+<ul>
+<li>為什麼要使用 Regular Expression<li>
+UNIX 中提供了許多 指令 或 tools, 它們具有在檔案中 尋找(Search)
+字串或置換(Replace)字串 的功能. 像 grep, vi , sed, awk,...
+不論是找尋字串或置換字串, 都得先 ``告訴這些指令所要找尋
+(被置換)的字串為何''.若未能預先明確知道所要找尋(被置換)的字串
+為何, 只知該字串存在的範圍或特徵時,
+例如 :
+        (一)找尋 ``T0.c'', ``T1.c'', ``T2.c''.... ``T9.c'' 當中的任一字串.
+        (二)找尋至少存在一個 ``A''的任意字串.
+這情況下, 如何告知執行找尋字串的指令所要找尋的字串為何.
+例 (一) 中, 要找尋任一在 ``T'' 與 ``.c'' 之間存在一個阿拉伯數字
+的字串;當然您可以列舉的方式, 一一把所要找尋的字串告訴執行
+命令的指令.但例 (二) 中合於該條件的字串有無限種可能, 勢必無法
+一一列舉.
+此時,便需要另一種字串表示的方法(協定).
+<li>  什麼是 Regular Expression</li>
+Regular Expression(以下簡稱 (Regexp)是一種字串表達的方式. 
+可用以指稱具有某特徵的所有字串.
+註 : 為區別於一般字串, 本附錄中代表 Regexp 的字串之前皆加
+ ``Regexp''.註 : AWK 程式中常以/..../括住 Regexp; 以區別於一般字串. 
+
+<li> 組成 Regular Expression 的元素</li>
+普通字元 除了.  * [ ] + ? ( ) \  \^ $ 外之所有字元.
+由普通字元所組成的Regexp其意義與原字串字面意義相同.
+例如 : Regexp ``the'' 與一般字串的 ``the'' 代表相同的意義.
+<ul>
+<li>. Metacharacter : 用以代表任意一字元. </li>
+須留心 UNIX Shell 中使用 ``*''表示 Wildcard, 可用以代表任意長度
+的字串.而 Regexp 中使用 ``.'' 來代表一個任意字元.(注意: 並非
+任意長度的字串)Regexp 中 ``*'' 另有其它涵意, 並不代表任意
+長度的字串.
+<li>^ 表示該字串必須出現於行首. </li>  
+<li>$ 表示該字串必須出現於行末.  </li>
+例如 :
+     Regexp /^The/ 用以表示所有出現於行首的字串 "The".
+     Regexp /The$/ 用以表示所有出現於行末字串 "The".
+<li>\ 將特殊字元還原成字面意義的字元(Escape character)</li>
+Regexp 中特殊字元將被解釋成特定的意義. 若要表示特殊字元的字面
+(literal meaning)意義時,在特殊字元之前加上"\"即可.
+       例如 :
+          使用Regexp來表示字串 ``a.out''時, 不可寫成 /a.out/.
+          因為 ``.''是特殊字元, 表任一字元. 可合乎 Regexp / a.out/
+          的字串將不只 ``a.out'' 一個; 字串 ``a2out'', ``a3out'',      
+          ``aaout'' ...都合於 Regexp /a.out/.
+          正確的用法為 :  / a\.out/
+<li>[...]字元集合, 用以表示兩中括號間所有的字元當中的任一個.</li>
+例如 : Regexp /[Tt]/ 可用以表示字元 ``T'' 或 ``t''.
+      故 Regexp /[Tt]he/ 表示 字串 ``The'' 或 ``the''.
+      字元集合 [... ] 內不可隨意留空白.
+例如 : Regexp /[ Tt ]/ 其中括號內有空白字元, 除表示
+       ``T'', ``t'' 中任一個字元, 也可代表一個 `` ''(空白字元)
+<li>- 字元集合中可使用 ``-'' 來指定字元的區間, 其用法如下 :</li>
+Regexp / [0-9]/ 等於 / [0123456789]/ 用以表示任意一個阿拉伯數字.
+同理 Regexp /[A-Z]/ 用以表示任意一個大寫英文字母.
+但應留心 :
+<ol>
+<li> Regexp /[0-9a-z]/ 並不等於 /[0-9][a-z]/; 前者表示一個字元,
+      後者表示二個字元.
+<li> Regexp /[-9]/ 或 /[9-]/ 只代表字元 ``9''或 ``-''.
+</ol>
+<li>[^...]使用[^..] 產生字元集合的補集(complement set).</li>
+其用法如下 :
+例如 : 要指定 ``T'' 或 ``t'' 之外的任一個字元, 可用 /[^Tt]/ 表之.
+同理 Regexp /[^a-zA-Z]/ 表示英文字母之外的任一個字元.
+須留心 ``^'' 之位置 : ``^''必須緊接於``["之後, 才代表字元集合的補集
+例如 :Regexp /[0-9\^]/ 只是用以表示一個阿拉伯數字或字元"^".
+<li> *  形容字元重複次數的特殊字元.</li>
+ ``*'' 形容它前方之字元可出現 1 次或多次, 或不出現.
+例如 :
+ Regexp /T[0-9]*\.c 中 * 形容其前 [0-9] (一個阿拉伯數字)出現的次數
+可為 0次或 多次.故Regexp /T[0-9]*\.c/ 可用以表示 
+``T.c'', ``T0.c'', ``T1.c''...``T9.c''
+<li>+形容其前的字元出現一次或一次以上.</li>
+例如 : Regexp /[0-9]+/ 用以表示一位或一位以上的數字.
+<li>?  形容其前的字元可出現一次或不出現.</li>
+例如 : Regexp /[+-]?[0-9]+/ 表示數字(一位以上)之前可出現正負號
+或不出現正負號.
+<li>(...)用以括住一群字元,且將之視成一個group(見下面說明)</li>
+        例如 : 
+       Regexp /12+/   表示字串 ``12'', ``122'', ``1222'', ``12222'',...
+       Regexp /(12)+/ 表示字串 ``12'', ``1212'', ``121212'', ``12121212''....
+上式中 12 以( )括住, 故 ``+''所形容的是 12, 重複出現的也是 12.
+<li>| 表示邏輯上的"或"(or)
+例如 : 
+Regexp / Oranges? | apples?  | water/ 可用以表示 : 
+   字串 ``Orange'', ``oranges'' 或 ``apple'', ``apples''  或 ``water''
+</ul>
+<li>match是什麼 ?  
+討論 Regexp 時, 經常遇到 ``某字串合於( match )某 Regexp''的字眼. 
+其意思為 :  ``這個 Regexp 可被解釋成該字串''.
+<li>[ 例如] : 
+字串 "the" 合於(match) Regexp /[Tt]he/.
+因為 Regexp /[Tt]he/ 可解釋成字串 "the" 或 "The", 故字串 "the" 
+或 "The"都合於(match) Regexp /[Th]he/.
+
+AWK 中提供二個關係運算元(Relational Operator,見註一) ~ !~, 
+它們也稱之為 match, not match.但函義與一般常稱的 match 略有不同.
+其定義如下 : 
+A  表一字串, B 表一 Regular Expression
+只要 A 字串中存在有子字串可 match( 一般定義的 match) Regexp  B , 
+則 A ~B 就算成立, 其值為 true, 反之則為 false.
+! ~ 的定義與~恰好相反.
+{itemize}
+例 如 : 
+          "another" 中含有子字串 "the" 可 match Regexp /[Tt]he/ , 所以
+          "another" ~/[Tt]he/  之值為 true.
+*
+<li>[註 一] : 有些論著不把這兩個運算元( ~, !~)與 Relational Operators 
+歸為一類.
+               
+<li> 應用 Regular Expression 解題的簡例</li>
+下面列出一些應用 Regular Expression 的簡例, 部分範例中會更動
+$0 之值, 若您使用的 AWK
+不容許使用者更動 $0時, 請改用 gawk.   
+<ol>
+<li> 將檔案中所有的字串 "Regular Expression" 或 "Regular expression" </li>
+換成 "Regexp"
+awk '
+   {   gsub( /Regular[ \t]+[Ee]xpression/, "Regexp") 
+       print
+   }
+  ' $*
+<li> 去除檔案中的空白行(或僅含空白字元或tab)</li>
+awk '
+      $0 !~ /^[ \t]*$/  {  print   }
+ ' $*
+<li> 在檔案中俱有 ddd-dddd(電話號碼型態, d 表digital)的字串前
+加上"TEL : "</li>
+
+awk '
+    {   gsub( /[0-9][0-9][0-9]-[0-9][0-9][0-9][0-9]/, "TEL : &" )
+        print
+    }
+  ' $*
+
+<li> 從檔案的 Fullname 中分離出 路徑 與 檔名</li>
+
+awk '
+ BEGIN{
+        Fullname = "/usr/local/bin/xdvi"
+        match( Fullname, /.*\//)
+        path = substr(Fullname, 1, RLENGTH-1)
+        name = substr(Fullname, RLENGTH+1)
+        print "path :", path,"  name :",name
+      } 
+     ' $*
+結果印出 
+    path : /usr/local/bin   name : xdvi
+
+<li> 將某一數值改以現金表示法表之(整數部分每三位加一撇,
+且含二位小數)</li>
+
+awk ' 
+ BEGIN {
+         Number = 123456789
+         Number = sprintf("$%.2f",Number)
+         while( match(Number,/[0-9][0-9][0-9][0-9]/ ) )
+                sub(/[0-9][0-9][0-9][.,]/, ",&", Number)
+         print Number
+   
+       }
+   ' $*
+結果印出 
+    $123,456,789.00 
+
+<li>把檔案中所有具 ``program數字.f''形態的字串改為 
+``[Ref : program數字.c]''</li>
+
+awk '
+    {   while( match( $0, /program[0-9]+\.f/ )  ){
+           Replace = "[Ref : " substr( $0, RSTART, RLENGTH-2) ".c]"
+           sub( /program[0-9]+\.f/, Replace)
+         } 
+        print
+     }
+  ' $*     
+</ol>
+</ul>        
+</h4></pre><hr>

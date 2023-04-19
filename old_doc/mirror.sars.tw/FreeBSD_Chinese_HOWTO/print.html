@@ -1,0 +1,558 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>中文的列印</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.7" />
+<link rel="HOME" title="FreeBSD Chinese HOWTO" href="index.html" />
+<link rel="PREVIOUS" title="Sawfish 的中文化" href="sawfish.html" />
+<link rel="NEXT" title="bg5pdf - 轉換中文 Big5 編碼文件成為不內嵌的 PDF"
+href="bg5pdf.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="CHAPTER" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD Chinese HOWTO</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="sawfish.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom"></td>
+<td width="10%" align="right" valign="bottom"><a href="bg5pdf.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="CHAPTER">
+<h1><a id="PRINT" name="PRINT"></a>Chapter 9. 中文的列印</h1>
+
+<div class="TOC">
+<dl>
+<dt><b>Table of Contents</b></dt>
+
+<dt>9.1. <a href="print.html#NOW-PRINTING">現在的中文列印</a></dt>
+
+<dt>9.2. <a href="bg5pdf.html">bg5pdf - 轉換中文 Big5 編碼文件成為不內嵌的 PDF</a></dt>
+
+<dt>9.3. <a href="bg5ps.html">bg5ps - 使用 TTF 字型轉換中文 Big5/GB 編碼文件成為
+Portscript</a></dt>
+
+<dt>9.4. <a href="enscript.html">enscript - 直接使用 CID-font 來列印</a></dt>
+
+<dt>9.5. <a href="gb2ps.html">gb2ps - 轉換中文 GB 編碼文件成為 PostScript</a></dt>
+
+<dt>9.6. <a href="gbscript.html">gbscript - 轉換中文 GB 編碼文件成為 PostScript</a></dt>
+
+<dt>9.7. <a href="tocps.html">tocps - 轉換中文編碼文件成為 PostScript</a></dt>
+
+<dt>9.8. <a href="vflib.html">vflib - 使用自由向量字型的向量字型函式庫，支援 BIG5 和
+GB</a></dt>
+
+<dt>9.9. <a href="cnprint.html">cnprint</a></dt>
+
+<dt>9.10. <a href="wprint.html">wprint</a></dt>
+</dl>
+</div>
+
+<p>PostScript 是印表機控制語言的標準，GhostScript 是 PostScript 解譯器，
+可以用來模擬實際的印表機支援。所以選購印表機時， 必須選擇印表機支援 PostScript 的，至少是
+GhostScript 所支援的印表機。 <a href="http://www.cs.wisc.edu/~ghost/"
+target="_top">GhostScript 的首頁</a> 中有支援的印表機清單， <a
+href="http://www.linuxprinting.org/" target="_top">LinuxPrinting.org</a>
+也有許多關於印表機支援的狀況。</p>
+
+<p>但是如果您的印表機只支援 Windows 或是 MacOS，那麼請用 <b
+class="APPLICATION">ps2pdf12</b>/ <b class="APPLICATION">ps2pdf13</b> 將下面各方式做出的
+<tt class="FILENAME">output.ps</tt> 轉成 <tt class="FILENAME">pdf</tt> 檔案到 windows
+下去列印。只要打： <tt class="COMMAND">ps2pdf1x output.ps output.pdf</tt>
+即可。(其實若是有此情況，
+建議您直接將原本需要列印的檔案直接傳至印表機所在的機器列印即可)</p>
+
+<p>對本機印表機而言，支援 PostScript 的印表機只要將 PostScript
+檔送給列印裝置即可完成列印。 不支援 PostScript 的印表機就要尋求 GhostScript 支援， 利用
+GhostScript 將 PostScript 檔送給列印裝置才能完成列印， 也常用於不內嵌字型的檔案列印。
+對網路印表機的話，仍然分為上面兩種。 以下以一個網路印表機 HP LasetJet 6P， 不支援
+PostScript 但是有 GhostScript 支援的為例：</p>
+
+<p>經過 linuxprinting 的查詢，得知有 <a
+href="http://www.FreeBSD.org/cgi/url.cgi?ports/print/hpijs/pkg-descr"><tt
+class="FILENAME">print/hpijs</tt></a> 的支援。</p>
+
+<p>在產生要列印的 PostScript 檔後，利用 gs 來產生 PCL 檔：</p>
+
+<pre class="PROGRAMLISTING">
+gs -sDEVICE=ijs -sIjsServer=hpijs -dIjsUseOutputFD \
+  -sDeviceManufacturer="HEWLETT-PACKARD" -sDeviceModel="HP LaserJet" \
+  -sOutputFile="output.pcl" input.ps
+</pre>
+
+<p>先利用 smbclient 得到 Printer 名稱：</p>
+
+<pre class="PROGRAMLISTING">
+<samp class="PROMPT">%</samp> <kbd
+class="USERINPUT">smbclient -L host.ip -U username</kbd>
+        Sharename      Type      Comment
+    ---------      ----      -------
+    HPLaserJ       Printer   HP LaserJet 6P
+</pre>
+
+<p>然後直接用 smbclient 來列印即可：</p>
+
+<pre class="PROGRAMLISTING">
+<samp class="PROMPT">%</samp> <kbd
+class="USERINPUT">smbclient //host.ip//HPLaserJ -U username</kbd>
+print output.pcl
+</pre>
+
+<p>最後是將該網路印表機當成本機印表機，修改 <tt class="FILENAME">/etc/printcap</tt>：</p>
+
+<pre class="PROGRAMLISTING">
+lp-remote:\
+    :lp=/dev/null:\
+    :mx=0:\
+    :if=/usr/local/bin/smbprint:
+lp:\
+    :lp=/dev/null:\
+    :sd=/var/spool/lpd/lp:\
+    :af=/var/spool/lpd/lp/acct:\
+    :if=/usr/local/bin/smbfilter:
+</pre>
+
+<p>並編寫 <tt class="FILENAME">/usr/local/bin/smbprint</tt>：</p>
+
+<pre class="PROGRAMLISTING">
+#!/bin/sh -x
+logfile=/tmp/smbprint.log
+server=host.ip
+service=HPLaserJ
+username=username
+password=
+
+echo "server $server, service $service, username $username" &#62;&#62; $logfile
+(
+    echo "print -"
+    cat
+) | /usr/local/bin/smbclient "\\\\$server\\$service" $password -U $username -N -P &#62;&#62; $logfile
+</pre>
+
+<p>以及 <tt class="FILENAME">/usr/local/bin/smbfilter</tt>：</p>
+
+<pre class="PROGRAMLISTING">
+#!/bin/sh
+gs -dSAFER -dBATCH -dNOPAUSE -q \
+   -sDEVICE=ijs -sIjsServer=hpijs -dIjsUseOutputFD \
+   -sDeviceManufacturer="HEWLETT-PACKARD" -sDeviceModel="HP LaserJet" \
+   -sOutputFile=- - | \
+   lpr -Plp-remote
+</pre>
+
+<pre class="PROGRAMLISTING">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">mkdir -p /var/spool/lpd/lp</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">setenv PRINTER lp</kbd>
+</pre>
+
+<p>以下是一個小 script，幫您自動將純文字檔分頁</p>
+
+<pre class="PROGRAMLISTING">
+#!/usr/bin/perl -w
+#
+# This tiny script converts ^L to empty lines
+# to fit a2ps
+# Currently it only eats from STDIN and output to STDOUT.
+# Fine enough.
+# Customize the $expbl (Expected blank lines) to meet your
+                 needs.
+my $expbl=40; # Customize THIS !!!
+meow
+my $lc=0, $restlc=0 ;
+foreach (&lt;&gt;) {
+    if (/^L/) {
+        $restlc = $expbl - (($lc % $expbl))  ;
+        for ($i=1; $i &#60; $restlc; $i++) {
+            $lc++ ;
+            # print "$lc " . "\n" ;
+            # You could comment out above line to see the
+          line number.
+            print "\n" ;
+        }
+    }
+    s/^L// ;
+    if (/\n/) { $lc++ ;}
+    # print "$lc " .$_ ;
+    # You could comment out above line to see the line
+                     number.
+    print $_ ;
+}
+</pre>
+
+<p>WWW: <a
+href="http://www.softwareliberty.org.tw/project/software-map/v1.01/node111.html"
+target="_top">自由軟體簡介 - 中文輸出</a></p>
+
+<p>WWW: <a href="http://www.twics.com/~craig/writings/linux-nihongo/node68.html"
+target="_top">Japanese Printing and Text Processing With Linux</a></p>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="NOW-PRINTING" name="NOW-PRINTING">9.1. 現在的中文列印</a></h1>
+
+<p>在看現在的中文列印前，請先參考過 <a href="postscript.html">PostScript</a> 一節，
+簡單的來說 CID-Keyed font 創造出來， 就是要解決 cjk 這些方塊字型的國家。</p>
+
+<p>目前的中文顯示已經算是完備，平常需求的粗體與斜體都能正常顯示， 利用 -medium-r
+對應普通字型，-bold-r 對應粗體，-medium-i 對應斜體， -bold-i 對應粗斜體。</p>
+
+<p>由於 <tt class="FILENAME">print/ghostscript-gnu</tt> 從 6.53 升級到 7.05， 相對應的
+<tt class="FILENAME">chinese/ghostscript6</tt> 與 <tt
+class="FILENAME">print/ghostscript-gnu-cjk</tt>(gs-cjk) 也都 BROKEN，
+中文列印就成了一個問題，不過，原來 <b class="APPLICATION">gs-cjk</b> 已經融入 7.05，
+而且增加的方式更是簡單，以下用 mozilla 的中文列印來說明 只要修改 <tt
+class="FILENAME">/usr/local/share/ghostscript/7.05/lib/CIDFnmap</tt> 最後增加：</p>
+
+<pre class="PROGRAMLISTING">
+% Chinese Big5 Truetype Fonts (Arphic)
+/ZenKai-Medium          (/usr/local/share/fonts/TrueType/bkai00mp.ttf) 1 ;
+/ShanHeiSun-Light       (/usr/local/share/fonts/TrueType/bsmi00lp.ttf) 1 ;
+%                                                                            
+% Convenient aliases for PS files on Chinese PostScript printer
+%                                                              
+/B5-H                   /ZenKai-Medium          ;
+/ETen-B5-H              /ZenKai-Medium          ;
+/B5-H                   /ShanHeiSun-Light       ;
+/ETen-B5-H              /ShanHeiSun-Light       ;
+%
+% CID fontmap for chinese-big5 encoding CIDFontName
+%
+/Adobe-CNS1             /ShanHeiSun-Light   ;
+/MSung-Light            /ShanHeiSun-Light       ;
+/MHei-Medium            /ZenKai-Medium          ;
+/MOESung-Regular        /ShanHeiSun-Light       ;
+/MOEKai-Regular         /ZenKai-Medium          ;
+% Chinese GB TrueType Fonts (Arphic)
+/BousungEG-Light-GB     (/usr/local/share/fonts/TrueType/gbsn00lp.ttf) 1 ;
+/GBZenKai-Medium        (/usr/local/share/fonts/TrueType/gkai00mp.ttf) 1 ;
+%
+% CID fontmap for chinese-big5 encoding CIDFontName
+%
+/Adobe-GB1              /BousungEG-Light-GB  ;
+/STSong-Light           /BousungEG-Light-GB  ;
+</pre>
+
+<p>要完成以下的動作，請先確認是否安裝 <b
+class="APPLICATION">ghostscript-gnu</b>，並且版本大於 7.05， 或是安裝 6.53 版本加上 <b
+class="APPLICATION">gscjk</b>， 並且安裝好 <b class="APPLICATION">arphicttf</b>，也把 <tt
+class="FILENAME">CIDFnmap</tt> 設定成功， 若要測試請參考 <a
+href="print.html#TEST-CIDFNMAP">修改 CIDFnmap 的測試</a> 一節。</p>
+
+<p>WWW: <a href="http://www.gyve.org/gs-cjk/index-t.html" target="_top">gs-cjk
+project</a></p>
+
+<p>WWW: <a href="http://zope.slat.org/Members/Keanu/slack_cprint/slack_cprint.stx/view"
+target="_top">Slackware 8.1 上的中文列印</a></p>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN3191" name="AEN3191">9.1.1. mozilla 僅有普通字體</a></h2>
+
+<p>接著修改 /usr/X11R6/lib/mozilla/defaults/pref/unix.js 最後增加</p>
+
+<pre class="PROGRAMLISTING">
+pref("print.postscript.nativecode.zh-TW", "big5");
+pref("print.postscript.nativefont.zh-TW", "MSung-Light-B5-H");
+</pre>
+
+<p>用 mozilla 開網頁，選取列印，然後用 /usr/ports/print/gv 來觀看， 這樣子就會看到中文的
+ps 囉。</p>
+
+<p>不過可以看到，並沒有粗體與斜體的相關設定，筆者在 CIDFnmap 並沒有找到
+粗體與斜體的相關設定，不過這對 mozilla 而言是足夠的</p>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN3197" name="AEN3197">9.1.2. why MSung-Light？</a></h2>
+
+<p>MSung-Light 與 MHei-Medium 則是許多軟體預設的 CID fontmap， 都把他連到
+ShanHeiSun-Light 與 ZenKai-Medium， 而 STSong-Light 則是預設的簡體 CID fontmap， 日文用
+HeiseiMin-W3 與 HeiseiKakuGo-W5， 韓文則是 HyGoThic-Medium 與 HYSMyeongJo-Medium</p>
+
+<p>ShanHeiSun-Light 的來源是 ttfinfo /usr/local/share/fonts/TrueType/bsmi00lp.ttf 的
+TTFINFO_FONT_PSNAME="ShanHeiSun-Light"</p>
+
+<pre class="PROGRAMLISTING">
+TTFINFO_FONT_FILE="/usr/local/share/fonts/TrueType/bsmi00lp.ttf"
+TTFINFO_FONT_NAME="AR PL Mingti2L Big5"                         
+TTFINFO_FONT_PSNAME="ShanHeiSun-Light" 
+TTFINFO_FOUNDRY_NAME="Arphic"         
+TTFINFO_WEIGHT_NAME="medium" 
+TTFINFO_WIDTH="normal"      
+TTFINFO_NUMCMAP="2"   
+TTFINFO_CMAP0="1,0"
+TTFINFO_CMAPNAME0="Apple,Roman"
+TTFINFO_CMAP1="3,1"            
+TTFINFO_CMAPNAME1="Windows,Unicode"
+TTFINFO_MAPNUM="1"                 
+TTFINFO_FONTMAP1="-Arphic-AR PL Mingti2L Big5-medium-r-normal--0-0-0-0-c-0-big5-0"
+</pre>
+
+<p>目前已經有類似的 ports，/usr/ports/japanese/ghostscript-gnu-jpnfont/ 剛筆者也 send-pr
+去修改 /usr/ports/print/ghostscript-gnu-commfont 了</p>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="TEST-CIDFNMAP" name="TEST-CIDFNMAP">9.1.3. 修改 CIDFnmap
+的測試</a></h2>
+
+<pre class="PROGRAMLISTING">
+% cat cid.ps
+/MSung-Light-B5-H findfont 60 scalefont setfont
+50 600 moveto (2002年 5月29日) show
+/MHei-Medium-B5-H findfont 60 scalefont setfont
+50 520 moveto (2002年 5月29日) show
+/MOESung-Regular-B5-H findfont 60 scalefont setfont
+50 440 moveto (2002年 5月29日) show
+/MOEKai-Regular-B5-H findfont 60 scalefont setfont
+50 360 moveto (2002年 5月29日) show
+showpage
+quit
+% gv -antialias cid.ps
+% ps2pdf cid.ps
+% xpdf cid.pdf
+</pre>
+
+<div class="FIGURE"><a id="AEN3207" name="AEN3207"></a>
+<p><b>Figure 9-1. 20020527 snapshot</b></p>
+
+<p><img src="images/20020527.png" /></p>
+</div>
+
+<p>以下是 mozilla.ps 的 zh_TW 區段，mozilla 的列印正常</p>
+
+<pre class="PROGRAMLISTING">
+/Unicode2NativeDictzh-TW 0 dict def
+/zh-TW_ls {
+  /NativeFont /MSung-Light-B5-H def
+  /UCS2Font /Courier def
+  /Unicode2NativeDict Unicode2NativeDictzh-TW def
+  /unicodeshow1 { real_unicodeshow } bind def
+  /unicodeshow2 { real_unicodeshow_native } bind def   
+} bind def
+</pre>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN3214" name="AEN3214">9.1.4. KDE3 的 kword 仍然有問題</a></h2>
+
+<p>以下是 kword.ps 的 zh_TW 區段，kde3 的 kword 列印仍然有問題</p>
+
+<pre class="PROGRAMLISTING">
+%%BeginSetup
+% Fonts and encodings used
+/MSung-Light-B5-HList [   
+[ /MSung-Light-B5-H 1 0 ] 
+  [ /MOESung-Regular-B5-H 1 0 ]
+  [ /Helvetica 1.18991 0 ]
+] d
+% Asian postscript font requested. Using MSung-Light-B5-H
+/MSung-Light-B5-HList [
+[ /MSung-Light-B5-H 1 0.2 ]
+  [ /MOESung-Regular-B5-H 1 0.2 ]
+  [ /Helvetica-Oblique 1.18991 0 ]
+] d
+% Asian postscript font requested. Using MSung-Light-B5-H
+/MSung-Light-B5-HList [
+[ /MSung-Light-B5-H 1 0 ]
+  [ /MOESung-Regular-B5-H 1 0 ]
+  [ /Helvetica-Bold 1.12803 0 ]
+] d
+% Asian postscript font requested. Using MSung-Light-B5-H
+/F1 30.375/MSung-Light-B5-H-Uni DF
+/F2 30.375/MSung-Light-B5-H-Uni DF
+/F3 30.375/MSung-Light-B5-H-Uni DF
+%%EndSetup
+</pre>
+
+<p>但是用 gs 來看就會有如下的錯誤訊息</p>
+
+<pre class="PROGRAMLISTING">
+GNU Ghostscript 7.05 (2002-04-22)
+Copyright (C) 2002 artofcode LLC, Benicia, CA.  All rights reserved.
+This software comes with NO WARRANTY: see the file PUBLIC for details.
+Can't find (or can't open) font file /usr/local/share/ghostscript/Resource/Font/MSung-Light-B5-H-Uni.
+Can't find (or can't open) font file MSung-Light-B5-H-Uni.
+Substituting font Courier for MSung-Light-B5-H-Uni.
+Loading NimbusMonL-Regu font from /usr/local/share/ghostscript/fonts/n022003l.pfb... 18883696 17394664 1743000 367192 0 done.
+Can't find (or can't open) font file /usr/local/share/ghostscript/Resource/Font/MSung-Light-B5-H-Uni.
+Can't find (or can't open) font file MSung-Light-B5-H-Uni.
+Substituting font Courier for MSung-Light-B5-H-Uni.
+Can't find (or can't open) font file /usr/local/share/ghostscript/Resource/Font/MSung-Light-B5-H-Uni.
+Can't find (or can't open) font file MSung-Light-B5-H-Uni.
+Substituting font Courier for MSung-Light-B5-H-Uni.
+&gt;&gt;showpage, press  to continue&lt;&lt;
+</pre>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN3220" name="AEN3220">9.1.5. fonts.dir 的粗體與斜體</a></h2>
+
+<p>回過頭來看 fonts.dir 的設定方式</p>
+
+<pre class="PROGRAMLISTING">
+bsmi00lp.ttf             -Arphic-AR PL Mingti2L Big5-以下略
+ai=0.3:bsmi00lp.ttf      -Arphic-AR PL Mingti2L Big5-以下略
+ds=y:bsmi00lp.ttf        -Arphic-AR PL Mingti2L Big5-以下略
+ds=y:ai=0.3:bsmi00lp.ttf -Arphic-AR PL Mingti2L Big5-以下略
+</pre>
+
+<p>第一個是正常的字體。 ai 代表 Automatic Italic 會造成斜體。後面的數字是傾斜比例。 ds
+代表 Double Strike 會造成偽粗體。y 代表 yes，表示要粗體。 兩個一起用就變成粗斜體了。</p>
+
+<p>當然，以上在 ttfm 的模組應該都會自動產生，但也可以自己去手動 調整。也可以利用 fs=p
+來調整成調合字(proportional font)。另外， 要使用 MS 的新細明，可以加上 eb=y 來強迫
+FreeType 去使用內嵌 於字型內的點陣字(會比 AA 好看，不過這個功能不是很穩定)。</p>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN3226" name="AEN3226">9.1.6. gscjk 的粗體與斜體</a></h2>
+
+<p>以文鼎宋體為例，PSNAME 是 ShanHeiSun-Light，而常用的 CMap 是 ETen-B5-H，所以 gscjk
+的字型就會有 'ShanHeiSun-Light-ETen-B5-H'、
+'ShanHeiSun-Light-Bold-ETen-B5-H'、'ShanHeiSun-Light-Italic-ETen-B5-H'、
+'ShanHeiSun-Light-BoldItalic-ETen-B5-H'，Bold 是粗體，Italic 是斜體， BoldItalic
+是粗斜體，這樣就有了常用的字體了。</p>
+
+<p>接著，gscjk 就會在 /usr/local/share/ghostscript/Resource/CIDFont/ 底下產生
+ShanHeiSun-Light ShanHeiSun-Light-Bold ShanHeiSun-Light-BoldItalic
+ShanHeiSun-Light-Italic，並在 /usr/local/share/ghostscript/Resource/Font/
+底下產生與繁體中文 CMap 相結合的字型。</p>
+
+<p>在此的產生方式是透過 ttfm.sh 的 gscjk module，可以直接使用 ports 中的版本， 檢察
+/usr/local/share/ttfm 底下是否有 gscjk.ttfm 即可，ttfm 的使用方式 則自己參考 manual
+或是網頁</p>
+
+<pre class="PROGRAMLISTING">
+/ShanHeiSun-Light-B5-H findfont 60 scalefont setfont
+50 600 moveto (2002年 5月29日) show
+/ShanHeiSun-Light-Bold-B5-H findfont 60 scalefont setfont
+50 520 moveto (2002年 5月29日) show
+/ShanHeiSun-Light-Italic-B5-H findfont 60 scalefont setfont
+50 440 moveto (2002年 5月29日) show
+/ShanHeiSun-Light-BoldItalic-B5-H findfont 60 scalefont setfont
+50 360 moveto (2002年 5月29日) show
+showpage
+quit
+</pre>
+
+<div class="FIGURE"><a id="AEN3232" name="AEN3232"></a>
+<p><b>Figure 9-2. 20020527-2 snapshot</b></p>
+
+<p><img src="images/20020527-2.png" /></p>
+</div>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="ABIWORD-PRINT" name="ABIWORD-PRINT">9.1.7. AbiWord
+的粗體與斜體</a></h2>
+
+<p>以下只適用於 <a
+href="http://www.FreeBSD.org/cgi/url.cgi?ports/editors/AbiWord/pkg-descr"><tt
+class="FILENAME">editors/AbiWord</tt></a>， 如果是使用 <a
+href="http://www.FreeBSD.org/cgi/url.cgi?ports/editors/AbiWord2/pkg-descr"><tt
+class="FILENAME">editors/AbiWord2</tt></a> 請參考 gtk2 的設定方式。</p>
+
+<p>AbiWord 也同樣的可以列印粗體與斜體。AbiWord 的字型目錄在
+/usr/X11R6/share/AbiSuite/fonts，在其內先建立 zh-TW 目錄 接著只要利用 ttf 來建立
+fonts.dir 就可以了。</p>
+
+<p>格式如下：</p>
+
+<pre class="PROGRAMLISTING">
+PSFONT, TTFFONT, 880, 120, 1000
+</pre>
+
+<p>所以就建立如下的 fonts.dir</p>
+
+<pre class="PROGRAMLISTING">
+4
+ShanHeiSun-Light-ETen-B5-H, -Arphic-AR PL Mingti2L Big5-medium-r-normal--0-0-0-0-c-0-big5-0, 880, 120, 1000
+ShanHeiSun-Light-Bold-ETen-B5-H, -Arphic-AR PL Mingti2L Big5-bold-r-normal--0-0-0-0-c-0-big5-0, 880, 120, 1000
+ShanHeiSun-Light-Italic-ETen-B5-H, -Arphic-AR PL Mingti2L Big5-medium-i-normal--0-0-0-0-c-0-big5-0, 880, 120, 1000
+ShanHeiSun-Light-BoldItalic-ETen-B5-H, -Arphic-AR PL Mingti2L Big5-bold-i-normal--0-0-0-0-c-0-big5-0, 880, 120, 1000
+</pre>
+
+<p>利用 -medium-r 對應普通字型，-bold-r 對應 -Bold，-medium-i 對應 -Italic， -bold-i 對應
+-BoldItalic。</p>
+
+<p>不過還必須在 zh-TW 底下 touch .already-in-fp，abiword 才不會說</p>
+
+<pre class="PROGRAMLISTING">
+Abiword could not load the following font or fontset from the X Window System display server:
+  [-*-Times New Roman-regular-r-*-*-*-0-*-*-*-*-*-*]
+</pre>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN3250" name="AEN3250">9.1.8. kde2 的中文列印
+[OBSOLETE]</a></h2>
+
+<p>kde2.2.2 中文列印所需要的 PSNAME 是 MSung-Light 和 MHei-Medium， 所以在 ttfm.sh 搭配
+gscjk.ttfm 後可以在 /usr/local/share/ghostscript/7.05/lib/CIDFnmap 的最後加上兩行來
+alias</p>
+
+<pre class="PROGRAMLISTING">
+/MSung-Light            /ShanHeiSun-Light       ;
+/MHei-Medium            /ZenKai-Medium          ;
+</pre>
+
+<p>還是要在 gscjk.ttfm 中作 -setdefault 時 alias 一個成 MSung-Light？</p>
+
+<p>另外遇到一個問題，kde2 用 print to pdf 中文，內建的 viewer 可以看的見 但是 xpdf
+則會有問題，xpdf-1.01 而 print to ps 內建的 viewer 看不見，但是 gs gv 都看的見</p>
+
+<p>以下是 xpdf 的 error msg</p>
+
+<pre class="PROGRAMLISTING">
+Error: Unknown font tag 'R14'
+Error (1850): No font in show
+</pre>
+
+<div class="FIGURE"><a id="AEN3258" name="AEN3258"></a>
+<p><b>Figure 9-3. kde-print snapshot</b></p>
+
+<p><img src="images/kde-print.png" /></p>
+</div>
+</div>
+</div>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="sawfish.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="bg5pdf.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">Sawfish 的中文化</td>
+<td width="34%" align="center" valign="top">&nbsp;</td>
+<td width="33%" align="right" valign="top">bg5pdf - 轉換中文 Big5 編碼文件成為不內嵌的
+PDF</td>
+</tr>
+</table>
+</div>
+</body>
+</html>
+

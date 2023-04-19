@@ -1,0 +1,180 @@
+<HTML>
+
+<LINK HREF="style.css" REL="STYLESHEET" TYPE="text/css">
+
+<HEAD>
+<TITLE>Win32 Tutorial - Free Borland C++ Command Line Tools</TITLE>
+</HEAD>
+
+<BODY>
+<FONT SIZE="-1">
+[ <A HREF="./index.html">contents</A>
+| <A HREF="http://www.winprog.org/">#winprog</A>
+]
+</FONT>
+<HR>
+
+
+<H1>Free Borland C++ Command Line Tools</H1>
+
+<H2>Getting Them</H2>
+
+Fortunately for anyone that wants to get into windows developement, Borland has offered its
+command line tools to the general public for FREE.  Isn't that nice of them?  There is
+no pretty IDE or resource editor, but beggers can't be choosers, and I'd have to say
+the compiler itself is of far better quality than either LCC-Win32 (which doesn't even do C++)
+or the various ports of other tools, gcc, mingw, cygwin, djgpp etc...
+
+<P>
+<B>Read the readme to get yourself set up.</B>
+
+<P>
+<A HREF="ftp://ftpd.inprise.com/download/bcppbuilder/freecommandLinetools.exe">Borland C++ 5.5</A>
+
+<P>
+What's extra spiffy is it even comes with a debugger!  I don't use this, so I can't offer
+much help on it, but it's better than nothing.  And if you're used to Turbo C++ from the
+DOS days, then this should be right up your ally.
+
+<P>
+For some reason Internet Explorer seems to have a problem with downloading this file,
+so if it clicking the link doesn't work, right click and Copy Shortcut, and then use your
+favourite FTP client to get it.
+
+<P>
+<A HREF="ftp://ftpd.inprise.com/download/bcppbuilder/TurboDebugger.exe">Turbo Debugger</A>
+
+<P>
+Last but not least, a windows help file with <B>full Win32 API reference</B>.
+It's a few years old but still entirely accurate and much more convenient than MSDN online 
+unless you need access to the most recent additions to the API (which if you're on this 
+page, you don't).  I use it regularly.
+
+<P>
+<A HREF="http://www.borland.com/devsupport/borlandcpp/patches/BC52HLP1.ZIP">Win32 API Reference</A>
+
+<H2>Using Them</H2>
+
+<H3>Basic commands</H3>
+
+If you want to compile a single file program (simple_window.c for example), then you can use
+the following command:
+
+<PRE CLASS="CONSOLE">
+bcc32 -tW simple_window.c
+</PRE>
+
+The <B>-tW</B> switch specifies a Win32 GUI application, instead of the default console
+application.  You can compile multiple files into a single .exe by adding the other files to 
+the end of this command.
+
+<H3>Linking in Resources</H3>
+This is a very frustrating issue for many users of the command line tools, and no wonder, since
+it seems borland tried to make it as hard as possible to link resources into your applications,
+the resource compiler <CODE>brc32</CODE> no longer behaves as it did in earlier versions of the program
+where it would link the compiled resource into the .exe itself.  When you run <B>brc32</B> with
+no option to get the usage help, it still lists an option to turn .exe linking <I>OFF</I>, there 
+simply appears to be no way to turn it <I>ON</I>.
+
+<P>
+I tried various combinations of command and options, but couldn't find any way to add a .res 
+file to an .exe build with the above method.   Which really sucks, cause the way I found to do
+it is a lot more complicated.  
+
+<P>
+<B>There is an easier way however...</B>
+
+<P>
+BC++ now has an alternative method of including resources in a program by use of a <CODE>#pragma</CODE> (a non-standard
+preprocessor directive that compilers will ignore if they don't recognise it).
+
+<PRE CLASS="SNIP">
+#pragma resource "app_name.res"
+</PRE>
+
+Placing this code in your main .c or .cpp file will cause the compiler to automatically link in the .res file that
+is generated from your .rc (.res is like an .obj file for resources).
+
+<P>
+Using the #pragma will allow you to compile programs nearly as simply as above, but you still need to compile
+the .rc file first using brc32.  If you still want to use command line options as I did in the tutorial
+makefiles, read on...
+
+<P>
+<B>The hard way...</B>
+<P>
+These are the commands to use to compile the dlg_one example, including the resource.
+
+<PRE CLASS="CONSOLE">
+bcc32 -c -tW dlg_one.c
+ilink32 -aa -c -x -Gn dlg_one.obj c0w32.obj,dlg_one.exe,,import32.lib cw32.lib,,dlg_one.res
+</PRE>
+
+Nice eh?  The <B>-c</B> option to <B>bcc32</B> means compile only, don't link into an .exe.
+The <B>-x -Gn</B> options get rid of some extra files the linker creates that you probably 
+don't need.  
+
+<P>
+The real bugger with this is that since we are manually specifying the linker command, we need
+to include the default libraries and objs that the compiler would normally do for us.  As you 
+can see above, I've specified the appropriate files for a regular windows application.
+
+<P>
+To make things easier on yourself, it's best to do all this in a makefile.  I've prepared a 
+generic one that should work with all of the examples in the tutorial, and you should be 
+able to adapt it to any of your own programs.
+
+<PRE CLASS="LIST">
+APP      = dlg_one
+EXEFILE  = $(APP).exe
+OBJFILES = $(APP).obj 
+RESFILES = $(APP).res
+LIBFILES =
+DEFFILE  =
+
+.AUTODEPEND
+BCC32   = bcc32
+ILINK32 = ilink32
+BRC32   = brc32
+
+CFLAGS  = -c -tWM- -w -w-par -w-inl -W -a1 -Od
+LFLAGS  = -aa -V4.0 -c -x -Gn
+RFLAGS  = -X -R 
+STDOBJS = c0w32.obj
+STDLIBS = import32.lib cw32.lib
+
+$(EXEFILE) : $(OBJFILES) $(RESFILES)
+   $(ILINK32) $(LFLAGS) $(OBJFILES) $(STDOBJS), $(EXEFILE), , \
+      $(LIBFILES) $(STDLIBS), $(DEFFILE), $(RESFILES)
+
+clean:
+   del *.obj *.res *.tds *.map
+</PRE>
+
+You only need to modify the first 6 lines with the appropriate information.  
+
+<HR>
+<FONT SIZE="-1">
+Copyright &copy; 1998-2003, Brook Miles (<A HREF="mailto:forger(nospam)winprog.org">theForger</A>).  All rights reserved.
+</FONT>
+
+<SCRIPT language="JavaScript">
+<!--
+   var re = /\(nospam\)/ig;
+   var str;
+
+   for(i = 0;i < document.links.length;i++) 
+   {
+      str = "" + document.links(i).href;
+      if(str.search(re) != -1)
+         document.links(i).href = str.replace(re, "@");
+
+      str = "" + document.links(i).innerHTML;
+      if(str.search(re) != -1)
+         document.links(i).innerHTML = str.replace(re, "@");
+   }
+-->
+</SCRIPT>
+
+</BODY>
+</HTML>

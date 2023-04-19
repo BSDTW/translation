@@ -1,0 +1,107 @@
+
+
+<!-- Vignette StoryServer 4 Sat Mar 11 15:43:24 2000 --> 
+<style type=text/css>
+<!--
+p,div {font-size:12pt; line-height:14pt; font-family:宋體;}
+.p1{font-size:12pt;font-family:宋體;}
+.p2{font-size:12pt;font-family:宋體;line-height:14pt;}
+.p3{font-size:14.8px;font-family:宋體;}
+.p4{font-size:14.8px;font-family:宋體;line-height:14pt;}
+.p5{font-size:1pt}
+a:hover{color:red;}
+a.t1:visited{color:red;}
+-->
+</style>
+<title>FreeBSD使用大全</title></head>
+
+<body bgcolor="#FFFFFF" text="#000000" link="#383098" vlink="#336699" alink="#FF0000" topmargin="0">
+<!-- Vignette StoryServer 4 Thu Mar 23 10:01:54 2000 --> <!-- Vignette StoryServer 4 Thu Mar 23 15:34:35 2000 --> 
+
+<!--開始：新聞內容-->
+<TABLE WIDTH=750 BORDER=0 CELLSPACING=0 CELLPADDING=0>
+
+<tr valign=top>
+
+
+
+<TD  valign=top>
+<CENTER><FONT COLOR=#000066 size=5><B>FreeBSD連載(88)：安全連接方式SSL</B><br></FONT></CENTER>
+
+<HR  ALIGN="center" SIZE=1>
+<CENTER><FONT FACE="Arial" SIZE=2> 2000年1月29日 00:38 </FONT><FONT COLOR="#990000" SIZE=2>王波</FONT></CENTER><p>
+
+<h1 align=center>安全連接方式SSL</h1>
+
+<p>　　通常的連接方式中，通信是以非加密的形式在網路上傳播的，這就有可能被非法竊聽到，尤其是用於認証的密碼信息
+。為了避免這個安全漏洞，就必須對傳輸過程進行加密。對HTTP傳輸進行加密的協議為HTTPS，它是通過SSL（安
+全Socket層）進行HTTP傳輸的協議，不但通過公用密鑰的算法進行加密保証傳輸的安全性，而且還可以通過獲得認
+証証書CA，保証客戶連接的伺服器沒有被假冒。</p>
+
+<p>　　使用公用密鑰的方式可以保証數據傳輸沒有問題，但如果瀏覽器客戶訪問的站點被假冒，這也是一個嚴重的安全問題
+。這個問題不屬於加密本身，而是要保証密鑰本身的正確性問題。要保証所獲得的其他站點公用密鑰為其正確的密鑰，而非假
+冒站點的密鑰，就必須通過一個認証機制，能對站點的密鑰進行認証。當然即使沒有經過認証，仍然可以保証信息傳輸安全，
+只是客戶不能確信訪問的伺服器沒有被假冒。如果不是為了提供電子商務等方面對安全性要求很高的服務，一般不需要如此嚴
+格的考慮。</p>
+
+<p>　　雖然Apache伺服器不支持SSL，但Apache伺服器有兩個可以自由使用的支持SSL的相關計劃，一個
+為Apache-SSL，它集成了Apache伺服器和SSL，另一個為Apache+mod_ssl，它是通過可動
+態加載的模塊mod_ssl來支持SSL，其中後一個是由前一個分化出的，並由於使用模塊，易用性很好，因此使用範圍
+更為廣泛。還有一些基於Apache並集成了SSL能力的商業Web伺服器，然而使用這些商業Web伺服器主要是北美
+，這是因為在那裡SSL使用的公開密鑰的算法具備專利權，不能用於商業目的，其他的國家不必考慮這個專利問題，而可以
+自由使用SSL。</p>
+
+<p>　　雖然通常mod_ssl以及其他複雜的Apache模塊都提供了詳細的編譯安裝說明，並提供了非常有用的腳本
+程序和Makefile來幫助使用者進行安裝。然而為Web伺服器增加一個模塊並不是一個簡單而易於描述的任務，幸運
+的是，FreeBSD提供了Ports Collection，讓使用者不必關系每一步安裝細節就能安裝好這個模塊。
+</p>
+<p>　　如果不打算使用Ports Collection來安裝mod_ssl，那麼事情就略微麻煩一些，必須自己手
+工下載Apache的原始碼，以及mod_ssl的代碼，按照說明一步步的編譯安裝。</p>
+
+<p>　　Apache+mod_ssl依賴於另外一個軟體：openssl，它是一個可以自由使用的SSL實現，首先
+需要安裝這個Port（由於專利的影響，這些軟體無法制作為可以直接安裝的二進制軟體包，必須使用Ports Collection
+安裝）。openssl位於/usr/ports下面的security子目錄下，當下載其源程序之前
+，需要設置環境變量USA_RESIDENT為NO，以避開專利紛爭。</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># USA_RESIDENT=NO; export USA_RESIDENT
+# cd /usr/ports/security/openssl
+# make; make install</td></pre></tr></table>
+
+<p>　　安裝好openssl之後，就可以安裝Apache+mod_ssl了。然而為了安裝完全正確，需要清除原先
+安裝的Apache伺服器的其他版本，並且還要清除所有的設置檔案及其預設設置檔案，以避免出現安裝問題。最好也刪除
+/usr/local/www目錄（或更名），以便安裝程序能建立正確的初始文檔目錄。如果是一台沒有安裝過Apache
+伺服器的新系統，就可以忽略這個步驟，而直接安裝Apache+mod_ssl了。</p>
+
+<p>　　刪除舊有檔案之後，便可進入相應目錄，啟動安裝和編譯進程。</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># cd /usr/ports/www/apache13+mod_ssl
+# make ; make install
+# make certifaction=custom</td></pre></tr></table>
+
+<p>　　最後一個make用於生成認証証書，由於這個Port直接生成了httpd.conf等預設檔案（如果安裝的
+時候沒有httpd.conf等檔案存在），因此可以直接啟動新的伺服器而不需要設置，如果啟動過程因為設置檔案的不
+合適而導致一些小問題，請參照前面對標準Apache伺服器的設置說明作出相應修改。</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># /usr/local/sbin/apachectl startssl</td></pre></tr></table>
+
+<p>　　此時使用start參數為僅僅啟動普通Apache的httpd守護進程，而不啟動其SSL能力，而startssl
+才能啟動Apache的SSL能力。如果之前Apache的守護進程正在運行，便需要使用stop參數先停止
+伺服器運行。</p>
+
+<p>　　然後，就可以啟動netscape或其他支持SSL的瀏覽器，輸入URL為：https://ssl_server/
+來查看伺服器是否有相應，https使用的預設端口為443，如果一切正常，伺服器將返回mod_ssl的使
+用手冊，講解SSL以及mod_ssl的技術及其使用方法。</p>
+
+
+<BR>
+
+</TD>
+</TR></TABLE>
+
+
+
+</BODY>
+</HTML>

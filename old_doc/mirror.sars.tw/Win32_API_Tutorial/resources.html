@@ -1,0 +1,185 @@
+<HTML>
+
+<LINK HREF="style.css" REL="STYLESHEET" TYPE="text/css">
+
+<HEAD>
+<TITLE>Tutorial: Using Resources</TITLE>
+</HEAD>
+
+<BODY>
+<FONT SIZE="-1">
+[ <A HREF="./index.html">contents</A>
+| <A HREF="http://www.winprog.org/">#winprog</A>
+]
+</FONT>
+<HR>
+
+
+<H1>Using Resources</H1>
+
+<P>
+You may also want to refer to the Appendices at the end of this tutorial for 
+more information on resources with VC++ and BC++.
+
+<P>
+Before we get any deeper I will cover the topic of resources so that I won't
+have to re-write it for each section.<B>You
+don't actually need to compile the stuff in this section, it's as example only.</B>
+
+<P>
+Resources are pre-defined bits of data stored in binary format inside your
+executable file.  You create resources in a resources script, a file with
+an extension of ".rc".  comercial compilers will have a visual resource
+editor which allows you to create resources without manually editing this
+file but sometimes editing it is the only way to go, especially if your compiler
+has no visual editor, it sucks, or doesn't support the exact feature you need.  
+
+<P>
+Unfortunately different compiler suites handle resources differently.  I will
+do the best I can to explain the common features needed to work with resources
+in general.
+
+<P>
+The resource editor included with MSVC++ makes it very difficult to edit the resources 
+manually, since it enforces a proprietary format on them, and will totally mangle the
+file if you save one that you had created by hand.  In general you shouldn't bother with
+creating .rc files from scratch, but knowing how to modify them manually can be very useful.
+Another annoyance is that MSVC++ will by default name the resource header file "resource.h"
+even if you wanted to call it something else.  I will go with this for the sake of simplicity
+in this document, but will show you how to change this in the appendix on compilers.
+
+<P>
+First lets take a very simple resource script, with a single icon.
+
+<PRE CLASS="LIST">
+#include "resource.h"
+
+IDI_MYICON ICON "my_icon.ico"
+</PRE>
+
+<P>
+That's the entire file.  <CODE>IDI_MYICON</CODE> is the identifier of the resource, <CODE>ICON</CODE> is the type
+and "my_icon.ico" is the name of the external file which contains it.  This
+should work on any compiler.
+
+<P>
+Now what about this <CODE>#include "resource.h"</CODE> ?  Well your program needs a way to
+identify the icon, and the best way to do that is to assign it a unique ID (<CODE>IDI_MYICON</CODE>).  
+We can do this by creating the file "resource.h" and including it in both our resource script, and our
+source file.
+
+<PRE CLASS="LIST">
+#define IDI_MYICON  101
+</PRE>
+
+<P>
+As you can see, we've assigned <CODE>IDI_MYICON</CODE> the value of <CODE>101</CODE>.  
+We could just forget about the identifier and use <CODE>101</CODE> wherever we need
+to reference the icon, but <CODE>IDI_MYICON</CODE> is a lot clearer as to what you
+are refering too, and easier to remember when you have large number of resources.
+
+<P>
+Now lets say we add a <CODE>MENU</CODE> resource:
+
+<PRE CLASS="LIST">
+#include "resource.h"
+
+IDI_MYICON ICON "my_icon.ico"
+
+IDR_MYMENU MENU
+BEGIN
+    POPUP "&File"
+    BEGIN
+        MENUITEM "E&xit", ID_FILE_EXIT
+    END
+END
+</PRE>
+
+Again <CODE>IDR_MYMENU</CODE> is the name of the resource and <CODE>MENU</CODE> is the type.  
+Now a fine point, see the <CODE>BEGIN</CODE> and <CODE>END</CODE> up there?  Some resource 
+editors or compilers use <CODE>{</CODE> in place
+of <CODE>BEGIN</CODE> and <CODE>}</CODE> in place of <CODE>END</CODE>.  
+If your compiler supports both feel free to pick which one you use.  If it only supports 
+one or the other, you will need to make the necessary replacements to get it to work.
+
+<P>
+We've also added a new identifier, <CODE>ID_FILE_EXIT</CODE>, so we need to add this to our
+resource header file, resource.h, in order to use it in our program.
+
+<PRE CLASS="LIST">
+#define IDI_MYICON  101
+
+#define ID_FILE_EXIT	4001
+</PRE>
+
+<P>
+Generating and keeping track of all these ids can become a real chore with large projects,
+that's why most people use a visual resource editor which takes care of all this for you.
+They still screw up from time to time, and you could end up with multiple items with
+the same ID or a similar problem, and it's good to be able to go in and fix it yourself.
+
+<P>
+Now an example of how to use a resource in your program.
+
+<PRE CLASS="SNIP">
+    HICON hMyIcon = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_MYICON));
+</PRE>
+
+The first parameter of <CODE>LoadIcon()</CODE> and many other resource using functions is the
+handle to the current instance (which we are given in <CODE>WinMain()</CODE> and can also be retreived by
+using <CODE>GetModuleHandle()</CODE> as demonstrated in previous sections).  The
+second is the identifier of the resource.
+
+<P>
+You're probably wondering what's up with <CODE>MAKEINTRESOURCE()</CODE> and possibly wondering
+why <CODE>LoadIcon()</CODE> takes a parameter of type <CODE>LPCTSTR</CODE> instead of say <CODE>UINT</CODE>
+when we're passing it an ID.  All <CODE>MAKEINTRESOURCE()</CODE> does is cast from an integer (what 
+our ID is) to <CODE>LPCTSTR</CODE>, which <CODE>LoadIcon()</CODE> expects.  This brings us
+to the second way of identifying resources, and that's with strings.  Almost nobody does this
+any more, so I won't go into details, but basically if you don't use #define to assign an integer
+value to your resources then the name is interpreted as a string, and can be referenced in
+your program like this:
+
+<PRE CLASS="SNIP">
+    HICON hMyIcon = LoadIcon(hInstance, "MYICON");
+</PRE>
+
+<P>
+<CODE>LoadIcon()</CODE> and other resource loading APIs can tell the difference between an
+integer passed in and a pointer to a string passed in by checking the high word of the value.
+If it's <CODE>0</CODE> (as would be the case of any integer with a value less than or equal
+to 65535) then it assumes it is a resource ID.  This effectively limits your resources to
+using IDs below 65535, which unless you have a whole lot of resources, should not be a problem.
+If it's not <CODE>0</CODE> then it assumes the value is a pointer, and looks up the resource
+by name.  Never rely on an API to do this unless it is explicitely stated in the documentation.
+
+<P>
+For example, this doesn't work for menu commands like <CODE>ID_FILE_EXIT</CODE>, 
+since they can only be integers.
+
+
+<HR>
+<FONT SIZE="-1">
+Copyright &copy; 1998-2003, Brook Miles (<A HREF="mailto:forger(nospam)winprog.org">theForger</A>).  All rights reserved.
+</FONT>
+
+<SCRIPT language="JavaScript">
+<!--
+   var re = /\(nospam\)/ig;
+   var str;
+
+   for(i = 0;i < document.links.length;i++) 
+   {
+      str = "" + document.links(i).href;
+      if(str.search(re) != -1)
+         document.links(i).href = str.replace(re, "@");
+
+      str = "" + document.links(i).innerHTML;
+      if(str.search(re) != -1)
+         document.links(i).innerHTML = str.replace(re, "@");
+   }
+-->
+</SCRIPT>
+
+</BODY>
+</HTML>

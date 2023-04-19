@@ -1,0 +1,1192 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>Chapter 36. Persistent Storage</title>
+    <link rel="stylesheet" type="text/css" href="docbook-xsl-mymods.css" />
+    <meta name="generator" content="DocBook XSL Stylesheets V1.76.0" />
+    <link rel="home" href="index.html" />
+    <link rel="up" href="pt07.html" />
+    <link rel="prev" href="pt07.html" />
+    <link rel="next" href="ch37.html" />
+  </head>
+  <body>
+    <div class="mattnotice">
+      <p>As a courtesy, this is a <b>full free</b> rendering of my book, <i>Programming iOS 6</i>, by Matt Neuburg. Copyright 2013 Matt Neuburg. Please note that this book has now been completely superseded by two more recent books, <a href="http://shop.oreilly.com/product/0636920032465.do">iOS 7 Fundamentals</a> and <a href="http://shop.oreilly.com/product/0636920031017.do">Programming iOS 7</a>. If my work has been of help to you, please <b>consider purchasing</b> one or both of them. Thank you!
+	</p>
+    </div>
+    <div class="navfooter">
+      <table width="100%" summary="Navigation footer">
+        <tr>
+          <td width="40%" align="left"><a accesskey="p" href="pt07.html">Prev</a> </td>
+          <td width="20%" align="center">
+            <a accesskey="u" href="pt07.html">Up</a>
+          </td>
+          <td width="40%" align="right"> <a accesskey="n" href="ch37.html">Next</a></td>
+        </tr>
+        <tr>
+          <td width="40%" align="left" valign="top">Part VII. Final Topics </td>
+          <td width="20%" align="center">
+            <a accesskey="h" href="index.html">Table of Contents</a>
+          </td>
+          <td width="40%" align="right" valign="top"> Chapter 37. Basic Networking</td>
+        </tr>
+      </table>
+    </div>
+    <div class="chapter">
+      <div class="titlepage">
+        <div>
+          <div>
+            <h2 class="title"><a id="chap_id36"></a>Chapter 36. Persistent Storage</h2>
+          </div>
+        </div>
+      </div>
+      <p>The device on which your app runs contains flash memory that functions as the equivalent of a hard disk, holding files that survive the device’s being powered down (<span class="emphasis"><em>persistent storage</em></span>). Apps can store files to, and retrieve them from, this virtual hard disk. Apps can also define document types in which they specialize and can hand such documents to one another; apps can also share documents into the cloud (iCloud), so that multiple copies of the same app can retrieve them on different devices.
+<a id="idxfiles" class="indexterm"></a></p>
+      <p>User preferences can be maintained in NSUserDefaults (<a class="xref" href="ch13.html">Chapter 13</a>), and visible state can be maintained through the iOS 6 state saving and restoration mechanism (<a class="xref" href="ch19.html">Chapter 19</a>), but the data that constitutes your app’s model in the model–view–controller architecture is neither preferences nor state, so if your app has such data, and if that data is to persist between uses, your app will probably save the data to disk as a file or files.<a id="idm441640330704" class="indexterm"></a><a id="idm441640329936" class="indexterm"></a> At a minimum, you’ll probably save your data to disk when your app goes into the background (<a class="xref" href="ch11.html">Chapter 11</a>), so that if your app is terminated in the background, you can load your data from disk when your app launches. More proactively, you might save your data to disk more often, for extra safety, and, if your data is large, you might also release it when your app goes into the background, so as to use less memory in the background and reduce your chances of being terminated while suspended; in that case, you’ll load your data from disk whenever your app comes to the foreground. (I described a possible strategy for loading your data “lazily,” whenever your app finds that it has no reference to the data, in <a class="xref" href="ch19.html#SECvcmem">View Controller Memory Management</a>.)
+<a id="idm441640326608" class="indexterm"></a></p>
+      <p>Settling on a structure or format for your data on disk is up to you; this chapter concludes with some examples of how to manipulate some important file formats, but only you can decide what suits your app’s particular needs.</p>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_the_sandbox"></a>The Sandbox</h2>
+            </div>
+          </div>
+        </div>
+        <p>The hard disk as a whole is not open to your app’s view. A limited portion of the hard disk is dedicated to your app alone: this is your app’s <span class="emphasis"><em>sandbox</em></span>. The idea is that every app, seeing only its own sandbox, is hindered from spying or impinging on the files belonging to other apps, and in turn is protected from having its own files spied or impinged on by other apps. Your app’s sandbox is thus a safe place for you to store your data. Your sandbox, and hence your data, will be deleted if the user deletes your app; otherwise, it should reliably persist. (Your app can also see some higher-level directories owned by the system as a whole, but cannot write to them.)<a id="idm441640322224" class="indexterm"></a></p>
+        <p>The sandbox contains some standard directories. For example, suppose you want a reference to the Documents directory. Here’s one way to access it:<a id="idm441640320976" class="indexterm"></a>
+<a id="idm441640319696" class="indexterm"></a>
+<a id="idm441640318704" class="indexterm"></a></p>
+        <pre class="screen">NSString* docs = [NSSearchPathForDirectoriesInDomains(
+    NSDocumentDirectory, NSUserDomainMask, YES) lastObject];</pre>
+        <p>That code returns a path string for the Documents directory. The preferred way to refer to a file or directory, however, is with a URL. You can obtain this from an NSFileManager instance:</p>
+        <pre class="screen">NSFileManager* fm = [NSFileManager new];
+NSError* err = nil;
+NSURL* docsurl =
+    [fm URLForDirectory:NSDocumentDirectory
+               inDomain:NSUserDomainMask appropriateForURL:nil
+                 create:YES error:&amp;err];
+// error-checking omitted</pre>
+        <p>A question that will immediately occur to you is: <span class="emphasis"><em>where</em></span> should I put files and folders that I want to save now and read later? The Documents directory can be a good place. But if your app supports file sharing (discussed later in this chapter), the user can see and modify your app’s Documents directory through iTunes, so you might not want to put things there that the user isn’t supposed to see and change.<a id="idm441640313808" class="indexterm"></a></p>
+        <p>Personally, I favor the Application Support directory for most purposes. On a Mac, this directory is shared by multiple applications, each of which must confine itself to an individual subfolder, but on iOS each app has its own private Application Support directory in its own sandbox, so you can safely put files anywhere within it. This directory may not exist initially, so you can obtain it and create it at the same time:<a id="idm441640312128" class="indexterm"></a>
+<a id="idm441640310816" class="indexterm"></a></p>
+        <pre class="screen">NSURL* suppurl =
+   [fm URLForDirectory:NSApplicationSupportDirectory
+              inDomain:NSUserDomainMask appropriateForURL:nil
+                create:YES error:&amp;err];</pre>
+        <p>See also “Where You Should Put Your App’s Files” in the “File System Basics” chapter of Apple’s <span class="emphasis"><em>File System Programming Guide</em></span>, which talks about the implications of various file storage locations when the user syncs or backs up the device. The advice given there, however, fails to grapple with the fact that file sharing makes the Documents directory directly modifiable by the user.</p>
+        <p>Although URLs are the favored way of referring to files and folders, they are a more recent innovation than path strings, and there are some operations that still require a string. To derive a path string from an NSURL, send it the <code class="literal">path</code> message.</p>
+        <div class="sidebar">
+          <a id="SBvisualSandox"></a>
+          <div class="titlepage">
+            <div>
+              <div>
+                <p class="title">Visually Inspecting the Sandbox</p>
+              </div>
+            </div>
+          </div>
+          <p>The Simulator’s sandbox is a folder on your Mac that you can inspect visually. Recall from <a class="xref" href="ch09.html">Chapter 9</a> that applications appearing in the Simulator are actually located in a directory inside <span class="emphasis"><em>~/Library/Application Support/iPhone Simulator</em></span>, followed by the system version of the SDK (for example, there might be a folder called <span class="emphasis"><em>6.1</em></span>). Inside this folder you’ll find an <span class="emphasis"><em>Applications</em></span> folder; inside that are the sandbox folders for the apps you’ve run from Xcode on the Simulator. These sandbox folders have mysterious names like <span class="emphasis"><em>09007C84-6CD7-4F30-A2E2-F8EE1068CD59</em></span>, but you can identify a folder by opening it and examining the name of the app.</p>
+          <p>You can also view the file structure of the sandbox on the device. When the device is connected, look in the Applications section of the Organizer window. Choose your app; you’ll see the entire hierarchy of its sandbox contents displayed at the bottom of the window. If you click Download, the whole sandbox is copied and arrives on your computer as an <span class="emphasis"><em>.xcappdata</em></span> package; you can open it in the Finder with Show Package Contents.</p>
+        </div>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_basic_file_operations"></a>Basic File Operations</h2>
+            </div>
+          </div>
+        </div>
+        <p>Let’s say we intend to create folder <span class="emphasis"><em>MyFolder</em></span> inside the Documents directory. Assume that we have an NSFileManager instance <code class="literal">fm</code> and an NSURL <code class="literal">docsurl</code> pointing at the Documents directory, as shown in the previous section. We can then generate a reference to <span class="emphasis"><em>MyFolder</em></span>; we can then ask our NSFileManager instance to create the folder if it doesn’t exist already:<a id="idm441640296464" class="indexterm"></a>
+<a id="idm441640295152" class="indexterm"></a><a id="idm441640294240" class="indexterm"></a></p>
+        <pre class="screen">NSURL* myfolder = [docsurl URLByAppendingPathComponent:@"MyFolder"];
+NSError* err = nil;
+BOOL ok =
+    [fm createDirectoryAtURL:myfolder
+        withIntermediateDirectories:YES attributes:nil error:nil];
+// ... error-checking omitted</pre>
+        <p>To learn what files and folders exist within a directory, you can ask for an array of the directory’s contents:<a id="idm441640292720" class="indexterm"></a>
+<a id="idm441640290208" class="indexterm"></a></p>
+        <pre class="screen">NSError* err = nil;
+NSArray* arr =
+    [fm contentsOfDirectoryAtURL:docsurl
+        includingPropertiesForKeys:nil options:0 error:&amp;err];
+// ... error-checking omitted
+NSLog(@"%@", [arr valueForKey:@"lastPathComponent"]);
+/*
+MyFolder
+*/</pre>
+        <p>The array resulting from <code class="literal">contentsOfDirectoryAtURL:...</code> lists full URLs of the directory’s <span class="emphasis"><em>immediate</em></span> contents; it is shallow. For a deep array, which might be very big, you can enumerate the directory, so that you are handed only one file reference at a time:</p>
+        <pre class="screen">NSDirectoryEnumerator* dir =
+    [fm enumeratorAtURL:docsurl
+        includingPropertiesForKeys:nil options:0 errorHandler:nil];
+for (NSURL* f in dir)
+    if ([[f pathExtension] isEqualToString: @"txt"])
+        NSLog(@"%@", [f lastPathComponent]);
+/*
+file1.txt
+file2.txt
+*/</pre>
+        <p>A directory enumerator also permits you to decline to dive into a particular subdirectory (<code class="literal">skipDescendants</code>), so you can make your traversal even more efficient; I’ll give an example later in this chapter.</p>
+        <p>Consult the NSFileManager class documentation for more about what you can do with files, and see also Apple’s <span class="emphasis"><em>Low-Level File Management Programming Topics</em></span>.</p>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_saving_and_reading_files"></a>Saving and Reading Files</h2>
+            </div>
+          </div>
+        </div>
+        <p>To save or read a simple file, you are likely to use one of the convenience methods for the class appropriate to the file’s contents. NSString, NSData, NSArray, and NSDictionary provide <code class="literal">writeToURL...</code> and <code class="literal">initWithContentsOfURL...</code> methods.<a id="idm441640280176" class="indexterm"></a>
+<a id="idm441640278880" class="indexterm"></a><a id="idm441640277984" class="indexterm"></a>
+<a id="idm441640276672" class="indexterm"></a><a id="idm441640275760" class="indexterm"></a>
+<a id="idm441640274464" class="indexterm"></a></p>
+        <p>NSString and NSData objects map directly between their own contents and the contents of the file. Here, I’ll generate a text file from a string:</p>
+        <pre class="screen">NSError* err = nil;
+BOOL ok =
+    [@"howdy" writeToURL:[myfolder URLByAppendingPathComponent:@"file1.txt"]
+              atomically:YES encoding:NSUTF8StringEncoding error:&amp;err];
+// error-checking omitted</pre>
+        <p>NSArray and NSDictionary files are actually property lists (<a class="xref" href="ch10.html">Chapter 10</a>), and will work only if all the contents of the array or dictionary are property list types (NSString, NSData, NSDate, NSNumber, NSArray, and NSDictionary).</p>
+        <p>So how do you save to a file an object of some other class? Well, if an object’s class adopts the NSCoding protocol, you can convert it to an NSData and back again using NSKeyedArchiver and NSKeyedUnarchiver; an NSData can then be saved as a file or in a property list. An example of doing this with a UIColor object appears in <a class="xref" href="ch10.html">Chapter 10</a>.<a id="idm441640268976" class="indexterm"></a><a id="idm441640268112" class="indexterm"></a><a id="idm441640267216" class="indexterm"></a><a id="idm441640266336" class="indexterm"></a><a id="idm441640265424" class="indexterm"></a></p>
+        <p>You can make your own class adopt the NSCoding protocol. This can become somewhat complicated because an object can refer (through an instance variable) to another object, which may also adopt the NSCoding protocol, and thus you can end up saving an entire graph of interconnected objects if you wish. However, I’ll confine myself to illustrating a simple case (and you can read the <span class="emphasis"><em>Archives and Serializations Programming Guide</em></span> for more information).</p>
+        <p>Let’s say, then, that we have a simple Person class with a <code class="literal">firstName</code> property and a <code class="literal">lastName</code> property. We’ll declare that it adopts the NSCoding protocol:</p>
+        <pre class="screen">@interface Person : NSObject &lt;NSCoding&gt;</pre>
+        <p>To make this class actually conform to NSCoding, we must implement <code class="literal">encodeWithCoder:</code> (to archive the object) and <code class="literal">initWithCoder:</code> (to unarchive the object). In <code class="literal">encodeWithCoder:</code>, we must first call <code class="literal">super</code> if the superclass adopts NSCoding, and then call the appropriate <code class="literal">encode...</code> method for each instance variable we want preserved:</p>
+        <pre class="screen">- (void)encodeWithCoder:(NSCoder *)encoder {
+    //[super encodeWithCoder: encoder]; // not in this case
+    [encoder encodeObject:self.lastName forKey:@"last"];
+    [encoder encodeObject:self.firstName forKey:@"first"];
+}</pre>
+        <p>In <code class="literal">initWithCoder</code>, we must call <code class="literal">super</code>, using either <code class="literal">initWithCoder:</code> if the superclass adopts the NSCoding protocol or the designated initializer if not, and then call the appropriate <code class="literal">decode...</code> method for each instance variable stored earlier, finally returning <code class="literal">self</code>; memory management is up to us (but under ARC there will probably be no need to think about that):</p>
+        <pre class="screen">- (id) initWithCoder:(NSCoder *)decoder {
+    //self = [super initWithCoder: decoder]; // not in this case
+    self = [super init];
+    self-&gt;_lastName = [decoder decodeObjectForKey:@"last"];
+    self-&gt;_firstName = [decoder decodeObjectForKey:@"first"];
+    return self;
+}</pre>
+        <p>We can test our code by creating, configuring, and saving a Person instance as a file:</p>
+        <pre class="screen">Person* moi = [Person new];
+moi.firstName = @"Matt";
+moi.lastName = @"Neuburg";
+NSData* moidata = [NSKeyedArchiver archivedDataWithRootObject:moi];
+NSURL* moifile = [docsurl URLByAppendingPathComponent:@"moi.txt"];
+[moidata writeToURL:moifile atomically:NO];</pre>
+        <p>We can retrieve the saved Person at a later time:</p>
+        <pre class="screen">NSData* persondata = [[NSData alloc] initWithContentsOfURL:moifile];
+Person* person = [NSKeyedUnarchiver unarchiveObjectWithData:persondata];
+NSLog(@"%@ %@", person.firstName, person.lastName); // Matt Neuburg</pre>
+        <p>If the NSData object is itself the entire content of the file, as here, then instead of using <code class="literal">archivedDataWithRootObject:</code> and <code class="literal">unarchiveObjectWithData:</code>, you can skip the intermediate NSData object and use <code class="literal">archiveRootObject:toFile:</code> and <code class="literal">unarchiveObjectWithFile:</code>.</p>
+        <p>Saving a single Person as an archive may seem like overkill; why didn’t we just make a text file consisting of the first and last names? But imagine that a Person has a lot more properties, or that we have an array of hundreds of Persons, or an array of hundreds of dictionaries where one value in each dictionary is a Person; now the power of an archivable Person is evident. Even though Person now adopts the NSCoding protocol, an NSArray containing a Person object still cannot be written to disk using NSArray’s <code class="literal">writeToFile...</code> or <code class="literal">writeToURL...</code>, because Person is still not a property list type. But the array can be archived and written to disk with NSKeyedArchiver.</p>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_user_defaults"></a>User Defaults</h2>
+            </div>
+          </div>
+        </div>
+        <p>User defaults (NSUserDefaults), which have often been referred to earlier in this book (see especially <a class="xref" href="ch10.html">Chapter 10</a> and <a class="xref" href="ch13.html">Chapter 13</a>), are intended as the persistent storage of the user’s preferences.<a id="idm441640239264" class="indexterm"></a><a id="idm441640238384" class="indexterm"></a> They are little more, really, than a special case of an NSDictionary property list file. You talk to the NSUserDefaults <code class="literal">standardUserDefaults</code> object much as if it were a dictionary; it has keys and values. And the only legal values are property list values (see the preceding section); thus, for example, to store a Person in user defaults, you’d have to archive it first to an NSData object. Unlike NSDictionary, NSUserDefaults provides convenience methods for converting between a simple data type such as a float or a BOOL and the object that is stored in the defaults (<code class="literal">setFloat:forKey:</code>, <code class="literal">floatForKey:</code>, and so forth). But the defaults themselves are still a dictionary.</p>
+        <p>Meanwhile, somewhere on disk, this dictionary is being saved for you automatically as a property list file — though you don’t concern yourself with that. You simply set or retrieve values from the dictionary by way of their keys, secure in the knowledge that the file is being read into memory or written to disk as needed. Your chief concern is to make sure that you’ve written everything needful into user defaults before your app terminates; as we saw in <a class="xref" href="ch11.html">Chapter 11</a>, in a multitasking world this will usually mean when the app delegate receives <code class="literal">applicationDidEnterBackground:</code> at the latest. If you’re worried that your app might crash, you can tell the <code class="literal">standardUserDefaults</code> object to <code class="literal">synchronize</code> as a way of forcing it to save right now, but this is rarely necessary.</p>
+        <p>To provide the value for a key before the user has had a chance to do so — the default default, as it were — use <code class="literal">registerDefaults:</code>. What you’re supplying here is a dictionary whose key–value pairs will each be written into the defaults, but only if there is no such key already. Recall this example from <a class="xref" href="ch10.html">Chapter 10</a>:</p>
+        <pre class="screen">[[NSUserDefaults standardUserDefaults] registerDefaults:
+    @{@"cardMatrixRows":@4, @"cardMatrixColumns":@3}];</pre>
+        <p>The idea is that we call <code class="literal">registerDefaults:</code> extremely early as the app launches. Either the app has run at some time previously and the user has set these preferences, in which case this call has no effect and does no harm, or not, in which case we now have initial values for these preferences with which to get started. So, in the game app from which that code comes, we start out with a 4×3 game layout, but the user can change this at any time.</p>
+        <p>This leaves only the question of how the user is to interact with the defaults. One way is that your app provides some kind of interface. For example, in the TidBITS News app, there’s a single button for setting the size of text, and that’s the only preference with which the user ever interacts directly.</p>
+        <p>The game app from which the previous code comes has a tab bar interface; the second tab is where the user sets preferences (<a class="xref" href="ch20.html#FIGzotzSettings">Figure 20.1</a>). The app is compiled for iOS 5, and hence doesn’t participate in the iOS 6 built-in state saving and restoration. So it uses (or misuses) the user defaults to store state information.<a id="idm441640223216" class="indexterm"></a><a id="idm441640222352" class="indexterm"></a> It records the state of the game board and the card deck into user defaults every time these change, so that if the app is terminated and then launched again later, we can restore the game as it was when the user left off. One might argue that, while the current card layout may be state, the card deck itself is data — and so I am also misusing the user defaults to store data. However, while purists may grumble, it’s a very small amount of data and I don’t think the distinction is terribly significant in this case. (See also <a class="xref" href="ch13.html">Chapter 13</a> on user defaults as a locus of global values.)</p>
+        <p>Alternatively, you can provide a <span class="emphasis"><em>settings bundle</em></span>, consisting mostly of one or more property list files describing an interface and the corresponding user default keys and their initial values; the Settings app is then responsible for translating your instructions into an actual interface, and for presenting it to the user.<a id="idm441640218880" class="indexterm"></a><a id="idm441640218000" class="indexterm"></a></p>
+        <p>Using a settings bundle has some obvious disadvantages: the user may not think to look in the Settings app; the user has to leave your app to access preferences; and you don’t get the kind of control over the interface that you have within your own app. Also, in a multitasking world, this means that the user can set preferences while your app is backgrounded; you’ll need to register for <code class="literal">NSUserDefaultsDidChangeNotification</code> in order to hear about this.</p>
+        <p>In some situations, though, a settings bundle has some clear advantages. Keeping the preferences interface out of your app can make your app’s own interface cleaner and simpler. You don’t have to write any of the “glue” code that coordinates the preferences interface with the user default values. And it may be appropriate for the user to be able to set preferences for your app even when your app isn’t running.</p>
+        <p>Writing a settings bundle is described in the “Implementing Application Preferences” chapter of Apple’s <span class="emphasis"><em>iOS Application Programming Guide</em></span>, along with the <span class="emphasis"><em>Settings Application Schema Reference</em></span>.</p>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_file_sharing"></a>File Sharing</h2>
+            </div>
+          </div>
+        </div>
+        <p>If your app supports file sharing, its Documents directory becomes available to the user through iTunes (<a class="xref" href="ch36.html#FIGfilesharing">Figure 36.1</a>). The user can add files to your app’s Documents directory, and can save files and folders from your app’s Documents directory to the computer, as well as renaming and deleting files and folders. This could be appropriate, for example, if your app works with common types of file that the user might obtain elsewhere, such as PDFs or JPEGs.<a id="idm441640210608" class="indexterm"></a>
+<a id="idm441640209408" class="indexterm"></a><a id="idm441640208544" class="indexterm"></a></p>
+        <div class="figure">
+          <a id="FIGfilesharing"></a>
+          <div class="figure-contents">
+            <div class="mediaobject">
+              <img src="figs/pios_3601.png" alt="figs/pios_3601.png" />
+            </div>
+          </div>
+          <p class="title">Figure 36.1. The iTunes file sharing interface</p>
+        </div>
+        <br class="figure-break" />
+        <p>To support file sharing, set the <span class="emphasis"><em>Info.plist</em></span> key “Application supports iTunes file sharing” (<code class="literal">UIFileSharingEnabled</code>).</p>
+        <p>Once your entire Documents directory is exposed to the user this way, you are suddenly not so likely to use the Documents directory to store private files. As I mentioned earlier, I like to use the Application Support directory instead.</p>
+        <p>Your app doesn’t get any notification when the user has altered the contents of the Documents directory. Noticing that the situation has changed and responding appropriately is entirely up to you.</p>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_document_types"></a>Document Types</h2>
+            </div>
+          </div>
+        </div>
+        <p>Your app can declare itself willing to open documents of a certain type. In this way, if another app obtains a document of this type, it can propose to hand the document off to your app. For example, the user might download the document with Mobile Safari, or receive it in a mail message with the Mail app; now we need a way to get it from Safari or Mail to you.<a id="idm441640199536" class="indexterm"></a>
+<a id="idm441640198240" class="indexterm"></a></p>
+        <p>To let the system know that your app is a candidate for opening a certain kind of document, you will configure the “Document types” (<code class="literal">CFBundleDocumentTypes</code>) key in your <span class="emphasis"><em>Info.plist</em></span>. This is an array, where each entry will be a dictionary specifying a document type by using keys such as “Document Content Type UTIs” (<code class="literal">LSItemContentTypes</code>), “Document Type Name” (<code class="literal">CFBundleTypeName</code>), <code class="literal">CFBundleTypeIconFiles</code>, and <code class="literal">LSHandlerRank</code>. Far and away the simplest method for configuring the <span class="emphasis"><em>Info.plist</em></span> is through the interface available in the Info tab when you edit the target.</p>
+        <p>For example, suppose I want to declare that my app opens PDFs. My <span class="emphasis"><em>Info.plist</em></span> could contain this simple entry (as seen in the standard editor):</p>
+        <pre class="screen">Document types                       (1 item)
+    Item 0                           (1 item)
+        Document Type Name           PDF
+        Document Content Type UTIs   (1 item)
+            Item 0                   com.adobe.pdf</pre>
+        <p>Now suppose the user receives a PDF in an email message. The Mail app can display this PDF, but the user can also tap the Action button to bring up an activity view offering, among other things, to open the file in my app. (The interface will resemble <a class="xref" href="ch36.html#FIGopendoc">Figure 36.2</a>, with my app listed as one of the buttons.)</p>
+        <p>Next, suppose the user actually <span class="emphasis"><em>taps</em></span> the button that hands the PDF off to my app. For this to work, my app delegate must implement <code class="literal">application:handleOpenURL:</code>.<a id="idm441640187136" class="indexterm"></a>
+<a id="idm441640185808" class="indexterm"></a> When that method is called, my app has been brought to the front, either by launching it from scratch or by reviving it from background suspension; its job is now to handle the opening of the document whose URL has arrived as the second parameter. To prevent me from peeking into another app’s sandbox, the system has already copied the document into my sandbox, into the Inbox directory, which is created for exactly this purpose.</p>
+        <div class="warning" style="margin-left: 0; margin-right: 10%;">
+          <h3 class="title">Warning</h3>
+          <p>The Inbox directory is created in your Documents folder. Thus, if your app implements file sharing, the user can see the Inbox folder; you may wish to delete the Inbox folder, therefore, as soon as you’re done retrieving files from it.</p>
+        </div>
+        <p>In this simple example, my app has just one view controller, which has an outlet to a UIWebView where we will display any PDFs that arrive in this fashion. So my app delegate contains this code:</p>
+        <pre class="screen">- (BOOL)application:(UIApplication *)application handleOpenURL:(NSURL *)url {
+    [self.viewController displayPDF:url];
+    return YES;
+}</pre>
+        <p>And my view controller contains this code:</p>
+        <pre class="screen">- (void) displayPDF: (NSURL*) url {
+    NSURLRequest* req = [NSURLRequest requestWithURL:url];
+    [self.wv loadRequest:req];
+}</pre>
+        <p>In real life, things might be more complicated. Our implementation of <code class="literal">application:handleOpenURL:</code> might check to see whether this really <span class="emphasis"><em>is</em></span> a PDF, and return NO if it isn’t. Also, our app might be in the middle of something else, possibly displaying a completely different view controller’s view; because <code class="literal">application:handleOpenURL:</code> can arrive at any time, we may have to be prepared to drop whatever we were doing and showing previously and display the incoming document instead.</p>
+        <p>If our app is launched from scratch by the arrival of this URL, <code class="literal">application:didFinishLaunchingWithOptions:</code> will be sent to our app delegate as usual. The options dictionary (the second parameter) will contain the <code class="literal">UIApplicationLaunchOptionsURLKey</code>, and we can take into account, if we like, the fact that we are being launched specifically to open a document. The usual thing, however, is to ignore this key and launch in the normal way; <code class="literal">application:handleOpenURL:</code> will then arrive in good order after our interface has been set up, and we can handle it just as we would if we had already been running.</p>
+        <p>Your app delegate can also implement <code class="literal">application:openURL:sourceApplication:annotation:</code> in order to receive more information about the incoming URL. If implemented, this will be called in preference to <code class="literal">application:handleOpenURL:</code>.</p>
+        <p>The example I’ve been discussing assumes that the UTI for the document type is standard and well-known. It is also possible that your app will operate on a new document type, that is, a type of document that the app itself defines. In that case, you’ll also want to add this UTI to your app’s list of Exported UTIs in the <span class="emphasis"><em>Info.plist</em></span>. I’ll give an example later in this chapter.</p>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_handing_off_a_document"></a>Handing Off a Document</h2>
+            </div>
+          </div>
+        </div>
+        <p>The converse of the situation discussed in the previous section is this: your app has somehow acquired a document and wants to let the user hand off a copy of it to whatever app can deal with it. This is done through the <a id="idm441640169696" class="indexterm"></a>UIDocumentInteractionController class. This class operates asynchronously, so retaining an instance of it is up to you; typically, you’ll store it in an instance variable with a retain setter policy.<a id="idm441640168496" class="indexterm"></a>
+<a id="idm441640167184" class="indexterm"></a></p>
+        <p>For example, let’s say our app has a PDF sitting in its Documents directory. Assuming we have an NSURL pointing to this document, presenting the interface for handing the document off to some other application (<a class="xref" href="ch36.html#FIGopendoc">Figure 36.2</a>) could be as simple as this (<code class="literal">sender</code> is a button that the user has just tapped):</p>
+        <pre class="screen">self.dic =
+    [UIDocumentInteractionController interactionControllerWithURL:url];
+BOOL y =
+    [self.dic presentOpenInMenuFromRect:[sender bounds]
+                                 inView:sender animated:YES];</pre>
+        <div class="figure">
+          <a id="FIGopendoc"></a>
+          <div class="figure-contents">
+            <div class="mediaobject">
+              <img src="figs/pios_3602.png" alt="figs/pios_3602.png" />
+            </div>
+          </div>
+          <p class="title">Figure 36.2. The document Open In activity view</p>
+        </div>
+        <br class="figure-break" />
+        <p>Starting in iOS 6, this interface is an activity view (<a class="xref" href="ch26.html">Chapter 26</a>); formerly, it was an action sheet. There are actually two activity views available:</p>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+<code class="literal">presentOpenInMenuFromRect:inView:animated:</code>
+<br /></span>
+              <span class="term">
+<code class="literal">presentOpenInMenuFromBarButtonItem:animated:</code>
+</span>
+            </dt>
+            <dd>
+Presents an activity view listing apps in which the document can be opened.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">presentOptionsMenuFromRect:inView:animated:</code>
+<br /></span>
+              <span class="term">
+<code class="literal">presentOptionsMenuFromBarButtonItem:animated:</code>
+</span>
+            </dt>
+            <dd>
+Presents an activity view listing apps in which the document can be opened, along with other possible actions, such as Print, Copy, and Mail.
+</dd>
+          </dl>
+        </div>
+        <p>These methods work on both iPhone and iPad interfaces; on the iPad, the buttons appear in a popover.</p>
+        <p>Your app can’t learn <span class="emphasis"><em>which</em></span> other applications are capable of accepting the document! Indeed, it can’t even learn in advance whether <span class="emphasis"><em>any</em></span> other applications are capable of accepting the document; your only clue is that the returned BOOL value afterward will be NO if UIDocumentInteractionController couldn’t present the requested interface.</p>
+        <p>UIDocumentInteractionController can, however, be interrogated for <span class="emphasis"><em>some</em></span> information about the document type. In this example, we configure a button in our interface to make its image the icon of the document type:</p>
+        <pre class="screen">self.dic =
+    [UIDocumentInteractionController interactionControllerWithURL:url];
+UIImage* icon = self.dic.icons[0];
+[self.b setImage:icon forState:UIControlStateNormal];</pre>
+        <p>A UIDocumentInteractionController can also present a preview of the document, if the document is of a type for which preview is enabled. You must give the UIDocumentInteractionController a delegate (UIDocumentInteractionControllerDelegate), and the delegate must implement <code class="literal">documentInteractionControllerViewControllerForPreview:</code>, returning an existing view controller that will contain the preview’s view controller. So, here we ask for the preview:<a id="idm441640149552" class="indexterm"></a>
+<a id="idm441640144320" class="indexterm"></a></p>
+        <pre class="screen">self.dic =
+    [UIDocumentInteractionController interactionControllerWithURL:url];
+self.dic.delegate = self;
+[self.dic presentPreviewAnimated:YES];</pre>
+        <p>In the delegate, we supply the view controller; it happens that, in my code, this delegate <span class="emphasis"><em>is</em></span> a view controller — in fact, it’s the very view controller that is presenting the UIDocumentInteractionController — so it simply returns <code class="literal">self</code>:</p>
+        <pre class="screen">- (UIViewController *) documentInteractionControllerViewControllerForPreview:
+        (UIDocumentInteractionController *) controller {
+    return self;
+}</pre>
+        <p>If the view controller returned were a UINavigationController, the preview’s view controller would be pushed onto it. In this case it isn’t, so the preview’s view controller is a presented view controller with a Done button. The preview interface also contains an Action button that lets the user summon the Options activity view. In fact, this preview interface is exactly the same interface already familiar from the Mail app.</p>
+        <p>Delegate methods allow you to track what’s happening in the interface presented by the UIDocumentInteractionController. Probably most important are those that inform you that key stages of the interaction are ending:</p>
+        <div class="itemizedlist">
+          <ul class="itemizedlist" type="disc">
+            <li class="listitem">
+<code class="literal">documentInteractionControllerDidDismissOptionsMenu:</code>
+</li>
+            <li class="listitem">
+<code class="literal">documentInteractionControllerDidDismissOpenInMenu:</code>
+</li>
+            <li class="listitem">
+<code class="literal">documentInteractionControllerDidEndPreview:</code>
+</li>
+            <li class="listitem">
+<code class="literal">documentInteractionController:didEndSendingToApplication:</code>
+</li>
+          </ul>
+        </div>
+        <p>Previews are actually provided through the Quick Look framework, and you can skip the UIDocumentInteractionController and present the preview yourself through a <a id="idm441640131952" class="indexterm"></a>QLPreviewController; you’ll link to <span class="emphasis"><em>QuickLook.framework</em></span> and import <code class="literal">&lt;QuickLook/QuickLook.h&gt;</code>.<a id="idm441640129984" class="indexterm"></a>
+<a id="idm441640128688" class="indexterm"></a> It’s a view controller, so to display the preview you show it as a presented view controller or push it onto a navigation controller’s stack, just as UIDocumentInteractionController would have done. A nice feature of QLPreviewController is that you can give it more than one document to preview; the user can move between these, within the preview, using arrow buttons that appear at the bottom of the interface. Apart from this, the interface looks just like the interface presented by the UIDocumentInteractionController.</p>
+        <p>In this example, I have in my Documents directory several PDF documents. I acquire a list of their URLs and present a preview for them:</p>
+        <pre class="screen">// obtain URLs of PDFs as an array
+NSFileManager* fm = [NSFileManager new];
+NSURL* docsurl =
+    [fm URLForDirectory:NSDocumentDirectory inDomain:NSUserDomainMask
+        appropriateForURL:nil create:NO error:nil];
+NSDirectoryEnumerator* dir =
+    [fm enumeratorAtURL:[docsurl URLByAppendingPathComponent:@"Inbox"]
+        includingPropertiesForKeys:nil options:0 errorHandler:nil];
+if (!dir)
+    return; // proper error-checking omitted
+NSMutableArray* marr = [NSMutableArray array];
+for (NSURL* f in dir) {
+    [dir skipDescendants];
+    if ([[f pathExtension] isEqualToString: @"pdf"])
+        [marr addObject: f];
+}
+self.pdfs = marr; // retain policy
+if (![self.pdfs count])
+    return;
+// show preview interface
+QLPreviewController* preview = [QLPreviewController new];
+preview.dataSource = self;
+[self presentViewController:preview animated:YES completion:nil];</pre>
+        <p>You’ll notice that I haven’t told the QLPreviewController what documents to preview. That is the job of QLPreviewController’s data source. In my code, this very same view controller is also the data source. It simply fetches the requested information from the list of URLs, which was previously saved into an instance variable:</p>
+        <pre class="screen">- (NSInteger) numberOfPreviewItemsInPreviewController:
+        (QLPreviewController *) controller {
+    return [self.pdfs count];
+}
+
+- (id &lt;QLPreviewItem&gt;) previewController: (QLPreviewController *) controller
+                      previewItemAtIndex: (NSInteger) index {
+    return self.pdfs[index];
+}</pre>
+        <p>The second data source method requires us to return an object that adopts the QLPreviewItem protocol. By a wildly improbable coincidence, NSURL <span class="emphasis"><em>does</em></span> adopt this protocol, so the example works.</p>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_the_document_architecture"></a>The Document Architecture</h2>
+            </div>
+          </div>
+        </div>
+        <p>If your app opens and saves documents of a type peculiar to itself, you may want to take advantage of the <span class="emphasis"><em>document architecture</em></span>. This architecture revolves around a class, UIDocument, that takes care of a number of pesky issues, such as the fact that loading or writing your data might take some time.<a id="idm441640120304" class="indexterm"></a><a id="idm441640119440" class="indexterm"></a> Plus, UIDocument provides autosaving behavior, so that your data is written out automatically whenever it changes. Moreover, UIDocument is your gateway to allowing your documents to participate in iCloud, so your app’s documents on one of the user’s devices will automatically be mirrored onto another of the user’s devices.</p>
+        <p>Getting started with UIDocument is not difficult. You’ll start with a UIDocument subclass, and you’ll override two methods:</p>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+<code class="literal">loadFromContents:ofType:error:</code>
+</span>
+            </dt>
+            <dd>
+Called when it’s time to open a document from disk. You are expected to convert the <code class="literal">contents</code> value into a model object that your app can use, store that model object, and return YES. (If there was a problem, you’ll set the <code class="literal">error:</code> by indirection and return NO.)
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">contentsForType:error:</code>
+</span>
+            </dt>
+            <dd>
+Called when it’s time to save a document to disk. You are expected to convert the app’s model object into an NSData instance (or, if your document is a package, an NSFileWrapper) and return it. (If there was a problem, you’ll set the <code class="literal">error:</code> by indirection and return nil.)
+</dd>
+          </dl>
+        </div>
+        <p>Your UIDocument subclass, then, in addition to its implementation of those two methods, will need a place to store and retrieve the data model object. Obviously, this might be an instance variable. However, your UIDocument instance will probably be partnered in some way with a view controller instance, and that view controller will need access to the data, so a more sophisticated solution might be to set up a delegate relationship between the view controller and the UIDocument and allow the UIDocument to call methods that set and retrieve a property of the view controller.</p>
+        <p>To instantiate a UIDocument, call its designated initializer, <code class="literal">initWithFileURL:</code>. This sets the UIDocument’s <code class="literal">fileURL</code> property, and associates the UIDocument with this file on disk, typically for the remainder of its lifetime.</p>
+        <p>In my description of the two key UIDocument methods that your subclass will override, I used the phrase, “when it’s time” (to open or save the document). This raises the question of how your UIDocument instance will know when to open and save a document. There are three circumstances to distinguish:</p>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+Make a new document
+</span>
+            </dt>
+            <dd>
+The <code class="literal">fileURL:</code> points to a nonexistent file. Immediately after instantiating the UIDocument, you send it <code class="literal">saveToURL:forSaveOperation:completionHandler:</code>, where the second argument is <code class="literal">UIDocumentSaveForCreating</code>. (The first argument will be the UIDocument’s own <code class="literal">fileURL</code>.) This in turn causes <code class="literal">contentsForType:error:</code> to be called, and the contents of an empty document are saved out to disk. This implies that your UIDocument subclass should know of some default value that represents the model data when there is no data.
+</dd>
+            <dt>
+              <span class="term">
+Open an existing document
+</span>
+            </dt>
+            <dd>
+Send the UIDocument instance <code class="literal">openWithCompletionHandler:</code>. This in turn causes <code class="literal">loadFromContents:ofType:error:</code> to be called.
+</dd>
+            <dt>
+              <span class="term">
+Save an existing document
+</span>
+            </dt>
+            <dd>
+              <p class="simpara">
+There are two approaches to saving an existing document:
+</p>
+              <div class="variablelist">
+                <dl>
+                  <dt>
+                    <span class="term">
+Autosave
+</span>
+                  </dt>
+                  <dd>
+Usually, you’ll mark the document as “dirty” by calling <code class="literal">updateChangeCount:</code>. From time to time, the UIDocument will notice this situation and will save the document to disk, calling <code class="literal">contentsForType:error:</code> in the process.<a id="idm441640092336" class="indexterm"></a>
+<a id="idm441640091024" class="indexterm"></a><a id="idm441640090112" class="indexterm"></a>
+</dd>
+                  <dt>
+                    <span class="term">
+Manual save
+</span>
+                  </dt>
+                  <dd>
+On certain occasions, waiting for autosave won’t be appropriate. We’ve already seen an example of such an occasion — when the file itself needs to be created on the spot. Another is when the app is going into the background; we will want to preserve our document there and then, in case the app is terminated. You’ll call <code class="literal">saveToURL:forSaveOperation:completionHandler:</code>; if the file is not being created for the first time, the second argument will be <code class="literal">UIDocumentSaveForOverwriting</code>. Alternatively, if you know you’re finished with the document (perhaps the interface displaying the document is about to be torn down) you can call <code class="literal">closeWithCompletionHandler:</code>.
+</dd>
+                </dl>
+              </div>
+            </dd>
+          </dl>
+        </div>
+        <p>The <code class="literal">open...</code>, <code class="literal">close...</code>, and <code class="literal">saveTo...</code> methods have a <code class="literal">completionHandler:</code> argument. This is UIDocument’s solution to the fact that reading and saving may take time. The file operations themselves take place on a background thread; the <code class="literal">completionHandler:</code> block is then called on the main thread.</p>
+        <p>We now know enough for an example! I’ll reuse my Person class from earlier in this chapter. Imagine a document effectively consisting of multiple Person instances; I’ll call it each document a <span class="emphasis"><em>people group</em></span>. Our app, People Groups, will list all people groups in the user’s Documents folder; it will also open any people group from disk and display its contents, allowing the user to edit any Person’s <code class="literal">firstName</code> or <code class="literal">lastName</code> (<a class="xref" href="ch36.html#FIGpeopleGroups">Figure 36.3</a>).</p>
+        <div class="figure">
+          <a id="FIGpeopleGroups"></a>
+          <div class="figure-contents">
+            <div class="mediaobject">
+              <img src="figs/pios_3603.png" alt="figs/pios_3603.png" />
+            </div>
+          </div>
+          <p class="title">Figure 36.3. The People Groups interface</p>
+        </div>
+        <br class="figure-break" />
+        <p>My first step is to define a custom UTI in my app’s <span class="emphasis"><em>Info.plist</em></span>, associating a file type (<code class="literal">com.neuburg.pplgrp</code>) with a file extension (<code class="literal">@"pplgrp"</code>), as shown in <a class="xref" href="ch36.html#FIGcustomuti">Figure 36.4</a>. I then also define a document type that uses this UTI, as shown earlier in this chapter.</p>
+        <div class="figure">
+          <a id="FIGcustomuti"></a>
+          <div class="figure-contents">
+            <div class="mediaobject">
+              <img src="figs/pios_3604.png" alt="figs/pios_3604.png" />
+            </div>
+          </div>
+          <p class="title">Figure 36.4. Defining a custom UTI</p>
+        </div>
+        <br class="figure-break" />
+        <p>A document consists of multiple Persons, so a natural model implementation is an NSArray of Persons. Moreover, as I mentioned earlier, since Person implements NSCoding, an NSArray of Persons can be archived directly into an NSData. Thus, assuming that our UIDocument subclass (which I’ll call PeopleDocument) has a <code class="literal">people</code> property, it can be implemented like this:</p>
+        <pre class="screen">-(id)initWithFileURL:(NSURL *)url {
+    self = [super initWithFileURL:url];
+    if (self) {
+        self-&gt;_people = [NSMutableArray array];
+    }
+    return self;
+}
+
+- (BOOL)loadFromContents:(id)contents ofType:(NSString *)typeName
+                   error:(NSError **)outError {
+    NSArray* arr = [NSKeyedUnarchiver unarchiveObjectWithData:contents];
+    self.people = [NSMutableArray arrayWithArray:arr];
+    return YES;
+}
+
+- (id)contentsForType:(NSString *)typeName error:(NSError **)outError {
+    NSData* data = [NSKeyedArchiver archivedDataWithRootObject:self.people];
+    return data;
+}</pre>
+        <p>We override <code class="literal">initWithFileURL:</code> to give ourselves something to save if we are called upon to save a new empty document; we then use NSKeyedUnarchiver and NSKeyedArchiver exactly as in our earlier examples.</p>
+        <p>The remaining questions are architectural: when should a PeopleDocument be initialized, where should it be stored, and what should be the nature of communications with it? The first view controller merely lists documents by name, and provides an interface for letting the user create a new group; only the second view controller, the one that displays the first and last names of the people in the group, actually needs to work with PeopleDocument. I’ll call this view controller PeopleLister. PeopleLister’s designated initializer requires that it be given a <code class="literal">fileURL:</code> argument, with which it sets its own <code class="literal">fileURL</code> property. In its <code class="literal">viewDidLoad</code> implementation, PeopleLister instantiates a PeopleDocument with that same <code class="literal">fileURL</code>, and retains it through a property (<code class="literal">doc</code>). If the URL points to a nonexistent file, PeopleLister requests that it be created by calling <code class="literal">saveToURL:forSaveOperation:completionHandler:</code>; otherwise, it requests that the document be read, by calling <code class="literal">openWithCompletionHandler:</code>. Either way, the completion handler points PeopleLister’s own <code class="literal">people</code> property at the PeopleDocument’s <code class="literal">people</code> property (so that they share the same data model object) and refreshes the interface:</p>
+        <pre class="screen">NSFileManager* fm = [NSFileManager new];
+self.doc = [[PeopleDocument alloc] initWithFileURL:self.fileURL];
+void (^listPeople) (BOOL) = ^(BOOL success) {
+    if (success) {
+        self.people = self.doc.people;
+        [self.tableView reloadData];
+    }
+};
+if (![fm fileExistsAtPath:[self.fileURL path]])
+    [self.doc saveToURL:doc.fileURL
+       forSaveOperation:UIDocumentSaveForCreating
+      completionHandler:listPeople];
+else
+    [self.doc openWithCompletionHandler:listPeople];</pre>
+        <p>When the user performs a significant editing maneuver, such as creating or deleting a person or editing a person’s first or last name, PeopleLister tells its PeopleDocument that the document is dirty, and allows autosaving to take it from there:</p>
+        <pre class="screen">[self.doc updateChangeCount:UIDocumentChangeDone];</pre>
+        <p>When the app is about to go into the background, or when PeopleLister’s own view is disappearing, it forces PeopleDocument to save immediately:</p>
+        <pre class="screen">- (void) forceSave: (id) n {
+    [self.tableView endEditing:YES];
+    [self.doc saveToURL:doc.fileURL
+        forSaveOperation:UIDocumentSaveForOverwriting
+        completionHandler:nil];
+}</pre>
+        <p>That’s all it takes; adding UIDocument support to your app is easy, because UIDocument is merely acting as a supplier and preserver of your app’s data model object. UIDocument presents itself in the documentation as a large and complex class, but that’s chiefly because it is so heavily customizable both at high and low levels; for the most part, you won’t need any of that heavy customization, and use of UIDocument really will be as simple as what I’ve shown here. You might go further in order to give your UIDocument a more sophisticated understanding of what constitutes a significant change in your data by working with its undo manager; I’ll talk about undo managers in <a class="xref" href="ch39.html">Chapter 39</a>. For further details, see Apple’s <span class="emphasis"><em>Document-based App Programming Guide for iOS</em></span>.</p>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_icloud"></a>iCloud</h2>
+            </div>
+          </div>
+        </div>
+        <p>Once your app is operating through UIDocument, iCloud compatibility falls right into your lap. You have just two steps to perform:<a id="idm441640046336" class="indexterm"></a><a id="idm441640045440" class="indexterm"></a><a id="idm441640044528" class="indexterm"></a>
+<a id="idm441640043216" class="indexterm"></a></p>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+Register for iCloud entitlements
+</span>
+            </dt>
+            <dd>
+              <p class="simpara">
+In the Portal (<a class="xref" href="ch09.html">Chapter 9</a>), register your app and configure it to be enabled for iCloud (a simple checkbox); then create a provisioning profile for the app (obviously, while developing, this would be a Development profile), download it, and hand it over to Xcode.
+</p>
+              <p class="simpara">Back in your project, edit the target; under Summary, check Enable Entitlements in the Entitlements section. This causes the entire entitlements mechanism to spring to life. The entitlements file is added to the project. The Enable iCloud checkbox is enabled; check it if it isn’t checked. You’ll also need one Ubiquity Container (listed just below the iCloud checkbox); if there isn’t one, add one, which will automatically be assigned your app’s bundle id.</p>
+            </dd>
+            <dt>
+              <span class="term">
+Obtain an iCloud-compatible directory
+</span>
+            </dt>
+            <dd>
+Early in your app’s lifetime, call NSFileManager’s <code class="literal">URLForUbiquityContainerIdentifier:</code> (typically passing nil as the argument), on a background thread, to obtain the URL of a cloud-shared directory. It will probably be an app-specific directory inside <span class="emphasis"><em>file://localhost/private/var/mobile/Library/Mobile%20Documents/</em></span>; you are given sandbox access to this directory even though strictly speaking it isn’t inside your sandbox area. Any documents your app puts here by way of a UIDocument subclass will be automatically shared into the cloud.
+</dd>
+          </dl>
+        </div>
+        <p>Thus, for example, having registered for iCloud entitlements, I was able to make my People Groups app iCloud-compatible with just two code changes. In the app delegate, as my app launches, I step out to background thread (<a class="xref" href="ch38.html">Chapter 38</a>), obtain the cloud-shared directory’s URL, and then step back to the main thread and retain the URL through a property, <code class="literal">ubiq</code>:</p>
+        <pre class="screen">dispatch_async(dispatch_get_global_queue(0, 0), ^{
+    NSFileManager* fm = [NSFileManager new];
+    NSURL* ubiq = [fm URLForUbiquityContainerIdentifier:nil];
+    dispatch_async(dispatch_get_main_queue(), ^{
+        self.ubiq = ubiq;
+    });
+});</pre>
+        <div class="note" style="margin-left: 0; margin-right: 10%;">
+          <h3 class="title">Note</h3>
+          <p>New in iOS 6, you can precede that code with a call to NSFileManager’s <code class="literal">ubiquityIdentityToken</code>. You can do that on the main thread, in the normal way, because it returns immediately. If the result is nil, iCloud isn’t available, or this user hasn’t registered for iCloud, and you might omit any subsequent attempt to work with iCloud. (If it <span class="emphasis"><em>isn’t</em></span> nil, it identifies the user’s iCloud account; this can be useful, for example, to detect when the user has logged into a different account.)<a id="idm441640028384" class="indexterm"></a>
+<a id="idm441640027072" class="indexterm"></a></p>
+        </div>
+        <p>Then, anywhere in my code that I was specifying the URL for the user’s Documents folder as the place to seek and save people groups, I now specify <code class="literal">ubiq</code> if it isn’t nil:</p>
+        <pre class="screen">NSURL* docsurl = [fm URLForDirectory:NSDocumentDirectory
+                            inDomain:NSUserDomainMask
+                   appropriateForURL:nil create:NO error:nil];
+NSURL* ubiq =
+    [(AppDelegate*)[[UIApplication sharedApplication] delegate] ubiq];
+if (ubiq)
+    docsurl = ubiq;</pre>
+        <p>To test, I ran the app on one device and created a people group with some people in it. I then switched to a different device and ran the app there; presto, there was the same document with the same name containing the same people. It was quite thrilling.</p>
+        <p>There are a few further refinements that my app probably needs in order to be a good iCloud citizen. For example, my app is not automatically aware that a new document has appeared in the cloud. To be notified of that, I’d want to run an NSMetadataQuery. The usual strategy is: instantiate NSMetadataQuery, configure the search, register for notifications such as <code class="literal">NSMetadataQueryDidFinishGatheringNotification</code> and <code class="literal">NSMetadataQueryDidUpdateNotification</code>, start the search, and retain the NSMetadataQuery instance with the search continuing to run for the entire lifetime of the app.</p>
+        <p>Another concern is that my app should be notified when the currently open document changes on disk because a new version of it was downloaded from the cloud (that is, someone edited the document while I had it open). For that, register for <code class="literal">UIDocumentStateChangedNotification</code>. To learn the document’s state, consult its <code class="literal">documentState</code> property. A big issue is likely to be what should happen if the document state is <code class="literal">UIDocumentStateInConflict</code>. You’ll want to resolve the conflict in coordination with the NSFileVersion class; for details and example code, see the “Resolving Document Version Conflicts” chapter of Apple’s <span class="emphasis"><em>Document-based App Programming Guide for iOS</em></span>.</p>
+        <p>Yet another issue is the question of what should happen if the availability of iCloud changes in the course of our app’s career. The problem here is that the data is stored in two different places (the Documents directory, or <code class="literal">ubiq</code>). Suppose, for example, that our app starts life without iCloud — because the user hasn’t registered for it, or has it turned off for our app — and then suddenly iCloud is available. We could then call NSFileManager’s <code class="literal">setUbiquitous:itemAtURL:destinationURL:error:</code> to transfer the document to our ubiquity container directory. However, it is not so obvious what to do if iCloud is switched from on to off, as we can no longer access the ubiquity container directory to rescue the document.</p>
+        <p>Further iCloud details are outside the scope of this discussion. Getting started is easy; making your app a good iCloud citizen, capable of dealing with the complexities that iCloud may entail, is not. For further details, see the “iCloud Storage” chapter of Apple’s <span class="emphasis"><em>iOS App Programming Guide</em></span>.</p>
+        <div class="note" style="margin-left: 0; margin-right: 10%;">
+          <h3 class="title">Note</h3>
+          <p>Instead of, or in addition to, storing full-fledged documents in the cloud, your app might like to store some key–value pairs, similar to a sort of online NSUserDefaults. To do this, use the NSUbiquitousKeyValueStore class; get the <code class="literal">defaultStore</code> shared object and talk to it much as you would talk to NSUserDefaults. The <code class="literal">NSUbiquitousKeyValueStoreDidChangeExternallyNotification</code> tells you when data is changed in the cloud. Material that you store in the cloud through NSUbiquitousKeyValueStore does <span class="emphasis"><em>not</em></span> count against the user’s iCloud storage limit, but it needs to be kept short and simple.</p>
+        </div>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_xml"></a>XML</h2>
+            </div>
+          </div>
+        </div>
+        <p>XML is a highly flexible and widely used general-purpose text file format for storage and retrieval of structured data. You might use it yourself to store data that you’ll need to retrieve later, or you could encounter it when obtaining information from elsewhere, such as the Internet.<a id="idm441640007760" class="indexterm"></a>
+<a id="idm441640006512" class="indexterm"></a></p>
+        <p>Mac OS X Cocoa provides a set of classes (NSXMLDocument and so forth) for reading, parsing, maintaining, searching, and modifying XML data in a completely general way, but iOS does <span class="emphasis"><em>not</em></span> include these. I think the reason must be that their tree-based approach is too memory-intensive. Instead, iOS provides <a id="idm441640004560" class="indexterm"></a>NSXMLParser, a much simpler class that walks through an XML document, sending delegate messages as it encounters elements. With this, you can parse an XML document once, but what you do with the pieces as they arrive is up to you. The general assumption here is that you know in advance the structure of the particular XML data you intend to read and that you have provided classes for storage of the same data in object form and for transforming the XML pieces into that storage.</p>
+        <p>To illustrate, let’s return once more to our Person class with a <code class="literal">firstName</code> and a <code class="literal">lastName</code> property. Imagine that as our app starts up, we would like to populate it with Person objects, and that we’ve stored the data describing these objects as an XML file in our app bundle, like this:</p>
+        <pre class="screen">&lt;?xml version="1.0" encoding="utf-8"?&gt;
+&lt;people&gt;
+    &lt;person&gt;
+        &lt;firstName&gt;Matt&lt;/firstName&gt;
+        &lt;lastName&gt;Neuburg&lt;/lastName&gt;
+    &lt;/person&gt;
+    &lt;person&gt;
+        &lt;firstName&gt;Snidely&lt;/firstName&gt;
+        &lt;lastName&gt;Whiplash&lt;/lastName&gt;
+    &lt;/person&gt;
+    &lt;person&gt;
+        &lt;firstName&gt;Dudley&lt;/firstName&gt;
+        &lt;lastName&gt;Doright&lt;/lastName&gt;
+    &lt;/person&gt;
+&lt;/people&gt;</pre>
+        <p>This data could be mapped to an array of Person objects, each with its <code class="literal">firstName</code> and <code class="literal">lastName</code> properties appropriately set. (This is a deliberately easy example, of course; not all XML is so readily expressed as objects.) Let’s consider how we might do that.</p>
+        <p>Using NSXMLParser is not difficult in theory. You create the NSXMLParser, handing it the URL of a local XML file (or an NSData, perhaps downloaded from the Internet), set its delegate, and tell it to <code class="literal">parse</code>. The delegate starts receiving delegate messages. For simple XML like ours, there are only three delegate messages of interest:</p>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+<code class="literal">parser:didStartElement:namespaceURI:qualifiedName:attributes:</code>
+</span>
+            </dt>
+            <dd>
+The parser has encountered an opening element tag. In our document, this would be <code class="literal">&lt;people&gt;</code>, <code class="literal">&lt;person&gt;</code>, <code class="literal">&lt;firstName&gt;</code>, or <code class="literal">&lt;lastName&gt;</code>.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">parser:didEndElement:namespaceURI:qualifiedName:</code>
+</span>
+            </dt>
+            <dd>
+The parser has encountered the corresponding closing element tag. In our document this would be <code class="literal">&lt;/people&gt;</code>, <code class="literal">&lt;/person&gt;</code>, <code class="literal">&lt;/firstName&gt;</code>, or <code class="literal">&lt;/lastName&gt;</code>.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">parser:foundCharacters:</code>
+</span>
+            </dt>
+            <dd>
+The parser has encountered some text between the starting and closing tags for the current element. In our document this would be, for example, <code class="literal">Matt</code> or <code class="literal">Neuburg</code> and so on.
+</dd>
+          </dl>
+        </div>
+        <p>In practice, responding to these delegate messages poses challenges of maintaining state. If there is just one delegate, it will have to bear in mind at every moment what element it is currently encountering; this could make for a lot of instance variables and a lot of if-statements in the implementation of the delegate methods. To aggravate the issue, <code class="literal">parser:foundCharacters:</code> can arrive multiple times for a single stretch of text; that is, the text may arrive in pieces, so we have to accumulate it into an instance variable, which is yet another case of maintaining state.</p>
+        <p>An elegant way to meet these challenges is by resetting the NSXMLParser’s delegate to different objects at different stages of the parsing process. We make each delegate responsible for parsing one element; when a child of that element is encountered, we make a new object and make <span class="emphasis"><em>it</em></span> the delegate. The child element delegate is then responsible for making the parent the delegate once again when it finishes parsing its own element. This is slightly counterintuitive because it means <code class="literal">parser:didStartElement...</code> and <code class="literal">parser:didEndElement...</code> for the same element are arriving at two different objects. Imagine, for example, what the job of our <code class="literal">&lt;people&gt;</code> parser will be:</p>
+        <div class="itemizedlist">
+          <ul class="itemizedlist" type="disc">
+            <li class="listitem">
+When <code class="literal">parser:didStartElement...</code> arrives, the <code class="literal">&lt;people&gt;</code> parser looks to see if this is a <code class="literal">&lt;person&gt;</code>. If so, it creates an object that knows how to deal with a <code class="literal">&lt;person&gt;</code>, handing that object a reference to itself (the <code class="literal">&lt;people&gt;</code> parser), and makes it the delegate.
+</li>
+            <li class="listitem">
+Delegate messages now arrive at this newly created <code class="literal">&lt;person&gt;</code> parser. If any text is encountered, <code class="literal">parser:foundCharacters:</code> will be called, and the text must be accumulated into an instance variable.
+</li>
+            <li class="listitem">
+Eventually, <code class="literal">parser:didEndElement...</code> arrives. The <code class="literal">&lt;person&gt;</code> parser now uses its reference to make the <code class="literal">&lt;people&gt;</code> parser the delegate once again. Thus, the <code class="literal">&lt;people&gt;</code> parser is in charge once again, ready if another <code class="literal">&lt;person&gt;</code> element is encountered (and the old <code class="literal">&lt;person&gt;</code> parser might now go quietly out of existence).
+</li>
+          </ul>
+        </div>
+        <p>With this in mind, we can design a simple all-purpose base class for parsing an element (simple especially because we are taking no account of namespaces, attributes, and other complications):</p>
+        <pre class="screen">@interface MyXMLParserDelegate : NSObject &lt;NSXMLParserDelegate&gt;
+
+@property (nonatomic, copy) NSString* name;
+@property (nonatomic, strong) NSMutableString* text;
+@property (nonatomic, weak) MyXMLParserDelegate* parent;
+@property (nonatomic, strong) MyXMLParserDelegate* child;
+- (void) start: (NSString*) elementName parent: (id) parent;
+- (void) makeChild: (Class) class
+       elementName: (NSString*) elementName
+            parser: (NSXMLParser*) parser;
+- (void) finishedChild: (NSString*) s;
+
+@end</pre>
+        <p>Here’s how these properties and methods are intended to work:</p>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+<code class="literal">name</code>
+</span>
+            </dt>
+            <dd>
+The name of the element we are parsing now.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">text</code>
+</span>
+            </dt>
+            <dd>
+A place for any characters to accumulate as we parse our element.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">parent</code>
+</span>
+            </dt>
+            <dd>
+The MyXMLParserDelegate who created us and whose child we are.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">child</code>
+</span>
+            </dt>
+            <dd>
+If we encounter a child element, we’ll create a MyXMLParserDelegate and retain it here, making it the delegate.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">start:parent:</code>
+</span>
+            </dt>
+            <dd>
+When we create a child parser, we’ll call this method on the child so that it knows who its parent is. The first parameter is the name of the element the child will be parsing; we know this because we, not the child, received <code class="literal">parser:didStartElement...</code>. (In a fuller implementation, this method would be more elaborate and we’d hand the child <span class="emphasis"><em>all</em></span> the information we got with <code class="literal">parser:didStartElement...</code>.)
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">makeChild:elementName:parser:</code>
+</span>
+            </dt>
+            <dd>
+If we encounter a child element, there’s a standard dance to do: instantiate some subclass of MyXMLParserDelegate, make it our <code class="literal">child</code>, make it the parser’s delegate, and send it <code class="literal">start:parent:</code>. This is a utility method that embodies that dance.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">finishedChild:</code>
+</span>
+            </dt>
+            <dd>
+When a child receives <code class="literal">parser:didEndElement...</code>, it sends this message to its parent before making its parent the delegate. The parameter is the <code class="literal">text</code>, but the parent can use this signal to obtain any information it expects from the child before the child goes out of existence.
+</dd>
+          </dl>
+        </div>
+        <p>Now we can sketch in the default implementation for MyXMLParserDelegate:</p>
+        <pre class="screen">- (void) start: (NSString*) el parent: (id) p {
+    self.name = el;
+    self.parent = p;
+    self.text = [NSMutableString string];
+}
+
+- (void) makeChild: (Class) class
+       elementName: (NSString*) elementName
+            parser: (NSXMLParser*) parser {
+    MyXMLParserDelegate* del = [class new];
+    self.child = del;
+    parser.delegate = del;
+    [del start: elementName parent: self];
+}
+
+- (void) finishedChild: (NSString*) s { // subclass implements as desired
+}
+
+- (void)parser:(NSXMLParser *)parser foundCharacters:(NSString *)string {
+    [self.text appendString:string];
+}
+
+- (void)parser:(NSXMLParser *)parser didEndElement:(NSString *)elementName
+        namespaceURI:(NSString *)namespaceURI qualifiedName:(NSString *)qName {
+    if (self.parent) {
+        [self.parent finishedChild: [self.text copy]];
+        parser.delegate = self.parent;
+    }
+}</pre>
+        <p>We can now create subclasses of MyXMLParserDelegate: one for each kind of element we expect to parse. The chief responsibility of such a subclass, if it encounters a child element in <code class="literal">parser:didStartElement...</code>, is to create an instance of the appropriate MyXMLParserDelegate subclass, send it <code class="literal">start:parent:</code>, and make it the delegate; we have already embodied this in the utility method <code class="literal">makeChild:elementName:parser:</code>. The reverse process is already built into the default implementation of <code class="literal">parser:didEndElement...</code>: we call the parent’s <code class="literal">finishedChild:</code> and make the parent the delegate.</p>
+        <p>We can now parse our sample XML into an array of Person objects very easily. We start by obtaining the URL of the XML file, handing it to an NSXMLParser, creating our first delegate parser and making it the delegate, and telling the NSXMLParser to start:</p>
+        <pre class="screen">NSURL* url =
+    [[NSBundle mainBundle] URLForResource:@"folks" withExtension:@"xml"];
+NSXMLParser* parser = [[NSXMLParser alloc] initWithContentsOfURL:url];
+MyPeopleParser* people = [MyPeopleParser new];
+[parser setDelegate: people];
+[parser parse];
+// ... do something with people.people ...</pre>
+        <p>Here is MyPeopleParser. It is the top-level parser so it has some extra work to do: when it encounters the <code class="literal">&lt;people&gt;</code> element, which is the first thing that should happen, it creates the <code class="literal">people</code> array that will hold the Person objects; this array will be the final result of the entire parsing operation. If it encounters a <code class="literal">&lt;person&gt;</code> element, it does the standard dance I described earlier, creating a <code class="literal">&lt;person&gt;</code> parser (MyPersonParser) as its child and making it the delegate; when the <code class="literal">&lt;person&gt;</code> parser calls back to tell us it’s finished, MyPeopleParser expects the <code class="literal">&lt;person&gt;</code> parser to supply a Person through its <code class="literal">person</code> property:</p>
+        <pre class="screen">- (void)parser:(NSXMLParser *)parser didStartElement:(NSString *)elementName
+        namespaceURI:(NSString *)namespaceURI
+        qualifiedName:(NSString *)qualifiedName
+        attributes:(NSDictionary *)attributeDict
+{
+    if ([elementName isEqualToString: @"people"])
+        self.people = [NSMutableArray array];
+    if ([elementName isEqualToString: @"person"])
+        [self makeChild:[MyPersonParser class] elementName:elementName
+                 parser:parser];
+}
+
+- (void) finishedChild: (NSString*) s {
+    [self.people addObject: [(MyPersonParser*)self.child person]];
+}</pre>
+        <p>MyPersonParser does the same child-making dance when it encounters a <code class="literal">&lt;firstName&gt;</code> or a <code class="literal">&lt;lastName&gt;</code> element; it uses a plain vanilla MyXMLParserDelegate to parse these children, because the built-in ability to accumulate text and hand it back is all that’s needed. In <code class="literal">finishedChild:</code>, it makes sure it has a Person object ready to hand back to its parent through its <code class="literal">person</code> property; key–value coding is elegantly used to match the name of the element with the name of the Person property to be set:</p>
+        <pre class="screen">- (void)parser:(NSXMLParser *)parser didStartElement:(NSString *)elementName
+        namespaceURI:(NSString *)namespaceURI
+        qualifiedName:(NSString *)qualifiedName
+        attributes:(NSDictionary *)attributeDict {
+    [self makeChild:[MyXMLParserDelegate class] elementName:elementName
+             parser:parser];
+}
+
+- (void) finishedChild:(NSString *)s {
+    if (!self.person) {
+        Person* p = [Person new];
+        self.person = p; // retain policy
+    }
+    [self.person setValue: s forKey: self.child.name];
+}</pre>
+        <p>This may seem like a lot of work to parse such a simple bit of XML, but it is neatly object-oriented and requires very little new code once we’ve established the MyXMLParserDelegate superclass, which is of course reusable in many other situations.</p>
+        <p>On the other hand, if you really want tree-based XML parsing along with XPath and so forth, you can have it, because the <code class="literal">libxml2</code> library is present in the SDK (and on the device).<a id="idm441639918608" class="indexterm"></a> This is a C <span class="emphasis"><em>dylib</em></span> (short for “dynamic library,” extension <span class="emphasis"><em>.dylib</em></span>), and Xcode doesn’t automatically know during the build process where to find its headers (even though it’s part of the SDK), so the instructions for accessing it in your project are a tiny bit more involved than linking to an Objective-C framework:</p>
+        <div class="orderedlist">
+          <ol class="orderedlist" type="1">
+            <li class="listitem">
+In Xcode, add <span class="emphasis"><em>libxml2.dylib</em></span> to the Link Binary With Libraries build phase for your target, just as you would do with a framework.
+</li>
+            <li class="listitem">
+Now comes the extra step that differs from using a framework; it is needed because, although the Xcode build process automatically looks inside the SDK’s <span class="emphasis"><em>/usr/include/</em></span> folder for headers, it doesn’t automatically recurse down into folders, so it won’t look inside the <span class="emphasis"><em>libxml2</em></span> folder unless you tell it to. Edit the target’s build settings and set the Header Search Paths build setting to <code class="literal">$SDKROOT/usr/include/libxml2</code>. (When you close the dialog for adding a search path, this will transform itself into <span class="emphasis"><em>iphoneos/usr/include/libxml2</em></span>.)
+</li>
+            <li class="listitem">
+In your code, import <code class="literal">&lt;libxml/tree.h&gt;</code>.
+</li>
+          </ol>
+        </div>
+        <p>You now have to talk to <code class="literal">libxml2</code> using C. This is no trivial task. Here’s an example proving we can do it; we read our XML file, parse it into a tree, and traverse all its elements:</p>
+        <pre class="screen">NSURL* url =
+    [[NSBundle mainBundle] URLForResource:@"folks" withExtension:@"xml"];
+NSString* path = [url absoluteString];
+const char* filename = [path UTF8String];
+xmlDocPtr doc = nil;
+xmlNode *root_element = nil;
+doc = xmlReadFile(filename, nil, 0);
+root_element = xmlDocGetRootElement(doc);
+traverse_elements(root_element); // must be previously defined
+xmlFreeDoc(doc);
+xmlCleanupParser();</pre>
+        <p>Here’s our definition for <code class="literal">traverse_elements</code>; it logs each person and the person’s first and last name, just to prove we are traversing successfully:</p>
+        <pre class="screen">void traverse_elements(xmlNode * a_node) {
+    xmlNode *cur_node = nil;
+    for (cur_node = a_node; cur_node; cur_node = cur_node-&gt;next) {
+        if (cur_node-&gt;type == XML_ELEMENT_NODE) {
+            if (strcmp(cur_node-&gt;name, "person") == 0)
+                NSLog(@"found a person");
+            if (strcmp(cur_node-&gt;name, "firstName") == 0)
+                NSLog(@"First name: %s", cur_node-&gt;children-&gt;content);
+            if (strcmp(cur_node-&gt;name, "lastName") == 0)
+                NSLog(@"Last name: %s", cur_node-&gt;children-&gt;content);
+        }
+        traverse_elements(cur_node-&gt;children);
+    }
+}</pre>
+        <p>If talking C to <code class="literal">libxml2</code> is too daunting, you can interpose an Objective-C front end by taking advantage of a third-party library.<a id="idm441639901792" class="indexterm"></a> See, for example, <a class="ulink" href="https://github.com/TouchCode/TouchXML" target="_top">https://github.com/TouchCode/TouchXML</a>.</p>
+        <p>Keep in mind, however, that you’re really not supposed to do what I just did. Even if you use <code class="literal">libxml2</code>, you’re supposed to use stream-based parsing, not tree-based parsing. See Apple’s XMLPerformance example code.</p>
+        <div class="note" style="margin-left: 0; margin-right: 10%;">
+          <h3 class="title">Note</h3>
+          <p>A foundation class for constructing and parsing JSON strings is also provided — NSJSONSerialization. It’s a very simple class: all its methods are class methods, and eligible structures are required to be an array or dictionary (corresponding to what JSON calls an <span class="emphasis"><em>object</em></span>) whose elements must be a string, number, array, dictionary, or null. NSData is used as the medium of exchange; you’ll archive or unarchive as appropriate. JSON arises often as a lightweight way of communicating structured data across the network; for more information, see <a class="ulink" href="http://www.json.org/" target="_top">http://www.json.org/</a>.</p>
+        </div>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_sqlite"></a>SQLite</h2>
+            </div>
+          </div>
+        </div>
+        <p>SQLite (<a class="ulink" href="http://www.sqlite.org/docs.html" target="_top">http://www.sqlite.org/docs.html</a>) is a lightweight, full-featured relational database that you can talk to using SQL, the universal language of databases. This can be an appropriate storage format when your data comes in rows and columns (records and fields) and needs to be rapidly searchable. Also, the database as a whole is never loaded into memory; the data is accessed only as needed. This is valuable in an environment like an iOS device, where memory is at a premium.<a id="idm441639893072" class="indexterm"></a>
+<a id="idm441639891776" class="indexterm"></a></p>
+        <p>In the same way as you can link to <code class="literal">libxml2.dylib</code>, you can link to <code class="literal">libsqlite3.dylib</code> (and import <code class="literal">&lt;sqlite3.h&gt;</code>) to access the power of SQLite. As with <code class="literal">libxml2</code>, talking C to <code class="literal">sqlite3</code> may prove annoying. There are a number of lightweight Objective-C front ends. In this example, I use <code class="literal">fmdb</code> (<a class="ulink" href="https://github.com/ccgus/fmdb" target="_top">https://github.com/ccgus/fmdb</a>) to read the names of people out of a previously created database:<a id="idm441639885600" class="indexterm"></a><a id="idm441639884704" class="indexterm"></a></p>
+        <pre class="screen">NSString* docsdir = [NSSearchPathForDirectoriesInDomains(
+    NSDocumentDirectory, NSUserDomainMask, YES) lastObject];
+NSString* dbpath = [docsdir stringByAppendingPathComponent:@"people.db"];
+FMDatabase* db = [FMDatabase databaseWithPath:dbpath];
+if (![db open]) {
+    NSLog(@"Ooops");
+    return;
+}
+FMResultSet *rs = [db executeQuery:@"select * from people"];
+while ([rs next]) {
+    NSLog(@"%@ %@", rs[@"firstname"], rs[@"lastname"]);
+}
+[db close];
+/* output:
+Matt Neuburg
+Snidely Whiplash
+Dudley Doright
+*/</pre>
+        <p>You can include a previously constructed SQLite file in your app bundle, but you can’t write to it there; the solution is to copy it from your app bundle into another location, such as the Documents directory, before you start working with it.</p>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_core_data"></a>Core Data</h2>
+            </div>
+          </div>
+        </div>
+        <p>The Core Data framework provides a generalized way of expressing objects and properties that form a relational graph; moreover, it has built-in facilities for persisting those objects to disk — typically using SQLite as a storage format — and reading them from disk only when they are needed, thus making efficient use of memory. For example, a person might have not only multiple addresses but also multiple friends who are also persons; expressing persons and addresses as explicit object types, working out how to link them and how to translate between objects in memory and data in storage, and tracking the effects of changes, such as when a person is deleted from the data, can be tedious. Core Data can help.<a id="idm441639878736" class="indexterm"></a>
+<a id="idm441639877456" class="indexterm"></a><a id="idm441639876560" class="indexterm"></a>
+<a id="idm441639875264" class="indexterm"></a>
+<a id="idxCoreData" class="indexterm"></a></p>
+        <p>It is important to stress, however, that Core Data is <span class="emphasis"><em>not</em></span> a beginner-level technology. It is difficult to use and extremely difficult to debug. It expresses itself in a highly verbose, rigid, arcane way. It has its own elaborate way of doing things — everything you already know about how to create, access, alter, or delete an object within an object collection becomes completely irrelevant! — and trying to bend it to your particular needs can be tricky and can have unintended side-effects. Nor should Core Data be seen as a substitute for a true relational database.</p>
+        <p>Therefore, I have no intention of explaining Core Data; that would require an entire book. Indeed, such books exist, and if Core Data interests you, you should read some of them. See also the <span class="emphasis"><em>Core Data Programming Guide</em></span> and the other resources referred to there. I will, however, illustrate what it’s like to work with Core Data.</p>
+        <p>I will describe the People Groups example from earlier in this chapter as a Core Data app. We will no longer have multiple documents, each representing a single Group of People; instead, we will now have a single document, maintained for us by Core Data, containing both Groups and People.</p>
+        <p>A Core Data project is linked to <span class="emphasis"><em>CoreData.framework</em></span> and will import <code class="literal">&lt;CoreData/CoreData.h&gt;</code>, usually in the precompiled header file (<span class="emphasis"><em>.pch</em></span>; see <a class="xref" href="ch04.html">Chapter 4</a>). To construct a Core Data project, you’ll specify the Master–Detail Application template (or the Empty Application template) and check Use Core Data in the second screen. This gives you template code in the app delegate implementation file for constructing the Core Data <span class="emphasis"><em>persistence stack</em></span>, a set of objects that work together to fetch and save your data; in most cases there will no reason to alter this template code, and I have not done so for this example.</p>
+        <p>The app delegate template code gives the app delegate three properties representing the important singleton objects comprising the persistence stack: <code class="literal">managedObjectContext</code>, <code class="literal">managedObjectModel</code>, and <code class="literal">persistentStoreCoordinator</code>. It also supplies “lazy” getters to give these properties their values when first needed. Of these, the <code class="literal">managedObjectContext</code> is the most important for other classes to have access to. The managed object context is the world in which your data objects live and move and have their being: to obtain an object, you fetch it from the managed object context; to create an object, you insert it into the managed object context; to save your data, you save the managed object context.</p>
+        <p>The Master–Detail Application template also gives the Master view controller a <code class="literal">managedObjectContext</code> property, and the app delegate sets its value when it instantiates the Master view controller. My Master view controller is called GroupLister, so the app delegate’s <code class="literal">application:didFinishLaunchingWithOptions:</code> contains these lines:</p>
+        <pre class="screen">GroupLister* gl = [GroupLister new];
+gl.managedObjectContext = self.managedObjectContext;
+UINavigationController* nav =
+    [[UINavigationController alloc] initWithRootViewController:gl];
+self.window.rootViewController = nav;</pre>
+        <p>To describe the structure and relationships of the objects constituting your data model, you design an object graph in a data model document. Our object graph is very simple; a Group can have multiple Persons (<a class="xref" href="ch36.html#FIGcoreDataModel1">Figure 36.5</a>). The attributes, analogous to object properties, are all strings, except for the timestamps which are dates; the timestamps will be used for determining the sort order in which groups and people will be displayed in the interface — the display order is the order of creation.</p>
+        <div class="figure">
+          <a id="FIGcoreDataModel1"></a>
+          <div class="figure-contents">
+            <div class="mediaobject">
+              <img src="figs/pios_3605.png" alt="figs/pios_3605.png" />
+            </div>
+          </div>
+          <p class="title">Figure 36.5. The Core Data model for the People Groups app</p>
+        </div>
+        <br class="figure-break" />
+        <p>Core Data attributes are not quite object properties. Group and Person are not classes; they are entity names. All Core Data model objects are instances of NSManagedObject, and therefore they do not, of themselves, have a <code class="literal">name</code> property, a <code class="literal">firstName</code> property, a <code class="literal">lastName</code> property, and so on. Instead, Core Data model objects make themselves dynamically KVC compliant for attribute names. For example, Core Data knows, thanks to our object graph, that a Person entity is to have a <code class="literal">firstName</code> attribute, so you can set a Person’s <code class="literal">firstName</code> attribute using KVC (<code class="literal">setValue:forKey:</code>). I find this maddening, so, at the very least, I like to give NSManagedObject the necessary properties through a category:</p>
+        <pre class="screen">// NSManagedObject+GroupAndPerson.h:
+#import &lt;CoreData/CoreData.h&gt;
+@interface NSManagedObject (GroupAndPerson)
+@property (nonatomic) NSString *firstName, *lastName;
+@property (nonatomic) NSString *name, *uuid;
+@property (nonatomic) NSDate* timestamp;
+@property (nonatomic) NSManagedObject* group;
+@end
+
+// NSManagedObject+GroupAndPerson.m:
+#import "NSManagedObject+GroupAndPerson.h"
+@implementation NSManagedObject (GroupAndPerson)
+@dynamic firstName, lastName, name, uuid, timestamp, group;
+@end</pre>
+        <p>(For the effect of the <code class="literal">@dynamic</code> directive, compare the discussion in <a class="xref" href="ch12.html">Chapter 12</a>.) Now we’ll be able to use <code class="literal">name</code> and <code class="literal">firstName</code> and the rest as properties, and CoreData will generate the corresponding accessors for us.</p>
+        <p>Now let’s talk about the first view controller, GroupLister. Its job is to list groups and to allow the user to create a new group (<a class="xref" href="ch36.html#FIGpeopleGroups">Figure 36.3</a>). The way you ask Core Data for a model object is with a fetch request. In iOS, where Core Data model objects are often the data source for a UITableView, fetch requests are conveniently managed through an NSFetchedResultsController. The template code gives us an NSFetchedResultsController property, along with a “lazy” getter method that generates an NSFetchedResultsController if the property is nil, and for GroupLister I’ve only had to change it a little bit: my entity name is Group and my cache name is Groups, and I’ve renamed the property itself, <code class="literal">frc</code>.</p>
+        <p>The result is that <code class="literal">self.frc</code> is the data model, analogous to an array of Group objects. The implementation of the table view’s Three Big Questions to the data source, all pretty much straight from the template code, looks like this:</p>
+        <pre class="screen">- (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView {
+    return [self.frc.sections count];
+}
+
+- (NSInteger)tableView:(UITableView *)tableView
+        numberOfRowsInSection:(NSInteger)section {
+    id&lt;NSFetchedResultsSectionInfo&gt; sectionInfo = self.frc.sections[section];
+    return sectionInfo.numberOfObjects;
+}
+
+- (UITableViewCell *)tableView:(UITableView *)tableView
+        cellForRowAtIndexPath:(NSIndexPath *)indexPath {
+    UITableViewCell *cell =
+        [tableView dequeueReusableCellWithIdentifier:@"Cell"];
+    cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
+    NSManagedObject *object = [self.frc objectAtIndexPath:indexPath];
+    cell.textLabel.text = object.name;
+    return cell;
+}</pre>
+        <p>The only really interesting thing about that code is our ability to speak of <code class="literal">object.name</code>; we can do that because of the category on NSManagedObject that we created earlier. Otherwise, we’d have to fetch a Group entity’s <code class="literal">name</code> attribute as <code class="literal">valueForKey:@"name"</code>.</p>
+        <p>Now let’s talk about object creation. GroupLister’s table is initially empty because our app starts out life with no data. When the user asks to create a group, I put up a UIAlertView asking for the name of the new group. If the user provides a valid name, I create a new Group entity and save the managed object context. Again, this is almost boilerplate code, copied from the template’s <code class="literal">insertNewObject:</code> method:</p>
+        <pre class="screen">NSManagedObjectContext *context = self.frc.managedObjectContext;
+NSEntityDescription *entity = self.frc.fetchRequest.entity;
+NSManagedObject *mo =
+    [NSEntityDescription insertNewObjectForEntityForName:entity.name
+                                  inManagedObjectContext:context];
+mo.name = name;
+mo.uuid = [[NSUUID UUID] UUIDString]; // new in iOS 6
+mo.timestamp = [NSDate date];
+// save context
+NSError *error = nil;
+BOOL ok = [context save:&amp;error];
+if (!ok) {
+    NSLog(@"%@", error);
+    return;
+}</pre>
+        <p><a id="idm441639832576" class="indexterm"></a>
+<a id="idm441639831264" class="indexterm"></a>The second view controller class is PeopleLister (<a class="xref" href="ch36.html#FIGpeopleGroups">Figure 36.3</a>). It lists all the people in a particular Group, so I don’t want PeopleLister to be instantiated without a Group; therefore, its designated initializer is <code class="literal">initWithNibName:bundle:groupManagedObject:</code>, and it looks like this:</p>
+        <pre class="screen">- (id) initWithNibName:(NSString *)nibNameOrNil
+                bundle:(NSBundle *)nibBundleOrNil
+               groupManagedObject: (NSManagedObject*) object {
+    self = [super initWithNibName:nibNameOrNil bundle:nibBundleOrNil];
+    if (self) {
+        self-&gt;_groupObject = object;
+    }
+    return self;
+}</pre>
+        <p>To navigate from the GroupLister view to the PeopleLister view, I instantiate PeopleLister and push it onto the navigation controller’s stack. For example, here’s what happens when the user taps a Group name in the GroupLister table view:</p>
+        <pre class="screen">- (void)tableView:(UITableView *)tableView
+        didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
+    PeopleLister* pl =
+        [[PeopleLister alloc] initWithNibName:@"PeopleLister" bundle:nil
+            groupManagedObject:[self.frc objectAtIndexPath:indexPath]];
+    [self.navigationController pushViewController:pl animated:YES];
+}</pre>
+        <p>PeopleLister, too, has an <code class="literal">frc</code> property, along with a getter that is almost identical to the template code for generating an NSFetchedResultsController. Almost, but not quite. In the case of GroupLister, we wanted every group; but a PeopleLister instance should list only the People belonging to one particular group, which has been stored as the <code class="literal">groupObject</code> property. So our implementation of the <code class="literal">frc</code> getter method contains these lines:</p>
+        <pre class="screen">NSPredicate* pred =
+    [NSPredicate predicateWithFormat:@"group = %@", self.groupObject];
+req.predicate = pred; // req is the NSFetchRequest we're configuring</pre>
+        <p>As you can see from <a class="xref" href="ch36.html#FIGpeopleGroups">Figure 36.3</a>, the PeopleLister interface consists of a table of text fields. Populating the table is easy enough:</p>
+        <pre class="screen">- (UITableViewCell *)tableView:(UITableView *)tableView
+        cellForRowAtIndexPath:(NSIndexPath *)indexPath {
+    UITableViewCell *cell =
+        [tableView dequeueReusableCellWithIdentifier:@"Person"];
+    NSManagedObject *object = [self.frc objectAtIndexPath:indexPath];
+    UITextField* first = (UITextField*)[cell viewWithTag:1];
+    UITextField* last = (UITextField*)[cell viewWithTag:2];
+    first.text = object.firstName;
+    last.text = object.lastName;
+    first.delegate = last.delegate = self;
+    return cell;
+}</pre>
+        <p>When the user edits a text field (the first or last name of a Person), I update the data model and save the managed object context; the first part of this code should be familiar from <a class="xref" href="ch21.html">Chapter 21</a>:</p>
+        <pre class="screen">-(void)textFieldDidEndEditing:(UITextField *)textField {
+    UIView* v = textField.superview;
+    while (![v isKindOfClass: [UITableViewCell class]])
+        v = v.superview;
+    UITableViewCell* cell = (UITableViewCell*)v;
+    NSIndexPath* ip = [self.tableView indexPathForCell:cell];
+    NSManagedObject* object = [self.frc objectAtIndexPath:ip];
+    [object setValue:textField.text
+              forKey: ((textField.tag == 1) ? @"firstName" : @"lastName")];
+    // save context
+    NSError *error = nil;
+    BOOL ok = [context save:&amp;error];
+    if (!ok) {
+      NSLog(@"%@", error);
+      return;
+    }
+}</pre>
+        <p>The trickiest part is what happens when the user asks to make a new Person. It starts out analogously to making a new Group: I make a new Person entity, configure its attributes with an empty first name and last name, and save the context. But we must also make this empty Person appear in the table! To do so, we act as the NSFetchedResultsController’s delegate (NSFetchedResultsControllerDelegate); the delegate methods are triggered by the change in the managed object context:
+<a id="idm441639816096" class="indexterm"></a></p>
+        <pre class="screen">- (void) doAdd: (id) sender {
+    [self.tableView endEditing:YES];
+    NSManagedObjectContext *context = self.frc.managedObjectContext;
+    NSEntityDescription *entity = self.frc.fetchRequest.entity;
+    NSManagedObject *mo =
+    [NSEntityDescription insertNewObjectForEntityForName:[entity name]
+                                  inManagedObjectContext:context];
+    mo.group = self.groupObject;
+    mo.lastName = @"";
+    mo.firstName = @"";
+    mo.timestamp = [NSDate date];
+    // save context
+    NSError *error = nil;
+    BOOL ok = [context save:&amp;error];
+    if (!ok) {
+        NSLog(@"%@", error);
+        return;
+    }
+}
+
+// delegate methods
+
+-(void)controllerWillChangeContent:(NSFetchedResultsController *)controller {
+    [self.tableView beginUpdates];
+}
+
+-(void)controllerDidChangeContent:(NSFetchedResultsController *)controller {
+    [self.tableView endUpdates];
+}
+
+-(void)controller:(NSFetchedResultsController *)controller
+  didChangeObject:(id)anObject
+      atIndexPath:(NSIndexPath *)indexPath
+    forChangeType:(NSFetchedResultsChangeType)type
+     newIndexPath:(NSIndexPath *)newIndexPath {
+    if (type == NSFetchedResultsChangeInsert) {
+        [self.tableView insertRowsAtIndexPaths:@[newIndexPath]
+            withRowAnimation:UITableViewRowAnimationAutomatic];
+        // wait for interface to settle...
+        // ...then start editing first name of new person
+        dispatch_async(dispatch_get_main_queue(), ^{
+            UITableViewCell* cell =
+                [self.tableView cellForRowAtIndexPath:newIndexPath];
+            UITextField* tf = (UITextField*)[cell viewWithTag:1];
+            [tf becomeFirstResponder];
+        });
+    }
+}</pre>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_image_file_formats"></a>Image File Formats</h2>
+            </div>
+          </div>
+        </div>
+        <p>The Image I/O framework provides a simple, unified way to open image files (from disk or downloaded from the network, as described in <a class="xref" href="ch37.html">Chapter 37</a>), to save image files, to convert between image file formats, and to read metadata from standard image file formats, including EXIF and GPS information from a digital camera. You’ll need to link to <span class="emphasis"><em>ImageIO.framework</em></span> and import <code class="literal">&lt;ImageIO/ImageIO.h&gt;</code>.<a id="idm441639810192" class="indexterm"></a>
+<a id="idm441639808944" class="indexterm"></a><a id="idm441639808080" class="indexterm"></a>
+<a id="idm441639806768" class="indexterm"></a></p>
+        <p>Obviously, such features were not entirely missing before the Image I/O framework was introduced (starting in iOS 4). UIImage can read the data from most standard image formats, and you can convert formats with functions such as <code class="literal">UIImageJPEGRepresentation</code> and <code class="literal">UIImagePNGRepresentation</code>. But you could not, for example, save an image as a TIFF without the Image I/O framework.</p>
+        <p>The Image I/O framework introduces the notion of an <span class="emphasis"><em>image source</em></span> (CGImageSourceRef). This can be created from the URL of a file on disk or from an NSData object (actually CFDataRef, to which NSData is toll-free bridged). You can use this to obtain a CGImage of the source’s image (or, if the source format contains multiple images, a particular image). But you can also obtain metadata from the source <span class="emphasis"><em>without</em></span> transforming the source into a CGImage, thus conserving memory. For example:</p>
+        <pre class="screen">NSURL* url =
+    [[NSBundle mainBundle] URLForResource:@"colson"
+                            withExtension:@"jpg"];
+CGImageSourceRef src =
+    CGImageSourceCreateWithURL((__bridge CFURLRef)url, nil);
+CFDictionaryRef result1 = CGImageSourceCopyPropertiesAtIndex(src, 0, nil);
+NSDictionary* result = CFBridgingRelease(result1);
+// ... do something with result ...
+CFRelease(src);</pre>
+        <p>Without having opened the image file as an image, we now have a dictionary full of information about it, including its pixel dimensions (<code class="literal">kCGImagePropertyPixelWidth</code> and <code class="literal">kCGImagePropertyPixelHeight</code>), its resolution, its color model, its color depth, and its orientation — plus, because this picture originally comes from a digital camera, the EXIF data such as the aperture and exposure at which it was taken, plus the make and model of the camera.<a id="idm441639798208" class="indexterm"></a></p>
+        <p>We can obtain the image as a CGImage, with <code class="literal">CGImageSourceCreateImageAtIndex</code>. Alternatively, we can request a thumbnail version of the image. This is a very useful thing to do, and the name “thumbnail” doesn’t really do it justice. If your purpose in opening this image is to display it in your interface, you don’t care about the original image data; a thumbnail is <span class="emphasis"><em>precisely</em></span> what you want, especially because you can specify any size for this “thumbnail” all the way up to the original size of the image! This is tremendously convenient, because to assign a small UIImageView a large image wastes all the memory reflected by the size difference.</p>
+        <p>To generate a thumbnail at a given size, you start with a dictionary specifying the size along with other instructions, and pass that, together with the image source, to <code class="literal">CGImageSourceCreateThumbnailAtIndex</code>. The only pitfall is that, because we are working with a CGImage and specifying actual pixels, we must remember to take account of the scale of our device’s screen. So, for example, let’s say we want to scale our image so that its largest dimension is no larger than the width of the UIImageView (<code class="literal">iv</code>) into which we intend to place it:</p>
+        <pre class="screen">NSURL* url =
+    [[NSBundle mainBundle] URLForResource:@"colson"
+                            withExtension:@"jpg"];
+CGImageSourceRef src =
+    CGImageSourceCreateWithURL((__bridge CFURLRef)url, nil);
+CGFloat scale = [UIScreen mainScreen].scale;
+CGFloat w = self.iv.bounds.size.width*scale;
+NSDictionary* d =
+    @{(id)kCGImageSourceShouldAllowFloat: (id)kCFBooleanTrue,
+     (id)kCGImageSourceCreateThumbnailWithTransform: (id)kCFBooleanTrue,
+     (id)kCGImageSourceCreateThumbnailFromImageAlways: (id)kCFBooleanTrue,
+     (id)kCGImageSourceThumbnailMaxPixelSize: @((int)w)};
+CGImageRef imref =
+    CGImageSourceCreateThumbnailAtIndex(src, 0, (__bridge CFDictionaryRef)d);
+UIImage* im =
+    [UIImage imageWithCGImage:imref scale:scale
+                  orientation:UIImageOrientationUp];
+self.iv.image = im;
+CFRelease(imref); CFRelease(src);</pre>
+        <p>The Image I/O framework also introduces the notion of an <span class="emphasis"><em>image destination</em></span>, used for saving an image into a specified file format. As a final example, I’ll show how to save our image as a TIFF. We never open the image as an image! We save directly from the image source to the image destination:<a id="idm441639791552" class="indexterm"></a>
+<a id="idm441639788752" class="indexterm"></a>
+<a id="idm441639787712" class="indexterm"></a></p>
+        <pre class="screen">NSURL* url =
+    [[NSBundle mainBundle] URLForResource:@"colson"
+                            withExtension:@"jpg"];
+CGImageSourceRef src =
+    CGImageSourceCreateWithURL((__bridge CFURLRef)url, nil);
+NSFileManager* fm = [NSFileManager new];
+NSURL* suppurl = [fm URLForDirectory:NSApplicationSupportDirectory
+                            inDomain:NSUserDomainMask
+                   appropriateForURL:nil
+                              create:YES error:nil];
+NSURL* tiff = [suppurl URLByAppendingPathComponent:@"mytiff.tiff"];
+CGImageDestinationRef dest =
+    CGImageDestinationCreateWithURL((__bridge CFURLRef)tiff,
+                                    (CFStringRef)@"public.tiff", 1, nil);
+CGImageDestinationAddImageFromSource(dest, src, 0, nil);
+bool ok = CGImageDestinationFinalize(dest);
+// error-checking omitted
+CFRelease(src); CFRelease(dest);</pre>
+      </div>
+    </div>
+    <div class="navfooter">
+      <table width="100%" summary="Navigation footer">
+        <tr>
+          <td width="40%" align="left"><a accesskey="p" href="pt07.html">Prev</a> </td>
+          <td width="20%" align="center">
+            <a accesskey="u" href="pt07.html">Up</a>
+          </td>
+          <td width="40%" align="right"> <a accesskey="n" href="ch37.html">Next</a></td>
+        </tr>
+        <tr>
+          <td width="40%" align="left" valign="top">Part VII. Final Topics </td>
+          <td width="20%" align="center">
+            <a accesskey="h" href="index.html">Table of Contents</a>
+          </td>
+          <td width="40%" align="right" valign="top"> Chapter 37. Basic Networking</td>
+        </tr>
+      </table>
+    </div>
+  </body>
+</html>

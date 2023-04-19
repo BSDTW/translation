@@ -1,0 +1,269 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>在 ConTeXt 使用 Big-5 中文</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.7" />
+<link rel="HOME" title="FreeBSD Chinese HOWTO" href="index.html" />
+<link rel="UP" title="中文排版軟體" href="compose.html" />
+<link rel="PREVIOUS" title="CJK-LyX - 有 LaTeX 使用介面的文件編輯器(所見即所得)"
+href="cjk-lyx.html" />
+<link rel="NEXT" title="cwTeX" href="cwtex.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD Chinese HOWTO</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="cjk-lyx.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 10. 中文排版軟體</td>
+<td width="10%" align="right" valign="bottom"><a href="cwtex.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="CONTEXT" name="CONTEXT">10.15. 在 ConTeXt 使用 Big-5
+中文</a></h1>
+
+<p>Contributed by Edward G.J. Lee <code class="EMAIL">&#60;<a
+href="mailto:EdwardLee@bbs.ee.ntu.edu.tw">EdwardLee@bbs.ee.ntu.edu.tw</a>&#62;</code></p>
+
+<p>Last Update: 2003年 4月30日 周三 03時25分52秒 CST</p>
+
+<p>在讓 ConTeXt 使用 Big-5 中文前， 至少要能在英文環境運作。</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">cd ${TEXMF}/web2c</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">texexec --make en metafun</kbd>
+</pre>
+
+<p>為了和 CJK 和 dvipdfmx 配合， 請先安裝 <a
+href="http://www.FreeBSD.org/cgi/url.cgi?ports/chinese/CJK/pkg-descr"><tt
+class="FILENAME">chinese/CJK</tt></a> 和 <a
+href="http://www.FreeBSD.org/cgi/url.cgi?ports/print/dvipdfmx/pkg-descr"><tt
+class="FILENAME">print/dvipdfmx</tt></a>， 採用 CJK standard encoding vector，這樣一來，
+字型方面的資料就可以共用了。</p>
+
+<p>修改檔案：</p>
+
+<p>1. ${TEXMF}/tex/context/config/cont-usr.tex</p>
+
+<p>如果沒有這個檔，請將 ../base/cont-usr.ori 拷貝一份成 cont-usr.tex。 在 \protect
+\endinput 之前加入下列資料：</p>
+
+<pre class="PROGRAMLISTING">
+% 將 Poorman 的對應，轉成 CJK 的對應
+\defineucharmapping{BIG5}#1#2%      
+  {\unicodeposition=#1
+   \advance\unicodeposition -161
+   \multiply\unicodeposition 157
+   \advance\unicodeposition #2  
+   \advance\unicodeposition-\ifnum#2&#62;160 98\else64\fi
+   \dorepositionunicode}                             
+
+% for Big-5 CJK standard encoding vector
+\def\currentucharmapping{BIG5}          
+
+% font alias。這樣就不必更動原來的字型設定了
+\definefontsynonym [b5song]     [arb5sung]   [encoding=big5]
+\definefontsynonym [b5songsl]   [arb5sungs]  [encoding=big5]
+\definefontsynonym [b5kai]      [arb5kai]    [encoding=big5]
+\definefontsynonym [b5kaisl]    [arb5kais]   [encoding=big5]
+</pre>
+
+<p>2. ${TEXMF}/tex/context/base/font-chi.tex</p>
+
+<p>將某行只有 <var class="OPTION">\SimChi</var> 改成 <var
+class="OPTION">\TraChi</var>。</p>
+
+<p>改好後重新執行：</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">cd ${TEXMF}/web2c/</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">texec --make en</kbd>
+</pre>
+
+<p>前置處理 script</p>
+
+<p>由於「許、功」的問題，必須前置處理，以下是改自王佑中先生的 clatex 的 perl script。</p>
+
+<pre class="PROGRAMLISTING">
+#!/usr/bin/env perl
+#
+# Process Big-5 Traditional Chinese ConTeXt file.
+# Usage: chcont.pl tex file(NO tex extension)
+# By Edward G.J. Lee &lt;edt1023@speedymail.org&gt; 2003.04.24
+# Inspire heavily from wycc's(wycc@iis.sinica.edu.tw) clatex.
+#
+
+$one = 161;
+$two = 254;
+
+open(CONT,"&#62;$ARGV[0].cont");
+if ($ARGV[0] =~/(.*)\.tex$/)
+{
+  -r $ARGV[0] || die " file $ARGV[0] not found\n";
+  open(INFILE,"&lt;$ARGV[0]");
+}
+else
+{
+  -r "$ARGV[0].tex" || die "file $ARGV[0].tex not found\n";
+  open(INFILE,"&lt;$ARGV[0].tex");
+}
+
+while(&lt;INFILE&gt;)
+{
+  &amp;trans_print($_);
+}
+close(CONT);
+system "texexec ${ARGV[0]}.cont";
+
+sub trans_print {
+  local($s) = @_;
+  local($i,$c,$nc,$ordc,$ordc1);
+    
+  for($i=0;$i&lt;length($s);$i++)
+  {
+    $c = substr($s,$i,1);
+    $ordc = ord($c);
+    if (($ordc&#62;=$one)&amp;&amp;($ordc&lt;=$two))
+    {
+      $nc = substr($s,$i+1,1);
+      if ($nc =~/[\\{}\^_]/)
+      {
+        $ordc1 = ord($nc);
+        print CONT "\\uc{$ordc}{$ordc1}";
+      }
+      else
+      {
+        print CONT $c,$nc;
+      }
+    $i++;
+
+    }
+    else
+    {
+      print CONT $c;
+    }
+  }
+}
+</pre>
+
+<p>測試：</p>
+
+<pre class="PROGRAMLISTING">
+\usemodule[chinese]
+\starttext 
+
+\completecontent
+%\setupindenting[medium]
+\setupwhitespace[10pt]
+
+\chapter{桃花源記}
+
+\ConTeXt\ 中文測試。
+
+\section{桃花源記前段}
+
+晉太元中，武陵人，捕魚為業，緣溪行，忘路之遠近；忽逢桃花林，夾岸數百步，
+中無雜樹，芳草鮮美，落英繽紛，漁人甚異之。復前行，欲窮其林。林盡水源，
+便得一山。山有小口，彷彿若有光，便捨船，從口入。
+
+初極狹，纔通人；復行數十步，豁然開朗。土地平曠，屋舍儼然。有良田、美池、
+桑、竹之屬，阡陌交通，雞犬相聞。其中往來種作，男女衣著，悉如外人；黃髮、
+垂髫，並怡然自樂。見漁人，乃大驚，問所從來；具答之，便要還家，設酒、殺雞、
+作食。村中聞有此人，咸來問訊。自云：「先世避秦時亂，率妻子邑人來此絕境，
+不復出焉；遂與外人閒隔。」問今是何世；乃不知有漢，無論魏、晉。此人一一
+為具言所聞，皆歎惋。餘人各復延至其家，皆出酒食。停數日，辭去。此中人語
+云：「不足為外人道也。」
+
+既出，得其船，便扶向路，處處誌之。及郡下，詣太守，說如此，太守即遣人隨
+其往，尋向所誌，遂迷不復得路。南陽劉子驥，高尚士也，聞之，欣然規往，未
+果，尋病終。後遂無問津者。
+
+\chapter{將進酒}
+
+君不見，黃河之水天上來，奔流到海不復回。
+君不見，高堂明鏡悲白髮，朝如青絲暮成雪。
+人生得意須盡歡，莫使金樽空對月。
+天生我材必有用，千金散盡還復來。
+烹羊宰牛且為樂，會須一飲三百杯。
+岑夫子，丹丘生，將進酒，君莫停。
+與君歌一曲，請君為我側耳聽。
+
+鐘鼓饌玉不足貴，但願長醉不願醒。
+古來聖賢皆寂寞，惟有飲者留其名。
+陳王昔時宴平樂，斗酒十千恣讙謔。
+主人何為言少錢，徑須沽取對君酌。
+五花馬 千金裘，呼兒將出換美酒。
+與爾同消萬古愁。
+
+\chapter{許功開的問題}
+
+許功開。這些有問題的字元要避開。
+
+也就是說，要前置處理這些字元。
+
+\stoptext
+</pre>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">chcont.pl cont-b5</kbd> ==&gt; 千萬不要加副檔名，切記！
+</pre>
+
+<p>這樣會產生 cont-b5.dvi</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">dvipdfmx cont-b5</kbd> ==&gt; 產生不內嵌字型且可 copy&amp;paste 的 pdf 檔。
+</pre>
+
+<p>這裡沒有用到 pdftex 嵌入 TTF 的功能，原因是他不僅嵌入整個 subfont
+檔案會變得很大，而且又沒有 copy&amp;paste&amp;search 的功能。</p>
+
+<p>WWW: <a href="http://www.pragma-ade.com/"
+target="_top">http://www.pragma-ade.com/</a></p>
+
+<p>WWW: <a href="http://www.pragma-ade.com/general/manuals/mchinese.pdf"
+target="_top">http://www.pragma-ade.com/general/manuals/mchinese.pdf</a></p>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="cjk-lyx.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="cwtex.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">CJK-LyX - 有 LaTeX
+使用介面的文件編輯器(所見即所得)</td>
+<td width="34%" align="center" valign="top"><a href="compose.html"
+accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">cwTeX</td>
+</tr>
+</table>
+</div>
+</body>
+</html>
+

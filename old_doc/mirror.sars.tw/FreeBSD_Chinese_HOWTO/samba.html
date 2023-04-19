@@ -1,0 +1,195 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>samba - 網路芳鄰，資源分享程式</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.7" />
+<link rel="HOME" title="FreeBSD Chinese HOWTO" href="index.html" />
+<link rel="UP" title="中文網際網路軟體" href="net.html" />
+<link rel="PREVIOUS" title="中文網際網路軟體" href="net.html" />
+<link rel="NEXT" title="Konqueror - KDE 內建的瀏覽器" href="konqueror.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD Chinese HOWTO</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="net.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 13. 中文網際網路軟體</td>
+<td width="10%" align="right" valign="bottom"><a href="konqueror.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="SAMBA" name="SAMBA">13.2. samba -
+網路芳鄰，資源分享程式</a></h1>
+
+<p>Last Update: 2003年 1月25日 周六 12時24分45秒 CST</p>
+
+<p><b class="APPLICATION">samba</b> 是一個能把您的 Unix 電腦和其他 MS Windows
+電腦相互共享資源的軟體。</p>
+
+<p><b class="APPLICATION">samba</b> 提供有關於資源分享的三個功能。 包括 <tt
+class="COMMAND">smbd</tt>，執行了它，就可以使這台 Unix 能夠共享資源給其他的電腦，而 <tt
+class="COMMAND">smbclient</tt> 就是讓這台 Unix 去存取其他電腦的資源了，最後一個 <tt
+class="COMMAND">smbmount</tt>，則是類似 MS Windwos
+下『網路磁碟機』的功能，可以讓您把其他電腦的資源 掛在自己的檔案系統下。</p>
+
+<p>安裝 <a href="http://www.FreeBSD.org/cgi/url.cgi?ports/net/samba/pkg-descr"><tt
+class="FILENAME">net/samba</tt></a>。</p>
+
+<p>設定檔修改 <tt class="FILENAME">/usr/local/etc/smb.conf</tt>， 才算完整支援中文，在
+[global] 中找到 <var class="OPTION">for Traditional Chinese Users</var> 的設定區，將 <var
+class="OPTION">client code page=950</var> 前面的 ; 拿掉 ，不要動 <var
+class="OPTION">coding system=cap</var>，並在後面加上 <var class="OPTION">valid chars =
+0xb9</var>。</p>
+
+<pre class="PROGRAMLISTING">
+[global]
+# for Traditional Chinese Users
+client code page=950
+; coding system=cap
+valid chars = 0xb9
+</pre>
+
+<p>關於 valid chars = 0xb9，這個好像是很久前遇過的一個小問題， 如果您在 smb.conf 中設定
+"workgroup = 電腦"， 這時候用網芳去瀏覽會發現出現的是 "鄒腦"， 電=0xb971 鄒=0xb951 q=0x71
+Q=0x51， samba 在遇到 0xb9 後，自動把下一個字元轉成大寫了， 如果設定 valid chars = 0xb9
+就會正常。</p>
+
+<p>而這邊會出現 <var class="OPTION">coding system=cap</var> 則是天大的錯誤，
+十分容易誤導使用者，以下摘錄 <tt class="FILENAME">smb.conf.5</tt>：</p>
+
+<pre class="PROGRAMLISTING">
+coding system (G)
+
+  This parameter is used to determine how incoming Shift-JIS Japanese
+  characters are mapped from the incoming client code page used by the
+  client, into file names in the UNIX filesystem. Only useful if client
+  code page is set to 932 (Japanese Shift-JIS). The options are :
+
+      * CAP - Convert an incoming Shift-JIS character to the 3 byte
+        hex representation used by the Columbia AppleTalk Program (CAP),
+    i.e. :AB. This is used for compatibility between Samba and CAP.
+
+Default: coding system = &lt;empty value&gt;
+</pre>
+
+<p>在網芳上的名稱通常都要自己加上 <var class="OPTION">netbios name = Elf</var>，其中的
+Elf 就是網芳上的名稱。</p>
+
+<p>另一個 samba 的中文問題是 <tt class="FILENAME">smb.conf</tt> 不能設定某些字為
+Section，例如：</p>
+
+<pre class="PROGRAMLISTING">
+;[設計與科技] 
+[計與科技] 
+  comment= 設計與科技 
+  browseable = yes 
+  path = /home/design 
+  read only = yes 
+  guest ok = yes
+</pre>
+
+<p>因為 "設" 的第二個字元是 "]" 與 samba 的 Section 字元衝突， 所以解決的方法就是去修改
+<tt class="FILENAME">source/param/param.c</tt>：</p>
+
+<pre class="PROGRAMLISTING">
+--- params.c.orig  Mon May 12 19:46:29 2003
++++ params.c    Mon May 12 20:37:24 2003
+@@ -297,6 +297,15 @@
+           i = end + 1;
+           c = EatWhitespace( InFile );
+           }
++        else if ( c &#62; 0x80 )
++          {
++          bufr[i++] = c;
++          end = i;
++          c = mygetc( InFile );
++          bufr[i++] = c;
++          end = i;
++          c = mygetc( InFile );
++          }
+         else                            /* All others copy verbatim.        */
+           {
+           bufr[i++] = c;
+</pre>
+
+<p>samba 大部分的程式都有中文問題，需要更多人去 patch， 像是 smbclient 去看 MicroSoft
+的中文資料夾會是底線(_)。</p>
+
+<div class="NOTE">
+<blockquote class="NOTE">
+<p><b>Note:</b> <b class="APPLICATION">samba</b> 是用TCP/IP通訊協定，所以在 MS
+Windows端的電腦也要裝上TCP/IP協定，不然就不能用囉。</p>
+</blockquote>
+</div>
+
+<p>而 samba 3.x 的部分可以透過 samba-devel 來安裝， 但是預設沒有支援
+I18N，所以必須透過以下的方式來安裝：</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">cd /usr/ports/net/samba-devel</kbd>
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">make -DWITH_LIBICONV all install clean</kbd>
+</pre>
+
+<pre class="PROGRAMLISTING">
+mangling method = hash
+unicode = on
+dos charset = UCS-2LE
+unix charset = CP950
+display charset = CP950
+</pre>
+
+<p>WWW: <a href="http://www.samba.org/" target="_top">http://www.samba.org/</a></p>
+
+<p>Online Book - Using Samba: <a href="http://www.oreilly.com/catalog/samba/"
+target="_top">http://www.oreilly.com/catalog/samba/</a></p>
+
+<p>如果要方便的使用網芳上的東西，就要裝 <b class="APPLICATION">smbfs</b> 這個軟體，在 <tt
+class="FILENAME">net/smbfs</tt> 底下，裝好後還需要重編 kernel， 將 <var
+class="OPTION">options LIBMCHAIN</var> 和 <var class="OPTION">options LIBICONV</var>
+編進去才行。 4.5-RELEASE 之後已經不需要安裝 <b class="APPLICATION">smbfs</b> 和重新編譯
+kernel 了。</p>
+
+<p>然後只要用 <tt class="COMMAND">smbutil view //user@host</tt> 找到要的分享名稱， 再用
+<tt class="COMMAND">mount_smbfs -I host-ip //user@host/share /smb/node</tt>
+就可以方便的使用網芳囉。目前中文的 host 或是 share 會有問題。</p>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="net.html" accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="konqueror.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">中文網際網路軟體</td>
+<td width="34%" align="center" valign="top"><a href="net.html" accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">Konqueror - KDE 內建的瀏覽器</td>
+</tr>
+</table>
+</div>
+</body>
+</html>
+

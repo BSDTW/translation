@@ -1,0 +1,400 @@
+
+
+<!-- Vignette StoryServer 4 Sat Mar 11 15:43:24 2000 --> 
+<style type=text/css>
+<!--
+p,div {font-size:12pt; line-height:14pt; font-family:宋體;}
+.p1{font-size:12pt;font-family:宋體;}
+.p2{font-size:12pt;font-family:宋體;line-height:14pt;}
+.p3{font-size:14.8px;font-family:宋體;}
+.p4{font-size:14.8px;font-family:宋體;line-height:14pt;}
+.p5{font-size:1pt}
+a:hover{color:red;}
+a.t1:visited{color:red;}
+-->
+</style>
+<title>FreeBSD使用大全</title></head>
+
+<body bgcolor="#FFFFFF" text="#000000" link="#383098" vlink="#336699" alink="#FF0000" topmargin="0">
+<!-- Vignette StoryServer 4 Thu Mar 23 10:01:54 2000 --> <!-- Vignette StoryServer 4 Thu Mar 23 15:34:35 2000 --> 
+
+<!--開始：新聞內容-->
+<TABLE WIDTH=750 BORDER=0 CELLSPACING=0 CELLPADDING=0>
+
+<tr valign=top>
+
+
+
+<TD  valign=top>
+<CENTER><FONT COLOR=#000066 size=5><B>FreeBSD連載(77)：安全工具</B><br></FONT></CENTER>
+
+<HR  ALIGN="center" SIZE=1>
+<CENTER><FONT FACE="Arial" SIZE=2> 2000年1月18日 13:28 </FONT><FONT COLOR="#990000" SIZE=2>王波</FONT></CENTER><p>
+
+<h1 align=center>安全工具</h1>
+
+<p>　　雖然只使用FreeBSD基本系統提供的功能，就能將電腦系統設置為具有非常高的安全性的系統。然而網路上
+也存在各種用於增強或檢查系統安全性的軟體工具，有些工具是標準程序的更安全替代品，增強了系統安全性，有些是對系統
+或網路進行監視和檢查的工具。使用這些工具，毫無疑問會進一步增強系統的安全性。FreeBSD的Packages 
+Collection或Ports Collection通常將這些工具放在security子類中。</p>
+
+<ul><h2><P><LI>系統工具軟體</LI></P></h2></ul>
+
+<p>　　雖然FreeBSD系統本身提供了對訪問的認証、控制和記錄，然而由於在Unix系統中，服務程序基本上是獨
+立的，使用標準的安全控制方式的服務程序能從FreeBSD的認証控制機制中獲益，但是有些服務程序並沒有使用這些安
+全認証方式。對於獨立進行認証控制的軟體，除了使用其本身的控制能力之外，還有一些獨立的軟體具備為其他程序服務的控
+制訪問功能。</p>
+
+<p>　　還有一些系統工具，能用於自動檢查系統，幫助管理員發現系統中存在的問題，這些軟體也是非常有用的工具。此外
+，還有一些工具軟體屬於系統工具，但對於增進系統安全也有很大意義，例如sudo，能在一定程度上增加root密碼的
+安全性。</p>
+
+<ul><h2><P><LI>TcpWrapper</LI></P></h2></ul>
+
+<P>　　tcp_wrapper對於多種伺服器軟體是非常有用的訪問控制工具，它能以統一的方式保護各種不同伺服器。對於
+沒有受防火牆保護的獨立主機系統，tcpwrapper的保護更為重要。因為配置了tcp_wrapper之後，任何向inetd發起的
+連接首先是連接到tcp_wrapper提供的tcpd上之後，再連接到具體的服務進程上，這樣tcpd就有機會查看遠程系統是
+否被允許訪問，並能將連接的情況通過syslog記錄下來，包括請求的種類，時間和連接的來源地址。</P>
+
+<P>　　這個程序事實上代替了系統提供的守護進程，來輕松和高效的監控外部網路與伺服器的連接。由於它提供了
+詳細的日誌記錄，也是用於抓住入侵者，並提供可靠的証據的一種方法。tcpwrapper的思想與代理型防火牆的思路是
+相同的，都是通過替換正常伺服器的做法來完成控制任務。</P>
+
+<P>　　當使用Packages Collection安裝了tcpwrapper之後，它的守護進程tcpd就被安裝到了/usr/local/libexec目錄
+下，然後就能使用tcpd來代替原有的守護進程提供網路服務了。</P>
+
+<P>　　FreeeBSD 3.2-RELEASE之後，tcp_wrapper進入了FreeBSD的基本系統中，而不再需要額外安裝。</P>
+
+<P>　　有幾種不同的使用tcpd的辦法，最基本的辦法是通過更改inetd.conf來啟動tcpd。例如要想讓tcpd來保護
+fingerd，那麼就需要將inetd.conf中對應fingerd的設置更改為tcpd：</P>
+
+<P>　　finger stream tcp nowait/3/10 nobody  /usr/local/libexec/tcpd  fingerd  -s</P>
+
+<P>　　tcpd能在標準的系統檔案目錄中查找正確的守護進程以提供服務，如果進程不在標準的目錄路徑下，就需要在
+最後一列中指定所要執行檔案的全路徑，如/usr/libexec/fingerd。此後，對finger端口的訪問，將被記錄進系統的日
+志檔案，具體為syslog.conf中對auth指定的記錄檔案，例如下面的syslog設置將tcpd的信息發送到/var/log/auth.log
+檔案中（需要保証auth.log檔案已存在）。</P>
+
+<P>　　auth.*     /var/log/auth.log</P>
+
+<P>　　tcpd使用/usr/local/etc/目錄下的hosts.allow和hosts.deny檔案來控制對伺服器的訪問，訪問控制是基於IP
+地址和域名的。以下為一個hosts.allow控制檔案的例子。可以看出設置檔案比較簡單易懂，tcpwrapper也提供了一個
+程序tcpdchk，來檢查用戶更改過的設置檔案是否正確。</P>
+
+<P>　　ALL: domain.com</P>
+
+<P>　　telnet: 192.168.3.0/255.255.255.0 EXCEPT 192.168.3.10</P>
+
+<P>　　此外有著相似功能，但用於替換inetd的軟體為xinetd，它能用於代替原有的inetd來啟動各種服務程序，但提
+供了更詳細的日誌記錄。</P>
+
+<ul><h2><P><LI>系統安全檢查工具</LI></P></h2></ul>
+
+<p>　　Internet上針對每個系統均報告了大量的安全相關的問題，如果將這些已知的安全問題有效的組織起來，使
+用程序對系統自動進行檢查，就能極大的幫助網路管理員查找現有的問題，使得系統更為安全。網路上存在多種這類的工具，
+如Satan、cops，就用於這個目的。然而由於它們的強大功能，這些工具也能被企圖入侵他人系統的使用者利用，因
+此為了避免入侵者，系統管理員應該盡早使用這些軟體，以起到預防作用。</p>
+
+<p>　　cops是一個由系統管理員運行，檢查系統內部設置的程序。它針對已知的Unix存在問題進行檢查，如檢查系
+統中是否存在沒有密碼的帳戶，是否有非法SetUID程序，以及是否存在Internet上已經報告過的系統漏洞，是
+否存在有問題的軟體等等。系統管理員能使用cops來檢查系統的配置有無問題。</p>
+
+<p>　　Satan則與cops不同，Satan是從系統外部進行檢查系統是否存在安全問題的程序，它能對網路存在的
+脆弱性自動進行搜索、分析並提供安全報告。這種從外部分析系統的軟體一般稱為掃描器，由於Satan功能強大並提供了
+可擴展的框架，因此在Internet上十分流行。它的另一個特點就是它通過Web瀏覽器工作，使用者只需指明要搜索
+的主機以及搜索深度和相近規則的級別，Satan就能自動收集盡可能多的目標信息。</p>
+
+<p>　　由於Santa是一個安全工具，因此它對掃描目標電腦並沒有刻意隱藏，這樣就在目標電腦的系統日誌中留下
+了大量的掃描連接記錄，尤其是當目標電腦使用了tcpwrapper的時候。這些日誌能用於標識是否遭到掃描攻擊。
+一些更隱蔽的軟體工具能通過不進行完全連接等方式隱藏掃描記錄，要發現它們就更為困難，因而對系統安全更為危險。</p>
+
+<ul><h2><P><LI>加密數據傳輸</LI></P></h2></ul>
+
+<P>　　一般情況下，用戶需要從客戶機上訪問伺服器，數據是以透明的方式通過網路傳輸的，這樣數據包經過的網
+絡中的電腦都有可能截取傳送的信息。由於這個問題來源於低層網路的結構，只能通過協議的加密來防止信息泄
+露。然而目前大部分網路協議並不支持加密傳送，因此使用窺探的方式獲取網路上的信息，雖然是一種被動的方式，
+卻是對網路安全的重要威脅。</P>
+
+<ul><h2><P><LI>Tcpdump</LI></P></h2></ul>
+
+<p>　　任何事情都具有兩面性，事實上能夠獲得網路上傳輸的數據的工具對於維護網路運行也非常重要，網路需要這些工具
+軟體來幫助分析網路狀態、解決各種網路故障，它們是網路工程師的好幫手。在市場上銷售的有好幾種專用的網路分析設備，
+來實現截獲數據並進行分析的目的。雖然這些硬體實現的設備雖然功能強大，但價格昂貴，而使用軟體通過標準電腦的網路
+接口來實現這種功能，相對來講對於一般使用者還是可以承受的。</p>
+
+<p>　　tcpdump就是一種免費的網路分析工具，尤其其提供了原始碼，公開了接口，因此具備很強的可擴展性，對於
+網路維護和入侵者都是非常有用的工具。tcpdump存在於基本的FreeBSD系統中，由於它需要將網路界面設置為
+混雜模式，普通用戶不能正常執行，但具備root權限的用戶可以直接執行它來獲取網路上的信息。因此系統中存在網路分
+析工具主要不是對本機安全的威脅，而是對網路上的其他電腦的安全存在威脅。</p>
+
+<p>　　普通情況下，直接啟動tcpdump將監視第一個網路界面上所有流過的數據包。</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre><font size=2>bash-2.02# tcpdump 
+tcpdump: listening on fxp0
+11:58:47.873028 202.102.245.40.netbios-ns &gt; 202.102.245.127.netbios-ns: udp 50
+11:58:47.974331 0:10:7b:8:3a:56 &gt; 1:80:c2:0:0:0 802.1d ui/C len=43
+                         0000 0000 0080 0000 1007 cf08 0900 0000
+                         0e80 0000 902b 4695 0980 8701 0014 0002
+                         000f 0000 902b 4695 0008 00
+11:58:48.373134 0:0:e8:5b:6d:85 &gt; Broadcast sap e0 ui/C len=97
+                         ffff 0060 0004 ffff ffff ffff ffff ffff
+                         0452 ffff ffff 0000 e85b 6d85 4008 0002
+                         0640 4d41 5354 4552 5f57 4542 0000 0000
+                         0000 00
+^C</font></td></pre></tr></table>
+
+<p>　　tcpdump支持相當多的不同參數，如使用-i參數指定tcpdump監聽的網路界面，這在電腦具有多個
+網路界面時非常有用，使用-c參數指定要監聽的數據包數量，使用-w參數指定將監聽到的數據包寫入檔案中保存，等等。</p>
+
+<p>　　然而更複雜的tcpdump參數是用於過濾目的，這是因為網路中流量很大，如果不加分辨將所有的數據包都截留
+下來，數據量太大，反而不容易發現需要的數據包。使用這些參數定義的過濾規則可以截留特定的數據包，以縮小目標，才能
+更好的分析網路中存在的問題。tcpdump使用參數指定要監視數據包的類型、地址、端口等，根據具體的網路問題，充
+分利用這些過濾規則就能達到迅速定位故障的目的。請使用man tcpdump查看這些過濾規則的具體用法。</p>
+
+<p>　　顯然為了安全起見，不用作網路管理用途的電腦上不應該運行這一類的網路分析軟體，為了屏蔽它們，可以屏蔽內
+核中的bpfilter偽設備。一般情況下網路硬體和TCP/IP堆棧不支持接收或發送與本電腦無關的數據包，為了
+接收這些數據包，就必須使用網卡的混雜模式，並繞過標準的TCP/IP堆棧才行。在FreeBSD下，這就需要核心支
+持偽設備bpfilter。因此，在核心中取消bpfilter支持，就能屏蔽tcpdump之類的網路分析工具。</p>
+
+<p>　　並且當網卡被設置為混雜模式時，系統會在控制台和日誌檔案中留下記錄，提醒管理員留意這台系統是否被用作攻擊
+同網路的其他電腦的跳板。</p>
+
+<p>　　May 15 16:27:20 host1 /kernel: fxp0: promiscuous mode enabled</p>
+
+<p>　　雖然網路分析工具能將網路中傳送的數據記錄下來，但是網路中的數據流量相當大，如何對這些數據進行分析、分類
+統計、發現並報告錯誤卻是更關鍵的問題。網路中的數據包屬於不同的協議，而不同協議數據包的格式也不同。因此對捕獲的
+數據進行解碼，將包中的信息盡可能的展示出來，對於協議分析工具來講更為重要。昂貴的商業分析工具的優勢就在於它們能
+支持很多種類的應用層協議，而不僅僅只支持tcp、udp等低層協議。</p>
+
+<p>　　從上面tcpdump的輸出可以看出，tcpdump對截獲的數據並沒有進行徹底解碼，數據包內的大部分內容
+是使用十六進制的形式直接打印輸出的。顯然這不利於分析網路故障，通常的解決辦法是先使用帶-w參數的tcpdump
+截獲數據並保存到檔案中，然後再使用其他程序進行解碼分析。當然也應該定義過濾規則，以避免捕獲的數據包填滿整個硬碟
+。FreeBSD提供的一個有效的解碼程序為tcpshow，它可以通過Packages Collection來安
+裝。</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre><font size=2># pkg_add /cdrom/packages/security/tcpshow*
+# tcpdump -c 3 -w tcpdump.out
+tcpdump: listening on fxp0
+# tcpshow &lt; tcpdump.out
+---------------------------------------------------------------------------
+Packet 1
+TIME:&#9;12:00:59.984829
+LINK:&#9;00:10:7B:08:3A:56 -&gt; 01:80:C2:00:00:00 type=0026
+&#9;&lt;*** No decode support for encapsulated protocol ***&gt;
+---------------------------------------------------------------------------
+Packet 2
+TIME:&#9;12:01:01.074513 (1.089684)
+LINK:&#9;00:A0:C9:AB:3C:DF -&gt; FF:FF:FF:FF:FF:FF type=ARP
+ARP:&#9;htype=Ethernet ptype=IP hlen=6 plen=4 op=request
+&#9;sender-MAC-addr=00:A0:C9:AB:3C:DF sender-IP-address=202.102.245.3
+&#9;target-MAC-addr=00:00:00:00:00:00 target-IP-address=202.102.245.3
+---------------------------------------------------------------------------
+Packet 3
+TIME:&#9;12:01:01.985023 (0.910510)
+LINK:&#9;00:10:7B:08:3A:56 -&gt; 01:80:C2:00:00:00 type=0026
+&#9;&lt;*** No decode support for encapsulated protocol ***&gt;</font></td></pre></tr></table>
+
+<p>　　tcpshow能以不同方式對數據包進行解碼，並以不同的方式顯示解碼數據，使用者可以根據其手冊來選擇最合
+適的參數對截獲的數據包進行分析。從上面的例子中可以看出，tcpshow支持的協議也並不豐富，對於它不支持的協議
+就無法進行解碼。</p>
+
+<p>　　除了tcpdump之外，FreeBSD的Packages Collecion中還提供了Ethereal
+和Sniffit兩個網路分析工具，以及其他一些基於網路分析方式的安全工具。其中Ethereal運行在X Window
+下，具有不錯的圖形界面，Sniffit使用字符視窗形式，同樣也易於操作。然而由於tcpdump對過濾規則
+的支持能力更強大，因此系統管理員仍然更喜歡使用它。</p>
+
+<p>　　對於有經驗的網路管理員，使用這些網路分析工具不但能用來了解網路到底是如何運行的，故障出現在何處，還能進
+行有效的統計工作，如那種協議產生的通信量占主要地位，那個主機最繁忙，網路瓶頸位於何處等等問題。因此網路分析工具
+是用於網路管理的寶貴系統工具。</p>
+
+<p>　　為了防止數據被濫用的網路分析工具截獲，關鍵還是要在網路的物理結構上解決。常用的方法是使用交換機或網橋將
+信任網路和不信任網路分隔開，可以防止外部網段竊聽內部數據傳輸，但仍然不能解決內部網路與外部網路相互通信時的數據
+安全問題。</p>
+
+<p>　　如果沒有足夠的經費將網路上的共享集線器升級為以太網交換機，可以使用FreeBSD系統執行網橋任務。這需
+要使用option BRIDGE編譯選項重新定制核心，此後使用bridge命令啟動網橋功能。</p>
+
+
+<ul><h2><P><LI>ssh</LI></P></h2></ul>
+
+<p>　　由於網路上的數據傳輸是不安全，因此出現了S/key等方式來保護密碼的安全。然而這些認証系統只是保証了口
+令等特別敏感信息的安全，而不能保証連接之後的傳輸數據安全性。為了保証數據傳輸的安全性，就必須先將數據加密之後再
+進行傳輸。</p>
+
+<p>　　對傳輸加密可以從兩個方面入手，一個是在網路低層進行加密，應用程序不需了解加密的細節，因此可以兼容現有的
+應用程序，這種考慮方式包括建立虛擬專用網（VPN）的各種協議，如PPTP、L2TP，以及以後將採用的IPSec
+協議。另一種考慮方式是從網路應用程序入手，應用程序首先加密信息然後在進行傳輸，通過特定的服務程序和客戶程序來建
+立安全連接，這種方式的代表就是ssh，此外還包括支持SSL（加密Socket層）的各個應用程序，如Telnet
+SSL，ApachSSL等。</p>
+
+<p>　　SSL在FreeBSD下的實現為openssl，它是在FreeBSD之類的免費操作系統下安裝其他基於SSL應用程序的基礎。</p>
+
+<p>　　PGP也是一個具備重要影響的加密程序，其本身雖然是為網路環境而設計的，但其程序本身不涉及網路。通常它和
+電子郵件的客戶程序合作，構成安全的電子郵件系統。</p>
+
+<p>　　這些加密程序一般要使用Ports Collection下載安裝，而沒有現成的二進制軟體包，主要原因是這
+些軟體使用的公開密鑰算法在美國有專利限制，其專利屬於RSA研究所，因此FreeBSD就不將它們作成二進制軟體包
+，以避免法律糾紛。即使使用Ports Collection下載這些軟體的時候，也需要設定一個環境變量USA_RESIDENT
+，以區分是不是美國居民，make程序好決定從何處下載這些程序，當然，手工下載就不必顧及這些。RSA
+算法在其他國家沒有專利限制，因此可以隨意使用。</p>
+
+<p>　　如果需要反復安裝這些加密工具，可以更改/etc/make.conf中的設置，使其自動設置這個變量，以方
+便安裝過程。</p>
+
+<p>　　在這些工具中，最重要的還是ssh，因為它提供了Unix系統最基本訪問功能的安全實現，如終端訪問、檔案傳
+輸功能。當使用ssh訪問伺服器時，伺服器首先發送自己的公用密鑰，客戶可以使用這個密鑰加密自己產生的隨機密碼，此
+後客戶和伺服器使用這個密碼，用傳統的算法，如IDEA、DES等方法來加密通信數據。對於任何希望增強安全性的系統
+來講，使用ssh來代替telnet,ftp以及rlogin,rsh,rcp等命令，都是最優先要考慮的措施。網路
+安全敏感的系統一般都要屏蔽telnet,rlogin等方式，而使用ssh提供遠程訪問。</p>
+
+<p>　　ssh有兩個不同的版本，ssh1和ssh2，這兩個版本互不兼容。由於ssh1更為流行，在非Unix系統
+之外也擁有不同的客戶程序，一般需要使用ssh1，否則就會遇到與其他ssh的伺服器系統和客戶軟體不兼容的問題。ssh2
+功能更為強大，然而其提供的額外功能一般不需要，ssh1提供的能力已經是綽綽有余的了。Ports Collection中這兩個版
+本使用同樣的安裝位置，不能同時安裝。</p>
+
+<p>　　安裝了ssh之後，ssh將自動產生它所使用的公用密鑰，這個密鑰和ssh的設置檔案保存在/usr/local/etc/
+目錄中，不需要改動這些設置，直接啟動ssh守護進程sshd就可以正常提供ssh登錄服務了。通過Ports
+ Collection安裝的ssh的sshd位置為/usr/local/sbin/sshd。啟動sshd之後，ssh客戶程序就能登錄和使用這台系統，可以
+ 立即使用命令ssh來連接本地系統。</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre><font size=2>bash-2.02$ ssh localhost
+wb@localhost's password:
+Last login: Wed May 19 08:14:13 1999 from 202.102.245.72
+Copyright (c) 1980, 1983, 1986, 1988, 1990, 1991, 1993, 1994
+        The Regents of the University of California.   All rights reserved.
+
+FreeBSD 3.1-RELEASE (wb) #6: Thu Apr 22 18:29:12 CST 1999
+Welcome to FreeBSD!</font></td></pre></tr></table>
+
+<p>　　Ports Collection會在/usr/local/etc/rc.d目錄下放置ssh的啟動檔案sshd.sh
+，用以在系統啟動時自動啟動sshd。</p>
+
+<p>　　sshd使用端口22來監聽用戶的連接請求，需要調整網路中防火牆系統的設置，打開對ssh伺服器端口22的
+連接請求，以便讓網路之外的客戶能夠發送請求並建立連接。由於ssh系統相當安全，不必擔心這樣作會帶來安全問題。</p>
+
+<p>　　當在低速網路上使用ssh的時候，就會希望網路連接的效率更高，可以在客戶端啟動ssh時使用壓縮選項-C，
+這將使用與gzip相同的壓縮算法對數據先進行壓縮再傳輸，能用來提高傳輸非壓縮數據的效率。</p>
+
+<p>　　同樣檔案傳輸也能通過加密的方式進行，ssh提供了scp用於復制遠程檔案，它的參數與rcp使用的參數相同
+，用與email地址相似的方式標識遠程主機及確定的用戶，然後再是檔案位置。</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre><font size=2>bash-2.02$ scp vpn.txt wb@remotehost:vpn.txt
+wb@mx's password:
+vpn.txt                   |          1 KB |   1.5 kB/s | ETA: 00:00:00 | 100%</font></td></pre></tr></table>
+
+<P>　　對於使用Windows系統的客戶，可以從Internet中下載運行在Windows下的ssh客戶程序。支持ssh的仿真終端軟體有：<BR>
+ &#9;TTSSH http://www.zip.com.au/~roca/ttssh.html<BR>
+ &#9;SecureCRT http://www.vandyke.com/<BR>
+ &#9;F-Secure http://www.DataFellows.com）
+  
+<P>　　ssh的另一項強大能力是可以在客戶機和伺服器之間建立加密傳輸通道，從而能將本地的數據轉發到遠端的伺服器
+上。這種功能最常用於將X Window的數據包進行轉發，以便能在本地X伺服器上通過ssh連接到遠程，然後在ssh的連接終端
+上啟動遠程電腦上的X應用程序，但顯示到本地X伺服器上。此時X系統的通信數據是通過ssh建立的加密通道進行傳輸的
+，而不是普通情況下直接通過網路進行的傳輸，因此就保証了安全性。這種X11轉發功能不需要任何設置，包括設置DISPLAY
+環境變量或-dislay參數，因此同時兼具安全性和方便性。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre><font size=2>bash-2.02$ ssh remotehost /usr/X11R6/bin/xterm
+wb@remotehost's password:
+Waiting for forwarded connections to terminate...
+The following connections are open:
+  X11 connection from remotehost port 3979</font></td></pre></tr></table>
+
+<P>　　此外，還可以使用ssh轉發其他不同的TCP連接，這樣就不必擔心數據在通過不安全的網路部分時的安全問題了。這
+首先需要使用ssh的-L參數定義本地端口和要轉發的遠程伺服器端口的對應關系。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre><font size=2>bash-2.02$ ssh remotehost -L 1234:192.168.3.1:23
+wb@remote's password:</font></td></pre></tr></table>
+
+<P>　　如果使用上例建立ssh連接之後，任何對本地端口1234的連接請求，將首先轉發給ssh，然後再由ssh伺服器連接遠端計
+算機的相應端口上。</P>
+
+<ul><h2><P><LI>使用ssh和ppp建立安全連接</LI></P></h2></ul>
+
+<p>　　由於ssh能在客戶和伺服器之間建立加密連接，因此它能和其他程序合作，如ppp，建立安全的網路通道。這種
+建立VPN的方式雖然不符合任何標準，然而卻十分有效。對於FreeBSD系統之間，以及FreeBSD與其他Unix
+系統之間，都可以使用這種方式建立虛擬專有網路連接。</p>
+
+<p>　　無論使用ppp或者是pppd，都能用於和ssh協作建立VPN。然而ppp更易於使用和設置，FreeBSD
+下，通常使用ppp程序建立ppp連接，因此這裡就介紹使用ppp程序建立虛擬安全連接的方法。</p>
+
+<p>　　在/etc/ppp/目錄下的ppp預設配置檔案ppp.conf中，已經提供了一個和外部程序協作，建立安
+全ppp連接的基本例子。就是由ppp啟動外部程序建立連接，通過認証之後自動在遠端執行ppp伺服器，從而建立ppp
+連接。這種方法中ppp通過set device命令設置使用管道啟動外部命令，但是這種管道方法不能和ssh很好
+的合作。因為進行認証的密碼是ssh直接從終端設備上讀取的，而在通道方式中ppp供應密碼是通過標準輸入/輸出進行
+的，因此這些認証信息到達不了ssh中，就造成不能通過ssh認証建立連接。</p>
+
+<p>　　為了修正這個問題，讓ppp程序能夠建立ssh加密連接，一個解決辦法是使用外部撥號程序，首先使用外部程序
+首先進行ssh認証，認証之後再將標準輸入輸出交回ppp，而外部程序可以生成偽設備檔案直接控制ssh進行驗証，然
+而需要使用者進行一些編程工作，並使用這個偽設備檔案作為通信設備。另一種方式是通過設置ssh系統信任，使其不需要
+進行標準方式的密碼認証（可以使用事先分發的公開密鑰進行認証），顯然這不是一個簡單且安全的解決辦法。更好、更簡單
+的辦法是使用ssh的TCP/IP轉發能力，結合ppp建立IP通道的能力，從而建立安全的專有連接。</p>
+
+<p>　　為了建立ssh轉發條件下的安全專有連接，首先回顧使用ppp建立IP通道的方法，這個方法在前面設置ppp
+時介紹過。可以根據這些設置來設置客戶端ppp配置檔案ppp.conf，建立與本機的IP通道。</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre><font size=2>vpnclient:
+ set timeout 0
+ set log phase chat connect lcp ipcp
+ set dial
+ set ifaddr 192.168.4.10 192.168.4.1 255.255.255.0
+ set device localhost:3333</font></td></pre></tr></table>
+
+<P>　　上面vnpclient的撥號設備設置為本地端口3333，與建立標準IP通道時的設置是不同，這裡設置的是本地電腦
+的端口。而伺服器端的設置為：</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre><font size=2>vpnserver:</P>
+<P> set timeout 0</P>
+<P> set log phase lcp ipcp command</P>
+<P> set ifaddr 192.168.4.1 192.168.4.10 255.255.255.0</P>
+<P> allow mode direct</P>
+<P> enable proxy</font></td></pre></tr></table>
+
+<P>　　為了建立安全連接，與設置IP通道類似，伺服器端也需要設置使用inetd之類的超級伺服器程序來啟動ppp
+伺服器，回應客戶端的請求以在IP通道上建立PPP連接。需要修改/etc/services，增加啟動ppp伺服器的端口號。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre><font size=2>ppploop 6671/tcp # loopback ppp daemon</font></td></pre></tr></table>
+
+<P>　　然後修改/etc/inetd.conf檔案，增加對ppp伺服器啟動的支持，並重新啟動inetd。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre><font size=2>ppploop stream tcp nowait root /usr/sbin/ppp ppp -direct vpnserver</font></td></pre></tr></table>
+
+
+<P>　　但是，由於ppp客戶是向本地電腦發送連接請求，而非直接將請求發送給PPP伺服器，因此就需要啟
+動ssh，並建立相應的數據包轉發功能，將轉發的目標端口設置為伺服器上ppp監聽的端口。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre><font size=2>bash-2.02$ ssh remotehost -L 3333:remotehost:6671
+wb@remotehost's password:</font></td></pre></tr></table>
+
+
+<P>　　此後，可以在本地使用ppp連接本地的轉發端口，直接建立安全連接。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre><font size=2>bash-2.02# ppp -b vpnclient
+Working in background mode
+Using interface: tun0
+PPP enabled.
+bash-2.02# ifconfig tun0
+tun0: flags=8051&lt;UP,POINTOPOINT,RUNNING,MULTICAST&gt; mtu 1500
+        inet 192.168.4.10 --&gt; 192.168.4.1 netmask 0xffffff00</font></td></pre></tr></table>
+
+
+<BR>
+
+</TD>
+</TR></TABLE>
+
+
+
+</BODY>
+</HTML>

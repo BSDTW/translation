@@ -1,0 +1,273 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>Daemons, Signals, and Killing Processes</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.79" />
+<link rel="HOME" title="FreeBSD 使用手冊" href="index.html" />
+<link rel="UP" title="UNIX 基礎概念" href="basics.html" />
+<link rel="PREVIOUS" title="Processes" href="basics-processes.html" />
+<link rel="NEXT" title="Shells" href="shells.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD 使用手冊</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="basics-processes.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 3 UNIX 基礎概念</td>
+<td width="10%" align="right" valign="bottom"><a href="shells.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="BASICS-DAEMONS" name="BASICS-DAEMONS">3.8 Daemons, Signals, and
+Killing Processes</a></h1>
+
+<p>When you run an editor it is easy to control the editor, tell it to load files, and so
+on. You can do this because the editor provides facilities to do so, and because the
+editor is attached to a <i class="FIRSTTERM">terminal</i>. Some programs are not designed
+to be run with continuous user input, and so they disconnect from the terminal at the
+first opportunity. For example, a web server spends all day responding to web requests,
+it normally does not need any input from you. Programs that transport email from site to
+site are another example of this class of application.</p>
+
+<p>We call these programs <i class="FIRSTTERM">daemons</i>. Daemons were characters in
+Greek mythology; neither good or evil, they were little attendant spirits that, by and
+large, did useful things for mankind. Much like the web servers and mail servers of today
+do useful things. This is why the BSD mascot has, for a long time, been the cheerful
+looking daemon with sneakers and a pitchfork.</p>
+
+<p>There is a convention to name programs that normally run as daemons with a trailing
+“d”. <b class="APPLICATION">BIND</b> is the Berkeley Internet Name Daemon (and the
+actual program that executes is called <tt class="COMMAND">named</tt>), the <b
+class="APPLICATION">Apache</b> web server program is called <tt
+class="COMMAND">httpd</tt>, the line printer spooling daemon is <tt
+class="COMMAND">lpd</tt> and so on. This is a convention, not a hard and fast rule; for
+example, the main mail daemon for the <b class="APPLICATION">Sendmail</b> application is
+called <tt class="COMMAND">sendmail</tt>, and not <tt class="COMMAND">maild</tt>, as you
+might imagine.</p>
+
+<p>Sometimes you will need to communicate with a daemon process. These communications are
+called <i class="FIRSTTERM">signals</i>, and you can communicate with a daemon (or with
+any other running process) by sending it a signal. There are a number of different
+signals that you can send--some of them have a specific meaning, others are interpreted
+by the application, and the application's documentation will tell you how that
+application interprets signals. You can only send a signal to a process that you own. If
+you send a signal to someone else's process with <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=kill&amp;sektion=1"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">kill</span>(1)</span></a> or <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=kill&amp;sektion=2"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">kill</span>(2)</span></a> permission
+will be denied. The exception to this is the <tt class="USERNAME">root</tt> user, who can
+send signals to everyone's processes.</p>
+
+<p>FreeBSD will also send applications signals in some cases. If an application is badly
+written, and tries to access memory that it is not supposed to, FreeBSD sends the process
+the <i class="FIRSTTERM">Segmentation Violation</i> signal (<tt
+class="LITERAL">SIGSEGV</tt>). If an application has used the <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=alarm&amp;sektion=3"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">alarm</span>(3)</span></a> system call
+to be alerted after a period of time has elapsed then it will be sent the Alarm signal
+(<tt class="LITERAL">SIGALRM</tt>), and so on.</p>
+
+<p>Two signals can be used to stop a process, <tt class="LITERAL">SIGTERM</tt> and <tt
+class="LITERAL">SIGKILL</tt>. <tt class="LITERAL">SIGTERM</tt> is the polite way to kill
+a process; the process can <span class="emphasis"><i class="EMPHASIS">catch</i></span>
+the signal, realize that you want it to shut down, close any log files it may have open,
+and generally finish whatever it is doing at the time before shutting down. In some cases
+a process may even ignore <tt class="LITERAL">SIGTERM</tt> if it is in the middle of some
+task that can not be interrupted.</p>
+
+<p><tt class="LITERAL">SIGKILL</tt> can not be ignored by a process. This is the “I do
+not care what you are doing, stop right now” signal. If you send <tt
+class="LITERAL">SIGKILL</tt> to a process then FreeBSD will stop that process there and
+then<a id="AEN4844" name="AEN4844" href="#FTN.AEN4844"><span
+class="footnote">[1]</span></a>.</p>
+
+<p>The other signals you might want to use are <tt class="LITERAL">SIGHUP</tt>, <tt
+class="LITERAL">SIGUSR1</tt>, and <tt class="LITERAL">SIGUSR2</tt>. These are general
+purpose signals, and different applications will do different things when they are
+sent.</p>
+
+<p>Suppose that you have changed your web server's configuration file--you would like to
+tell the web server to re-read its configuration. You could stop and restart <tt
+class="COMMAND">httpd</tt>, but this would result in a brief outage period on your web
+server, which may be undesirable. Most daemons are written to respond to the <tt
+class="LITERAL">SIGHUP</tt> signal by re-reading their configuration file. So instead of
+killing and restarting <tt class="COMMAND">httpd</tt> you would send it the <tt
+class="LITERAL">SIGHUP</tt> signal. Because there is no standard way to respond to these
+signals, different daemons will have different behavior, so be sure and read the
+documentation for the daemon in question.</p>
+
+<p>Signals are sent using the <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=kill&amp;sektion=1"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">kill</span>(1)</span></a> command, as
+this example shows.</p>
+
+<div class="PROCEDURE">
+<p><b>Sending a Signal to a Process</b></p>
+
+<p>This example shows how to send a signal to <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=inetd&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">inetd</span>(8)</span></a>. The <tt
+class="COMMAND">inetd</tt> configuration file is <tt
+class="FILENAME">/etc/inetd.conf</tt>, and <tt class="COMMAND">inetd</tt> will re-read
+this configuration file when it is sent <tt class="LITERAL">SIGHUP</tt>.</p>
+
+<ol type="1">
+<li class="STEP">
+<p>Find the process ID of the process you want to send the signal to. Do this using <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=ps&amp;sektion=1"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">ps</span>(1)</span></a> and <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=grep&amp;sektion=1"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">grep</span>(1)</span></a>. The <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=grep&amp;sektion=1"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">grep</span>(1)</span></a> command is
+used to search through output, looking for the string you specify. This command is run as
+a normal user, and <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=inetd&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">inetd</span>(8)</span></a> is run as <tt
+class="USERNAME">root</tt>, so the <code class="OPTION">ax</code> options must be given
+to <a href="http://www.FreeBSD.org/cgi/man.cgi?query=ps&amp;sektion=1"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">ps</span>(1)</span></a>.</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">%</samp> <kbd class="USERINPUT">ps -ax | grep inetd</kbd>
+  198  ??  IWs    0:00.00 inetd -wW
+</pre>
+
+<p>So the <a href="http://www.FreeBSD.org/cgi/man.cgi?query=inetd&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">inetd</span>(8)</span></a> PID is 198.
+In some cases the <tt class="LITERAL">grep inetd</tt> command might also occur in this
+output. This is because of the way <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=ps&amp;sektion=1"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">ps</span>(1)</span></a> has to find the
+list of running processes.</p>
+</li>
+
+<li class="STEP">
+<p>Use <a href="http://www.FreeBSD.org/cgi/man.cgi?query=kill&amp;sektion=1"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">kill</span>(1)</span></a> to send the
+signal. Because <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=inetd&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">inetd</span>(8)</span></a> is being run
+by <tt class="USERNAME">root</tt> you must use <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=su&amp;sektion=1"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">su</span>(1)</span></a> to become <tt
+class="USERNAME">root</tt> first.</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">%</samp> <kbd class="USERINPUT">su</kbd>
+<samp class="PROMPT">Password:</samp>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">/bin/kill -s HUP 198</kbd>
+</pre>
+
+<p>In common with most <span class="TRADEMARK">UNIX</span>&reg; commands, <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=kill&amp;sektion=1"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">kill</span>(1)</span></a> will not print
+any output if it is successful. If you send a signal to a process that you do not own
+then you will see “<tt class="ERRORNAME">kill: <tt class="REPLACEABLE"><i>PID</i></tt>:
+Operation not permitted</tt>”. If you mistype the PID you will either send the signal to
+the wrong process, which could be bad, or, if you are lucky, you will have sent the
+signal to a PID that is not currently in use, and you will see “<tt
+class="ERRORNAME">kill: <tt class="REPLACEABLE"><i>PID</i></tt>: No such
+process</tt>”.</p>
+
+<div class="NOTE">
+<blockquote class="NOTE">
+<p><b>Why Use <tt class="COMMAND">/bin/kill</tt>?:</b> Many shells provide the <tt
+class="COMMAND">kill</tt> command as a built in command; that is, the shell will send the
+signal directly, rather than running <tt class="FILENAME">/bin/kill</tt>. This can be
+very useful, but different shells have a different syntax for specifying the name of the
+signal to send. Rather than try to learn all of them, it can be simpler just to use the
+<tt class="COMMAND">/bin/kill <tt class="REPLACEABLE"><i>...</i></tt></tt> command
+directly.</p>
+</blockquote>
+</div>
+</li>
+</ol>
+</div>
+
+<p>Sending other signals is very similar, just substitute <tt class="LITERAL">TERM</tt>
+or <tt class="LITERAL">KILL</tt> in the command line as necessary.</p>
+
+<div class="IMPORTANT">
+<blockquote class="IMPORTANT">
+<p><b>Important:</b> Killing random process on the system can be a bad idea. In
+particular, <a href="http://www.FreeBSD.org/cgi/man.cgi?query=init&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">init</span>(8)</span></a>, process ID 1,
+is very special. Running <tt class="COMMAND">/bin/kill -s KILL 1</tt> is a quick way to
+shutdown your system. <span class="emphasis"><i class="EMPHASIS">Always</i></span> double
+check the arguments you run <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=kill&amp;sektion=1"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">kill</span>(1)</span></a> with <span
+class="emphasis"><i class="EMPHASIS">before</i></span> you press <b
+class="KEYCAP">Return</b>.</p>
+</blockquote>
+</div>
+</div>
+
+<h3 class="FOOTNOTES">Notes</h3>
+
+<table border="0" class="FOOTNOTES" width="100%">
+<tr>
+<td align="LEFT" valign="TOP" width="5%"><a id="FTN.AEN4844" name="FTN.AEN4844"
+href="basics-daemons.html#AEN4844"><span class="footnote">[1]</span></a></td>
+<td align="LEFT" valign="TOP" width="95%">
+<p>Not quite true--there are a few things that can not be interrupted. For example, if
+the process is trying to read from a file that is on another computer on the network, and
+the other computer has gone away for some reason (been turned off, or the network has a
+fault), then the process is said to be “uninterruptible”. Eventually the process will
+time out, typically after two minutes. As soon as this time out occurs the process will
+be killed.</p>
+</td>
+</tr>
+</table>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="basics-processes.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="shells.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">Processes</td>
+<td width="34%" align="center" valign="top"><a href="basics.html"
+accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">Shells</td>
+</tr>
+</table>
+</div>
+
+<p align="center"><small>This, and other documents, can be downloaded from <a
+href="ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/">ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/</a>.</small></p>
+
+<p align="center"><small>For questions about FreeBSD, read the <a
+href="http://www.FreeBSD.org/docs.html">documentation</a> before contacting &#60;<a
+href="mailto:questions@FreeBSD.org">questions@FreeBSD.org</a>&#62;.<br />
+For questions about this documentation, e-mail &#60;<a
+href="mailto:doc@FreeBSD.org">doc@FreeBSD.org</a>&#62;.</small></p>
+</body>
+</html>
+

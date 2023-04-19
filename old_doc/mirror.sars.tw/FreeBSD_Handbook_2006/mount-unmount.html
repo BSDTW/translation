@@ -1,0 +1,315 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>Mounting and Unmounting File Systems</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.79" />
+<link rel="HOME" title="FreeBSD 使用手冊" href="index.html" />
+<link rel="UP" title="UNIX 基礎概念" href="basics.html" />
+<link rel="PREVIOUS" title="Disk Organization" href="disk-organization.html" />
+<link rel="NEXT" title="Processes" href="basics-processes.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD 使用手冊</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="disk-organization.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 3 UNIX 基礎概念</td>
+<td width="10%" align="right" valign="bottom"><a href="basics-processes.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="MOUNT-UNMOUNT" name="MOUNT-UNMOUNT">3.6 Mounting and Unmounting
+File Systems</a></h1>
+
+<p>The file system is best visualized as a tree, rooted, as it were, at <tt
+class="FILENAME">/</tt>. <tt class="FILENAME">/dev</tt>, <tt class="FILENAME">/usr</tt>,
+and the other directories in the root directory are branches, which may have their own
+branches, such as <tt class="FILENAME">/usr/local</tt>, and so on.</p>
+
+<p>There are various reasons to house some of these directories on separate file systems.
+<tt class="FILENAME">/var</tt> contains the directories <tt class="FILENAME">log/</tt>,
+<tt class="FILENAME">spool/</tt>, and various types of temporary files, and as such, may
+get filled up. Filling up the root file system is not a good idea, so splitting <tt
+class="FILENAME">/var</tt> from <tt class="FILENAME">/</tt> is often favorable.</p>
+
+<p>Another common reason to contain certain directory trees on other file systems is if
+they are to be housed on separate physical disks, or are separate virtual disks, such as
+<a href="network-nfs.html">Network File System</a> mounts, or CDROM drives.</p>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="DISKS-FSTAB" name="DISKS-FSTAB">3.6.1 The <tt
+class="FILENAME">fstab</tt> File</a></h2>
+
+<p>During the <a href="boot.html">boot process</a>, file systems listed in <tt
+class="FILENAME">/etc/fstab</tt> are automatically mounted (unless they are listed with
+the <code class="OPTION">noauto</code> option).</p>
+
+<p>The <tt class="FILENAME">/etc/fstab</tt> file contains a list of lines of the
+following format:</p>
+
+<pre class="PROGRAMLISTING">
+<tt class="REPLACEABLE"><i>device</i></tt>       <tt
+class="REPLACEABLE"><i>/mount-point</i></tt> <tt
+class="REPLACEABLE"><i>fstype</i></tt>     <tt
+class="REPLACEABLE"><i>options</i></tt>      <tt
+class="REPLACEABLE"><i>dumpfreq</i></tt>     <tt class="REPLACEABLE"><i>passno</i></tt>
+</pre>
+
+<div class="VARIABLELIST">
+<dl>
+<dt><tt class="LITERAL">device</tt></dt>
+
+<dd>
+<p>A device name (which should exist), as explained in <a
+href="disks-naming.html">Section 17.2</a>.</p>
+</dd>
+
+<dt><tt class="LITERAL">mount-point</tt></dt>
+
+<dd>
+<p>A directory (which should exist), on which to mount the file system.</p>
+</dd>
+
+<dt><tt class="LITERAL">fstype</tt></dt>
+
+<dd>
+<p>The file system type to pass to <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=mount&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">mount</span>(8)</span></a>. The default
+FreeBSD file system is <tt class="LITERAL">ufs</tt>.</p>
+</dd>
+
+<dt><tt class="LITERAL">options</tt></dt>
+
+<dd>
+<p>Either <code class="OPTION">rw</code> for read-write file systems, or <code
+class="OPTION">ro</code> for read-only file systems, followed by any other options that
+may be needed. A common option is <code class="OPTION">noauto</code> for file systems not
+normally mounted during the boot sequence. Other options are listed in the <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=mount&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">mount</span>(8)</span></a> manual
+page.</p>
+</dd>
+
+<dt><tt class="LITERAL">dumpfreq</tt></dt>
+
+<dd>
+<p>This is used by <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=dump&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">dump</span>(8)</span></a> to determine
+which file systems require dumping. If the field is missing, a value of zero is
+assumed.</p>
+</dd>
+
+<dt><tt class="LITERAL">passno</tt></dt>
+
+<dd>
+<p>This determines the order in which file systems should be checked. File systems that
+should be skipped should have their <tt class="LITERAL">passno</tt> set to zero. The root
+file system (which needs to be checked before everything else) should have its <tt
+class="LITERAL">passno</tt> set to one, and other file systems' <tt
+class="LITERAL">passno</tt> should be set to values greater than one. If more than one
+file systems have the same <tt class="LITERAL">passno</tt> then <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=fsck&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">fsck</span>(8)</span></a> will attempt
+to check file systems in parallel if possible.</p>
+</dd>
+</dl>
+</div>
+
+<p>Consult the <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=fstab&amp;sektion=5"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">fstab</span>(5)</span></a> manual page
+for more information on the format of the <tt class="FILENAME">/etc/fstab</tt> file and
+the options it contains.</p>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="DISKS-MOUNT" name="DISKS-MOUNT">3.6.2 The <tt
+class="COMMAND">mount</tt> Command</a></h2>
+
+<p>The <a href="http://www.FreeBSD.org/cgi/man.cgi?query=mount&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">mount</span>(8)</span></a> command is
+what is ultimately used to mount file systems.</p>
+
+<p>In its most basic form, you use:</p>
+
+<div class="INFORMALEXAMPLE"><a id="AEN4631" name="AEN4631"></a>
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">mount <tt
+class="REPLACEABLE"><i>device</i></tt> <tt
+class="REPLACEABLE"><i>mountpoint</i></tt></kbd>
+</pre>
+</div>
+
+<p>There are plenty of options, as mentioned in the <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=mount&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">mount</span>(8)</span></a> manual page,
+but the most common are:</p>
+
+<div class="VARIABLELIST">
+<p><b>Mount Options</b></p>
+
+<dl>
+<dt><code class="OPTION">-a</code></dt>
+
+<dd>
+<p>Mount all the file systems listed in <tt class="FILENAME">/etc/fstab</tt>. Except
+those marked as “noauto”, excluded by the <code class="OPTION">-t</code> flag, or those
+that are already mounted.</p>
+</dd>
+
+<dt><code class="OPTION">-d</code></dt>
+
+<dd>
+<p>Do everything except for the actual mount system call. This option is useful in
+conjunction with the <code class="OPTION">-v</code> flag to determine what <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=mount&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">mount</span>(8)</span></a> is actually
+trying to do.</p>
+</dd>
+
+<dt><code class="OPTION">-f</code></dt>
+
+<dd>
+<p>Force the mount of an unclean file system (dangerous), or forces the revocation of
+write access when downgrading a file system's mount status from read-write to
+read-only.</p>
+</dd>
+
+<dt><code class="OPTION">-r</code></dt>
+
+<dd>
+<p>Mount the file system read-only. This is identical to using the <code
+class="OPTION">ro</code> (<code class="OPTION">rdonly</code> for FreeBSD versions older
+than 5.2) argument to the <code class="OPTION">-o</code> option.</p>
+</dd>
+
+<dt><code class="OPTION">-t</code> <tt class="REPLACEABLE"><i>fstype</i></tt></dt>
+
+<dd>
+<p>Mount the given file system as the given file system type, or mount only file systems
+of the given type, if given the <code class="OPTION">-a</code> option.</p>
+
+<p>“ufs” is the default file system type.</p>
+</dd>
+
+<dt><code class="OPTION">-u</code></dt>
+
+<dd>
+<p>Update mount options on the file system.</p>
+</dd>
+
+<dt><code class="OPTION">-v</code></dt>
+
+<dd>
+<p>Be verbose.</p>
+</dd>
+
+<dt><code class="OPTION">-w</code></dt>
+
+<dd>
+<p>Mount the file system read-write.</p>
+</dd>
+</dl>
+</div>
+
+<p>The <code class="OPTION">-o</code> option takes a comma-separated list of the options,
+including the following:</p>
+
+<div class="VARIABLELIST">
+<dl>
+<dt>nodev</dt>
+
+<dd>
+<p>Do not interpret special devices on the file system. This is a useful security
+option.</p>
+</dd>
+
+<dt>noexec</dt>
+
+<dd>
+<p>Do not allow execution of binaries on this file system. This is also a useful security
+option.</p>
+</dd>
+
+<dt>nosuid</dt>
+
+<dd>
+<p>Do not interpret setuid or setgid flags on the file system. This is also a useful
+security option.</p>
+</dd>
+</dl>
+</div>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="DISKS-UMOUNT" name="DISKS-UMOUNT">3.6.3 The <tt
+class="COMMAND">umount</tt> Command</a></h2>
+
+<p>The <a href="http://www.FreeBSD.org/cgi/man.cgi?query=umount&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">umount</span>(8)</span></a> command
+takes, as a parameter, one of a mountpoint, a device name, or the <code
+class="OPTION">-a</code> or <code class="OPTION">-A</code> option.</p>
+
+<p>All forms take <code class="OPTION">-f</code> to force unmounting, and <code
+class="OPTION">-v</code> for verbosity. Be warned that <code class="OPTION">-f</code> is
+not generally a good idea. Forcibly unmounting file systems might crash the computer or
+damage data on the file system.</p>
+
+<p><code class="OPTION">-a</code> and <code class="OPTION">-A</code> are used to unmount
+all mounted file systems, possibly modified by the file system types listed after <code
+class="OPTION">-t</code>. <code class="OPTION">-A</code>, however, does not attempt to
+unmount the root file system.</p>
+</div>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="disk-organization.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="basics-processes.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">Disk Organization</td>
+<td width="34%" align="center" valign="top"><a href="basics.html"
+accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">Processes</td>
+</tr>
+</table>
+</div>
+
+<p align="center"><small>This, and other documents, can be downloaded from <a
+href="ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/">ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/</a>.</small></p>
+
+<p align="center"><small>For questions about FreeBSD, read the <a
+href="http://www.FreeBSD.org/docs.html">documentation</a> before contacting &#60;<a
+href="mailto:questions@FreeBSD.org">questions@FreeBSD.org</a>&#62;.<br />
+For questions about this documentation, e-mail &#60;<a
+href="mailto:doc@FreeBSD.org">doc@FreeBSD.org</a>&#62;.</small></p>
+</body>
+</html>
+

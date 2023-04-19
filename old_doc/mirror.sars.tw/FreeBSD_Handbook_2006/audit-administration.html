@@ -1,0 +1,159 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>Event Audit Administration</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.79" />
+<link rel="HOME" title="FreeBSD 使用手冊" href="index.html" />
+<link rel="UP" title="Security Event Auditing" href="audit.html" />
+<link rel="PREVIOUS" title="Audit Configuration" href="audit-config.html" />
+<link rel="NEXT" title="儲存設備篇" href="disks.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD 使用手冊</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="audit-config.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 16 Security Event Auditing</td>
+<td width="10%" align="right" valign="bottom"><a href="disks.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="AUDIT-ADMINISTRATION" name="AUDIT-ADMINISTRATION">16.5 Event
+Audit Administration</a></h1>
+
+<p>Events written by the kernel audit subsystem cannot be altered or read in plain text.
+Data is stored and accessed in a method similar to that of <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=ktrace&amp;sektion=1"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">ktrace</span>(1)</span></a> and <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=kdump&amp;sektion=1"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">kdump</span>(1)</span></a>, that is,
+they may only be viewed by dumping them using the <tt class="COMMAND">praudit</tt>
+command; audit trails may be reduced using the <tt class="COMMAND">auditreduce</tt>
+command, which selects records from an audit trail based on properties of interest, such
+as the user, time of the event, and type of operation.</p>
+
+<p>For example, the <tt class="COMMAND">praudit</tt> utility will dump the entire
+contents of a specified audit log in plain text. To dump an audit log in its entirety,
+use:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">praudit /var/audit/AUDITFILE</kbd>
+</pre>
+
+<p>Where <tt class="REPLACEABLE"><i>AUDITFILE</i></tt> is the audit log of viewing
+choice. Since audit logs may contain enormous amounts of data, an administrator may
+prefer to select records for specific users. This is made possible with the following
+command, where <tt class="USERNAME">trhodes</tt> is the user of choice:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">auditreduce -e trhodes /var/audit/AUDITFILE | praudit</kbd>
+</pre>
+
+<p>This will select all audit records produced by the user <tt
+class="USERNAME">trhodes</tt> stored in the <tt class="REPLACEABLE"><i>AUDITFILE</i></tt>
+file.</p>
+
+<p>There are several other options available for reading audit records, see the
+aforementioned command's manual pages for a more in depth explanation.</p>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN23616" name="AEN23616">16.5.1 Rotating Audit Log
+Files</a></h2>
+
+<p>Due to log reliability requirements, audit trails are written to only by the kernel,
+and managed only by <tt class="COMMAND">auditd</tt>. Administrators should not attempt to
+use <a href="http://www.FreeBSD.org/cgi/man.cgi?query=newsyslog.conf&amp;sektion=5"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">newsyslog.conf</span>(5)</span></a> or
+other tools to directly rotate audit logs. Instead, the <tt class="COMMAND">audit</tt>
+management tool should be used to shut down auditing, reconfigure the audit system, and
+perform log rotation. The following command causes the audit daemon to create a new audit
+log and signal the kernel to switch to using the new log. The old log will be terminated
+and renamed, at which point it may then be manipulated by the administrator.</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">audit -n</kbd>
+</pre>
+
+<div class="WARNING">
+<blockquote class="WARNING">
+<p><b>Warning:</b> If the <tt class="COMMAND">auditd</tt> daemon is not currently
+running, the previous command will fail and an error message will be produced.</p>
+</blockquote>
+</div>
+
+<p>Adding the following line to <tt class="FILENAME">/etc/crontab</tt> will force the
+rotation every twelve hours from <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=cron&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">cron</span>(8)</span></a>:</p>
+
+<pre class="PROGRAMLISTING">
+*     */12       *       *       *       root    /usr/sbin/audit -n
+</pre>
+
+<p>The change will take effect once you have saved the new <tt
+class="FILENAME">/etc/crontab</tt>.</p>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN23638" name="AEN23638">16.5.2 Delegating Audit Review
+Rights</a></h2>
+
+<p>By default, only the root user has the right to read system audit logs. However, that
+right may be delegated to members of the <tt class="LITERAL">audit</tt> group, as the
+audit directory and audit trail files are assigned to that group, and made
+group-readable. As the ability to track audit log contents provides significant insight
+into the behavior of users and processes, it is recommended that the delegation of audit
+review rights be performed with caution.</p>
+</div>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="audit-config.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="disks.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">Audit Configuration</td>
+<td width="34%" align="center" valign="top"><a href="audit.html"
+accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">儲存設備篇</td>
+</tr>
+</table>
+</div>
+
+<p align="center"><small>This, and other documents, can be downloaded from <a
+href="ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/">ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/</a>.</small></p>
+
+<p align="center"><small>For questions about FreeBSD, read the <a
+href="http://www.FreeBSD.org/docs.html">documentation</a> before contacting &#60;<a
+href="mailto:questions@FreeBSD.org">questions@FreeBSD.org</a>&#62;.<br />
+For questions about this documentation, e-mail &#60;<a
+href="mailto:doc@FreeBSD.org">doc@FreeBSD.org</a>&#62;.</small></p>
+</body>
+</html>
+

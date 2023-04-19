@@ -1,0 +1,1327 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>Chapter 15. Drawing</title>
+    <link rel="stylesheet" type="text/css" href="docbook-xsl-mymods.css" />
+    <meta name="generator" content="DocBook XSL Stylesheets V1.76.0" />
+    <link rel="home" href="index.html" />
+    <link rel="up" href="pt04.html" />
+    <link rel="prev" href="ch14.html" />
+    <link rel="next" href="ch16.html" />
+  </head>
+  <body>
+    <div class="mattnotice">
+      <p>As a courtesy, this is a <b>full free</b> rendering of my book, <i>Programming iOS 6</i>, by Matt Neuburg. Copyright 2013 Matt Neuburg. Please note that this book has now been completely superseded by two more recent books, <a href="http://shop.oreilly.com/product/0636920032465.do">iOS 7 Fundamentals</a> and <a href="http://shop.oreilly.com/product/0636920031017.do">Programming iOS 7</a>. If my work has been of help to you, please <b>consider purchasing</b> one or both of them. Thank you!
+	</p>
+    </div>
+    <div class="navfooter">
+      <table width="100%" summary="Navigation footer">
+        <tr>
+          <td width="40%" align="left"><a accesskey="p" href="ch14.html">Prev</a> </td>
+          <td width="20%" align="center">
+            <a accesskey="u" href="pt04.html">Up</a>
+          </td>
+          <td width="40%" align="right"> <a accesskey="n" href="ch16.html">Next</a></td>
+        </tr>
+        <tr>
+          <td width="40%" align="left" valign="top">Chapter 14. Views </td>
+          <td width="20%" align="center">
+            <a accesskey="h" href="index.html">Table of Contents</a>
+          </td>
+          <td width="40%" align="right" valign="top"> Chapter 16. Layers</td>
+        </tr>
+      </table>
+    </div>
+    <div class="chapter">
+      <div class="titlepage">
+        <div>
+          <div>
+            <h2 class="title"><a id="chap_id15"></a>Chapter 15. Drawing</h2>
+          </div>
+        </div>
+      </div>
+      <p>Many UIView subclasses, such as a UIButton or a UITextField, know how to draw themselves; sooner or later, though, you’re going to want to do some drawing of your own. A class like UIImageView will display a static image; you can generate that image dynamically by drawing it in code. And a pure UIView does little or no drawing of its own; you can draw its appearance.</p>
+      <p>Drawing is not difficult, but it is a very large topic. This chapter will make you comfortable with the basic principles, so that you can consult and understand Apple’s documentation when you need further details.</p>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_uiimage_and_uiimageview"></a>UIImage and UIImageView</h2>
+            </div>
+          </div>
+        </div>
+        <p>The basic general UIKit image class is UIImage. UIImage can read a file from disk, so if an image does not need to be created dynamically, but has already been created before your app runs, then drawing may be as simple as providing an image file as a resource in your app’s bundle. The system knows how to work with many standard image file types, such as TIFF, JPEG, GIF, and PNG.<a id="idm441651360912" class="indexterm"></a><a id="idm441651359424" class="indexterm"></a> You can also obtain image data in some other way, such as by downloading it, and transform this into a UIImage. Conversely, you can draw your own image for display in your interface or for saving to disk (image file output is discussed in <a class="xref" href="ch36.html">Chapter 36</a>).</p>
+        <p>In the very simplest case, an image file in your app’s bundle can be obtained through the UIImage class method <code class="literal">imageNamed:</code>.<a id="idm441651356096" class="indexterm"></a>
+<a id="idm441651354848" class="indexterm"></a> This method looks at the top level of your app’s bundle for an image file with the supplied name, including the file extension, and reads it as a UIImage instance. A nice thing about this approach is that memory management is handled for you: the image data may be cached in memory, and if you ask for the same image by calling <code class="literal">imageNamed:</code> again later, the cached data may be supplied immediately. You can also read an image file from anywhere in your app’s bundle using the class method <code class="literal">imageWithContentsOfFile:</code> or the instance method <code class="literal">initWithContentsOfFile:</code>, both of which expect a pathname string; you can get a reference to your app’s bundle with <code class="literal">[NSBundle mainBundle]</code>, and NSBundle then provides instance methods for getting the pathname of a file within the bundle, such as <code class="literal">pathForResource:ofType:</code>.<a id="idm441651349264" class="indexterm"></a><a id="idm441651348336" class="indexterm"></a></p>
+        <p>Many built-in Cocoa interface objects will accept a UIImage as part of how they draw themselves; for example, a UIButton can display an image, and a UINavigationBar or a UITabBar can have a background image. I’ll discuss those in <a class="xref" href="ch25.html">Chapter 25</a>. But when you simply want an image to appear in your interface, you’ll probably hand it to a UIImageView, which has the most knowledge and flexibility with regard to displaying images and is intended for this purpose. If a UIImageView instance begins life in a nib and is to display a UIImage from a file in your app’s bundle, you won’t even need any code; the UIImageView can be set to that file directly in the nib. (This mechanism works most easily if the file will be at the top level of the app’s bundle.)</p>
+        <p>A UIImageView can actually have <span class="emphasis"><em>two</em></span> images, one assigned to its <code class="literal">image</code> property and the other assigned to its <code class="literal">highlightedImage</code> property; the value of the UIImageView’s <code class="literal">highlighted</code> property dictates which of the two is displayed. A UIImageView does not automatically highlight itself, the way a button does, for example, merely because the user taps it. However, there are certain situations where a UIImageView will respond to the highlighting of its surroundings; for example, within a table view cell, a UIImageView will show its highlighted image when the cell is highlighted. You can, of course, also use the notion of UIImageView highlighting yourself however you like.</p>
+        <p>When an image is obtained by name from the bundle, as with <code class="literal">imageNamed:</code> or the name you enter in the nib for a UIImageView’s image, a file with the same name extended by <code class="literal">~ipad</code> will automatically be used if the app is running on an iPad. You can use this in a universal app to supply different images automatically depending on whether the app runs on an iPhone or iPod touch, on the one hand, or on an iPad, on the other. This is true not just for images but for <span class="emphasis"><em>any</em></span> resource obtained by name from the bundle. See Apple’s <span class="emphasis"><em>Resource Programming Guide</em></span>.<a id="idm441651338736" class="indexterm"></a><a id="idm441651337840" class="indexterm"></a></p>
+        <p>Similarly, on a device with a double-resolution screen, when an image is obtained by name from the bundle, a file with the same name extended by <code class="literal">@2x</code>, if there is one, will be used automatically, with the resulting UIImage marked as double-resolution by assigning it a <code class="literal">scale</code> property value of <code class="literal">2.0</code>.<a id="idm441651334336" class="indexterm"></a><a id="idm441651333424" class="indexterm"></a> In this way, your app can contain both a single-resolution and a double-resolution version of an image file; on the double-resolution display device, the double-resolution version of the image is used, and is drawn at the same size as the single-resolution image. Thus, on the double-resolution screen, your code continues to work without change, but your images look sharper.<a id="idm441651332016" class="indexterm"></a>
+<a id="idm441651330704" class="indexterm"></a>
+<a id="idm441651329664" class="indexterm"></a></p>
+        <p>A UIImageView is a UIView, so it can have a background color in addition to its image, it can have an alpha (transparency) value, and so forth (see <a class="xref" href="ch14.html">Chapter 14</a>). A UIImageView without a background color is invisible except for its image, so the image simply appears in the interface, without the user being aware that it resides in a rectangular host. An image may have areas that are transparent, and a UIImageView will respect this; thus an image of any shape can appear. A UIImageView without an image and without a background color is invisible, so you could start with an empty UIImageView in the place where you will later need an image and subsequently assign the image in code. You can assign a new image to substitute one image for another.</p>
+        <p>How a UIImageView draws its image depends upon the setting of its <code class="literal">contentMode</code> property. (The <code class="literal">contentMode</code> property is inherited from UIView; I’ll discuss its more general purpose later in this chapter.) For example, <code class="literal">UIViewContentModeScaleToFill</code> means the image’s width and height are set to the width and height of the view, thus filling the view completely even if this alters the image’s aspect ratio; <code class="literal">UIViewContentModeCenter</code> means the image is drawn centered in the view without altering its size. The best way to get a feel for the meanings of the various <code class="literal">contentMode</code> settings is to assign a UIImageView a small image in a nib and then, in the Attributes inspector, change the Mode pop-up menu, and see where and how the image draws itself.</p>
+        <p>When creating a UIImageView in code, you can take advantage of a convenience initializer, <code class="literal">initWithImage:</code> (or <code class="literal">initWithImage:highlightedImage:</code>). The default <code class="literal">contentMode</code> is <code class="literal">UIViewContentModeScaleToFill</code>, but the image is not initially scaled; rather, the view itself is sized to match to the image. You will still probably need to position the UIImageView correctly in its superview. In this example, I’ll put a picture of the planet Mars in the center of the app’s interface (<a class="xref" href="ch15.html#FIGplainOldMars">Figure 15.1</a>):</p>
+        <pre class="screen">UIImageView* iv =
+    [[UIImageView alloc] initWithImage:[UIImage imageNamed:@"Mars.png"]];
+[self.window.rootViewController.view addSubview: iv];
+iv.center = CGPointMake(CGRectGetMidX(iv.superview.bounds),
+                        CGRectGetMidY(iv.superview.bounds));
+iv.frame = CGRectIntegral(iv.frame);</pre>
+        <div class="figure">
+          <a id="FIGplainOldMars"></a>
+          <div class="figure-contents">
+            <div class="mediaobject">
+              <img src="figs/pios_1501.png" alt="figs/pios_1501.png" />
+            </div>
+          </div>
+          <p class="title">Figure 15.1. Mars appears in my interface</p>
+        </div>
+        <br class="figure-break" />
+        <p>If we have a second image file called <span class="emphasis"><em>Mars@2x.png</em></span>, it will be used on a double-resolution device.</p>
+        <p>Under autolayout (<a class="xref" href="ch14.html">Chapter 14</a>), the size of an image assigned to a UIImageView becomes that UIImageView’s <code class="literal">intrinsicContentSize</code> — even if the UIImageView already exists. This can lead to new behavior if your code adopts autolayout. Previously, assigning an image to an existing UIImageView (as opposed to creating the UIImageView with <code class="literal">initWithImage:</code>) had no effect on the UIImageView’s bounds; under autolayout, it calls <code class="literal">setNeedsLayout</code> and, at layout time, the UIImageView’s bounds are changed. Thus, this code, too, will display Mars in the center of the interface:<a id="idm441651309568" class="indexterm"></a></p>
+        <pre class="screen">UIImageView* iv = [UIImageView new];
+[self.window.rootViewController.view addSubview: iv];
+iv.translatesAutoresizingMaskIntoConstraints = NO;
+[iv.superview addConstraint:
+ [NSLayoutConstraint
+  constraintWithItem:iv attribute:NSLayoutAttributeCenterX
+  relatedBy:0
+  toItem:iv.superview attribute:NSLayoutAttributeCenterX
+  multiplier:1 constant:0]];
+[iv.superview addConstraint:
+ [NSLayoutConstraint
+  constraintWithItem:iv attribute:NSLayoutAttributeCenterY
+  relatedBy:0
+  toItem:iv.superview attribute:NSLayoutAttributeCenterY
+  multiplier:1 constant:0]];
+iv.image = [UIImage imageNamed:@"Mars.png"];</pre>
+        <p>(If a UIImageView is assigned both an <code class="literal">image</code> and a <code class="literal">highlightedImage</code>, and if they are of different sizes, the view’s <code class="literal">intrinsicContentSize</code> adopts the size of <code class="literal">image</code>.)</p>
+        <p>A UIImage can be transformed into a <span class="emphasis"><em>resizable image</em></span>, by sending it the <code class="literal">resizableImageWithCapInsets:resizingMode:</code> message.<a id="idm441651302496" class="indexterm"></a><a id="idm441651301600" class="indexterm"></a> (This method is new in iOS 6, superseding the less flexible <code class="literal">resizableImageWithCapInsets:</code> introduced in iOS 5 — which itself superseded the notion of a stretchable image from previous system versions.)<a id="idm441651299568" class="indexterm"></a><a id="idm441651298624" class="indexterm"></a>
+<a id="idm441651297312" class="indexterm"></a> The <code class="literal">capInsets:</code> argument is a <a id="idm441651295584" class="indexterm"></a>UIEdgeInsets, a struct consisting of four floats representing inset values starting at the top and moving <span class="emphasis"><em>counterclockwise</em></span> — top, left, bottom, right. They represent distances inwards from the edges of the image. In a context (such as a UIImageView) larger than the image, a resizable image can behave in one of two ways, depending on the <code class="literal">resizingMode:</code> value:</p>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+<code class="literal">UIImageResizingModeTile</code>
+</span>
+            </dt>
+            <dd>
+The interior rectangle of the inset area is tiled (repeated) in the interior; each edge is formed by tiling the corresponding edge rectangle outside the inset area. The four corner rectangles outside the inset area are shown unchanged at the four corners.
+</dd>
+            <dt>
+              <span class="term">
+<code class="literal">UIImageResizingModeStretch</code>
+</span>
+            </dt>
+            <dd>
+The interior rectangle of the inset area is stretched <span class="emphasis"><em>once</em></span> to fill the interior; each edge is formed by stretching the corresponding edge rectangle outside the inset area <span class="emphasis"><em>once</em></span>. The four corner rectangles outside the inset area are shown unchanged at the four corners.
+</dd>
+          </dl>
+        </div>
+        <p>Resizable images may seem like a curiosity at first, but in fact they are extremely useful. Some places in the interface require them; for example, a custom image that serves as the background of a slider or progress view (<a class="xref" href="ch25.html">Chapter 25</a>) must be resizable, so that it can fill a space of any length. And there can frequently be situations where you want to fill a background by tiling a texture or by extending an existing image.</p>
+        <p>First, I’ll illustrate tiling:<a id="idm441651284768" class="indexterm"></a></p>
+        <pre class="screen">UIImage* mars = [UIImage imageNamed:@"Mars.png"];
+UIImage* marsTiled = [mars resizableImageWithCapInsets:UIEdgeInsetsZero
+                      resizingMode: UIImageResizingModeTile];
+UIImageView* iv = [[UIImageView alloc] initWithFrame:
+                   CGRectMake(20,5,mars.size.width*2,mars.size.height*4)];
+iv.image = marsTiled;</pre>
+        <p>The image view is eight times the size of the Mars image, and the inset area is the entire image, so we see eight complete copies of the Mars image (<a class="xref" href="ch15.html#FIGtiledMars">Figure 15.2</a>).</p>
+        <div class="figure">
+          <a id="FIGtiledMars"></a>
+          <div class="figure-contents">
+            <div class="mediaobject">
+              <img src="figs/pios_1502.png" alt="figs/pios_1502.png" />
+            </div>
+          </div>
+          <p class="title">Figure 15.2. Tiling the entire image of Mars</p>
+        </div>
+        <br class="figure-break" />
+        <p>Now we’ll tile the interior of the image, changing the <code class="literal">capInsets:</code> argument from the previous code (<a class="xref" href="ch15.html#FIGtiledMars2">Figure 15.3</a>):</p>
+        <pre class="screen">UIImage* marsTiled = [mars resizableImageWithCapInsets:
+                      UIEdgeInsetsMake(mars.size.height/4.0,
+                                       mars.size.width/4.0,
+                                       mars.size.height/4.0,
+                                       mars.size.width/4.0)
+                      resizingMode: UIImageResizingModeTile];</pre>
+        <div class="figure">
+          <a id="FIGtiledMars2"></a>
+          <div class="figure-contents">
+            <div class="mediaobject">
+              <img src="figs/pios_1503.png" alt="figs/pios_1503.png" />
+            </div>
+          </div>
+          <p class="title">Figure 15.3. Tiling the interior of Mars</p>
+        </div>
+        <br class="figure-break" />
+        <p>Next, I’ll illustrate stretching.<a id="idm441651271632" class="indexterm"></a> We’ll start by changing just the <code class="literal">resizingMode:</code> from the previous code (<a class="xref" href="ch15.html#FIGstretchedMars1">Figure 15.4</a>):</p>
+        <pre class="screen">UIImage* marsTiled = [mars resizableImageWithCapInsets:
+                      UIEdgeInsetsMake(mars.size.height/4.0,
+                                       mars.size.width/4.0,
+                                       mars.size.height/4.0,
+                                       mars.size.width/4.0)
+                      resizingMode: UIImageResizingModeStretch];</pre>
+        <div class="figure">
+          <a id="FIGstretchedMars1"></a>
+          <div class="figure-contents">
+            <div class="mediaobject">
+              <img src="figs/pios_1504.png" alt="figs/pios_1504.png" />
+            </div>
+          </div>
+          <p class="title">Figure 15.4. Stretching the interior of Mars</p>
+        </div>
+        <br class="figure-break" />
+        <p>A common stretching strategy is to make almost half the original image serve as a cap inset, leaving just a pixel or two in the center to fill the entire interior of the resulting image (<a class="xref" href="ch15.html#FIGstretchedMars2">Figure 15.5</a>); this generates a stretched border whose corners are the corners of the original image:</p>
+        <pre class="screen">UIImage* marsTiled = [mars resizableImageWithCapInsets:
+                      UIEdgeInsetsMake(mars.size.height/2.0 - 1,
+                                       mars.size.width/2.0 - 1,
+                                       mars.size.height/2.0 - 1,
+                                       mars.size.width/2.0 - 1)
+                      resizingMode: UIImageResizingModeStretch];</pre>
+        <div class="figure">
+          <a id="FIGstretchedMars2"></a>
+          <div class="figure-contents">
+            <div class="mediaobject">
+              <img src="figs/pios_1505.png" alt="figs/pios_1505.png" />
+            </div>
+          </div>
+          <p class="title">Figure 15.5. Stretching a single pixel at the interior of Mars</p>
+        </div>
+        <br class="figure-break" />
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_graphics_contexts"></a>Graphics Contexts</h2>
+            </div>
+          </div>
+        </div>
+        <p>UIImageView draws an image for you and takes care of all the details; in many cases, it will be all you’ll need. Eventually, though, you may want to create some drawing yourself, directly, in code. To do so, you will always need a <span class="emphasis"><em>graphics context</em></span>.
+<a id="idxgraphicscontext" class="indexterm"></a></p>
+        <p>A graphics context is basically a place you can draw. Conversely, you can’t draw in code unless you’ve got a graphics context. There are several ways in which you might obtain a graphics context; in this chapter I will concentrate on two, which have proven in my experience to be far and away the most common:</p>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+You create an <a id="idm441651252784" class="indexterm"></a>image context
+</span>
+            </dt>
+            <dd>
+The function <code class="literal">UIGraphicsBeginImageContextWithOptions</code> creates a graphics context suitable for use as an image. You then draw into this context to generate the image. When you’ve done that, you call <code class="literal">UIGraphicsGetImageFromCurrentImageContext</code> to turn the context into a UIImage, and then <code class="literal">UIGraphicsEndImageContext</code> to dismiss the context. Now you have a UIImage that you can display in your interface or draw into some other graphics context or save as a file.<a id="idm441651249088" class="indexterm"></a>
+<a id="idm441651248048" class="indexterm"></a>
+</dd>
+            <dt>
+              <span class="term">
+Cocoa hands you a graphics context
+</span>
+            </dt>
+            <dd>
+You subclass UIView and implement <code class="literal">drawRect:</code>. At the time your <code class="literal">drawRect:</code> implementation is called, Cocoa has already created a graphics context and is asking you to draw into it, right now; whatever you draw is what the UIView will display. (A slight variant of this situation is that you subclass a CALayer and implement <code class="literal">drawInContext:</code>, or make some object the delegate of a layer and implement <code class="literal">drawLayer:inContext:</code>; layers are discussed in <a class="xref" href="ch16.html">Chapter 16</a>.)
+</dd>
+          </dl>
+        </div>
+        <p>Moreover, at any given moment there either is or is not a <span class="emphasis"><em>current graphics context</em></span>:<a id="idm441651240528" class="indexterm"></a></p>
+        <div class="itemizedlist">
+          <ul class="itemizedlist" type="disc">
+            <li class="listitem">
+<code class="literal">UIGraphicsBeginImageContextWithOptions</code> not only creates an image context, it also makes that context the current graphics context.
+</li>
+            <li class="listitem">
+When <code class="literal">drawRect:</code> is called, the UIView’s drawing context is already the current graphics context.
+</li>
+            <li class="listitem">
+Callbacks with a <code class="literal">context:</code> argument have <span class="emphasis"><em>not</em></span> made any context the current graphics context; rather, that argument is a reference to a graphics context.
+</li>
+          </ul>
+        </div>
+        <p>What beginners find most confusing about drawing is that there are two separate sets of tools with which you can draw, and they take different attitudes towards the context in which they will draw:</p>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+UIKit
+</span>
+            </dt>
+            <dd>
+              <p class="simpara">
+Various Objective-C classes know how to draw themselves; these include UIImage, NSString (for drawing text), UIBezierPath (for drawing shapes), and UIColor. Some of these classes provide convenience methods with limited abilities; others are extremely powerful. In many cases, UIKit will be all you’ll need.
+</p>
+              <p class="simpara">With UIKit, you can draw <span class="emphasis"><em>only into the current context</em></span>. So if you’re in a <code class="literal">UIGraphicsBeginImageContextWithOptions</code> or <code class="literal">drawRect:</code> situation, you can use the UIKit convenience methods directly; there is a current context and it’s the one you want to draw into. If you’ve been handed a <code class="literal">context:</code> argument, on the other hand, then if you want to use the UIKit convenience methods, you’ll have to make that context the current context; you do this by calling <code class="literal">UIGraphicsPushContext</code> (and be sure to restore things with <code class="literal">UIGraphicsPopContext</code> later).</p>
+            </dd>
+            <dt>
+              <span class="term">
+Core Graphics
+</span>
+            </dt>
+            <dd>
+              <p class="simpara">
+This is the full drawing API. Core Graphics, often referred to as Quartz, or Quartz 2D, is the drawing system that underlies all iOS drawing — UIKit drawing is built on top of it — so it is low-level and consists of C functions. There are a lot of them! This chapter will familiarize you with the fundamentals; for complete information, you’ll want to study Apple’s <span class="emphasis"><em>Quartz 2D Programming Guide</em></span>.
+</p>
+              <p class="simpara">With Core Graphics, you must <span class="emphasis"><em>specify a graphics context</em></span> (a CGContextRef) to draw into, explicitly, in every function call.<a id="idm441651222768" class="indexterm"></a> If you’ve been handed a <code class="literal">context:</code> argument, then, hey presto, you have a graphics context, and it’s probably the graphics context you want to draw into. But in a <code class="literal">UIGraphicsBeginImageContextWithOptions</code> or <code class="literal">drawRect:</code> situation, you have no reference to a context; to use Core Graphics, you need to get such a reference. Since the context you want to draw into is the current graphics context, you call <code class="literal">UIGraphicsGetCurrentContext</code> to get the needed reference.</p>
+            </dd>
+          </dl>
+        </div>
+        <p>So we have two sets of tools and three ways in which a context might be supplied; that makes six ways of drawing, and in case you’re confused, I’ll now demonstrate all six of them. Without worrying just yet about the actual drawing commands, focus your attention on how the context is specified and on whether we’re using UIKit or Core Graphics. First, I’ll draw a blue circle by implementing a UIView subclass’s <code class="literal">drawRect:</code>, using UIKit to draw into the current context, which Cocoa has already prepared for me:</p>
+        <pre class="screen">- (void) drawRect: (CGRect) rect {
+    UIBezierPath* p =
+        [UIBezierPath bezierPathWithOvalInRect:CGRectMake(0,0,100,100)];
+    [[UIColor blueColor] setFill];
+    [p fill];
+}</pre>
+        <p>Now I’ll do the same thing with Core Graphics; this will require that I first get a reference to the current context:</p>
+        <pre class="screen">- (void) drawRect: (CGRect) rect {
+    CGContextRef con = UIGraphicsGetCurrentContext();
+    CGContextAddEllipseInRect(con, CGRectMake(0,0,100,100));
+    CGContextSetFillColorWithColor(con, [UIColor blueColor].CGColor);
+    CGContextFillPath(con);
+}</pre>
+        <p>Next, I’ll implement a UIView subclass’s <code class="literal">drawLayer:inContext:</code>. In this case, we’re handed a reference to a context, but it isn’t the current context. So I have to make it the current context in order to use UIKit:</p>
+        <pre class="screen">- (void)drawLayer:(CALayer*)lay inContext:(CGContextRef)con {
+    UIGraphicsPushContext(con);
+    UIBezierPath* p =
+        [UIBezierPath bezierPathWithOvalInRect:CGRectMake(0,0,100,100)];
+    [[UIColor blueColor] setFill];
+    [p fill];
+    UIGraphicsPopContext();
+}</pre>
+        <p>To use Core Graphics in <code class="literal">drawLayer:inContext:</code>, I simply keep referring to the context I was handed:</p>
+        <pre class="screen">- (void)drawLayer:(CALayer*)lay inContext:(CGContextRef)con {
+    CGContextAddEllipseInRect(con, CGRectMake(0,0,100,100));
+    CGContextSetFillColorWithColor(con, [UIColor blueColor].CGColor);
+    CGContextFillPath(con);
+}</pre>
+        <p>Finally, for the sake of completeness, let’s make a UIImage of a blue circle. We can do this at any time (we don’t need to wait for some particular method to be called) and in any class (we don’t need to be in a UIView subclass). First, I’ll use UIKit:</p>
+        <pre class="screen">UIGraphicsBeginImageContextWithOptions(CGSizeMake(100,100), NO, 0);
+UIBezierPath* p =
+    [UIBezierPath bezierPathWithOvalInRect:CGRectMake(0,0,100,100)];
+[[UIColor blueColor] setFill];
+[p fill];
+UIImage* im = UIGraphicsGetImageFromCurrentImageContext();
+UIGraphicsEndImageContext();
+// im is the blue circle image, do something with it here ...</pre>
+        <p>Here’s the same thing using Core Graphics:</p>
+        <pre class="screen">UIGraphicsBeginImageContextWithOptions(CGSizeMake(100,100), NO, 0);
+CGContextRef con = UIGraphicsGetCurrentContext();
+CGContextAddEllipseInRect(con, CGRectMake(0,0,100,100));
+CGContextSetFillColorWithColor(con, [UIColor blueColor].CGColor);
+CGContextFillPath(con);
+UIImage* im = UIGraphicsGetImageFromCurrentImageContext();
+UIGraphicsEndImageContext();
+// im is the blue circle image, do something with it here ...</pre>
+        <p>You may be wondering about the arguments to <code class="literal">UIGraphicsBeginImageContextWithOptions</code>. The first argument is obviously the size of the image to be created. The second argument declares whether the image should be opaque; if I had passed YES instead of NO here, my image would have a black background, which I don’t want. The third argument specifies the image scale, corresponding to the UIImage <code class="literal">scale</code> property I discussed earlier; by passing <code class="literal">0</code>, I’m telling the system to set the scale for me in accordance with the main screen resolution, so my image will look good on both single-resolution and double-resolution devices.</p>
+        <p>You don’t have to use UIKit or Core Graphics exclusively; on the contrary, you can intermingle UIKit calls and Core Graphics calls to operate on the same graphics context. They merely represent two different ways of talking about the same graphics context.</p>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_uiimage_drawing"></a>UIImage Drawing</h2>
+            </div>
+          </div>
+        </div>
+        <p>A UIImage provides methods for drawing itself into the current context. We now know how to obtain an image context and make it the current context, so we can experiment with these methods. Here, I’ll make a UIImage consisting of two pictures of Mars side by side:</p>
+        <pre class="screen">UIImage* mars = [UIImage imageNamed:@"Mars.png"];
+CGSize sz = [mars size];
+UIGraphicsBeginImageContextWithOptions(
+    CGSizeMake(sz.width*2, sz.height), NO, 0);
+[mars drawAtPoint:CGPointMake(0,0)];
+[mars drawAtPoint:CGPointMake(sz.width,0)];
+UIImage* im = UIGraphicsGetImageFromCurrentImageContext();
+UIGraphicsEndImageContext();</pre>
+        <p>The resulting UIImage <code class="literal">im</code> is suitable anywhere you would use a UIImage. For instance, you could hand it over to a visible UIImageView, thus causing the image to appear onscreen (<a class="xref" href="ch15.html#FIGdoubleMars">Figure 15.6</a>).</p>
+        <div class="figure">
+          <a id="FIGdoubleMars"></a>
+          <div class="figure-contents">
+            <div class="mediaobject">
+              <img src="figs/pios_1506.png" alt="figs/pios_1506.png" />
+            </div>
+          </div>
+          <p class="title">Figure 15.6. Two images of Mars combined side by side</p>
+        </div>
+        <br class="figure-break" />
+        <p>Additional UIImage methods let you scale an image into a desired rectangle as you draw, and specify the compositing (blend) mode whereby the image should combine with whatever is already present. To illustrate, I’ll create an image showing Mars centered in another image of Mars that’s twice as large, using the Multiply blend mode (<a class="xref" href="ch15.html#FIGdoubleMars2">Figure 15.7</a>):</p>
+        <pre class="screen">UIImage* mars = [UIImage imageNamed:@"Mars.png"];
+CGSize sz = [mars size];
+UIGraphicsBeginImageContextWithOptions(
+    CGSizeMake(sz.width*2, sz.height*2), NO, 0);
+[mars drawInRect:CGRectMake(0,0,sz.width*2,sz.height*2)];
+[mars drawInRect:CGRectMake(sz.width/2.0, sz.height/2.0, sz.width, sz.height)
+       blendMode:kCGBlendModeMultiply alpha:1.0];
+UIImage* im = UIGraphicsGetImageFromCurrentImageContext();
+UIGraphicsEndImageContext();</pre>
+        <div class="figure">
+          <a id="FIGdoubleMars2"></a>
+          <div class="figure-contents">
+            <div class="mediaobject">
+              <img src="figs/pios_1507.png" alt="figs/pios_1507.png" />
+            </div>
+          </div>
+          <p class="title">Figure 15.7. Two images of Mars in different sizes, composited</p>
+        </div>
+        <br class="figure-break" />
+        <p>There is no UIImage drawing method for specifying the source rectangle — that is, for specifying that you want to extract a smaller region of the original image. You can work around this by specifying a smaller graphics context and positioning the image drawing so that the desired region falls into it. For example, to obtain an image of the right half of Mars, you’d make a graphics context half the width of the <code class="literal">mars</code> image, and then draw <code class="literal">mars</code> shifted left, so that only its right half intersects the graphics context. There is no harm in doing this, and it’s a perfectly standard device; the left half of <code class="literal">mars</code> simply isn’t drawn (<a class="xref" href="ch15.html#FIGhalfMars">Figure 15.8</a>):</p>
+        <pre class="screen">UIImage* mars = [UIImage imageNamed:@"Mars.png"];
+CGSize sz = [mars size];
+UIGraphicsBeginImageContextWithOptions(
+    CGSizeMake(sz.width/2.0, sz.height), NO, 0);
+[mars drawAtPoint:CGPointMake(-sz.width/2.0, 0)];
+UIImage* im = UIGraphicsGetImageFromCurrentImageContext();
+UIGraphicsEndImageContext();</pre>
+        <div class="figure">
+          <a id="FIGhalfMars"></a>
+          <div class="figure-contents">
+            <div class="mediaobject">
+              <img src="figs/pios_1508.png" alt="figs/pios_1508.png" />
+            </div>
+          </div>
+          <p class="title">Figure 15.8. Half the original image of Mars</p>
+        </div>
+        <br class="figure-break" />
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_cgimage_drawing"></a>CGImage Drawing</h2>
+            </div>
+          </div>
+        </div>
+        <p>The Core Graphics version of UIImage is CGImage (actually a CGImageRef).<a id="idm441651177520" class="indexterm"></a> They are easily converted to one another: a UIImage has a <code class="literal">CGImage</code> property that accesses its Quartz image data, and you can make a UIImage from a CGImage using <code class="literal">imageWithCGImage:</code> or <code class="literal">initWithCGImage:</code> (in real life, you are likely to use their more configurable siblings, <code class="literal">imageWithCGImage:scale:orientation:</code> and <code class="literal">in⁠it⁠With⁠CG⁠Im⁠age:scale:​ori⁠en⁠ta⁠ti⁠on:</code>).</p>
+        <p>A CGImage lets you create a new image directly from a rectangular region of the original image, which you can’t do with UIImage. (A CGImage has other powers a UIImage doesn’t have; for example, you can apply an image mask to a CGImage.) I’ll demonstrate by splitting the image of Mars in half and drawing the two halves separately (<a class="xref" href="ch15.html#FIGmarsSplit">Figure 15.9</a>). Observe that we are now operating in the CFTypeRef world and must take care to manage memory manually; ARC won’t help us here (<a class="xref" href="ch12.html">Chapter 12</a>):</p>
+        <pre class="screen">UIImage* mars = [UIImage imageNamed:@"Mars.png"];
+// extract each half as a CGImage
+CGSize sz = [mars size];
+CGImageRef marsLeft = CGImageCreateWithImageInRect([mars CGImage],
+                       CGRectMake(0,0,sz.width/2.0,sz.height));
+CGImageRef marsRight = CGImageCreateWithImageInRect([mars CGImage],
+                        CGRectMake(sz.width/2.0,0,sz.width/2.0,sz.height));
+// draw each CGImage into an image context
+UIGraphicsBeginImageContextWithOptions(
+    CGSizeMake(sz.width*1.5, sz.height), NO, 0);
+CGContextRef con = UIGraphicsGetCurrentContext();
+CGContextDrawImage(con,
+                   CGRectMake(0,0,sz.width/2.0,sz.height), marsLeft);
+CGContextDrawImage(con,
+                   CGRectMake(sz.width,0,sz.width/2.0,sz.height), marsRight);
+UIImage* im = UIGraphicsGetImageFromCurrentImageContext();
+UIGraphicsEndImageContext();
+CGImageRelease(marsLeft); CGImageRelease(marsRight);</pre>
+        <div class="figure">
+          <a id="FIGmarsSplit"></a>
+          <div class="figure-contents">
+            <div class="mediaobject">
+              <img src="figs/pios_1509.png" alt="figs/pios_1509.png" />
+            </div>
+          </div>
+          <p class="title">Figure 15.9. Image of Mars split in half</p>
+        </div>
+        <br class="figure-break" />
+        <p>But there’s a problem with that example: the drawing is upside-down! It isn’t rotated; it’s mirrored top to bottom, or, to use the technical term, <span class="emphasis"><em>flipped</em></span>. This phenomenon can arise when you create a CGImage and then draw it with <code class="literal">CGContextDrawImage</code>, and is due to a mismatch in the native coordinate systems of the source and target contexts.<a id="idm441651164848" class="indexterm"></a></p>
+        <p>There are various ways of compensating for this mismatch between the coordinate systems. One is to draw the CGImage into an intermediate UIImage and extract <span class="emphasis"><em>another</em></span> CGImage from that. <a class="xref" href="ch15.html#EXflip">Example 15.1</a> presents a utility function for doing this.</p>
+        <div class="example">
+          <a id="EXflip"></a>
+          <p class="title">Example 15.1. Utility for flipping an image drawing</p>
+          <div class="example-contents">
+            <pre class="screen">CGImageRef flip (CGImageRef im) {
+    CGSize sz = CGSizeMake(CGImageGetWidth(im), CGImageGetHeight(im));
+    UIGraphicsBeginImageContextWithOptions(sz, NO, 0);
+    CGContextDrawImage(UIGraphicsGetCurrentContext(),
+                       CGRectMake(0, 0, sz.width, sz.height), im);
+    CGImageRef result = [UIGraphicsGetImageFromCurrentImageContext() CGImage];
+    UIGraphicsEndImageContext();
+    return result;
+}</pre>
+          </div>
+        </div>
+        <br class="example-break" />
+        <p>Armed with the utility function from <a class="xref" href="ch15.html#EXflip">Example 15.1</a>, we can now draw the halves of Mars the right way up in the previous example:</p>
+        <pre class="screen">CGContextDrawImage(con, CGRectMake(0,0,sz.width/2.0,sz.height),
+                   flip(marsLeft));
+CGContextDrawImage(con, CGRectMake(sz.width,0,sz.width/2.0,sz.height),
+                   flip(marsRight));</pre>
+        <p>However, we’ve <span class="emphasis"><em>still</em></span> got a problem: on a double-resolution device, if there is a high-resolution (<code class="literal">@2x</code>) version of our image file, the drawing comes out all wrong.<a id="idm441651156160" class="indexterm"></a><a id="idm441651155264" class="indexterm"></a> The reason is that we are loading our starting Mars image using <code class="literal">imageNamed:</code>, which automatically substitutes the high-resolution version of the image on the high-resolution device. The UIImage compensates for the doubled size of the image by setting its own <code class="literal">scale</code> property to match. But a CGImage doesn’t have a <code class="literal">scale</code> property, and knows nothing of the fact that the image dimensions are doubled!</p>
+        <p>When you call a UIImage’s <code class="literal">CGImage</code> method, therefore, you can’t assume that the resulting CGImage is the same size as the original UIImage; a UIImage’s <code class="literal">size</code> property is the same for a single-resolution image and its double-resolution counterpart, because the <code class="literal">scale</code> tells it how to compensate, but the CGImage of a double-resolution UIImage is twice as large in both dimensions as the CGImage of the corresponding single-resolution image.</p>
+        <p>So, in extracting a desired piece of the CGImage, we must either multiply all appropriate values by the scale or express ourselves in terms of the CGImage’s dimensions. In this case, as we are extracting the left and right halves of the image, the latter is obviously the simpler course. So here’s a version of our original code that draws correctly on either a single-resolution or a double-resolution device, and compensates for flipping:</p>
+        <pre class="screen">UIImage* mars = [UIImage imageNamed:@"Mars.png"];
+CGSize sz = [mars size];
+// Derive CGImage and use its dimensions to extract its halves
+CGImageRef marsCG = [mars CGImage];
+CGSize szCG = CGSizeMake(CGImageGetWidth(marsCG), CGImageGetHeight(marsCG));
+CGImageRef marsLeft =
+    CGImageCreateWithImageInRect(
+        marsCG, CGRectMake(0,0,szCG.width/2.0,szCG.height));
+CGImageRef marsRight =
+    CGImageCreateWithImageInRect(
+        marsCG, CGRectMake(szCG.width/2.0,0,szCG.width/2.0,szCG.height));
+UIGraphicsBeginImageContextWithOptions(
+    CGSizeMake(sz.width*1.5, sz.height), NO, 0);
+// The rest is as before, calling flip() to compensate for flipping
+CGContextRef con = UIGraphicsGetCurrentContext();
+CGContextDrawImage(con, CGRectMake(0,0,sz.width/2.0,sz.height),
+                   flip(marsLeft));
+CGContextDrawImage(con, CGRectMake(sz.width,0,sz.width/2.0,sz.height),
+                   flip(marsRight));
+UIImage* im = UIGraphicsGetImageFromCurrentImageContext();
+UIGraphicsEndImageContext();
+CGImageRelease(marsLeft); CGImageRelease(marsRight);</pre>
+        <p>If this is starting to look rather clumsy and involved, don’t worry; I have up my sleeve another flipping solution that simplifies things considerably. Instead of calling our <code class="literal">flip</code> utility, you can wrap your CGImage in a UIImage before drawing. This has two big advantages:</p>
+        <div class="itemizedlist">
+          <ul class="itemizedlist" type="disc">
+            <li class="listitem">
+The UIImage compensates for flipping automatically as it draws.
+</li>
+            <li class="listitem">
+The UIImage can be formed in such a way as to compensate for scale: call <code class="literal">imageWithCGImage:scale:orientation:</code> as you form the UIImage from the CGImage.
+</li>
+          </ul>
+        </div>
+        <p>So here’s a self-contained approach that deals with both flipping and scale:</p>
+        <pre class="screen">UIImage* mars = [UIImage imageNamed:@"Mars.png"];
+CGSize sz = [mars size];
+// Derive CGImage and use its dimensions to extract its halves
+CGImageRef marsCG = [mars CGImage];
+CGSize szCG = CGSizeMake(CGImageGetWidth(marsCG), CGImageGetHeight(marsCG));
+CGImageRef marsLeft =
+    CGImageCreateWithImageInRect(
+        marsCG, CGRectMake(0,0,szCG.width/2.0,szCG.height));
+CGImageRef marsRight =
+    CGImageCreateWithImageInRect(
+        marsCG, CGRectMake(szCG.width/2.0,0,szCG.width/2.0,szCG.height));
+UIGraphicsBeginImageContextWithOptions(
+    CGSizeMake(sz.width*1.5, sz.height), NO, 0);
+[[UIImage imageWithCGImage:marsLeft
+                     scale:[mars scale]
+               orientation:UIImageOrientationUp]
+ drawAtPoint:CGPointMake(0,0)];
+[[UIImage imageWithCGImage:marsRight
+                     scale:[mars scale]
+               orientation:UIImageOrientationUp]
+ drawAtPoint:CGPointMake(sz.width,0)];
+UIImage* im = UIGraphicsGetImageFromCurrentImageContext();
+UIGraphicsEndImageContext();
+CGImageRelease(marsLeft); CGImageRelease(marsRight);</pre>
+        <p>Yet another solution to flipping is to apply a transform to the graphics context before drawing the CGImage, effectively flipping the context’s internal coordinate system. This is elegant, but can be confusing if there are other transforms in play. I’ll talk more about graphics context transforms later in this chapter.</p>
+        <div class="sidebar">
+          <div class="titlepage">
+            <div>
+              <div>
+                <p class="title">Why Flipping Happens</p>
+              </div>
+            </div>
+          </div>
+          <p>The ultimate source of accidental flipping is that Core Graphics comes from the Mac OS X world, where the coordinate system’s origin is located by default at the bottom left and the positive y-direction is upward, whereas on iOS the origin is located by default at the top left and the positive y-direction is downward. In most drawing situations, no problem arises, because the coordinate system of the graphics context is adjusted to compensate. Thus, the default coordinate system for drawing in a Core Graphics context on iOS has the origin at the top left, just as you expect. But creating and drawing a CGImage exposes the issue.</p>
+        </div>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_cifilter_and_ciimage"></a>CIFilter and CIImage</h2>
+            </div>
+          </div>
+        </div>
+        <p>The “CI” in <a id="idm441651121040" class="indexterm"></a>CIFilter and <a id="idm441651120272" class="indexterm"></a>CIImage stands for Core Image, a technology for transforming images through mathematical filters. Core Image started life on the desktop (Mac OS X), and migrated initially to iOS 5, bringing only a limited subset of the desktop filters, as iOS devices are not suitable for certain heavily intensive mathematical operations. In iOS 6, many more filters are provided; of about 140 filters available on the desktop, only about 40 are absent from iOS 6. To use Core Image, you’ll have to link your target to  <span class="emphasis"><em>CoreImage.framework</em></span>.<a id="idm441651118064" class="indexterm"></a>
+<a id="idm441651116816" class="indexterm"></a></p>
+        <p>A filter is a CIFilter. The available filters fall naturally into several categories:</p>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+Patterns and gradients
+</span>
+            </dt>
+            <dd>
+These filters create CIImages that can then be combined with other CIImages, such as a single color, a checkerboard, stripes, or a gradient.
+</dd>
+            <dt>
+              <span class="term">
+Compositing
+</span>
+            </dt>
+            <dd>
+These filters combine one image with another, using compositing blend modes familiar from image processing programs such as Photoshop.
+</dd>
+            <dt>
+              <span class="term">
+Color
+</span>
+            </dt>
+            <dd>
+These filters adjust or otherwise modify the colors of an image. Thus you can alter an image’s saturation, hue, brightness, contrast, gamma and white point, exposure, shadows and highlights, and so on.
+</dd>
+            <dt>
+              <span class="term">
+Geometric
+</span>
+            </dt>
+            <dd>
+These filters perform basic geometric transformations on an image, such as scaling, rotation, and cropping.
+</dd>
+            <dt>
+              <span class="term">
+Transformation
+</span>
+            </dt>
+            <dd>
+These filters distort, blur, or stylize an image. They are the most intensive filters, so relatively few of them are available on iOS.
+</dd>
+            <dt>
+              <span class="term">
+Transition
+</span>
+            </dt>
+            <dd>
+These filters provide a frame of a transition between one image and another; by asking for frames in sequence, you can animate the full transition.
+</dd>
+          </dl>
+        </div>
+        <p>The basic use of a CIFilter is quite simple; it essentially works as if a filter were a kind of dictionary consisting of keys and values. You create the filter by supplying the string name of a filter; to learn what these names are, consult Apple’s <span class="emphasis"><em>Core Image Filter Reference</em></span>, or call the CIFilter class method <code class="literal">filterNamesInCategories:</code> with a nil argument. Each filter has a small number of keys and values that determine its behavior; for each key that you’re interested in, you supply a key–value pair, either by calling <code class="literal">setValue:forKey:</code> or by supplying all the keys and values as you specify the filter name. In supplying values, a number must be wrapped up as an NSNumber, and there are a few supporting classes such as CIVector (like CGPoint and CGRect combined) and CIColor, whose use is easy to grasp.</p>
+        <p>A CIFilter’s keys include any image or images on which the filter is to operate; such an image must be a CIImage. You can obtain a CIImage from a CGImage with <code class="literal">initWithCGImage:</code>; we already know how to obtain a CGImage from a UIImage. You can also obtain a CGImage as the output of a filter; thus filters can be chained together.</p>
+        <p>As you build a chain of filters, nothing actually happens. The only calculation-intensive move comes at the very end, when you produce the result of the entire chain as a CGImage. You do this by creating a CIContext (by calling <code class="literal">contextWithOptions:</code>) and then calling <code class="literal">createCGImage:fromRect:</code>. The only mildly tricky thing here is that a CIImage doesn’t have a frame or bounds; it has an <code class="literal">extent</code>. You will often use this as the second argument to <code class="literal">createCGImage:fromRect:</code>. The final output CGImage is ready for any purpose, such as for display in your app, for transformation into a UIImage, or for use in further drawing.</p>
+        <p>To illustrate, I’ll start with an ordinary photo of myself (it’s true I’m wearing a motorcycle helmet, but it’s still ordinary) and create a circular vignette effect. We start by generating a clear color. Then we make a radial gradient. Finally, we treat the radial gradient as a mask for blending between the photo of me and the clear color: where the radial gradient is white (everything inside the gradient’s inner radius) we see just me, and where the radial gradient is black (everything outside the gradient’s outer radius) we see just the clear color, with a gradation in between, so that the image fades away in the circular band between the gradient’s radii. The result is the UIImage <code class="literal">moi4</code>; displaying it an an image view (<a class="xref" href="ch15.html#FIGvignette">Figure 15.10</a>), we see behind it the image view’s background color — or, if the image view’s background is clear, whatever is behind the image view:</p>
+        <pre class="screen">CIFilter* col = [CIFilter filterWithName:@"CIConstantColorGenerator"];
+CIColor* cicol = [[CIColor alloc] initWithColor:[UIColor clearColor]];
+[col setValue:cicol forKey:@"inputColor"];
+CIImage* colorimage = [col valueForKey: @"outputImage"];
+
+CIFilter* grad = [CIFilter filterWithName:@"CIRadialGradient"];
+CIVector* center = [CIVector vectorWithX:moi.size.width/2.0
+                                       Y:moi.size.height/2.0];
+[grad setValue:center forKey:@"inputCenter"];
+[grad setValue:@85 forKey:@"inputRadius0"];
+[grad setValue:@100 forKey:@"inputRadius1"];
+CIImage *gradimage = [grad valueForKey: @"outputImage"];
+
+CIFilter* blend = [CIFilter filterWithName:@"CIBlendWithMask"];
+[blend setValue:moi2 forKey:@"inputImage"];
+[blend setValue:colorimage forKey:@"inputBackgroundImage"];
+[blend setValue:gradimage forKey:@"inputMaskImage"];
+
+CGImageRef moi3 = [[CIContext contextWithOptions:nil]
+                    createCGImage:blend.outputImage
+                    fromRect:moi2.extent];
+moi4 = [UIImage imageWithCGImage:moi3];
+CGImageRelease(moi3);</pre>
+        <div class="figure">
+          <a id="FIGvignette"></a>
+          <div class="figure-contents">
+            <div class="mediaobject">
+              <img src="figs/pios_1510.png" alt="figs/pios_1510.png" />
+            </div>
+          </div>
+          <p class="title">Figure 15.10. A photo of me, vignetted</p>
+        </div>
+        <br class="figure-break" />
+        <p>In this example, we use the same image of me to generate a kaleidoscopic tile effect (<a class="xref" href="ch15.html#FIGfourfold">Figure 15.11</a>):</p>
+        <pre class="screen">CIFilter* tile = [CIFilter filterWithName:@"CIFourfoldRotatedTile"];
+[tile setValue:moi2 forKey:@"inputImage"];
+CIVector* center = [CIVector vectorWithX:moi.size.width/2.0-60
+                                       Y:moi.size.height/2.0-70];
+[tile setValue:center forKey:@"inputCenter"];
+[tile setValue:@50 forKey:@"inputWidth"];
+
+CGImageRef moi3 = [[CIContext contextWithOptions:nil]
+                    createCGImage:tile.outputImage
+                    fromRect:moi2.extent];
+moi4 = [UIImage imageWithCGImage:moi3];
+CGImageRelease(moi3);</pre>
+        <div class="figure">
+          <a id="FIGfourfold"></a>
+          <div class="figure-contents">
+            <div class="mediaobject">
+              <img src="figs/pios_1511.png" alt="figs/pios_1511.png" />
+            </div>
+          </div>
+          <p class="title">Figure 15.11. A photo of me, tiled</p>
+        </div>
+        <br class="figure-break" />
+        <p>It is also possible to draw a filter’s output directly into an OpenGL context, but OpenGL is outside the scope of this book. Core Image can also perform automatic face detection in an image.</p>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_drawing_a_uiview"></a>Drawing a UIView</h2>
+            </div>
+          </div>
+        </div>
+        <p>The most flexible way to draw a UIView is to draw it yourself.<a id="idm441651080608" class="indexterm"></a>
+<a id="idm441651079344" class="indexterm"></a> As I’ve already said, you don’t actually draw a UIView; you subclass UIView and endow the subclass with the ability to draw itself. When a UIView needs drawing, its <code class="literal">drawRect:</code> method is called. Overriding that method is your chance to draw. At the time that <code class="literal">drawRect:</code> is called, the current graphics context has already been set to the view’s own graphics context. You can use Core Graphics functions or UIKit convenience methods to draw into that context. Thus, everything I did earlier generating a UIImage and displaying it somehow in the interface could have been done instead by putting into my interface a UIView subclass that knows how to display itself as desired.</p>
+        <div class="warning" style="margin-left: 0; margin-right: 10%;">
+          <h3 class="title">Warning</h3>
+          <p>You should <span class="emphasis"><em>never</em></span> call <code class="literal">drawRect:</code> yourself! If a view needs updating and you want its <code class="literal">drawRect:</code> called, send the view the <code class="literal">setNeedsDisplay</code> message. This will cause <code class="literal">drawRect:</code> to be called at the next proper moment. Also, don’t override <code class="literal">drawRect:</code> unless you are assured that this is legal. For example, it is not legal to override <code class="literal">drawRect:</code> in a subclass of UIImageView; you cannot combine your drawing with that of the UIImageView.</p>
+        </div>
+        <p>So, for example, let’s say we have a UIView subclass called MyView. How this class gets instantiated, and how the instance gets into our view hierarchy, isn’t important. One possibility would be to drag a UIView into a view in the nib and set its class to MyView in the identity inspector; another would be to create the MyView instance and put it into the interface in code.</p>
+        <p>Let’s suppose that MyView’s job is to draw the two halves of Mars, one at each end of the view. We can readily adapt the earlier example of doing this. There is no need for an image context; we just draw directly into the current context, which is the view’s own graphics context:</p>
+        <pre class="screen">- (void)drawRect:(CGRect)rect {
+    CGRect b = self.bounds;
+    UIImage* mars = [UIImage imageNamed:@"Mars.png"];
+    CGSize sz = [mars size];
+    CGImageRef marsCG = [mars CGImage];
+    CGSize szCG =
+        CGSizeMake(CGImageGetWidth(marsCG), CGImageGetHeight(marsCG));
+    CGImageRef marsLeft =
+        CGImageCreateWithImageInRect(
+            marsCG, CGRectMake(0,0,szCG.width/2.0,szCG.height));
+    CGImageRef marsRight =
+        CGImageCreateWithImageInRect(
+            marsCG, CGRectMake(szCG.width/2.0,0,szCG.width/2.0,szCG.height));
+    [[UIImage imageWithCGImage:marsLeft
+                         scale:[mars scale]
+                   orientation:UIImageOrientationUp]
+     drawAtPoint:CGPointMake(0,0)];
+    [[UIImage imageWithCGImage:marsRight
+                         scale:[mars scale]
+                   orientation:UIImageOrientationUp]
+     drawAtPoint:CGPointMake(b.size.width-sz.width/2.0,0)];
+    CGImageRelease(marsLeft); CGImageRelease(marsRight);
+}</pre>
+        <p>There is no need to call <code class="literal">super</code>, because the superclass here is UIView, whose <code class="literal">drawRect:</code> does nothing.</p>
+        <p>The need to draw in real time, on demand, surprises some beginners, who worry that drawing may be a time-consuming operation. Where drawing is extensive and can be compartmentalized into sections, you may be able to gain some efficiency by paying attention to the <code class="literal">rect</code> parameter passed into <code class="literal">drawRect:</code>. It designates the region of the view’s bounds that needs refreshing. Normally, this is the view’s entire bounds; but if you called <code class="literal">setNeedsDisplayInRect:</code>, it will be the CGRect that you passed in as argument. You could respond by drawing only what goes into those bounds; but even if you don’t, your drawing will be clipped to those bounds, so, while you may not spend less time drawing, the system will draw more efficiently.</p>
+        <p>In general, however, you should not optimize prematurely. The code for a drawing operation may appear verbose and yet be extremely fast. Moreover, the iOS drawing system is efficient; it doesn’t call <code class="literal">drawRect:</code> unless it has to (or is told to, through a call to <code class="literal">setNeedsDisplay</code>), and once a view has drawn itself, the result is cached so that the cached drawing can be reused instead of repeating the drawing operation from scratch. (Apple refers to this cached drawing as the view’s <span class="emphasis"><em>bitmap backing store</em></span>.) You can readily satisfy yourself of this fact with some caveman debugging, logging in your <code class="literal">drawRect:</code> implementation; you may be amazed to discover that your code is called only once in the entire lifetime of the app! In fact, moving code to <code class="literal">drawRect:</code> is a common way to <span class="emphasis"><em>increase</em></span> efficiency. This is because it is more efficient for the drawing engine to render directly onto the screen than for it to render offscreen and then copy those pixels onto the screen.</p>
+        <p>When creating a custom UIView subclass instance in code, you may be surprised and annoyed to find that the view has a black background. This can be frustrating if what you expected and wanted was a transparent background; this is a source of considerable confusion among beginners. The black background arises when two things are true:<a id="idm441651057312" class="indexterm"></a>
+<a id="idm441651056000" class="indexterm"></a><a id="idm441651055088" class="indexterm"></a>
+<a id="idm441651053776" class="indexterm"></a><a id="idm441651052864" class="indexterm"></a><a id="idm441651051952" class="indexterm"></a>
+<a id="idm441651050656" class="indexterm"></a></p>
+        <div class="itemizedlist">
+          <ul class="itemizedlist" type="disc">
+            <li class="listitem">
+The view’s <code class="literal">backgroundColor</code> is nil.
+</li>
+            <li class="listitem">
+The view’s <code class="literal">opaque</code> is YES.
+</li>
+          </ul>
+        </div>
+        <p>Unfortunately, when creating a UIView in code, both those things <span class="emphasis"><em>are</em></span> true by default! So if you don’t want the black background, you must do something about one or the other of them (or both). For example, you might eliminate the black background by setting the view’s <code class="literal">backgroundColor</code> to <code class="literal">[UIColor clearColor]</code>. But then you should <span class="emphasis"><em>still</em></span> set its <code class="literal">opaque</code> to NO, because the view isn’t opaque, and it’s up to you to tell the drawing system this.</p>
+        <p>With a UIView created in the nib, on the other hand, the black background problem doesn’t arise. This is because such a UIView’s <code class="literal">backgroundColor</code> is not nil. The nib assigns it <span class="emphasis"><em>some</em></span> actual background color, even if that color is <code class="literal">[UIColor clearColor]</code>.</p>
+        <p>Of course, if a view fills its rectangle with opaque drawing or has an opaque background color, you can leave <code class="literal">opaque</code> set to YES and gain some drawing efficiency (see <a class="xref" href="ch14.html">Chapter 14</a>).</p>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_graphics_context_settings"></a>Graphics Context Settings</h2>
+            </div>
+          </div>
+        </div>
+        <p>When you draw in a graphics context, the drawing obeys the context’s current settings. Thus, the procedure is always to configure the context’s settings first, and then draw. For example, to draw a red line followed by a blue line, you would first set the context’s line color to red, and then draw the first line; then you’d set the context’s line color to blue, and then draw the second line. To the eye, it appears that the redness and blueness are properties of the individual lines, but in fact, at the time you draw each line, line color is a feature of the entire graphics context. This is true regardless of whether you use UIKit methods or Core Graphics functions.<a id="idm441651036720" class="indexterm"></a>
+<a id="idm441651035392" class="indexterm"></a>
+<a id="idm441651034400" class="indexterm"></a></p>
+        <p>A graphics context thus has, at every moment, a <span class="emphasis"><em>state</em></span>, which is the sum total of all its settings; the way a piece of drawing looks is the result of what the graphics context’s state was at the moment that piece of drawing was performed. To help you manipulate entire states, the graphics context provides a <span class="emphasis"><em>stack</em></span> for holding states. Every time you call <code class="literal">CGContextSaveGState</code>, the context pushes the entire current state onto the stack; every time you call <code class="literal">CGContextRestoreGState</code>, the context retrieves the state from the top of the stack (the state that was most recently pushed) and sets itself to that state.</p>
+        <p>Thus, a common pattern is: call <code class="literal">CGContextSaveGState</code>; manipulate the context’s settings, thus changing its state; draw; call <code class="literal">CGContextRestoreGState</code> to restore the state and the settings to what they were before you manipulated them. You do not have to do this before <span class="emphasis"><em>every</em></span> manipulation of a context’s settings, however, because settings don’t necessarily conflict with one another or with past settings. You can set the context’s line color to red and then later to blue without any difficulty. But in certain situations you do want your manipulation of settings to be undoable, and I’ll point out several such situations later in this chapter.</p>
+        <p>Many of the settings that constitute a graphics context’s state, and that determine the behavior and appearance of drawing performed at that moment, are similar to those of any drawing application. Here are some of them, along with some of the commands that determine them; I provide Core Graphics functions here, but keep in mind that UIKit commands are actually calling these same functions and manipulating the context’s state in the same ways:</p>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+Line thickness and dash style
+</span>
+            </dt>
+            <dd>
+<code class="literal">CGContextSetLineWidth</code>, <code class="literal">CGContextSetLineDash</code>
+</dd>
+            <dt>
+              <span class="term">
+Line end-cap style and join style
+</span>
+            </dt>
+            <dd>
+<code class="literal">CGContextSetLineCap</code>, <code class="literal">CGContextSetLineJoin</code>, <code class="literal">CGContextSetMiterLimit</code>
+</dd>
+            <dt>
+              <span class="term">
+Line color or pattern
+</span>
+            </dt>
+            <dd>
+<code class="literal">CGContextSetRGBStrokeColor</code>, <code class="literal">CGContextSetGrayStrokeColor</code>, <code class="literal">CGContextSetStrokeColorWithColor</code>, <code class="literal">CGContextSetStrokePattern</code>
+</dd>
+            <dt>
+              <span class="term">
+Fill color or pattern
+</span>
+            </dt>
+            <dd>
+<code class="literal">CGContextSetRGBFillColor</code>, <code class="literal">CGContextSetGrayFillColor</code>, <code class="literal">CGContextSetFillColorWithColor</code>, <code class="literal">CGContextSetFillPattern</code>
+</dd>
+            <dt>
+              <span class="term">
+Shadow
+</span>
+            </dt>
+            <dd>
+<code class="literal">CGContextSetShadow</code>, <code class="literal">CGContextSetShadowWithColor</code>
+</dd>
+            <dt>
+              <span class="term">
+Blend mode
+</span>
+            </dt>
+            <dd>
+<code class="literal">CGContextSetBlendMode</code> (this determines how drawing that you do now will be composited with drawing already present)
+</dd>
+            <dt>
+              <span class="term">
+Overall transparency
+</span>
+            </dt>
+            <dd>
+<code class="literal">CGContextSetAlpha</code> (individual colors also have an alpha component)
+</dd>
+            <dt>
+              <span class="term">
+Text features
+</span>
+            </dt>
+            <dd>
+<code class="literal">CGContextSelectFont</code>, <code class="literal">CGContextSetFont</code>, <code class="literal">CGContextSetFontSize</code>, <code class="literal">CGContextSetTextDrawingMode</code>, <code class="literal">CGContextSetCharacterSpacing</code>
+</dd>
+            <dt>
+              <span class="term">
+Whether anti-aliasing and font smoothing are in effect
+</span>
+            </dt>
+            <dd>
+<code class="literal">CGContextSetShouldAntialias</code>, <code class="literal">CGContextSetShouldSmoothFonts</code>
+</dd>
+          </dl>
+        </div>
+        <p>Additional settings include:</p>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+Clipping area
+</span>
+            </dt>
+            <dd>
+Drawing outside the clipping area is not physically drawn.
+</dd>
+            <dt>
+              <span class="term">
+Transform (or “CTM,” for “current transform matrix”)
+</span>
+            </dt>
+            <dd>
+Changes how points that you specify in subsequent drawing commands are mapped onto the physical space of the canvas.
+</dd>
+          </dl>
+        </div>
+        <p>Many (but not all) of these settings will be illustrated by examples later in this chapter.</p>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_paths_and_drawing"></a>Paths and Drawing</h2>
+            </div>
+          </div>
+        </div>
+        <p>By issuing a series of instructions for moving an imaginary pen, you trace out a <span class="emphasis"><em>path</em></span>. Such a path does <span class="emphasis"><em>not</em></span> constitute drawing! First you provide a path; <span class="emphasis"><em>then</em></span> you draw. Drawing can mean stroking the path or filling the path, or both. Again, this should be a familiar notion from certain drawing applications.<a id="idm441650986704" class="indexterm"></a><a id="idm441650985808" class="indexterm"></a></p>
+        <p>A path is constructed by tracing it out from point to point. Think of the drawing system as holding a pen. Then you must first tell that pen where to position itself, setting the current point; after that, you issue a series of commands telling it how to trace out each subsequent piece of the path. Each additional piece of the path starts at the current point; its end becomes the new current point.</p>
+        <p>Here are some path-drawing commands you’re likely to give:</p>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+Position the current point
+</span>
+            </dt>
+            <dd>
+<code class="literal">CGContextMoveToPoint</code>
+</dd>
+            <dt>
+              <span class="term">
+Trace a line
+</span>
+            </dt>
+            <dd>
+<code class="literal">CGContextAddLineToPoint</code>, <code class="literal">CGContextAddLines</code>
+</dd>
+            <dt>
+              <span class="term">
+Trace a rectangle
+</span>
+            </dt>
+            <dd>
+<code class="literal">CGContextAddRect</code>, <code class="literal">CGContextAddRects</code>
+</dd>
+            <dt>
+              <span class="term">
+Trace an ellipse or circle
+</span>
+            </dt>
+            <dd>
+<code class="literal">CGContextAddEllipseInRect</code>
+</dd>
+            <dt>
+              <span class="term">
+Trace an arc
+</span>
+            </dt>
+            <dd>
+<code class="literal">CGContextAddArcToPoint</code>, <code class="literal">CGContextAddArc</code>
+</dd>
+            <dt>
+              <span class="term">
+Trace a Bezier curve with one or two control points
+</span>
+            </dt>
+            <dd>
+<code class="literal">CGContextAddQuadCurveToPoint</code>, <code class="literal">CGContextAddCurveToPoint</code>
+</dd>
+            <dt>
+              <span class="term">
+Close the current path
+</span>
+            </dt>
+            <dd>
+<code class="literal">CGContextClosePath</code>. This appends a line from the last point of the path to the first point. There’s no need to do this if you’re about to fill the path, since it’s done for you.
+</dd>
+            <dt>
+              <span class="term">
+Stroke or fill the current path
+</span>
+            </dt>
+            <dd>
+              <p class="simpara">
+<code class="literal">CGContextStrokePath</code>, <code class="literal">CGContextFillPath</code>, <code class="literal">CGContextEOFillPath</code>, <code class="literal">CGContextDrawPath</code>. Stroking or filling the current path <span class="emphasis"><em>clears the path</em></span>. Use <code class="literal">CGContextDrawPath</code> if you want both to fill and to stroke the path in a single command, because if you merely stroke it first with <code class="literal">CGContextStrokePath</code>, the path is cleared and you can no longer fill it.
+</p>
+              <p class="simpara">There are also a lot of convenience functions that create a path and stroke or fill it all in a single move: <code class="literal">CGContextStrokeLineSegments</code>, <code class="literal">CGContextStrokeRect</code>, <code class="literal">CGContextStrokeRectWithWidth</code>, <code class="literal">CGContextFillRect</code>, <code class="literal">CGContextFillRects</code>, <code class="literal">CGContextStrokeEllipseInRect</code>, <code class="literal">CGContextFillEllipseInRect</code>.</p>
+            </dd>
+          </dl>
+        </div>
+        <p>A path can be compound, meaning that it consists of multiple independent pieces. For example, a single path might consist of two separate closed shapes: a rectangle and a circle. When you call <code class="literal">CGContextMoveToPoint</code> in the middle of constructing a path (that is, after tracing out a path and without clearing it by filling, stroking, or calling <code class="literal">CGContextBeginPath</code>), you pick up the imaginary pen and move it to a new location without tracing a segment, thus preparing to start an independent piece of the same path.<a id="idm441650950928" class="indexterm"></a><a id="idm441650950032" class="indexterm"></a> If you’re worried, as you begin to trace out a path, that there might be an existing path and that your new path might be seen as a compound part of that existing path, you can call <code class="literal">CGContextBeginPath</code> to specify that this is a different path; many of Apple’s examples do this, but in practice I usually do not find it necessary.</p>
+        <p>There is also a function for erasing an area: <code class="literal">CGContextClearRect</code>. This erases all existing drawing in a rectangle; combined with clipping, though, it can erase an area of any shape. The result can “punch a hole” through all existing drawing.</p>
+        <p>The behavior of <code class="literal">CGContextClearRect</code> depends on whether the context is transparent or opaque. This is particularly obvious and intuitive when drawing into an image context. If the image context is transparent — the second argument to <code class="literal">UIGraphicsBeginImageContextWithOptions</code> is NO — <code class="literal">CGContextClearRect</code> erases to transparent; otherwise it erases to black.<a id="idm441650943328" class="indexterm"></a></p>
+        <p>When drawing directly into a view (as with <code class="literal">drawRect:</code> or <code class="literal">drawLayer:inContext:</code>), if the view’s background color is nil or a color with even a tiny bit of transparency, the result of <code class="literal">CGContextClearRect</code> will appear to be transparent, punching a hole right through the view including its background color; if the background color is completely opaque, the result of <code class="literal">CGContextClearRect</code> will be black. This is because <span class="emphasis"><em>the view’s background color determines whether the view’s graphics context is transparent or opaque</em></span>; thus, this is essentially the same behavior that I described in the preceding paragraph.<a id="idm441650938224" class="indexterm"></a>
+<a id="idm441650936960" class="indexterm"></a><a id="idm441650936048" class="indexterm"></a>
+<a id="idm441650934736" class="indexterm"></a><a id="idm441650933824" class="indexterm"></a><a id="idm441650932912" class="indexterm"></a>
+<a id="idm441650931584" class="indexterm"></a></p>
+        <p><a class="xref" href="ch15.html#FIGclearRect">Figure 15.12</a> illustrates; the blue square on the left has been partly cut away to black, while the blue square on the right has been partly cut away to transparency. Yet these are instances of the same UIView subclass, drawn with exactly the same code! The difference between the views is that the <code class="literal">backgroundColor</code> of the first view is set in the nib to solid red with an alpha of <code class="literal">1</code>, while the <code class="literal">backgroundColor</code> of the second view is set in the nib to solid red with an alpha of <code class="literal">0.99</code>. This difference is utterly imperceptible to the eye (not to mention that the red color never appears, as it is covered with a blue fill), but it completely changes the effect of <code class="literal">CGContextClearRect</code>. The UIView subclass’s <code class="literal">drawRect:</code> looks like this:</p>
+        <pre class="screen">CGContextRef con = UIGraphicsGetCurrentContext();
+CGContextSetFillColorWithColor(con, [UIColor blueColor].CGColor);
+CGContextFillRect(con, rect);
+CGContextClearRect(con, CGRectMake(0,0,30,30));</pre>
+        <div class="figure">
+          <a id="FIGclearRect"></a>
+          <div class="figure-contents">
+            <div class="mediaobject">
+              <img src="figs/pios_1512.png" alt="figs/pios_1512.png" />
+            </div>
+          </div>
+          <p class="title">Figure 15.12. The very strange behavior of CGContextClearRect</p>
+        </div>
+        <br class="figure-break" />
+        <p>To illustrate the typical use of path-drawing commands, I’ll generate the up-pointing arrow shown in <a class="xref" href="ch15.html#FIGuparrow">Figure 15.13</a>. This might not be the best way to create the arrow, and I’m deliberately avoiding use of the convenience functions, but it’s clear and shows a nice basic variety of typical commands:</p>
+        <pre class="screen">// obtain the current graphics context
+CGContextRef con = UIGraphicsGetCurrentContext();
+
+// draw a black (by default) vertical line, the shaft of the arrow
+CGContextMoveToPoint(con, 100, 100);
+CGContextAddLineToPoint(con, 100, 19);
+CGContextSetLineWidth(con, 20);
+CGContextStrokePath(con);
+
+// draw a red triangle, the point of the arrow
+CGContextSetFillColorWithColor(con, [[UIColor redColor] CGColor]);
+CGContextMoveToPoint(con, 80, 25);
+CGContextAddLineToPoint(con, 100, 0);
+CGContextAddLineToPoint(con, 120, 25);
+CGContextFillPath(con);
+
+// snip a triangle out of the shaft by drawing in Clear blend mode
+CGContextMoveToPoint(con, 90, 101);
+CGContextAddLineToPoint(con, 100, 90);
+CGContextAddLineToPoint(con, 110, 101);
+CGContextSetBlendMode(con, kCGBlendModeClear);
+CGContextFillPath(con);</pre>
+        <div class="figure">
+          <a id="FIGuparrow"></a>
+          <div class="figure-contents">
+            <div class="mediaobject">
+              <img src="figs/pios_1513.png" alt="figs/pios_1513.png" />
+            </div>
+          </div>
+          <p class="title">Figure 15.13. A simple path drawing</p>
+        </div>
+        <br class="figure-break" />
+        <p>Properly speaking, we should probably surround our drawing code with calls to <code class="literal">CGContextSaveGState</code> and <code class="literal">CGContextRestoreGState</code>, just in case. It probably wouldn’t make any difference in this particular example, as the context does not persist between calls to <code class="literal">drawRect:</code>, but it can’t hurt.</p>
+        <p>If a path needs to be reused or shared, you can encapsulate it as a CGPath, which is actually a <a id="idm441650911536" class="indexterm"></a>CGPathRef. You can either create a new CGMutablePathRef and construct the path using various CGPath functions that parallel the graphics path-construction functions, or you can copy the graphics context’s current path using <code class="literal">CGContextCopyPath</code>. There are also a number of CGPath functions for creating a path based on simple geometry (<code class="literal">CGPathCreateWithRect</code>, <code class="literal">CGPathCreateWithEllipseInRect</code>) or based on an existing path (<code class="literal">CGPathCreateCopyByStrokingPath</code>, <code class="literal">CGPathCreateCopyByDashingPath</code>, <code class="literal">CGPathCreateCopyByTransformingPath</code>).</p>
+        <p>A UIKit class, <a id="idm441650905744" class="indexterm"></a>UIBezierPath, wraps CGPath. It provides methods for drawing certain path shapes, as well as for stroking, filling, and for accessing certain settings of the current graphics context state. Similarly, UIColor provides methods for setting the current graphics context’s stroke and fill colors. Thus we could rewrite our arrow-drawing routine like this:</p>
+        <pre class="screen">UIBezierPath* p = [UIBezierPath bezierPath];
+[p moveToPoint:CGPointMake(100,100)];
+[p addLineToPoint:CGPointMake(100, 19)];
+[p setLineWidth:20];
+[p stroke];
+
+[[UIColor redColor] set];
+[p removeAllPoints];
+[p moveToPoint:CGPointMake(80,25)];
+[p addLineToPoint:CGPointMake(100, 0)];
+[p addLineToPoint:CGPointMake(120, 25)];
+[p fill];
+
+[p removeAllPoints];
+[p moveToPoint:CGPointMake(90,101)];
+[p addLineToPoint:CGPointMake(100, 90)];
+[p addLineToPoint:CGPointMake(110, 101)];
+[p fillWithBlendMode:kCGBlendModeClear alpha:1.0];</pre>
+        <p>There’s no savings of code in this particular case, but UIBezierPath still might be useful if you need object features, and it does offer one convenience method, <code class="literal">bezierPathWithRoundedRect:cornerRadius:</code>, that is particularly attractive; drawing a rectangle with rounded corners using only Core Graphics functions is rather tedious.<a id="idm441650901408" class="indexterm"></a><a id="idm441650900544" class="indexterm"></a></p>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_clipping"></a>Clipping</h2>
+            </div>
+          </div>
+        </div>
+        <p>Another use of a path is to mask out areas, protecting them from future drawing. This is called <span class="emphasis"><em>clipping</em></span>. By default, a graphics context’s clipping region is the entire graphics context: you can draw anywhere within the context.<a id="idm441650897168" class="indexterm"></a>
+<a id="idm441650895904" class="indexterm"></a></p>
+        <p>The clipping area is a feature of the context as a whole, and any new clipping area is applied by intersecting it with the existing clipping area; so if you apply your own clipping region, the way to remove it from the graphics context later is to plan ahead and wrap things with calls to <code class="literal">CGContextSaveGState</code> and <code class="literal">CGContextRestoreGState</code>.</p>
+        <p>To illustrate, I’ll rewrite the code that generated our original arrow (<a class="xref" href="ch15.html#FIGuparrow">Figure 15.13</a>) to use clipping instead of a blend mode to “punch out” the triangular notch in the tail of the arrow. This is a little tricky, because what we want to clip to is not the region inside the triangle but the region outside it. To express this, we’ll use a compound path consisting of more than one closed area — the triangle, and the drawing area as a whole (which we can obtain with <code class="literal">CGContextGetClipBoundingBox</code>).</p>
+        <p>Both when filling a compound path and when using it to express a clipping region, the system follows one of two rules:</p>
+        <div class="variablelist">
+          <dl>
+            <dt>
+              <span class="term">
+Winding rule
+</span>
+            </dt>
+            <dd>
+The fill or clipping area is denoted by an alternation in the direction (clockwise or counterclockwise) of the path demarcating each region.
+</dd>
+            <dt>
+              <span class="term">
+Even-odd rule (EO)
+</span>
+            </dt>
+            <dd>
+The fill or clipping area is denoted by a simple count of the paths demarcating each region.
+</dd>
+          </dl>
+        </div>
+        <p>Our situation is extremely simple, so it’s easier to use the even-odd rule. So we set up the clipping area using <code class="literal">CGContextEOClip</code> and then draw the arrow:</p>
+        <pre class="screen">// obtain the current graphics context
+CGContextRef con = UIGraphicsGetCurrentContext();
+
+// punch triangular hole in context clipping region
+CGContextMoveToPoint(con, 90, 100);
+CGContextAddLineToPoint(con, 100, 90);
+CGContextAddLineToPoint(con, 110, 100);
+CGContextClosePath(con);
+CGContextAddRect(con, CGContextGetClipBoundingBox(con));
+CGContextEOClip(con);
+
+// draw the vertical line
+CGContextMoveToPoint(con, 100, 100);
+CGContextAddLineToPoint(con, 100, 19);
+CGContextSetLineWidth(con, 20);
+CGContextStrokePath(con);
+
+// draw the red triangle, the point of the arrow
+CGContextSetFillColorWithColor(con, [[UIColor redColor] CGColor]);
+CGContextMoveToPoint(con, 80, 25);
+CGContextAddLineToPoint(con, 100, 0);
+CGContextAddLineToPoint(con, 120, 25);
+CGContextFillPath(con);</pre>
+        <div class="sidebar">
+          <div class="titlepage">
+            <div>
+              <div>
+                <p class="title">How Big Is My Context?</p>
+              </div>
+            </div>
+          </div>
+          <p>At first blush, it appears that there’s no way to learn a graphics context’s size. Typically, this doesn’t matter, because either you created the graphics context or it’s the graphics context of some object whose size you know, such as a UIView. But in fact, because the default clipping region of a graphics context is the entire context, you can use <code class="literal">CGContextGetClipBoundingBox</code> to learn the context’s “bounds” (before changing the clipping region, of course).<a id="idm441650881760" class="indexterm"></a>
+<a id="idm441650879040" class="indexterm"></a></p>
+        </div>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_gradients"></a>Gradients</h2>
+            </div>
+          </div>
+        </div>
+        <p>Gradients can range from the simple to the complex. A simple gradient (which is all I’ll describe here) is determined by a color at one endpoint along with a color at the other endpoint, plus (optionally) colors at intermediate points; the gradient is then painted either linearly between two points in the context or radially between two circles in the context.<a id="idm441650875264" class="indexterm"></a><a id="idm441650874496" class="indexterm"></a></p>
+        <p>You can’t use a gradient as a path’s fill color, but you can restrict a gradient to a path’s shape by clipping, which amounts to the same thing.</p>
+        <p>To illustrate, I’ll redraw our arrow, using a linear gradient as the “shaft” of the arrow (<a class="xref" href="ch15.html#FIGuparrowGradient">Figure 15.14</a>):</p>
+        <pre class="screen">// obtain the current graphics context
+CGContextRef con = UIGraphicsGetCurrentContext();
+CGContextSaveGState(con);
+
+// punch triangular hole in context clipping region
+CGContextMoveToPoint(con, 90, 100);
+CGContextAddLineToPoint(con, 100, 90);
+CGContextAddLineToPoint(con, 110, 100);
+CGContextClosePath(con);
+CGContextAddRect(con, CGContextGetClipBoundingBox(con));
+CGContextEOClip(con);
+
+// draw the vertical line, add its shape to the clipping region
+CGContextMoveToPoint(con, 100, 100);
+CGContextAddLineToPoint(con, 100, 19);
+CGContextSetLineWidth(con, 20);
+CGContextReplacePathWithStrokedPath(con);
+CGContextClip(con);
+
+// draw the gradient
+CGFloat locs[3] = { 0.0, 0.5, 1.0 };
+CGFloat colors[12] = {
+    0.3,0.3,0.3,0.8, // starting color, transparent gray
+    0.0,0.0,0.0,1.0, // intermediate color, black
+    0.3,0.3,0.3,0.8 // ending color, transparent gray
+};
+CGColorSpaceRef sp = CGColorSpaceCreateDeviceGray();
+CGGradientRef grad =
+    CGGradientCreateWithColorComponents (sp, colors, locs, 3);
+CGContextDrawLinearGradient (
+    con, grad, CGPointMake(89,0), CGPointMake(111,0), 0);
+CGColorSpaceRelease(sp);
+CGGradientRelease(grad);
+
+CGContextRestoreGState(con); // done clipping
+
+// draw the red triangle, the point of the arrow
+CGContextSetFillColorWithColor(con, [[UIColor redColor] CGColor]);
+CGContextMoveToPoint(con, 80, 25);
+CGContextAddLineToPoint(con, 100, 0);
+CGContextAddLineToPoint(con, 120, 25);
+CGContextFillPath(con);</pre>
+        <div class="figure">
+          <a id="FIGuparrowGradient"></a>
+          <div class="figure-contents">
+            <div class="mediaobject">
+              <img src="figs/pios_1514.png" alt="figs/pios_1514.png" />
+            </div>
+          </div>
+          <p class="title">Figure 15.14. Drawing with a gradient</p>
+        </div>
+        <br class="figure-break" />
+        <p>The call to <code class="literal">CGContextReplacePathWithStrokedPath</code> pretends to stroke the current path, using the current line width and other line-related context state settings, but then creates a new path representing the outside of that stroked path. Thus, instead of a thick line we have a rectangular region that we can use as the clip region.</p>
+        <p>We then create the gradient and paint it. The procedure is verbose but simple; everything is boilerplate. We describe the gradient as a set of locations on the continuum between one endpoint (<code class="literal">0.0</code>) and the other endpoint (<code class="literal">1.0</code>), along with the colors corresponding to each location; in this case, I want the gradient to be lighter at the edges and darker in the middle, so I use three locations, with the dark one at <code class="literal">0.5</code>. We must also supply a color space in order to create the gradient. Finally, we create the gradient, paint it into place, and release the color space and the gradient.</p>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_colors_and_patterns"></a>Colors and Patterns</h2>
+            </div>
+          </div>
+        </div>
+        <p>A color is a CGColor (actually a CGColorRef). CGColor is not difficult to work with, and is bridged to UIColor through UIColor’s <code class="literal">colorWithCGColor:</code> and <code class="literal">CGColor</code> methods.</p>
+        <p>A pattern, on the other hand, is a CGPattern (actually a CGPatternRef).<a id="idm441650860288" class="indexterm"></a><a id="idm441650859392" class="indexterm"></a> You can create a pattern and stroke or fill with it. The process is rather elaborate. As an extremely simple example, I’ll replace the red triangular arrowhead with a red-and-blue striped triangle (<a class="xref" href="ch15.html#FIGuparrowStripes">Figure 15.15</a>). To do so, remove this line:</p>
+        <div class="figure">
+          <a id="FIGuparrowStripes"></a>
+          <div class="figure-contents">
+            <div class="mediaobject">
+              <img src="figs/pios_1515.png" alt="figs/pios_1515.png" />
+            </div>
+          </div>
+          <p class="title">Figure 15.15. A patterned fill</p>
+        </div>
+        <br class="figure-break" />
+        <pre class="screen">CGContextSetFillColorWithColor(con, [[UIColor redColor] CGColor]);</pre>
+        <p>In its place, put the following:</p>
+        <pre class="screen">CGColorSpaceRef sp2 = CGColorSpaceCreatePattern(nil);
+CGContextSetFillColorSpace (con, sp2);
+CGColorSpaceRelease (sp2);
+CGPatternCallbacks callback = {
+    0, drawStripes, nil
+};
+CGAffineTransform tr = CGAffineTransformIdentity;
+CGPatternRef patt = CGPatternCreate(nil,
+                      CGRectMake(0,0,4,4),
+                      tr,
+                      4, 4,
+                      kCGPatternTilingConstantSpacingMinimalDistortion,
+                      true,
+                      &amp;callback);
+CGFloat alph = 1.0;
+CGContextSetFillPattern(con, patt, &amp;alph);
+CGPatternRelease(patt);</pre>
+        <p>That code is verbose, but it is almost entirely boilerplate. To understand it, it almost helps to read it backward. What we’re leading up to is the call to <code class="literal">CGContextSetFillPattern</code>; instead of setting a fill color, we’re setting a fill pattern, to be used the next time we fill a path (in this case, the triangular arrowhead). The third parameter to <code class="literal">CGContextSetFillPattern</code> is a pointer to a CGFloat, so we have to set up the CGFloat itself beforehand. The second parameter to <code class="literal">CGContextSetFillPattern</code> is a CGPatternRef, so we have to create that CGPatternRef beforehand (and release it afterward).</p>
+        <p>So now let’s talk about the call to <code class="literal">CGPatternCreate</code>. A pattern is a drawing in a rectangular “cell”; we have to state both the size of the cell (the second argument) and the spacing between origin points of cells (the fourth and fifth arguments). In this case, the cell is 4×4, and every cell exactly touches its neighbors both horizontally and vertically. We have to supply a transform to be applied to the cell (the third argument); in this case, we’re not doing anything with this transform, so we supply the identity transform. We supply a tiling rule (the sixth argument). We have to state whether this is a color pattern or a stencil pattern; it’s a color pattern, so the seventh argument is <code class="literal">true</code>. And we have to supply a pointer to a callback function that actually draws the pattern into its cell (the eighth argument).</p>
+        <p>Except that that’s <span class="emphasis"><em>not</em></span> what we have to supply as the eighth argument. To make matters more complicated, what we actually have to supply here is a pointer to a CGPatternCallbacks struct. This struct consists of the number <code class="literal">0</code> and pointers to <span class="emphasis"><em>two</em></span> functions, one called to draw the pattern into its cell, the other called when the pattern is released. We’re not specifying the second function, however; it is for memory management, and we don’t need it in this simple example.</p>
+        <p>We have almost worked our way backward to the start of the code. It turns out that before you can call <code class="literal">CGContextSetFillPattern</code> with a colored pattern, you have to set the context’s fill color space to a pattern color space. If you neglect to do this, you’ll get an error when you call <code class="literal">CGContextSetFillPattern</code>. So we create the color space, set it as the context’s fill color space, and release it.</p>
+        <p>But we are <span class="emphasis"><em>still</em></span> not finished, because I haven’t shown you the function that actually draws the pattern cell! This is the function whose address is taken as <code class="literal">drawStripes</code> in our code. Here it is:</p>
+        <pre class="screen">void drawStripes (void *info, CGContextRef con) {
+    // assume 4 x 4 cell
+    CGContextSetFillColorWithColor(con, [[UIColor redColor] CGColor]);
+    CGContextFillRect(con, CGRectMake(0,0,4,4));
+    CGContextSetFillColorWithColor(con, [[UIColor blueColor] CGColor]);
+    CGContextFillRect(con, CGRectMake(0,0,4,2));
+}</pre>
+        <p>As you can see, the actual pattern-drawing code is very simple. The only tricky issue is that the call to <code class="literal">CGPatternCreate</code> must be in agreement with the pattern-drawing function as to the size of a cell, or the pattern won’t come out the way you expect. We know in this case that the cell is 4×4. So we fill it with red, and then fill its lower half with blue. When these cells are tiled touching each other horizontally and vertically, we get the stripes that you see in <a class="xref" href="ch15.html#FIGuparrowStripes">Figure 15.15</a>.</p>
+        <p>Note, finally, that the code as presented has left the graphics context in an undesirable state, with its fill color space set to a pattern color space. This would cause trouble if we were later to try to set the fill color to a normal color. The solution, as usual, is to wrap the code in calls to <code class="literal">CGContextSaveGState</code> and <code class="literal">CGContextRestoreGState</code>.</p>
+        <p>You may have observed in <a class="xref" href="ch15.html#FIGuparrowStripes">Figure 15.15</a> that the stripes do not fit neatly inside the triangle of the arrow-head: the bottommost stripe is something like half a blue stripe. This is because a pattern is positioned not with respect to the shape you are filling (or stroking), but with respect to the graphics context as a whole. We could shift the pattern position by calling <code class="literal">CGContextSetPatternPhase</code> before drawing.</p>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_graphics_context_transforms"></a>Graphics Context Transforms</h2>
+            </div>
+          </div>
+        </div>
+        <p>Just as a UIView can have a <a id="idm441650830320" class="indexterm"></a>transform, so can a graphics context. However, applying a transform to a graphics context has no effect on the drawing that’s already in it; it affects only the drawing that takes place after it is applied, altering the way the coordinates you provide are mapped onto the graphics context’s area. A graphics context’s transform is called its <a id="idm441650829552" class="indexterm"></a>CTM, for “current transformation matrix.”</p>
+        <p>It is quite usual to take full advantage of a graphics context’s CTM to save yourself from performing even simple calculations. You can multiply the current transform by any <a id="idm441650826704" class="indexterm"></a>CGAffineTransform using <code class="literal">CGContextConcatCTM</code>; there are also convenience functions for applying a translate, scale, or rotate transform to the current transform.</p>
+        <p>The base transform for a graphics context is already set for you when you obtain the context; this is how the system is able to map context drawing coordinates onto screen coordinates. Whatever transforms you apply are applied to the current transform, so the base transform remains in effect and drawing continues to work. You can return to the base transform after applying your own transforms by wrapping your code in calls to <code class="literal">CGContextSaveGState</code> and <code class="literal">CGContextRestoreGState</code>.</p>
+        <p>For example, we have hitherto been drawing our upward-pointing arrow with code that knows how to place that arrow at only one location: the top left of its rectangle is hard-coded at <code class="literal">{80,0}</code>. This is silly. It makes the code hard to understand, as well as inflexible and difficult to reuse. Surely the sensible thing would be to draw the arrow at <code class="literal">{0,0}</code>, by subtracting 80 from all the x-values in our existing code. Now it is easy to draw the arrow at <span class="emphasis"><em>any</em></span> position, simply by applying a translate transform beforehand, mapping <code class="literal">{0,0}</code> to the desired top-left corner of the arrow. So, to draw it at <code class="literal">{80,0}</code>, we would say:</p>
+        <pre class="screen">CGContextTranslateCTM(con, 80, 0);
+// now draw the arrow at (0,0)</pre>
+        <p>A rotate transform is particularly useful, allowing you to draw in a rotated orientation without any nasty trigonometry. However, it’s a bit tricky because the point around which the rotation takes place is the origin. This is rarely what you want, so you have to apply a translate transform first, to map the origin to the point around which you really want to rotate. But then, after rotating, in order to figure out where to draw you will probably have to reverse your translate transform.<a id="idm441650817904" class="indexterm"></a><a id="idm441650816992" class="indexterm"></a></p>
+        <p>To illustrate, here’s code to draw our arrow repeatedly at several angles, pivoting around the end of its tail (<a class="xref" href="ch15.html#FIGuparrowRotate">Figure 15.16</a>). First, we’ll encapsulate the drawing of the arrow as a UIImage. Then we simply draw that UIImage repeatedly:</p>
+        <pre class="screen">UIGraphicsBeginImageContextWithOptions(CGSizeMake(40,100), NO, 0.0);
+CGContextRef con = UIGraphicsGetCurrentContext();
+
+// draw the arrow into the image context
+// draw it at (0,0)! adjust all x-values by subtracting 80
+// ... actual code omitted ...
+
+UIImage* im = UIGraphicsGetImageFromCurrentImageContext();
+UIGraphicsEndImageContext();
+
+con = UIGraphicsGetCurrentContext();
+
+[im drawAtPoint:CGPointMake(0,0)];
+for (int i=0; i&lt;3; i++) {
+    CGContextTranslateCTM(con, 20, 100);
+    CGContextRotateCTM(con, 30 * M_PI/180.0);
+    CGContextTranslateCTM(con, -20, -100);
+    [im drawAtPoint:CGPointMake(0,0)];
+}</pre>
+        <div class="figure">
+          <a id="FIGuparrowRotate"></a>
+          <div class="figure-contents">
+            <div class="mediaobject">
+              <img src="figs/pios_1516.png" alt="figs/pios_1516.png" />
+            </div>
+          </div>
+          <p class="title">Figure 15.16. Drawing rotated with a CTM</p>
+        </div>
+        <br class="figure-break" />
+        <p>A transform is also one more solution for the “flip” problem we encountered earlier with <code class="literal">CGContextDrawImage</code>. Instead of reversing the drawing, we can reverse the context into which we draw it. Essentially, we apply a “flip” transform to the context’s coordinate system. You move the context’s top downward, and then reverse the direction of the y-coordinate by applying a scale transform whose y-multiplier is <code class="literal">-1</code>:<a id="idm441650808064" class="indexterm"></a></p>
+        <pre class="screen">CGContextTranslateCTM(con, 0, theHeight);
+CGContextScaleCTM(con, 1.0, -1.0);</pre>
+        <p>How far down you move the context’s top depends on how you intend to draw the image. So, for example, we could draw the two halves of Mars (from the example earlier in this chapter) without flipping, like this:</p>
+        <pre class="screen">CGContextTranslateCTM(con, 0, sz.height); // sz is [mars size]
+CGContextScaleCTM(con, 1.0, -1.0);
+CGContextDrawImage(con,
+    CGRectMake(0,0,sz.width/2.0,sz.height),
+    marsLeft);
+CGContextDrawImage(con,
+    CGRectMake(b.size.width-sz.width/2.0, 0, sz.width/2.0, sz.height),
+    marsRight);</pre>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_shadows"></a>Shadows</h2>
+            </div>
+          </div>
+        </div>
+        <p>To add a shadow to a drawing, give the context a shadow value before drawing. The shadow position is expressed as a CGSize, where the positive direction for both values indicates down and to the right. The blur value is an open-ended positive number; Apple doesn’t explain how the scale works, but experimentation shows that 12 is nice and blurry, 99 is so blurry as to be shapeless, and higher values become problematic.<a id="idm441650803008" class="indexterm"></a></p>
+        <p><a class="xref" href="ch15.html#FIGuparrowShadow">Figure 15.17</a> shows the result of the same code that generated <a class="xref" href="ch15.html#FIGuparrowRotate">Figure 15.16</a>, except that before we start drawing the arrow repeatedly, we give the context a shadow:</p>
+        <pre class="screen">con = UIGraphicsGetCurrentContext();
+CGContextSetShadow(con, CGSizeMake(7, 7), 12);
+[im drawAtPoint:CGPointMake(0,0)]; // ... and so on</pre>
+        <div class="figure">
+          <a id="FIGuparrowShadow"></a>
+          <div class="figure-contents">
+            <div class="mediaobject">
+              <img src="figs/pios_1517.png" alt="figs/pios_1517.png" />
+            </div>
+          </div>
+          <p class="title">Figure 15.17. Drawing with a shadow</p>
+        </div>
+        <br class="figure-break" />
+        <p>However, there’s a subtle cosmetic problem with this approach. It may not be evident from <a class="xref" href="ch15.html#FIGuparrowShadow">Figure 15.17</a>, but we are adding a shadow each time we draw. Thus the arrows are able to cast shadows on one another. What we want, however, is for all the arrows to cast a single shadow collectively. The way to achieve this is with a <span class="emphasis"><em>transparency layer</em></span>; this is basically a subcontext that accumulates all drawing and then adds the shadow. Our code for drawing the shadowed arrows would thus look like this:<a id="idm441650793984" class="indexterm"></a><a id="idm441650793088" class="indexterm"></a></p>
+        <pre class="screen">CGContextSetShadow(con, CGSizeMake(7, 7), 12);
+CGContextBeginTransparencyLayer(con, nil);
+[im drawAtPoint:CGPointMake(0,0)];
+for (int i=0; i&lt;3; i++) {
+    CGContextTranslateCTM(con, 20, 100);
+    CGContextRotateCTM(con, 30 * M_PI/180.0);
+    CGContextTranslateCTM(con, -20, -100);
+    [im drawAtPoint:CGPointMake(0,0)];
+}
+CGContextEndTransparencyLayer(con);</pre>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_points_and_pixels"></a>Points and Pixels</h2>
+            </div>
+          </div>
+        </div>
+        <p>A point is a dimensionless location described by an x-coordinate and a y-coordinate. When you draw in a graphics context, you specify the points at which to draw, and this works regardless of the device’s resolution, because Core Graphics maps your drawing nicely onto the physical output (using the base CTM, along with any anti-aliasing and smoothing). Therefore, throughout this chapter I’ve concerned myself with graphics context points, disregarding their relationship to screen pixels.<a id="idm441650789264" class="indexterm"></a><a id="idm441650788336" class="indexterm"></a></p>
+        <p>However, pixels do exist. A pixel is a physical, integral, dimensioned unit of display in the real world. Whole-numbered points effectively lie between pixels, and this can matter if you’re fussy, especially on a single-resolution device. For example, if a vertical path with whole-number coordinates is stroked with a line width of 1, half the line falls on each side of the path, and the drawn line on the screen of a single-resolution device will seem to be 2 pixels wide (because the device can’t illuminate half a pixel).</p>
+        <p>You will sometimes encounter advice suggesting that if this effect is objectionable, you should try shifting the line’s position by <code class="literal">0.5</code>, to center it in its pixels. This advice may appear to work, but it makes some simple-minded assumptions. A more sophisticated approach is to obtain the UIView’s <code class="literal">contentScaleFactor</code> property. This value will be either <code class="literal">1.0</code> or <code class="literal">2.0</code>, so you can divide by it to convert from pixels to points. Consider also that the most accurate way to draw a vertical or horizontal line is not to stroke a path but to fill a rectangle. So this UIView subclass code will draw a perfect 1-pixel-wide vertical line on any device:
+<a id="idm441650783600" class="indexterm"></a></p>
+        <pre class="screen">CGContextFillRect(con, CGRectMake(100,0,1.0/self.contentScaleFactor,100));</pre>
+      </div>
+      <div class="section">
+        <div class="titlepage">
+          <div>
+            <div>
+              <h2 class="title" style="clear: both"><a id="_content_mode"></a>Content Mode</h2>
+            </div>
+          </div>
+        </div>
+        <p>A view that draws something within itself, as opposed to merely having a background color and subviews (as in the previous chapter), has <span class="emphasis"><em>content</em></span>. This means that its <code class="literal">contentMode</code> property becomes important whenever the view is resized. As I mentioned earlier, the drawing system will avoid asking a view to redraw itself from scratch if possible; instead, it will use the cached result of the previous drawing operation (the bitmap backing store). So, if the view is resized, the system may simply stretch or shrink or reposition the cached drawing, if your <code class="literal">contentMode</code> setting instructs it to do so.<a id="idm441650777696" class="indexterm"></a>
+<a id="idm441650776400" class="indexterm"></a></p>
+        <p>It’s a little tricky to illustrate this point, because I have to arrange for the view to be resized without also causing it to be redrawn (that is, without triggering a call to <code class="literal">drawRect:</code>). Here’s how I’ll do that. As the app starts up, I’ll create an instance of a UIView subclass that knows how to draw our arrow. Then I’ll use delayed performance to resize the instance after the window has shown and the interface has been initially displayed:</p>
+        <pre class="screen">void (^resize) (void) = ^{
+    CGRect f = mv.bounds; // mv is the MyView instance
+    f.size.height *= 2;
+    mv.bounds = f;
+};
+dispatch_time_t popTime = dispatch_time(DISPATCH_TIME_NOW, NSEC_PER_SEC);
+dispatch_after(popTime, dispatch_get_main_queue(), resize);</pre>
+        <p>We double the height of the view without causing <code class="literal">drawRect:</code> to be called. The result is that the view’s drawing appears at double its correct height. For example, if our view’s <code class="literal">drawRect:</code> code is the same as the code that generated <a class="xref" href="ch15.html#FIGuparrowGradient">Figure 15.14</a>, we get <a class="xref" href="ch15.html#FIGstretched">Figure 15.18</a>.</p>
+        <div class="figure">
+          <a id="FIGstretched"></a>
+          <div class="figure-contents">
+            <div class="mediaobject">
+              <img src="figs/pios_1518.png" alt="figs/pios_1518.png" />
+            </div>
+          </div>
+          <p class="title">Figure 15.18. Automatic stretching of content</p>
+        </div>
+        <br class="figure-break" />
+        <p>This, however, is almost certainly not what we want. Sooner or later <code class="literal">drawRect:</code> will be called, and the drawing will be refreshed in accordance with our code. Our code doesn’t say to draw the arrow at a height that is relative to the height of the view’s bounds; it draws the arrow at a fixed height. Thus, not only has the arrow stretched, but at some future time, it will snap back to its original size.</p>
+        <p>The moral is that our view’s <code class="literal">contentMode</code> property needs to be in agreement with how the view draws itself. For example, our <code class="literal">drawRect:</code> code dictates the size and position of the arrow relative to the view’s bounds origin, its top left. So we could set its <code class="literal">contentMode</code> to <code class="literal">UIViewContentModeTopLeft</code>. Alternatively, and more likely, we could set it to <code class="literal">UIViewContentModeRedraw</code>; this will cause automatic scaling and repositioning of the cached content to be turned off, and instead the view’s <code class="literal">setNeedsDisplay</code> method will be called, ultimately triggering <code class="literal">drawRect:</code> to redraw the content.</p>
+        <p>On the other hand, if a view might be resized only <span class="emphasis"><em>momentarily</em></span> — say, as part of an animation — then stretching behavior might be exactly what you want. Suppose we’re going to animate the view by making it get a little larger for a moment and then returning it to its original size, perhaps as a way of attracting the user’s attention. Then presumably we do want the view’s content to stretch and shrink as the view stretches and shrinks; that’s the whole point of the animation. This is precisely what the default <code class="literal">contentMode</code> value, <code class="literal">UIViewContentModeScaleToFill</code>, does for us. And remember, it does it efficiently; what’s being stretched and shrunk is just a cached image of our view’s content.</p>
+      </div>
+    </div>
+    <div class="navfooter">
+      <table width="100%" summary="Navigation footer">
+        <tr>
+          <td width="40%" align="left"><a accesskey="p" href="ch14.html">Prev</a> </td>
+          <td width="20%" align="center">
+            <a accesskey="u" href="pt04.html">Up</a>
+          </td>
+          <td width="40%" align="right"> <a accesskey="n" href="ch16.html">Next</a></td>
+        </tr>
+        <tr>
+          <td width="40%" align="left" valign="top">Chapter 14. Views </td>
+          <td width="20%" align="center">
+            <a accesskey="h" href="index.html">Table of Contents</a>
+          </td>
+          <td width="40%" align="right" valign="top"> Chapter 16. Layers</td>
+        </tr>
+      </table>
+    </div>
+  </body>
+</html>

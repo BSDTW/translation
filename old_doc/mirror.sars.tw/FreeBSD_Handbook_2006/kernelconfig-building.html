@@ -1,0 +1,385 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>Building and Installing a Custom Kernel</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.79" />
+<link rel="HOME" title="FreeBSD 使用手冊" href="index.html" />
+<link rel="UP" title="Configuring the FreeBSD Kernel" href="kernelconfig.html" />
+<link rel="PREVIOUS" title="Why Build a Custom Kernel?"
+href="kernelconfig-custom-kernel.html" />
+<link rel="NEXT" title="The Configuration File" href="kernelconfig-config.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD 使用手冊</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="kernelconfig-custom-kernel.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 8 Configuring the FreeBSD
+Kernel</td>
+<td width="10%" align="right" valign="bottom"><a href="kernelconfig-config.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="KERNELCONFIG-BUILDING" name="KERNELCONFIG-BUILDING">8.3 Building
+and Installing a Custom Kernel</a></h1>
+
+<p>First, let us take a quick tour of the kernel build directory. All directories
+mentioned will be relative to the main <tt class="FILENAME">/usr/src/sys</tt> directory,
+which is also accessible through the path name <tt class="FILENAME">/sys</tt>. There are
+a number of subdirectories here representing different parts of the kernel, but the most
+important for our purposes are <tt class="FILENAME"><tt
+class="REPLACEABLE"><i>arch</i></tt>/conf</tt>, where you will edit your custom kernel
+configuration, and <tt class="FILENAME">compile</tt>, which is the staging area where
+your kernel will be built. <tt class="REPLACEABLE"><i>arch</i></tt> represents one of <tt
+class="FILENAME">i386</tt>, <tt class="FILENAME">alpha</tt>, <tt
+class="FILENAME">amd64</tt>, <tt class="FILENAME">ia64</tt>, <tt
+class="FILENAME">powerpc</tt>, <tt class="FILENAME">sparc64</tt>, or <tt
+class="FILENAME">pc98</tt> (an alternative development branch of PC hardware, popular in
+Japan). Everything inside a particular architecture's directory deals with that
+architecture only; the rest of the code is machine independent code common to all
+platforms to which FreeBSD could potentially be ported. Notice the logical organization
+of the directory structure, with each supported device, file system, and option in its
+own subdirectory. Versions of FreeBSD prior to 5.X support only the <tt
+class="FILENAME">i386</tt>, <tt class="FILENAME">alpha</tt> and <tt
+class="FILENAME">pc98</tt> architectures.</p>
+
+<p>This chapter assumes that you are using the i386 architecture in the examples. If this
+is not the case for your situation, make appropriate adjustments to the path names for
+your system's architecture.</p>
+
+<div class="NOTE">
+<blockquote class="NOTE">
+<p><b>Note:</b> If there is <span class="emphasis"><i class="EMPHASIS">not</i></span> a
+<tt class="FILENAME">/usr/src/sys</tt> directory on your system, then the kernel source
+has not been installed. The easiest way to do this is by running <tt
+class="COMMAND">sysinstall</tt> (<tt class="COMMAND">/stand/sysinstall</tt> in FreeBSD
+versions older than 5.2) as <tt class="USERNAME">root</tt>, choosing <span
+class="GUIMENUITEM">Configure</span>, then <span
+class="GUIMENUITEM">Distributions</span>, then <span class="GUIMENUITEM">src</span>, then
+<span class="GUIMENUITEM">sys</span>. If you have an aversion to <b
+class="APPLICATION">sysinstall</b> and you have access to an “official” FreeBSD CDROM,
+then you can also install the source from the command line:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">mount /cdrom</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">mkdir -p /usr/src/sys</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">ln -s /usr/src/sys /sys</kbd>
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">cat /cdrom/src/ssys.[a-d]* | tar -xzvf -</kbd>
+</pre>
+</blockquote>
+</div>
+
+<p>Next, move to the <tt class="FILENAME"><tt
+class="REPLACEABLE"><i>arch</i></tt>/conf</tt> directory and copy the <tt
+class="FILENAME">GENERIC</tt> configuration file to the name you want to give your
+kernel. For example:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">cd /usr/src/sys/<tt
+class="REPLACEABLE"><i>i386</i></tt>/conf</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">cp GENERIC MYKERNEL</kbd>
+</pre>
+
+<p>Traditionally, this name is in all capital letters and, if you are maintaining
+multiple FreeBSD machines with different hardware, it is a good idea to name it after
+your machine's hostname. We will call it <tt class="FILENAME">MYKERNEL</tt> for the
+purpose of this example.</p>
+
+<div class="TIP">
+<blockquote class="TIP">
+<p><b>Tip:</b> Storing your kernel configuration file directly under <tt
+class="FILENAME">/usr/src</tt> can be a bad idea. If you are experiencing problems it can
+be tempting to just delete <tt class="FILENAME">/usr/src</tt> and start again. After
+doing this, it usually only takes a few seconds for you to realize that you have deleted
+your custom kernel configuration file. Also, do not edit <tt
+class="FILENAME">GENERIC</tt> directly, as it may get overwritten the next time you <a
+href="cutting-edge.html">update your source tree</a>, and your kernel modifications will
+be lost.</p>
+
+<p>You might want to keep your kernel configuration file elsewhere, and then create a
+symbolic link to the file in the <tt class="FILENAME"><tt
+class="REPLACEABLE"><i>i386</i></tt></tt> directory.</p>
+
+<p>For example:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">cd /usr/src/sys/<tt
+class="REPLACEABLE"><i>i386</i></tt>/conf</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">mkdir /root/kernels</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">cp GENERIC /root/kernels/<tt
+class="REPLACEABLE"><i>MYKERNEL</i></tt></kbd>   
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">ln -s /root/kernels/<tt
+class="REPLACEABLE"><i>MYKERNEL</i></tt></kbd>
+</pre>
+</blockquote>
+</div>
+
+<p>Now, edit <tt class="FILENAME">MYKERNEL</tt> with your favorite text editor. If you
+are just starting out, the only editor available will probably be <b
+class="APPLICATION">vi</b>, which is too complex to explain here, but is covered well in
+many books in the <a href="bibliography.html">bibliography</a>. However, FreeBSD does
+offer an easier editor called <b class="APPLICATION">ee</b> which, if you are a beginner,
+should be your editor of choice. Feel free to change the comment lines at the top to
+reflect your configuration or the changes you have made to differentiate it from <tt
+class="FILENAME">GENERIC</tt>.</p>
+
+<p>If you have built a kernel under <span class="TRADEMARK">SunOS</span>&#8482; or some
+other BSD operating system, much of this file will be very familiar to you. If you are
+coming from some other operating system such as DOS, on the other hand, the <tt
+class="FILENAME">GENERIC</tt> configuration file might seem overwhelming to you, so
+follow the descriptions in the <a href="kernelconfig-config.html">Configuration File</a>
+section slowly and carefully.</p>
+
+<div class="NOTE">
+<blockquote class="NOTE">
+<p><b>Note:</b> If you <a href="cutting-edge.html">sync your source tree</a> with the
+latest sources of the FreeBSD project, be sure to always check the file <tt
+class="FILENAME">/usr/src/UPDATING</tt> before you perform any update steps. This file
+describes any important issues or areas requiring special attention within the updated
+source code. <tt class="FILENAME">/usr/src/UPDATING</tt> always matches your version of
+the FreeBSD source, and is therefore more up to date with new information than this
+handbook.</p>
+</blockquote>
+</div>
+
+<p>You must now compile the source code for the kernel. There are two procedures you can
+use to do this, and the one you will use depends on why you are rebuilding the kernel and
+the version of FreeBSD that you are running.</p>
+
+<ul>
+<li>
+<p>If you have installed <span class="emphasis"><i class="EMPHASIS">only</i></span> the
+kernel source code, use procedure 1.</p>
+</li>
+
+<li>
+<p>If you are running a FreeBSD version prior to 4.0, and you are <span
+class="emphasis"><i class="EMPHASIS">not</i></span> upgrading to FreeBSD&nbsp;4.0 or
+higher using the <tt class="COMMAND">make buildworld</tt> procedure, use procedure 1.</p>
+</li>
+
+<li>
+<p>If you are building a new kernel without updating the source code (perhaps just to add
+a new option, such as <tt class="LITERAL">IPFIREWALL</tt>) you can use either
+procedure.</p>
+</li>
+
+<li>
+<p>If you are rebuilding the kernel as part of a <tt class="COMMAND">make buildworld</tt>
+process, use procedure 2.</p>
+</li>
+</ul>
+
+<p>If you have <span class="emphasis"><i class="EMPHASIS">not</i></span> upgraded your
+source tree in any way since the last time you successfully completed a <tt
+class="MAKETARGET">buildworld</tt>-<tt class="MAKETARGET">installworld</tt> cycle (you
+have not run <b class="APPLICATION">CVSup</b>, <b class="APPLICATION">CTM</b>, or used <b
+class="APPLICATION">anoncvs</b>), then it is safe to use the <tt
+class="COMMAND">config</tt>, <tt class="COMMAND">make depend</tt>, <tt
+class="COMMAND">make</tt>, <tt class="COMMAND">make install</tt> sequence.</p>
+
+<div class="PROCEDURE">
+<p><b>Procedure 1. Building a Kernel the “Traditional” Way</b></p>
+
+<ol type="1">
+<li class="STEP">
+<p>Run <a href="http://www.FreeBSD.org/cgi/man.cgi?query=config&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">config</span>(8)</span></a> to generate
+the kernel source code.</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">/usr/sbin/config <tt
+class="REPLACEABLE"><i>MYKERNEL</i></tt></kbd>
+</pre>
+</li>
+
+<li class="STEP">
+<p>Change into the build directory. <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=config&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">config</span>(8)</span></a> will print
+the name of this directory after being run as above.</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">cd ../compile/<tt
+class="REPLACEABLE"><i>MYKERNEL</i></tt></kbd>
+</pre>
+
+<p>For FreeBSD versions prior to 5.0, use the following form instead:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">cd ../../compile/<tt
+class="REPLACEABLE"><i>MYKERNEL</i></tt></kbd>
+</pre>
+</li>
+
+<li class="STEP">
+<p>Compile the kernel.</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">make depend</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">make</kbd>
+</pre>
+</li>
+
+<li class="STEP">
+<p>Install the new kernel.</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">make install</kbd>
+</pre>
+</li>
+</ol>
+</div>
+
+<div class="PROCEDURE">
+<p><b>Procedure 2. Building a Kernel the “New” Way</b></p>
+
+<ol type="1">
+<li class="STEP">
+<p>Change to the <tt class="FILENAME">/usr/src</tt> directory.</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">cd /usr/src</kbd>
+</pre>
+</li>
+
+<li class="STEP">
+<p>Compile the kernel.</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">make buildkernel KERNCONF=<tt
+class="REPLACEABLE"><i>MYKERNEL</i></tt></kbd>
+</pre>
+</li>
+
+<li class="STEP">
+<p>Install the new kernel.</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">make installkernel KERNCONF=<tt
+class="REPLACEABLE"><i>MYKERNEL</i></tt></kbd>
+</pre>
+</li>
+</ol>
+</div>
+
+<div class="NOTE">
+<blockquote class="NOTE">
+<p><b>Note:</b> This method of kernel building requires full source files. If you only
+installed the kernel source, use the traditional method, as described above.</p>
+</blockquote>
+</div>
+
+<div class="TIP">
+<blockquote class="TIP">
+<p><b>Tip:</b> By default, when you build a custom kernel, <span class="emphasis"><i
+class="EMPHASIS">all</i></span> kernel modules will be rebuilt as well. If you want to
+update a kernel faster or to build only custom modules, you should edit <tt
+class="FILENAME">/etc/make.conf</tt> before starting to build the kernel:</p>
+
+<pre class="PROGRAMLISTING">
+MODULES_OVERRIDE = linux acpi sound/sound sound/driver/ds1 ntfs
+</pre>
+
+<p>This variable sets up a list of modules to build instead of all of them. For other
+variables which you may find useful in the process of building kernel, refer to <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=make.conf&amp;sektion=5"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">make.conf</span>(5)</span></a> manual
+page.</p>
+</blockquote>
+</div>
+
+<div class="NOTE">
+<blockquote class="NOTE">
+<p><b>Note:</b> In FreeBSD&nbsp;4.2 and older you must replace <tt
+class="LITERAL">KERNCONF=</tt> with <tt class="LITERAL">KERNEL=</tt>. 4.2-STABLE that was
+fetched before Feb 2nd, 2001 does not recognize <tt class="LITERAL">KERNCONF=</tt>.</p>
+</blockquote>
+</div>
+
+<p>The new kernel will be copied to the <tt class="FILENAME">/boot/kernel</tt> directory
+as <tt class="FILENAME">/boot/kernel/kernel</tt> and the old kernel will be moved to <tt
+class="FILENAME">/boot/kernel.old/kernel</tt>. Now, shutdown the system and reboot to use
+your new kernel. If something goes wrong, there are some <a
+href="kernelconfig-trouble.html">troubleshooting</a> instructions at the end of this
+chapter that you may find useful. Be sure to read the section which explains how to
+recover in case your new kernel <a
+href="kernelconfig-trouble.html#KERNELCONFIG-NOBOOT">does not boot</a>.</p>
+
+<div class="NOTE">
+<blockquote class="NOTE">
+<p><b>Note:</b> In FreeBSD 4.X and earlier, kernels are installed in <tt
+class="FILENAME">/kernel</tt>, modules in <tt class="FILENAME">/modules</tt>, and old
+kernels are backed up in <tt class="FILENAME">/kernel.old</tt>. Other files relating to
+the boot process, such as the boot <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=loader&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">loader</span>(8)</span></a> and
+configuration are stored in <tt class="FILENAME">/boot</tt>. Third party or custom
+modules can be placed in <tt class="FILENAME">/modules</tt>, although users should be
+aware that keeping modules in sync with the compiled kernel is very important. Modules
+not intended to run with the compiled kernel may result in instability or
+incorrectness.</p>
+</blockquote>
+</div>
+
+<div class="NOTE">
+<blockquote class="NOTE">
+<p><b>Note:</b> If you have added any new devices (such as sound cards) and you are
+running FreeBSD&nbsp;4.X or previous versions, you may have to add some device nodes to
+your <tt class="FILENAME">/dev</tt> directory before you can use them. For more
+information, take a look at <a href="kernelconfig-nodes.html">Making Device Nodes</a>
+section later on in this chapter.</p>
+</blockquote>
+</div>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="kernelconfig-custom-kernel.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="kernelconfig-config.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">Why Build a Custom Kernel?</td>
+<td width="34%" align="center" valign="top"><a href="kernelconfig.html"
+accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">The Configuration File</td>
+</tr>
+</table>
+</div>
+
+<p align="center"><small>This, and other documents, can be downloaded from <a
+href="ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/">ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/</a>.</small></p>
+
+<p align="center"><small>For questions about FreeBSD, read the <a
+href="http://www.FreeBSD.org/docs.html">documentation</a> before contacting &#60;<a
+href="mailto:questions@FreeBSD.org">questions@FreeBSD.org</a>&#62;.<br />
+For questions about this documentation, e-mail &#60;<a
+href="mailto:doc@FreeBSD.org">doc@FreeBSD.org</a>&#62;.</small></p>
+</body>
+</html>
+

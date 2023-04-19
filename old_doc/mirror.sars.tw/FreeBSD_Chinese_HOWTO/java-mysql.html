@@ -1,0 +1,121 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>Java 連結到 MySql 如何使用中文？</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.7" />
+<link rel="HOME" title="FreeBSD Chinese HOWTO" href="index.html" />
+<link rel="UP" title="中文程式設計" href="devel.html" />
+<link rel="PREVIOUS" title="JSP / Servlet 怎樣才能處理中文？" href="jsp-servlet.html" />
+<link rel="NEXT" title="linux-gtk - gtk-1.2.6 的函式庫 rpm，有 Big5/GB 的支援"
+href="linux-gtk.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD Chinese HOWTO</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="jsp-servlet.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 14. 中文程式設計</td>
+<td width="10%" align="right" valign="bottom"><a href="linux-gtk.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="JAVA-MYSQL" name="JAVA-MYSQL">14.3. Java 連結到 MySql
+如何使用中文？</a></h1>
+
+<p>鄭原真 Yuan-Chen Cheng <code class="EMAIL">&#60;<a
+href="mailto:ycheng@sinica.edu.tw">ycheng@sinica.edu.tw</a>&#62;</code> Copyright
+2000.</p>
+
+<p>本文版權 : GPL or BSD style，請保留作者姓名。</p>
+
+<p>本文假設您已經會使用 JSP 或是 Servlet 撰寫英文的 Web-Page。
+如果您還不會，或是根本不知道 JSP 或是 Servlet 是幹什麼的， 那這篇文章不是寫給您看的。</p>
+
+<p>在 Java Servlet Spec v2.0 中，對於多國語言的支援，並不足。 您必須找到 Java Servlet
+Spec v2.2 的實作才行，筆者試過的 是 Apache Jakarta Tomcat 3.1 軟體(註一）。</p>
+
+<p>本文測試平台是 Debian Woody, Sun jdk1.2.2, Tomcat 3.1, mm.mysql-2.0.2</p>
+
+<p>Java 以 jdbc 連結到 databases server，MySql 有 Free 的 jdbc
+driver。以下不擬說明如何使用 jdbc，僅說明如何修改 您的 code 使可以用中文。</p>
+
+<p>mysql 儲存中文資料有兩種方法，第一種是使用 big5 內碼儲存，
+其優點是節省硬碟/記憶體空間，相較於使用 UTF8 之下，若輸出 為 Big5，更省去一次的 Unicode
+(UTF8) 與 Big5 需要經過 Table lookup 的轉換。但使用 Big5 就會有 Big5 先天上的問題。
+典型的問題是 Big5 字串在處理字的邊界的問題。Big5 先天上的 問題是這樣的，就以 "問題"
+這個字串為例，問字的第二個 byte 跟題字的第一個 byte 所形成的字是 "暋" 字。所以當我們在作
+文字搜尋找包含 "暋" 的字串，我們會連包含 "問題" 的字串也 一起找到。但 UTF8
+內碼在設計上就避開了這個問題, 犧牲的是 必須用較多的 byte (octets) 表示。</p>
+
+<p>我只有試過 MySql 內的 Data 用 UTF8，Big5 沒試過。要注意的 是，在 UTF8 中，中文的長度是
+3 個 bytes，由於 MySQL 固定 字串欄位送進過長的資料時，會發生過長處被截斷。但 MySql 不懂
+UTF8，所以可能發生一個 UTF8 字元第二 or 三個 byte 被截掉 問題，在 ASCII
+中問題不大，頂多出現一個 "I Love Yo"，"u" 不 見了。但在 java 把資料讀進來，把 UTF8 轉成
+java 內部的表示 法時，就會發生有些 Byte 無法轉成功的問題，應該會造成
+Exception。(註二)</p>
+
+<p>好，回來，在 jdbc 中，並沒有規範在 Database 中的字元的內碼， 而把這個問題留給各個 jdbc
+driver 處理。mysql jdbc driver 要在 database 中設為 utf8 的設定方式如下：</p>
+
+<pre class="PROGRAMLISTING">
+        Properties pr;
+        Connection db;
+
+        pr = new Properties();
+        pr.put("characterEncoding", "UTF8");
+        pr.put("useUnicode", "TRUE");
+        Class.forName("org.gjt.mm.mysql.Driver").newInstance();
+        db = DriverManager.getConnection("jdbc:mysql:///test", pr);
+</pre>
+
+<p>其餘請自行參考一般 jdbc 程式寫作的資料。當然, compile 此 Servlet 時需要在呼叫 javac
+時加上 "-encoding Big5"。</p>
+
+<p>若要使用 Big5 的話, 上面 "UTF8" 改成 "Big5" 即可。但這樣作會 出現另一個問題,
+就是中文第二個 byte 有 '\' 的問題。這個問題我 不知道有沒有方便的解法，不知道 compile
+mysql 時將 encoding 設 為 big5 可否解決這個問題。(註二)</p>
+
+<p>註二：這個我沒有測試過，誰要測了跟大家說結果的？</p>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="jsp-servlet.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="linux-gtk.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">JSP / Servlet 怎樣才能處理中文？</td>
+<td width="34%" align="center" valign="top"><a href="devel.html"
+accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">linux-gtk - gtk-1.2.6 的函式庫 rpm，有 Big5/GB
+的支援</td>
+</tr>
+</table>
+</div>
+</body>
+</html>
+

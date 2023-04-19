@@ -1,0 +1,123 @@
+<title>Using System Resources</title>
+<h1>AWK 中如何利用系統資源</h1>
+<pre><h4>
+AWK程式中很容易使用系統資源. 這包括於程式中途叫用 Shell 
+命令來處理程式中的部分資料; 或於呼叫 Shell 命令後將其產生
+之結果交回 AWK 程式(不需將結果暫存於某個檔案). 這過程乃是
+藉由 AWK 所提供的 pipe (雖然有些類似 Unix 中的 pipe, 但特性
+有些不同),及一個從 AWK 中呼叫 Unix 的 Shell command 的語法
+來達成.
+[例 :] 承上題, 將資料按員工ID排序後再輸出到檔案 <i>today_rpt2</i>, 
+並於表頭附加執行時的日期.
+  分 析 :
+<ol>
+<li> AWK 提供與 UNIX 用法近似的 pipe, 其記號亦為 ``|''. 其用法及
+涵意如下 :
+AWK程式中可接受下列兩語法 :
+[a. 語法]  AWK output 指令 | ``Shell 接受的命令'' 
+            ( 如 : print $1,$2 | "sort +1n" )  
+     
+[b. 語法] ``Shell 接受的命令'' |AWK input 指令      
+             ( 如 : "ls " | getline)             
+       
+註 : AWK input 指令只有   getline 一個.
+AWK output 指令有   print, printf() 二個.    </li>      
+
+<li>於 a 語法中, AWK所輸出的資料將轉送往 Shell, 由 Shell 的
+命令進行處理.以上例而言, print 所印出的資料將經由 Shell 命令 
+``sort +1n'' 排序後再送往螢幕(stdout).
+ 上列AWK程式中, ``print$1, $2'' 可能反覆執行很多次, 其印出的
+ 結果將先暫存於 pipe 中, 
+ 等到該程式結束時, 才會一併進行 ``sort +1n''. 
+ 須注意二點 : 不論 print \$1, \$2 被執行幾次,
+       ``sort +1n'' 之 執行時間是  ``AWK程式結束時'',
+       ``sort +1n'' 之 執行次數是  ``一次''.</li>
+<li>   於 b 語法中, AWK將先叫用 Shell 命令. 其執行結果將經由 
+pipe 送入AWK程式以上例而言, AWK先令 Shell 執行 ``ls'',
+Shell 執行後將結果存於 pipe, AWK指令 getline再從 pipe 中讀取
+資料.
+使用本語法時應留心 : 以上例而言 
+AWK ``立刻''呼叫 Shell 來執行 ``ls'', 執行次數是一次.
+getline 則可能執行多次(若pipe中存在多行資料).</li>       
+<li>   除上列 a, b 二語法外, AWK程式中它處若出現像 "date", "cls", "ls"...
+        等字串, AWK只當成一般字串處理之.</li>
+</ol>
+
+    建立如下檔案並取名為 <i>reformat2.awk</i>
+
+    #  程式 reformat2.awk  
+    #  這程式用以練習AWK中的pipe
+ BEGIN {
+             "date"  |  getline # Shell 執行 ``date''. getline 取得結果
+             並以$0記錄 
+              print " Today is " , $2, $3 >"today_rpt2"
+              print "=========================" > "today_rpt2"
+              print `` ID  Number Arrival Time'' >``today_rpt2''
+              close( "today_rpt2" )
+      }
+
+   {printf( "%s  \%s\n", $1 ,$2 )"sort +2n >>today_rpt2"}
+執行如下命令:
+ awk -f   <i>reformat2.awk  arr.dat</i>
+
+ 執行後, 系統會自動將 sort 後的資料加( Append; 因為使用 `` >>'')
+ 到檔案 <i>today_rpt2</i>末端.  <i>today_rpt2</i> 內容如下 : 
+         Today is  Sep 17
+     =========================
+      ID Number   Arrival Time
+         1005         8:12
+         1006         7:45
+         1008         8:01
+         1012         7:46
+         1025         7:27
+         1028         7:49
+         1029         7:57
+         1034         7:26
+         1042         7:59
+         1051         7:51
+         1052         8:05
+         1101         7:32
+              
+  說 明 :
+<ol>
+<li> AWK程式由三個主要部分構成 :
+     [ i.]    Pattern { Action} 指令
+     [ ii.]   函數主體.  例如 : function double( x ){ return 2*x } 
+    (參考第11節 Recursive Program )
+     [ iii.]  Comment       ( 以 # 開頭識別之 ) </li>
+
+<li> AWK 的輸入指令 getline, 每次讀取一列資料. 若getline之後
+未接任何變數, 則所讀入之資料將以$0 紀錄, 否則以所指定的變數
+儲存之. 
+[ 以本例而言] : 
+      執行 "date" | getline 後,
+       $0 之值為 "Wed Aug 17 11:04:44 EAT 1994"
+  當 $0 之值被更新時, AWK將自動更新相關的內建變數, 如 : 
+$1,$2,..,NF.故 $2 之值將為"Aug", $3之值將為"17".
+  (有少數舊版之AWK不允許即使用者自行更新(update)$0之值,或者
+update$0時,它不會自動更新 $1,$2,..NF. 這情況下, 可改用gawk,
+或nawk. 否則使用者也可自行以AWK字串函數split()來分隔$0上
+的資料)</li>
+
+<li>  本程式中 printf() 指令會被執行12次( 因為有arr.dat中有12筆
+資料), 但讀者不用 擔心資料被重複sort了12次. 當AWK結束該程式
+時才會 close 這個 pipe , 此時才將這12筆資料一次送往系統, 
+並呼叫 "sort +2n >> today_rpt2" 處理之.</li>
+<li> AWK提供另一個叫用Shell命令的方法, 即使用AWK函數 
+            system("shell命令") 
+
+        例如 :
+              awk '
+              BEGIN{
+                      system("date  > date.dat")
+                      getline  <date.dat
+                      print "Today is ", $2, $3
+                    }
+                '
+
+        但使用 system( "shell 命令" ) 時, AWK無法直接將執行中的
+部分資料輸出給Shell 命令. 且 Shell 命令執行的結果也無法直接
+輸入到AWK中. 
+<ol>
+</h4></pre>
+<hr>

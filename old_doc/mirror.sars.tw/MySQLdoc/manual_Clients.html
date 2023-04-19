@@ -1,0 +1,2761 @@
+<html>
+
+<head>
+<meta HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=big5">
+<style type="text/css">
+<!--
+.p14{font-size:14.8px;font-family:宋體;line-height:14pt;}
+.p5{ border: 1px solid rgb(146,201,201) }
+.a:hover{color:red;}
+a.t1:visited{color:red;}
+-->
+</style>
+<title>MySQL中文參考手冊- 20 MySQL客戶工具和API</title>
+</head>
+
+<body BGCOLOR="#FFFFFF" TEXT="#000000" LINK="#101090" VLINK="#7030B0" class="p4">
+
+<h1><img src="Img/mysql-logo.gif" alt="mysql-logo.gif (3082 bytes)" WIDTH="127" HEIGHT="60"><font color="#FF0000">MySQL中文參考手冊</font></h1>
+
+<p>譯者：晏子 <a href="mailto:(clyan@sohu.com">(clyan@sohu.com</a>）<br>
+GB 碼主頁：<a href="http://linuxdb.yeah.net">http://linuxdb.yeah.net</a></p>
+
+<p>Big5 轉碼者：statue <a href="mailto:statue.bbs@bbs.yzu.edu.tw">
+(statue@bbs.yzu.edu.tw</a>） <br>
+詞彙轉換：彭武興 (<a href="mailto:wilson@mailbox.com.tw">wilson@mailbox.com.tw</a>)<br>
+Big5 碼主頁：
+<a href="http://cnpa.yzu.edu.tw/~cfc/docs/mysqldoc_big5/manual_toc.html">
+http://cnpa.yzu.edu.tw/~cfc/docs/mysqldoc_big5/manual_toc.html</a><br>
+Big5 碼分站：
+<a href="http://php.wilson.gs/mysqldoc/big5/manual_toc.html">
+http://php.wilson.gs/mysqldoc/big5/manual_toc.html
+</p>
+
+<hr>
+
+<p><a HREF="manual_Introduction.html">第一章</a>, <a HREF="manual_Common_problems.html">前一章</a>, 
+<a HREF="manual_Comparisons.html">下一章</a>, <a HREF="manual_Concept_Index.html">最後一章</a>，<a HREF="manual_toc.html">目錄</a>. </p>
+
+<hr>
+
+<h1><a NAME="Clients" HREF="manual_toc.html#Clients">20 MySQL客戶工具和API</a></h1>
+
+<h2><a NAME="C" HREF="manual_toc.html#C">20.1 MySQL C API</a></h2>
+
+<p>C API代碼是隨<strong>MySQL</strong>分發的，它被包含在<code>mysqlclient</code>庫且允許C程式存取一個資料庫。</p>
+
+<p>在 MySQL原始碼版本中的很多客戶是用C編寫的。如果你正在尋找演示怎樣使用C 
+API的例子，看一下這些客戶程式。</p>
+
+<p>大多數其他客戶 API(除了Java的所有)都使用<code>mysqlclient</code>庫與<strong>MySQL</strong>伺服器通信。這意味著，例如，你能利用很多被其他客戶程式使用的同一環境變數，因為他們從庫中引用。對這些變數的一張表，見<a HREF="manual_Tools.html#Programs">12.1 不同的MySQL程式的概述</a>。 </p>
+
+<p>客戶有一個最大通訊緩衝區大小。初始分配的緩衝區大小(16K字節) 
+自動地增加到最大尺寸(內定的最大值是24M)。因為緩衝區大小只是按保証需求而被增加，簡單地增加內定的最大限制並不造成更多被消耗。該尺寸檢查主要是一個對錯誤的查詢和通訊包的檢查。</p>
+
+<p>通訊緩衝區必須足夠大以便一個單獨的SQL語句(對客戶-伺服器傳輸)和一行返回的數據(對伺服器-客戶傳輸)。每個執行緒的通訊緩衝區被動態擴大到最大限制來處理任何查詢或行。例如，如果你包含大到16M數據的<code>BLOB</code>值，你必須有一個至少16M通訊緩衝區限制(在伺服器和客戶兩端)。客戶的內定最大值是24M，但是在伺服器端的內定最大值是1M。你可以在伺服器啟動時通過改變<code>max_allowed_packet</code>參數的值來改變它。見<a HREF="manual_Performance.html#Server_parameters">10.2.3 調節伺服器參數</a>。</p>
+
+<p><strong>MySQL</strong>伺服器在每個查詢後縮小每個通訊緩衝區到<code>net_buffer_length</code>個字節。對客戶，與一個連接相關的緩衝區的大小沒被減少，直到連接被關閉，在此時客戶內存被回收。 
+</p>
+
+<p>如果你用執行緒的編程，你應該用<code>--with-thread-safe-client</code>編譯<strong>MySQL</strong> 
+C API，這將使C API執行緒對每個連接更安全。你可以讓2個執行緒共享相同的連接，只要如果你做下列事情： 
+
+<dl COMPACT="manual_Performance.html#Server_parameters">
+  <dd>兩個執行緒不能同時在同一個連接上發送查詢到<strong>MySQL</strong>。特別是你必須保証在一個<code>mysql_query()</code>和<code>mysql_store_result()</code>之間沒有其他執行緒正在使用同一個連接。 
+  </dd>
+  <dd>許多執行緒能存取用<code>mysql_store_result()</code>檢索出來的不同結果集合。</dd>
+  <dd>如果你使用<code>mysql_use_result</code>，你必須保証沒有其他執行緒在同一個連接上正在詢問任何東西，直到結果集合被關閉。 
+  </dd>
+</dl>
+
+<h2><a NAME="C_API_datatypes" HREF="manual_toc.html#C_API_datatypes">20.2 C API數據類型</a></h2>
+
+<dl COMPACT="C_API_datatypes">
+  <dt><code>MYSQL</code> </dt>
+  <dd><a NAME="IDX716"></a>這個結構表示對一個資料庫連接的句柄，它被用於幾乎所有的<strong>MySQL</strong>函數。 
+    <a NAME="IDX717"></a> </dd>
+  <dt><code>MYSQL_RES</code> </dt>
+  <dd>這個結構代表返回行的一個查詢的(<code>SELECT</code>, <code>SHOW</code>, <code>DESCRIBE</code>, 
+    <code>EXPLAIN</code>)的結果。從查詢返回的資訊在本章下文稱為<em>結果集合</em>。</dd>
+  <dt><code>MYSQL_ROW</code> </dt>
+  <dd>這是一個行數據的類型安全(type-safe)的表示。當前它實現為一個計數字節的字符串數組。（如果字段值可能包含二進制數據，你不能將這些視為空終止串，因為這樣的值可以在內部包含空字節) 
+    行通過調用<code>mysql_fetch_row()</code>獲得。 <a NAME="IDX719"></a> </dd>
+  <dt><code>MYSQL_FIELD</code> </dt>
+  <dd>這個結構包含字段資訊，例如字段名、類型和大小。其成員在下面更詳細地描述。你可以通過重複調用<code>mysql_fetch_field()</code>對每一列獲得<code>MYSQL_FIELD</code>結構。字段值不是這個結構的部分﹔他們被包含在一個<code>MYSQL_ROW</code>結構中。</dd>
+  <dt><code>MYSQL_FIELD_OFFSET</code> </dt>
+  <dd>這是一個相對一個<strong>MySQL</strong>字段表的偏移量的類型安全的表示。（由<code>mysql_field_seek()</code>使用。) 
+    偏移量是在一行以內的字段編號，從0開始。<a NAME="IDX721"></a> <a NAME="IDX722"></a> </dd>
+  <dt><code>my_ulonglong</code> </dt>
+  <dd>該類型用於行編號和<code>mysql_affected_rows()</code>、<code>mysql_num_rows()</code>和<code>mysql_insert_id()</code>。這種類型提供<code>0</code>到<code>1.84e19</code>的一個範圍。在一些系統上，試圖列印類型<code>my_ulonglong</code>的值將不工作。為了列印出這樣的值，將它變換到<code>unsigned 
+    long</code>並且使用一個<code>%lu</code>列印格式。例如：<pre>printf (Number of rows: %lu\n&quot;, (unsigned long) mysql_num_rows(result));
+</pre>
+  </dd>
+</dl>
+
+<p><code>MYSQL_FIELD</code>結構包含列在下面的成員： 
+
+<dl COMPACT="IDX722">
+  <dt><code>char * name</code> </dt>
+  <dd>字段名，是一個空結尾的字符串。</dd>
+  <dt><code>char * table</code> </dt>
+  <dd>包含該字段的表的名字，如果它不是可計算的字段。對可計算的字段，<code>table</code>值是一個空字符串。</dd>
+  <dt><code>char * def</code> </dt>
+  <dd>這字段的內定值，是一個空結尾的字符串。只要你使用，只有你使用<code>mysql_list_fields()</code>才可設置它。</dd>
+  <dt><code>enum enum_field_types type</code> </dt>
+  <dd>字段類型。<code>type</code>值可以是下列之一：<table BORDER="1" WIDTH="100%" NOSAVE="#101090" class="p4">
+      <tr>
+        <td><strong>類型值</strong> </td>
+        <td><strong>類型含義</strong></td>
+      </tr>
+      <tr>
+        <td><code>FIELD_TYPE_TINY</code> </td>
+        <td><code>TINYINT</code>字段</td>
+      </tr>
+      <tr>
+        <td><code>FIELD_TYPE_SHORT</code> </td>
+        <td><code>SMALLINT</code>字段</td>
+      </tr>
+      <tr>
+        <td><code>FIELD_TYPE_LONG</code> </td>
+        <td><code>INTEGER</code>字段</td>
+      </tr>
+      <tr>
+        <td><code>FIELD_TYPE_INT24</code> </td>
+        <td><code>MEDIUMINT</code>字段</td>
+      </tr>
+      <tr>
+        <td><code>FIELD_TYPE_LONGLONG</code> </td>
+        <td><code>BIGINT</code>字段</td>
+      </tr>
+      <tr>
+        <td><code>FIELD_TYPE_DECIMAL</code> </td>
+        <td><code>DECIMAL</code>或<code>NUMERIC</code>字段</td>
+      </tr>
+      <tr>
+        <td><code>FIELD_TYPE_FLOAT</code> </td>
+        <td><code>FLOAT</code>字段</td>
+      </tr>
+      <tr>
+        <td><code>FIELD_TYPE_DOUBLE</code> </td>
+        <td><code>DOUBLE</code>或<code>REAL</code>字段</td>
+      </tr>
+      <tr>
+        <td><code>FIELD_TYPE_TIMESTAMP</code> </td>
+        <td><code>TIMESTAMP</code>字段</td>
+      </tr>
+      <tr>
+        <td><code>FIELD_TYPE_DATE</code> </td>
+        <td><code>DATE</code>字段</td>
+      </tr>
+      <tr>
+        <td><code>FIELD_TYPE_TIME</code> </td>
+        <td><code>TIME</code>字段</td>
+      </tr>
+      <tr>
+        <td><code>FIELD_TYPE_DATETIME</code> </td>
+        <td><code>DATETIME</code>字段</td>
+      </tr>
+      <tr>
+        <td><code>FIELD_TYPE_YEAR</code> </td>
+        <td><code>YEAR</code>字段</td>
+      </tr>
+      <tr>
+        <td><code>FIELD_TYPE_STRING</code> </td>
+        <td>字符串(<code>CHAR</code>或<code>VARCHAR</code>)字段</td>
+      </tr>
+      <tr>
+        <td><code>FIELD_TYPE_BLOB</code> </td>
+        <td><code>BLOB</code>或<code>TEXT</code>字段(使用<code>max_length</code>決定最大長度）</td>
+      </tr>
+      <tr>
+        <td><code>FIELD_TYPE_SET</code> </td>
+        <td><code>SET</code>字段</td>
+      </tr>
+      <tr>
+        <td><code>FIELD_TYPE_ENUM</code> </td>
+        <td><code>ENUM</code>字段</td>
+      </tr>
+      <tr>
+        <td><code>FIELD_TYPE_NULL</code> </td>
+        <td><code>NULL</code>- 類型字段</td>
+      </tr>
+      <tr>
+        <td><code>FIELD_TYPE_CHAR</code> </td>
+        <td>不推薦﹔使用<code>FIELD_TYPE_TINY</code>代替</td>
+      </tr>
+    </table>
+    <p>你可以使用<code>IS_NUM()</code>宏來測試字段是否有一種數字類型。將<code>type</code>值傳給<code>IS_NUM()</code>並且如果字段是數字的，它將計算為TRUE：</p>
+    <pre>if (IS_NUM(field-&gt;type))
+    printf(&quot;Field is numeric\n&quot;);
+</pre>
+  </dd>
+  <dt><code>unsigned int length</code> </dt>
+  <dd>字段寬度，在表定義中指定。</dd>
+  <dt><code>unsigned int max_length</code> </dt>
+  <dd>對結果集合的字段的最大寬度(對實際在結果集合中的行的最長字段值的長度)。如果你使用<code>mysql_store_result()</code>或<code>mysql_list_fields()</code>，這包含字段最大長度。如果你使用<code>mysql_use_result()</code>，這個變數的值是零。</dd>
+  <dt><code>unsigned int flags</code> </dt>
+  <dd>字段的不同位標誌。<code>flags</code>值可以是零個或多個下列位設置：<table BORDER="1" WIDTH="100%" NOSAVE="#101090" class="p4">
+      <tr>
+        <td><strong>標誌值</strong> </td>
+        <td><strong>標誌含義</strong></td>
+      </tr>
+      <tr>
+        <td><code>NOT_NULL_FLAG</code> </td>
+        <td>字段不能是<code>NULL</code> </td>
+      </tr>
+      <tr>
+        <td><code>PRI_KEY_FLAG</code> </td>
+        <td>字段是一個主鍵的一部分</td>
+      </tr>
+      <tr>
+        <td><code>UNIQUE_KEY_FLAG</code> </td>
+        <td>字段是一個唯一鍵的一部分</td>
+      </tr>
+      <tr>
+        <td><code>MULTIPLE_KEY_FLAG</code> </td>
+        <td>字段是一個非唯一鍵的一部分。 </td>
+      </tr>
+      <tr>
+        <td><code>UNSIGNED_FLAG</code> </td>
+        <td>字段有<code>UNSIGNED</code>屬性</td>
+      </tr>
+      <tr>
+        <td><code>ZEROFILL_FLAG</code> </td>
+        <td>字段有<code>ZEROFILL</code>屬性</td>
+      </tr>
+      <tr>
+        <td><code>BINARY_FLAG</code> </td>
+        <td>字段有<code>BINARY</code>屬性</td>
+      </tr>
+      <tr>
+        <td><code>AUTO_INCREMENT_FLAG</code> </td>
+        <td>字段有<code>AUTO_INCREMENT</code>屬性</td>
+      </tr>
+      <tr>
+        <td><code>ENUM_FLAG</code> </td>
+        <td>字段是一個<code>ENUM</code>（不推薦）</td>
+      </tr>
+      <tr>
+        <td><code>BLOB_FLAG</code> </td>
+        <td>字段是一個<code>BLOB</code>或<code>TEXT</code>（不推薦）</td>
+      </tr>
+      <tr>
+        <td><code>TIMESTAMP_FLAG</code> </td>
+        <td>字段是一個<code>TIMESTAMP</code>（不推薦）</td>
+      </tr>
+    </table>
+    <p><code>BLOB_FLAG</code>、<code>ENUM_FLAG</code>和<code>TIMESTAMP_FLAG</code>標誌的使用是不推薦的，因為他們指出字段的類型而非它的類型屬性。對<code>FIELD_TYPE_BLOB</code>、<code>FIELD_TYPE_ENUM</code>或<code>FIELD_TYPE_TIMESTAMP</code>，最好是測試<code>field-&gt;type</code>。下面例子演示了一個典型的<code>flags</code>值用法：</p>
+    <pre>if (field-&gt;flags &amp; NOT_NULL_FLAG)
+    printf(&quot;Field can't be null\n&quot;);
+</pre>
+    <p>你可以使用下列方便的宏決來確定<code>flags</code>值的布爾狀態：</p>
+    <table BORDER="1" WIDTH="100%" NOSAVE="#101090" class="p4">
+      <tr>
+        <td><code>IS_NOT_NULL(flags)</code> </td>
+        <td>真，如果該字段被定義為<code>NOT NULL</code> </td>
+      </tr>
+      <tr>
+        <td><code>IS_PRI_KEY(flags)</code> </td>
+        <td>真，如果該字段是一個主鍵</td>
+      </tr>
+      <tr>
+        <td><code>IS_BLOB(flags)</code> </td>
+        <td>真，如果該字段是一個<code>BLOB</code>或<code>TEXT</code>（不推薦﹔相反測試<code>field-&gt;type</code>）</td>
+      </tr>
+    </table>
+  </dd>
+  <dt><code>unsigned int decimals</code> </dt>
+  <dd>對數字字段的小數位數。</dd>
+</dl>
+
+<h2><a NAME="C_API_function_overview" HREF="manual_toc.html#C_API_function_overview">20.3 
+C API函數概述</a></h2>
+
+<p>在 C API 刈莃用的函數列在下面，並且在下一節更詳細地描述。見<a HREF="manual_Clients.html#C_API_functions">20.4 C API函數描述</a>。</p>
+
+<table BORDER="1" WIDTH="100%" NOSAVE="#101090" class="p4">
+  <tr>
+    <td><strong>mysql_affected_rows()</strong> </td>
+    <td>返回被最新的<code>UPDATE</code>, <code>DELETE</code>或<code>INSERT</code>查詢影響的行數。</td>
+  </tr>
+  <tr>
+    <td><strong>mysql_close()</strong> </td>
+    <td>關閉一個伺服器連接。 </td>
+  </tr>
+  <tr>
+    <td><strong>mysql_connect()</strong> </td>
+    <td>連接一個<strong>MySQL</strong>伺服器。該函數不推薦﹔使用<code>mysql_real_connect()</code>代替。 
+    </td>
+  </tr>
+  <tr>
+    <td><strong>mysql_change_user()</strong> </td>
+    <td>改變在一個打開的連接上的用戶和資料庫。 </td>
+  </tr>
+  <tr>
+    <td><strong>mysql_create_db()</strong> </td>
+    <td>創建一個資料庫。該函數不推薦﹔而使用SQL命令<code>CREATE DATABASE</code>。</td>
+  </tr>
+  <tr>
+    <td><strong>mysql_data_seek()</strong></td>
+    <td>在一個查詢結果集合中搜尋一任意行。</td>
+  </tr>
+  <tr>
+    <td><strong>mysql_debug()</strong></td>
+    <td>用給定字符串做一個<code>DBUG_PUSH</code>。 </td>
+  </tr>
+  <tr>
+    <td><strong>mysql_drop_db()</strong></td>
+    <td>拋棄一個資料庫。該函數不推薦﹔而使用SQL命令<code>DROP DATABASE</code>。 
+    </td>
+  </tr>
+  <tr>
+    <td><strong>mysql_dump_debug_info()</strong></td>
+    <td>讓伺服器將調試資訊寫入日誌文件。 </td>
+  </tr>
+  <tr>
+    <td><strong>mysql_eof()</strong></td>
+    <td>確定是否已經讀到一個結果集合的最後一行。這功能被反對; <code>mysql_errno()</code>或<code>mysql_error()</code>可以相反被使用。 
+    </td>
+  </tr>
+  <tr>
+    <td><strong>mysql_errno()</strong></td>
+    <td>返回最近被調用的<strong>MySQL</strong>函數的出錯編號。 </td>
+  </tr>
+  <tr>
+    <td><strong>mysql_error()</strong></td>
+    <td>返回最近被調用的<strong>MySQL</strong>函數的出錯消息。</td>
+  </tr>
+  <tr>
+    <td><strong>mysql_escape_string()</strong> </td>
+    <td>用在SQL語句中的字符串的轉義特殊字符。 </td>
+  </tr>
+  <tr>
+    <td><strong>mysql_fetch_field()</strong></td>
+    <td>返回下一個表字段的類型。 </td>
+  </tr>
+  <tr>
+    <td><strong>mysql_fetch_field_direct ()</strong></td>
+    <td>返回一個表字段的類型，給出一個字段編號。</td>
+  </tr>
+  <tr>
+    <td><strong>mysql_fetch_fields()</strong></td>
+    <td>返回一個所有字段結構的數組。 </td>
+  </tr>
+  <tr>
+    <td><strong>mysql_fetch_lengths()</strong></td>
+    <td>返回當前行中所有列的長度。 </td>
+  </tr>
+  <tr>
+    <td><strong>mysql_fetch_row()</strong></td>
+    <td>從結果集合中取得下一行。 </td>
+  </tr>
+  <tr>
+    <td><strong>mysql_field_seek()</strong></td>
+    <td>把列光標放在一個指定的列上。 </td>
+  </tr>
+  <tr>
+    <td><strong>mysql_field_count()</strong></td>
+    <td>返回最近查詢的結果列的數量。 </td>
+  </tr>
+  <tr>
+    <td><strong>mysql_field_tell()</strong></td>
+    <td>返回用於最後一個<code>mysql_fetch_field()</code>的字段光標的位置。 </td>
+  </tr>
+  <tr>
+    <td><strong>mysql_free_result()</strong></td>
+    <td>釋放一個結果集合使用的內存。 </td>
+  </tr>
+  <tr>
+    <td><strong>mysql_get_client_info()</strong></td>
+    <td>返回客戶版本資訊。 </td>
+  </tr>
+  <tr>
+    <td><strong>mysql_get_host_info()</strong> </td>
+    <td>返回一個描述連接的字符串。 </td>
+  </tr>
+  <tr>
+    <td><strong>mysql_get_proto_info()</strong></td>
+    <td>返回連接使用的協議版本。 </td>
+  </tr>
+  <tr>
+    <td><strong>mysql_get_server_info()</strong></td>
+    <td>返回伺服器版本號。 </td>
+  </tr>
+  <tr>
+    <td><strong>mysql_info()</strong> </td>
+    <td>返回關於最近執行得查詢的資訊。 </td>
+  </tr>
+  <tr>
+    <td><strong>mysql_init()</strong></td>
+    <td>獲得或初始化一個<code>MYSQL</code>結構。 </td>
+  </tr>
+  <tr>
+    <td><strong>mysql_insert_id()</strong></td>
+    <td>返回有前一個查詢為一個<code>AUTO_INCREMENT</code>列產生的ID。 </td>
+  </tr>
+  <tr>
+    <td><strong>mysql_kill()</strong></td>
+    <td>殺死一個給定的執行緒。 </td>
+  </tr>
+  <tr>
+    <td><strong>mysql_list_dbs()</strong></td>
+    <td>返回匹配一個簡單的正則表達式的資料庫名。 </td>
+  </tr>
+  <tr>
+    <td><strong>mysql_list_fields()</strong></td>
+    <td>返回匹配一個簡單的正則表達式的列名。 </td>
+  </tr>
+  <tr>
+    <td><strong>mysql_list_processes()</strong></td>
+    <td>返回當前伺服器執行緒的一張表。 </td>
+  </tr>
+  <tr>
+    <td><strong>mysql_list_tables()</strong></td>
+    <td>返回匹配一個簡單的正則表達式的表名。 </td>
+  </tr>
+  <tr>
+    <td><strong>mysql_num_fields()</strong></td>
+    <td>返回一個結果集合重的列的數量。 </td>
+  </tr>
+  <tr>
+    <td><strong>mysql_num_rows()</strong></td>
+    <td>返回一個結果集合中的行的數量。 </td>
+  </tr>
+  <tr>
+    <td><strong>mysql_options()</strong></td>
+    <td>設置對<code>mysql_connect()</code>的連接選項。 </td>
+  </tr>
+  <tr>
+    <td><strong>mysql_ping()</strong></td>
+    <td>檢查對伺服器的連接是否正在工作，必要時重新連接。 </td>
+  </tr>
+  <tr>
+    <td><strong>mysql_query()</strong></td>
+    <td>執行指定為一個空結尾的字符串的SQL查詢。 </td>
+  </tr>
+  <tr>
+    <td><strong>mysql_real_connect()</strong></td>
+    <td>連接一個<strong>MySQL</strong>伺服器。 </td>
+  </tr>
+  <tr>
+    <td><strong>mysql_real_query()</strong></td>
+    <td>執行指定為帶計數的字符串的SQL查詢。 </td>
+  </tr>
+  <tr>
+    <td><strong>mysql_reload()</strong></td>
+    <td>告訴伺服器重裝授權表。 </td>
+  </tr>
+  <tr>
+    <td><strong>mysql_row_seek()</strong></td>
+    <td>搜索在結果集合中的行，使用從<code>mysql_row_tell()</code>返回的值。 
+    </td>
+  </tr>
+  <tr>
+    <td><strong>mysql_row_tell()</strong></td>
+    <td>返回行光標位置。 </td>
+  </tr>
+  <tr>
+    <td><strong>mysql_select_db()</strong></td>
+    <td>連接一個資料庫。 </td>
+  </tr>
+  <tr>
+    <td><strong>mysql_shutdown()</strong></td>
+    <td>關掉資料庫伺服器。 </td>
+  </tr>
+  <tr>
+    <td><strong>mysql_stat()</strong></td>
+    <td>返回作為字符串的伺服器狀態。 </td>
+  </tr>
+  <tr>
+    <td><strong>mysql_store_result()</strong></td>
+    <td>檢索一個完整的結果集合給客戶。 </td>
+  </tr>
+  <tr>
+    <td><strong>mysql_thread_id()</strong></td>
+    <td>返回當前執行緒的ID。 </td>
+  </tr>
+  <tr>
+    <td><strong>mysql_use_result()</strong></td>
+    <td>初始化一個一行一行地結果集合的檢索。 </td>
+  </tr>
+</table>
+
+<p>為了連接伺服器，調用<code>mysql_init()</code>以初始化一個連接處理器，然後用該處理器調用<code>mysql_real_connect()</code>(還有其他資訊例如主機名、用戶名和密碼)。當你用該連接完成工作後，調用<code>mysql_close()</code>終止它。</p>
+
+<p>當一個連接活躍時，客戶可以用<code>mysql_query()</code>或<code>mysql_real_query()</code>將SQL查詢發送到伺服器。兩者的差別是<code>mysql_query()</code>期望查詢作為一個空結尾的字符串來指定而<code>mysql_real_query()</code>期望一個計數的字符串。如果字符串包含二進制數據(它可以包括空字節)，你必須使用<code>mysql_real_query()</code>。</p>
+
+<p>對與每個非--<code>SELECT</code>查詢(例如，<code>INSERT</code>、<code>UPDATE</code>、<code>DELETE</code>等)，你可以調用<code>mysql_affected_rows()</code>知道有多少行受到影響(改變)。</p>
+
+<p>對於<code>SELECT</code>查詢，你作為一個結果集合來檢索選擇的行。（注意一些語句是類<code>SELECT</code>的，他們返回行。這些包括<code>SHOW</code>、<code>DESCRIBE</code>和<code>EXPLAIN</code>。他們應該像<code>SELECT</code>語句相同的方式來對待。）</p>
+
+<p>對客戶，有兩種方法處理結果集合。一種方法是通過調用<code>mysql_store_result()</code>立刻檢索全部結果。該函數從伺服器獲得查詢返回的所有行，並將他們儲存在客戶端。第二種方法是對客戶通過調用<code>mysql_use_result()</code>初始化一個一行一行地結果集合的檢索。該函數初始化檢索，但是實際上不從伺服器獲得任何行。</p>
+
+<p>在兩種情況中，你通過<code>mysql_fetch_row()</code>存取行。用<code>mysql_store_result()</code>、<code>mysql_fetch_row()</code>儲存取已經從伺服器被取出的行。用<code>mysql_use_result()</code>、<code>mysql_fetch_row()</code>實際上從伺服器檢索行。調用<code>mysql_fetch_lengths()</code>可獲得關於每行中數據值尺寸的資訊。</p>
+
+<p>在你用完一個結果集合以後，調用<code>mysql_free_result()</code>釋放由它使用的內存。</p>
+
+<p>兩種檢索機制是互補的。客戶程式應該選擇最適合他們的要求的途徑。在實踐中，客戶通常更願意使用<code>mysql_store_result()</code>。</p>
+
+<p><code>mysql_store_result()</code>的一個優點是既然行均被客戶取到，你不僅能順序存取行，你也能<code>mysql_data_seek()</code>或<code>mysql_row_seek()</code>在結果集合中前後移動以改變在結果集合中的當前行位置。你也能通過調用<code>mysql_num_rows()</code>知道有多少行。另一方面，<code>mysql_store_result()</code>的內存需求對較大結果集合可能很高，並且你最可能遇到out-of-memory情況。</p>
+
+<p><code>mysql_use_result()</code>的一個優點是客戶為結果集合需要較少的內存，因為它一次只是維持一行(並且因為有較少的分配開銷，<code>mysql_use_result()</code>能更快些)。缺點是你必須盡快處理每一行以避免困住伺服器，你不必再結果集合中隨意存取行(你只能順序存取行)，而且你不知道在結果集合中有多少行，直到你檢索全部結果。還有，你<em>必須</em>檢索出所有行，即使你在檢索中途確定你已找到了想尋找的資訊。 
+</p>
+
+<p>API使得客戶正確應答查詢成為可能(僅檢索必要的行)，不用知道查詢是否是一個<code>SELECT</code>。你可以通過在<code>mysql_query()</code>（或<code>mysql_real_query()</code>)之後調用<code>mysql_store_result()</code>做到。如果結果集合調用成功並且查詢是一個<code>SELECT</code>，你能讀取行。如果結果集合調用，調用<code>mysql_field_count()</code>確定結果是否是實際期望的。如果<code>mysql_field_count()</code>返回0，查詢沒有返回數據(表明它是一個<code>INSERT</code>、<code>UPDATE</code>、DELETE等)，所以不期望返回行。如果<code>mysql_field_count()</code>是非零，查詢應該有返回行，但是沒有。這表明查詢是一個失敗的<code>SELECT</code>。見<code>mysql_field_count()</code>如何能做到的例子的描述。</p>
+
+<p><code>mysql_store_result()</code>和<code>mysql_use_result()</code>都允許你獲得有關組成結果集合的字段的資訊(字段數量、他們的名字和類型等等)。你可以通過重複調用<code>mysql_fetch_field()</code>在行中順序存取字段資訊，或調用<code>mysql_fetch_field_direct()</code>存取行中的字段編號。當前字段光標位置可以通過調用<code>mysql_field_seek()</code>改變，設置字段光標影響到後續<code>mysql_fetch_field()</code>調用。你也能通過調用<code>mysql_fetch_fields()</code>馬上獲得字段資訊。</p>
+
+<p>對於檢測和報告錯誤，<strong>MySQL</strong>借助於<code>mysql_errno()</code>和<code>mysql_error()</code>函數提供錯誤資訊的存取。他們返回最近調用的可能成功或失敗的函數的錯誤代碼或錯誤消息，允許你確定何時發生一個錯誤和什麼錯誤。 
+</p>
+
+<h2><a NAME="C_API_functions" HREF="manual_toc.html#C_API_functions">20.4 C API函數描述</a></h2>
+
+<p>在下面的描述中，一個<code>NULL</code>參數或返回值含義是在C編程語言環境的<code>NULL</code>，不是一個<strong>MySQL</strong> 
+<code>NULL</code>值。</p>
+
+<p>返回一個值的函數一般返回一個指針或一個整數。除非另外指定，返回一個指針的函數返回一個非 
+<code>NULL</code>值表明成功，或一個<code>NULL</code>值表明一個錯誤，而返回一個整數的函數返回零表示成功，或非零表示一個錯誤。注意，“非零”只有這個含義。除非函數描述另外說明，不要測試一個零以外的其他值：</p>
+
+<pre>if (result)                   /* 正確 */
+    ... error ...
+
+if (result &lt; 0)               /* 不正確 */
+    ... error ...
+
+if (result == -1)             /* 不正確 */
+    ... error ...
+
+</pre>
+
+<p>當函數返回一個錯誤時，函數描述的<strong>錯誤</strong>小節列出錯誤可能的類型。你可以調用<code>mysql_errno()</code>找出發生了這些重的哪一個。錯誤的字符串表示可以調用<code>mysql_error()</code>獲得。</p>
+
+<h3><a NAME="mysql_affected_rows" HREF="manual_toc.html#mysql_affected_rows">20.4.1<code> 
+mysql_affected_rows()</code></a></h3>
+
+<p><code>my_ulonglong mysql_affected_rows(MYSQL *mysql)</code> </p>
+
+<h4>20.4.1.1 說明</h4>
+
+<p>返回受到最後一個<code>UPDATE</code>、<code>DELETE</code>或<code>INSERT</code>查詢影響(變化)的行數。可以在針對<code>UPDATE</code>、<code>DELETE</code>或<code>INSERT</code>語句的<code>mysql_query()</code>之後立即調用。對於<code>SELECT</code>語句，<code>mysql_affected_rows()</code>的功能於<code>mysql_num_rows()</code>相同。</p>
+
+<p><code>mysql_affected_rows()</code>目前以一個宏(macro)來實現。</p>
+
+<h4>20.4.1.2 返回值</h4>
+
+<p>大於零的一個整數表示受到影響或檢索出來的行數。零表示沒有匹配查序中<code>WHERE</code>子句的記錄或目前還沒有查詢被執行。-1表示查詢返回一個錯誤，或對於一個<code>SELECT</code>查詢，<code>mysql_affected_rows()</code>在調用<code>mysql_store_result()</code>之前被調用。</p>
+
+<h4>20.4.1.3 錯誤</h4>
+
+<p>沒有。 </p>
+
+<h4>20.4.1.4 範例</h4>
+
+<pre>mysql_query(&amp;mysql,&quot;UPDATE products SET cost=cost*1.25 WHERE group=10&quot;);
+printf(&quot;%d products updated&quot;,mysql_affected_rows(&amp;mysql));
+<a NAME="IDX724"></a> </pre>
+
+<h3><a NAME="mysql_close" HREF="manual_toc.html#mysql_close">20.4.2<code> mysql_close()</code></a></h3>
+
+<p><code>void mysql_close(MYSQL *mysql)</code> </p>
+
+<h4>20.4.2.1 說明</h4>
+
+<p>關閉一個以前打開了的連接。如果句柄由<code>mysql_init()</code>或<code>mysql_connect()</code>自動分配，<code>mysql_close()</code>也釋放被<code>mysql</code>指向的連接句柄。</p>
+
+<h4>20.4.2.2 返回值</h4>
+
+<p>沒有。 </p>
+
+<h4>20.4.2.3 錯誤</h4>
+
+<dl COMPACT="mysql_close">
+  <dt><code>CR_COMMANDS_OUT_OF_SYNC</code> </dt>
+  <dd>命令以一個不正確的次序被執行。 </dd>
+  <dt><code>CR_SERVER_GONE_ERROR</code> </dt>
+  <dd><strong>MySQL</strong>伺服器關閉了。</dd>
+  <dt><code>CR_SERVER_LOST</code> </dt>
+  <dd>對服務者的連接在查詢期間失去。</dd>
+  <dt><code>CR_UNKNOWN_ERROR</code> </dt>
+  <dd>發生一個未知的錯誤。 </dd>
+</dl>
+
+<p><a NAME="IDX725"></a> </p>
+
+<h3><a NAME="mysql_connect" HREF="manual_toc.html#mysql_connect">20.4.3<code> 
+mysql_connect()</code></a></h3>
+
+<p><code>MYSQL *mysql_connect(MYSQL *mysql, const char *host, const char *user, const char 
+*passwd)</code> </p>
+
+<h4>20.4.3.1 說明</h4>
+
+<p>該函數不推薦使用，而更好使用<code>mysql_real_connect()</code>。 </p>
+
+<p><code>mysql_connect()</code>試圖建立一個對運行在<code>host</code>的一個<strong>MySQL</strong>資料庫引擎的連接。<code>mysql_connect()</code>必須在你能執行其他API函數之前成功地完成，除了<code>mysql_get_client_info()</code>。</p>
+
+<p>參數的含義與<code>mysql_connect()</code>相應的參數相同，不同的是連接參數可以是<code>NULL</code>。在這種情況下，C 
+API 自動為連接結構分配內存，並且當你調用<code>mysql_close()</code>，釋放它。這種方法的缺點是如果連接失敗，你不能檢索出一條錯誤消息。（為了從<code>mysql_errno()</code>或<code>mysql_error()</code>得到錯誤資訊，你必須提供一個有效的<code>MYSQL</code>指針。）</p>
+
+<h4>20.4.3.2 返回值</h4>
+
+<p>同<code>mysql_real_connect()</code>。 </p>
+
+<h4>20.4.3.3 錯誤</h4>
+
+<p>同<code>mysql_real_connect()</code>。</p>
+
+<p><a NAME="IDX726"></a> </p>
+
+<h3><a NAME="mysql_change_user" HREF="manual_toc.html#mysql_change_user">20.4.4<code>mysql_change_user()</code></a></h3>
+
+<p><code>my_bool mysql_change_user(MYSQL *mysql, const char *user, const char *password, 
+const char *db)</code> </p>
+
+<h4>20.4.4.1 說明</h4>
+
+<p>改變用戶並且使得由<code>db</code>指定資料庫成為由<code>mysql</code>指定的連接上的內定(當前)資料庫。在隨後的查詢中，這個資料庫是不包括一個明確的資料庫指定符的表引用的內定值。</p>
+
+<p>這個函數功能在<strong>MySQL</strong> 3.23.3中引入。</p>
+
+<p>除非連接的用戶能被認証或如果他沒有權限使用資料庫，<code>mysql_change_user()</code>失敗。在這種情況下，用戶和資料庫都沒被改變。</p>
+
+<p>如果你不想有一個內定資料庫，<code>db</code>參數可以被設置為<code>NULL</code>。 
+</p>
+
+<h4>20.4.4.2 返回值</h4>
+
+<p>成功，零。如果發生一個錯誤發生，非零。 </p>
+
+<h4>20.4.4.3 錯誤</h4>
+
+<p>與你能從<code>mysql_real_connect()</code>得到的相同。 
+
+<dl COMPACT="mysql_change_user">
+  <dt><code>CR_COMMANDS_OUT_OF_SYNC</code> </dt>
+  <dd>命令以一個不正確的次序被執行。 </dd>
+  <dt><code>CR_SERVER_GONE_ERROR</code> </dt>
+  <dd><strong>MySQL</strong>服務者關閉了。 </dd>
+  <dt><code>CR_SERVER_LOST</code> </dt>
+  <dd>對服務者的連接在查詢期間失去。 </dd>
+  <dt><code>CR_UNKNOWN_ERROR</code> </dt>
+  <dd>發生一個未知的錯誤。 </dd>
+  <dt><code>ER_UNKNOWN_COM_ERROR</code> </dt>
+  <dd><strong>MySQL</strong>伺服器未實現這個命令(可能是一個老的伺服器）</dd>
+  <dt><code>ER_ACCESS_DENIED_ERROR</code> </dt>
+  <dd>用戶或密碼錯誤。 </dd>
+  <dt><code>ER_BAD_DB_ERROR</code> </dt>
+  <dd>資料庫不存在。 </dd>
+  <dt><code>ER_DBACCESS_DENIED_ERROR</code> </dt>
+  <dd>用戶沒有資料庫的存取權利。 </dd>
+  <dt><code>ER_WRONG_DB_NAME</code> </dt>
+  <dd>資料庫名字太長。 </dd>
+</dl>
+
+<h4>20.4.4.4 範例</h4>
+
+<pre>if (mysql_change_user(&amp;mysql, &quot;user&quot;, &quot;password&quot;, &quot;new_database&quot;))
+{
+   fprintf(stderr, &quot;Failed to change user.  Error: %s\n&quot;,
+           mysql_error(&amp;mysql));
+}
+<a NAME="IDX727"></a> </pre>
+
+<h3><a NAME="mysql_create_db" HREF="manual_toc.html#mysql_create_db">20.4.5<code> 
+mysql_create_db()</code></a></h3>
+
+<p><code>int mysql_create_db(MYSQL *mysql, const char *db)</code> </p>
+
+<h4>20.4.5.1 說明</h4>
+
+<p>創建由<code>db</code>參數命名的資料庫。 </p>
+
+<p>這個函數不推薦，而最好使用<code>mysql_query()</code>發出一條SQL<code> 
+CREATE DATABASE</code>語句。 </p>
+
+<h4>20.4.5.2 返回值</h4>
+
+<p>如果資料庫成功地被創造，零。如果發生一個錯誤，非零。 </p>
+
+<h4>20.4.5.3 錯誤</h4>
+
+<dl COMPACT="mysql_create_db">
+  <dt><code>CR_COMMANDS_OUT_OF_SYNC</code> </dt>
+  <dd>命令以一個不正確的次序被執行。 </dd>
+  <dt><code>CR_SERVER_GONE_ERROR</code> </dt>
+  <dd><strong>MySQL</strong>伺服器關閉了。</dd>
+  <dt><code>CR_SERVER_LOST</code> </dt>
+  <dd>對服務者的連接在查詢期間失去。</dd>
+  <dt><code>CR_UNKNOWN_ERROR</code> </dt>
+  <dd>發生一個未知的錯誤。&nbsp; </dd>
+</dl>
+
+<h4>20.4.5.4 範例</h4>
+
+<pre>if(mysql_create_db(&amp;mysql, &quot;my_database&quot;))
+{
+   fprintf(stderr, &quot;Failed to create new database.  Error: %s\n&quot;,
+           mysql_error(&amp;mysql));
+}
+<a NAME="IDX728"></a> </pre>
+
+<h3><a NAME="mysql_data_seek" HREF="manual_toc.html#mysql_data_seek">20.4.6<code> 
+mysql_data_seek()</code></a></h3>
+
+<p><code>void mysql_data_seek(MYSQL_RES *result, unsigned long long offset)</code> </p>
+
+<h4>20.4.6.1 說明</h4>
+
+<p>在一個查詢結果集合中定位任意行。這要求結果集合結構包含查詢的全部結果，這樣<code>mysql_data_seek()</code>可以僅需與<code>mysql_store_result()</code>一起使用，不是與<code>mysql_use_result()</code>。</p>
+
+<p>偏移量應該是從0到<code>mysql_num_rows(result)-1</code>範圍的一個值。</p>
+
+<h4>20.4.6.2 返回值</h4>
+
+<p>無。 </p>
+
+<h4>20.4.6.3 錯誤</h4>
+
+<p>無。 </p>
+
+<p>　</p>
+
+<h3><a NAME="mysql_debug" HREF="manual_toc.html#mysql_debug">20.4.7<code> mysql_debug()</code></a></h3>
+
+<p><code>void mysql_debug(char *debug)</code> </p>
+
+<h4>20.4.7.1 說明</h4>
+
+<p>用一個給定字符串做一個<code>DBUG_PUSH</code>。<code>mysql_debug()</code>使用Fred 
+Fish 調試庫。為了使用這個函數，你必須編譯客戶庫以支援調試。見<a HREF="manual_Porting.html#Debugging_server">G.1 調試一個MySQL伺服器</a>和節<a HREF="manual_Porting.html#Debugging_client">G.2 調試一個MySQL客戶</a>。 </p>
+
+<h4>20.4.7.2 返回值</h4>
+
+<p>無。 </p>
+
+<h4>20.4.7.3 錯誤</h4>
+
+<p>無。 </p>
+
+<h4>20.4.7.4 範例</h4>
+
+<p>下面所示的調用使得客戶庫在客戶機器上<tt>的“/tmp/client.trace”</tt>中產生一個跟蹤文件： 
+</p>
+
+<pre>mysql_debug(&quot;d:t:O,/tmp/client.trace&quot;);
+<a NAME="IDX730"></a> </pre>
+
+<h3><a NAME="mysql_drop_db" HREF="manual_toc.html#mysql_drop_db">20.4.8<code> 
+mysql_drop_db()</code></a></h3>
+
+<p><code>int mysql_drop_db(MYSQL *mysql, const char *db)</code> </p>
+
+<h4>20.4.8.1 說明</h4>
+
+<p>拋棄由<code>db</code>參數命名的資料庫。 </p>
+
+<p>這個函數不推薦，而最好使用<code>mysql_query()</code>發出一條SQL<code> 
+DROP DATABASE</code>語句。 </p>
+
+<h4>20.4.8.2 返回值</h4>
+
+<p>如果資料庫成功地被破拋棄，零。如果發生一個錯誤，非零。 </p>
+
+<h4>20.4.8.3 錯誤</h4>
+
+<dl COMPACT="mysql_drop_db">
+  <dt><code>CR_COMMANDS_OUT_OF_SYNC</code> </dt>
+  <dd>命令以一個不正確的次序被執行。 </dd>
+  <dt><code>CR_SERVER_GONE_ERROR</code> </dt>
+  <dd><strong>MySQL</strong>伺服器關閉了。</dd>
+  <dt><code>CR_SERVER_LOST</code> </dt>
+  <dd>對服務者的連接在查詢期間失去。</dd>
+  <dt><code>CR_UNKNOWN_ERROR</code> </dt>
+  <dd>發生一個未知的錯誤。&nbsp; </dd>
+</dl>
+
+<h4>20.4.8.4 範例</h4>
+
+<pre>if(mysql_drop_db(&amp;mysql, &quot;my_database&quot;))
+  fprintf(stderr, &quot;Failed to drop the database: Error: %s\n&quot;,
+          mysql_error(&amp;mysql));
+<a NAME="IDX731"></a> </pre>
+
+<h3><a NAME="mysql_dump_debug_info" HREF="manual_toc.html#mysql_dump_debug_info">20.4.9<code> 
+mysql_dump_debug_info()</code></a></h3>
+
+<p><code>int mysql_dump_debug_info(MYSQL *mysql)</code> </p>
+
+<h4>20.4.9.1 說明</h4>
+
+<p>指示服務者將一些調試資訊寫入日誌文件。連接的用戶對此必須有<strong>precess</strong>權限才能工作。 
+</p>
+
+<h4>20.4.9.2 返回值</h4>
+
+<p>如果命令成功，零。如果發生一個錯誤，非零。 </p>
+
+<h4>20.4.9.3 錯誤</h4>
+
+<dl COMPACT="mysql_dump_debug_info">
+  <dt><code>CR_COMMANDS_OUT_OF_SYNC</code> </dt>
+  <dd>命令以一個不正確的次序被執行。 </dd>
+  <dt><code>CR_SERVER_GONE_ERROR</code> </dt>
+  <dd><strong>MySQL</strong>服務者關閉了。 </dd>
+  <dt><code>CR_SERVER_LOST</code> </dt>
+  <dd>對伺服器的連接在查詢期間失去。 </dd>
+  <dt><code>CR_UNKNOWN_ERROR</code> </dt>
+  <dd>發生一個未知的錯誤。 </dd>
+</dl>
+
+<p>　</p>
+
+<h3><a NAME="mysql_eof" HREF="manual_toc.html#mysql_eof">20.4.10<code> mysql_eof()</code></a></h3>
+
+<p><code>my_bool mysql_eof(MYSQL_RES *result)</code> </p>
+
+<h4>20.4.10.1 說明</h4>
+
+<p>這個函數不推薦，而使用<code>mysql_errno()</code>或<code>mysql_error()</code>。 
+</p>
+
+<p><code>mysql_eof()</code>確定是否已經讀到了一個結果集合的最後一行。</p>
+
+<p>如果你從成功的<code>mysql_store_result()</code>調用獲得一個結果集合，客戶程式用一個操作收到全部集合。在這種情況下，從<code>mysql_fetch_row()</code>返回一個<code>NULL</code>總是意味著已經到達了結果集合的尾部，沒必要調用<code>mysql_eof()</code>。 
+</p>
+
+<p>在另一方面，如果你使用<code>mysql_use_result()</code>初始化一個結果集合的檢索，該集合的行隨著你重複調用<code>mysql_fetch_row()</code>一個一個地從伺服器獲得。因為在這個程序中在連接上可能發生一個錯誤，從<code>mysql_fetch_row()</code>返回一個<code>NULL</code>值並不意味著集合正常到達了尾部。在這種情況下，你能使用<code>mysql_eof()</code>確定發生了什麼。如果到達結果集合的尾部，<code>mysql_eof()</code>返回非零值，並且如果發生一個錯誤，返回零。</p>
+
+<p>在時間上，<code>mysql_eof()</code>先於標準<strong>MySQL</strong>錯誤函數<code>mysql_errno()</code>和<code>mysql_error()</code>。因為這些錯誤函數提供相同的資訊，他們的使用更好<code>mysql_eof()</code>，它現在不建議使用。（事實上，他們提供更多的資訊，因為<code>mysql_eof()</code>值返回一個布爾值，而錯誤函數指出當發生錯誤時的出錯原因。）</p>
+
+<h4>20.4.10.2 返回值</h4>
+
+<p>如果發生一個錯誤，零。如果到達結果集合的結束，非零。 </p>
+
+<h4>20.4.10.3 錯誤</h4>
+
+<p>無。 </p>
+
+<h4>20.4.10.4 範例</h4>
+
+<p>下列例子顯示你必須如何使用<code>mysql_eof()</code>：</p>
+
+<pre>mysql_query(&amp;mysql,&quot;SELECT * FROM some_table&quot;);
+result = mysql_use_result(&amp;mysql);
+while((row = mysql_fetch_row(result)))
+{
+    // do something with data
+}
+if(!mysql_eof(result))  // mysql_fetch_row() failed due to an error
+{
+    fprintf(stderr, &quot;Error: %s\n&quot;, mysql_error(&amp;mysql));
+}
+</pre>
+
+<p>然而，你可以用標準<strong>MySQL</strong>錯誤函數完成同樣的效果： </p>
+
+<pre>mysql_query(&amp;mysql,&quot;SELECT * FROM some_table&quot;);
+result = mysql_use_result(&amp;mysql);
+while((row = mysql_fetch_row(result)))
+{
+    // do something with data
+}
+if(mysql_errno(&amp;mysql))  // mysql_fetch_row() failed due to an error
+{
+    fprintf(stderr, &quot;Error: %s\n&quot;, mysql_error(&amp;mysql));
+}
+<a NAME="IDX733"></a> </pre>
+
+<h3><a NAME="mysql_errno" HREF="manual_toc.html#mysql_errno">20.4.11<code> mysql_errno()</code></a></h3>
+
+<p><code>unsigned int mysql_errno(MYSQL *mysql)</code> </p>
+
+<h4>20.4.11.1 說明</h4>
+
+<p>對於由<code>mysql</code>指定的連接，<code>mysql_errno()</code>返回最近調用的可能成功或失敗的API函數的錯誤代碼。返回值零意味著沒有錯誤發生。客戶錯誤消息編號列出在<strong>MySQL</strong><tt>“errmsg.h”</tt>頭文件中。伺服器錯誤消息編號列出在<tt>“mysqld_error.h”</tt>中。 
+</p>
+
+<h4>20.4.11.2 返回值：</h4>
+
+<p>一個錯誤代碼值。如果沒有錯誤發生，零。 </p>
+
+<h4>20.4.11.3 錯誤</h4>
+
+<p>無。 </p>
+
+<p><a NAME="IDX734"></a></p>
+
+<h3><a NAME="mysql_error" HREF="manual_toc.html#mysql_error">20.4.12<code> mysql_error()</code></a></h3>
+
+<p><code>char *mysql_error(MYSQL *mysql)</code> </p>
+
+<h4>20.4.12.1 說明</h4>
+
+<p>對於由<code>mysql</code>指定的連接，<code>mysql_errno()</code>返回最近調用的可能成功或失敗的API函數的錯誤代碼。如果沒有錯誤發生，返回空字符串(<code>&quot;&quot;</code>)。這意味著下列兩個測試是等價的：</p>
+
+<pre>if(mysql_errno(&amp;mysql))
+{
+    // an error occurred
+}
+
+if(mysql_error(&amp;mysql)[0] != '\0')
+{
+    // an error occurred
+}
+</pre>
+
+<p>客戶錯誤消息的語言可通過重新編譯<strong>MySQL</strong>客戶庫來改變。目前，你能在幾種不同的語言間選取錯誤消息。見<a HREF="manual_Server.html#Languages">9.1 MySQL支援什麼語言？</a>。 </p>
+
+<h4>20.4.12.2 返回值</h4>
+
+<p>一個描述錯誤的字符串。如果沒有錯誤發生，空字符串。 </p>
+
+<h4>20.4.12.3 錯誤</h4>
+
+<p>無。 </p>
+
+<p>　</p>
+
+<h3><a NAME="mysql_escape_string" HREF="manual_toc.html#mysql_escape_string">20.4.13<code> 
+mysql_escape_string()</code></a></h3>
+
+<p><code>unsigned int mysql_escape_string(char *to, const char *from, unsigned int length)</code> 
+</p>
+
+<h4>20.4.13.1 說明</h4>
+
+<p>把在<code>from</code>中的字符串編碼為在一條SQL語句刈莃以發給伺服器的轉義的SQL字符串，將結果放在<code>to</code>中， 
+並且加上一個終止的空字節。編碼的字符是<code>NUL</code>（ASCII 0)、<samp>‘\n</samp>’、<samp>‘\r’</samp>、<samp>‘\’</samp>、<samp>‘'’</samp>、<samp>‘&quot;’和</samp>Control-Z(見<a HREF="manual_Reference.html#Literals">7.1 文字：如何寫字符串和數字</a>)。</p>
+
+<p>由<code>from</code>指向的字符串必須是<code>length</code>個字節長。你必須分配<code>to</code>的緩衝區至少<code>length*2+1</code>個字節長。（在更壞的情況，每個字符可能需要使用2個字節被編碼，並且你需要為終止空字節的空間) 
+當<code>mysql_escape_string()</code>返回時，<code>to</code>的內容將是空字符終止的字符串。返回值是編碼後的字符串的長度，不包括終止空字符。 
+</p>
+
+<h4>20.4.13.2 範例</h4>
+
+<pre>char query[1000],*end;
+
+end = strmov(query,&quot;INSERT INTO test_table values(&quot;);
+*end++ = '\'';
+end += mysql_escape_string(end,&quot;What's this&quot;,11);
+*end++ = '\'';
+*end++ = ',';
+*end++ = '\'';
+end += mysql_escape_string(end,&quot;binary data: \0\r\n&quot;,16);
+*end++ = '\'';
+*end++ = ')';
+
+if (mysql_real_query(&amp;mysql,query,(unsigned int) (end - query)))
+{
+   fprintf(stderr, &quot;Failed to insert row, Error: %s\n&quot;,
+           mysql_error(&amp;mysql));
+}
+</pre>
+
+<p>例子中所用的<code>strmov()</code>函數被包括在<code>mysqlclient</code>庫刈聇功能類似於<code>strcpy()</code>，但是返回一個指向空終止的第一個參數的指針。 
+</p>
+
+<h4>20.4.13.3 返回值</h4>
+
+<p>放進<code>to</code>的值的長度，不包括終止空字符。</p>
+
+<h4>20.4.13.4 錯誤</h4>
+
+<p>無。</p>
+
+<p>　</p>
+
+<h3><a NAME="mysql_fetch_field" HREF="manual_toc.html#mysql_fetch_field">20.4.14<code> 
+mysql_fetch_field()</code></a></h3>
+
+<p><code>MYSQL_FIELD *mysql_fetch_field(MYSQL_RES *result)</code> </p>
+
+<h4>20.4.14.1 說明</h4>
+
+<p>返回作為一個<code>MYSQL_FIELD</code>結構的一個結果集合的一個列的定義。重複調用這個函數在結果集合中檢索所有關於列的資訊。當沒有剩下更多的字段時，<code>mysql_fetch_field()</code>返回<code>NULL</code>。</p>
+
+<p>在每次你執行一個新的<code>SELECT</code>查詢，<code>mysql_fetch_field()</code>被重置（reset)以返回有關第一列的資訊。由<code>mysql_fetch_field()</code>返回的字段也受調用<code>mysql_field_seek()</code>的影響。</p>
+
+<p>如果你調用<code>mysql_query()</code>在一張表上執行一個<code>SELECT</code>，但是沒調用<code>mysql_store_result()</code>，如果你調用<code>mysql_fetch_field()</code>詢問一個<code>BLOB</code>字段的長度，<strong>MySQL</strong>返回內定BLOB長度(8K字節)。（選擇8K的長度是因為<strong>MySQL</strong>不知道<code>BLOB</code>的最大長度。這應該在某個時候是它可配置) 
+一旦你已經檢索了結果集合，<code>field-&gt;max_length</code>包含了在特定查詢中對於該列最大值的長度。</p>
+
+<h4>20.4.14.2 返回值</h4>
+
+<p>當前列的<code>MYSQL_FIELD</code>結構。如果沒有列剩下，<code>NULL</code>。</p>
+
+<h4>20.4.14.3 錯誤</h4>
+
+<p>無。</p>
+
+<h4>20.4.14.4 範例</h4>
+
+<pre>MYSQL_FIELD *field;
+
+while((field = mysql_fetch_field(result)))
+{
+    printf(&quot;field name %s\n&quot;, field-&gt;name);
+}
+<a NAME="IDX737"></a> </pre>
+
+<h3><a NAME="mysql_fetch_fields" HREF="manual_toc.html#mysql_fetch_fields">20.4.15<code> 
+mysql_fetch_fields()</code></a></h3>
+
+<p><code>MYSQL_FIELD *mysql_fetch_fields(MYSQL_RES *result)</code> </p>
+
+<h4>20.4.15.1 說明</h4>
+
+<p>返回一個結果集合的所有<code>MYSQL_FIELD</code>結構的數組。每個結構提供結果結合中一列的字段定義。 
+</p>
+
+<h4>20.4.15.2 返回值</h4>
+
+<p>一個結果集合的所有<code>MYSQL_FIELD</code>結構的一個數組。</p>
+
+<h4>20.4.15.3 錯誤</h4>
+
+<p>無。 </p>
+
+<h4>20.4.15.4 範例</h4>
+
+<pre>unsigned int num_fields;
+unsigned int i;
+MYSQL_FIELD *fields;
+
+num_fields = mysql_num_fields(result);
+fields = mysql_fetch_fields(result);
+for(i = 0; i &lt; num_fields; i++)
+{
+   printf(&quot;Field %u is %s\n&quot;, i, fields[i].name);
+}
+</pre>
+
+<h3><a NAME="mysql_fetch_field_direct" HREF="manual_toc.html#mysql_fetch_field_direct">20.4.16<code> 
+mysql_fetch_field_direct()</code></a></h3>
+
+<p><code>MYSQL_FIELD *mysql_fetch_field_direct(MYSQL_RES *result, unsigned int fieldnr)</code> 
+</p>
+
+<h4>20.4.16.1 說明</h4>
+
+<p>給定在一個結果集合中的一個列的字段編號<code>fieldnr</code>，返回作為<code>MYSQL_FIELD</code>結構的列的字段定義。你可以使用這個函數檢索任意列的義。<code>fieldnr</code>的值應該在從0到<code>mysql_num_fields(result)-1</code>範圍內。</p>
+
+<h4>20.4.16.2 返回值</h4>
+
+<p>指定列的<code>MYSQL_FIELD</code>結構。 </p>
+
+<h4>20.4.16.3 錯誤</h4>
+
+<p>無。 </p>
+
+<h4>20.4.16.4 範例</h4>
+
+<pre>unsigned int num_fields;
+unsigned int i;
+MYSQL_FIELD *field;
+
+num_fields = mysql_num_fields(result);
+for(i = 0; i &lt; num_fields; i++)
+{
+    field = mysql_fetch_field_direct(result, i);
+    printf(&quot;Field %u is %s\n&quot;, i, field-&gt;name);
+}
+<a NAME="IDX739"></a> </pre>
+
+<h3><a NAME="mysql_fetch_lengths" HREF="manual_toc.html#mysql_fetch_lengths">20.4.17<code> 
+mysql_fetch_lengths()</code></a></h3>
+
+<p><code>unsigned long *mysql_fetch_lengths(MYSQL_RES *result)</code> </p>
+
+<h4>20.4.17.1 說明</h4>
+
+<p>返回在結果集合內的當前行的列長度。如果你計劃拷貝字段值，這個長度資訊對最佳化也是有用的，因為你可以避免調用<code>strlen()</code>。另外，如果結果集合刈荺含二進制數據，你<em>必須</em>使用這個函數確定數據的大小，因為<code>strlen()</code>對包含空字符的任何字段返回不正確的結果。 
+</p>
+
+<p>空列和包含<code>NULL</code>的列的長度值是零。為了看清如何區分這兩種情況，見<code>mysql_fetch_row()</code>的說明。</p>
+
+<h4>20.4.17.2 返回值</h4>
+
+<p>表示每列大小的無符號長整數的一個數組(不包括任何終止空字符)。如果出現一個錯誤，<code>NULL</code>。 
+</p>
+
+<h4>20.4.17.3 錯誤</h4>
+
+<p><code>mysql_fetch_lengths()</code>只對結果集合的當前行有效。如果你在調用<code>mysql_fetch_row()</code>之前或在檢索出在結果中的所有以後，它返回<code>NULL。</code></p>
+
+<h4>20.4.17.4 範例</h4>
+
+<pre>MYSQL_ROW row;
+unsigned long *lengths;
+unsigned int num_fields;
+unsigned int i;
+
+row = mysql_fetch_row(result);
+if (row)
+{
+    num_fields = mysql_num_fields(result);
+    lengths = mysql_fetch_lengths(result);
+    for(i = 0; i &lt; num_fields; i++)
+    {
+         printf(&quot;Column %u is %lu bytes in length.\n&quot;, i, lengths[i]);
+    }
+}
+<a NAME="IDX740"></a> </pre>
+
+<h3><a NAME="mysql_fetch_row" HREF="manual_toc.html#mysql_fetch_row">20.4.18<code> 
+mysql_fetch_row()</code></a></h3>
+
+<p><code>MYSQL_ROW mysql_fetch_row(MYSQL_RES *result)</code> </p>
+
+<h4>20.4.18.1 說明</h4>
+
+<p>檢索一個結果集合的下一行。當在<code>mysql_store_result()</code>之後使用時，如果沒有更多的行可見所時，<code>mysql_fetch_row()</code>返回<code>NULL</code>。當在<code>mysql_use_result()</code>之後使用時，當沒有更多的行可檢索時或如果出現一個錯誤，<code>mysql_fetch_row()</code>返回<code>NULL。</code></p>
+
+<p>在行中值的數量由<code>mysql_num_fields(result)</code>給出。如果<code>row</code>保存了從一個對用<code>mysql_fetch_row()</code>調用返回的值，指向該值的指針作為<code>row[0]</code>到<code>row[mysql_num_fields(result)-1]</code>來存取。在行中的<code>NULL</code>值由<code>NULL</code>指針指出。</p>
+
+<p>在行中字段值的長度可以通過調用<code>mysql_fetch_lengths()</code>獲得。空字段和包含<code>NULL</code>的字段長度都是 
+0﹔你可以通過檢查該值的指針區分他們。如果指針是<code>NULL</code>，字段是<code>NULL</code>﹔否則字段是空的。</p>
+
+<h4>20.4.18.2 返回值</h4>
+
+<p>下一行的一個<code>MYSQL_ROW</code>結構。如果沒有更多的行可檢索或如果出現一個錯誤，<code>NULL。</code></p>
+
+<h4>20.4.18.3 錯誤</h4>
+
+<dl COMPACT="mysql_fetch_row">
+  <dt><code>CR_SERVER_LOST</code> </dt>
+  <dd>對伺服器的連接在查詢期間失去。 </dd>
+  <dt><code>CR_UNKNOWN_ERROR</code> </dt>
+  <dd>發生一個未知的錯誤。 </dd>
+</dl>
+
+<h4>20.4.18.4 範例</h4>
+
+<pre>MYSQL_ROW row;
+unsigned int num_fields;
+unsigned int i;
+
+num_fields = mysql_num_fields(result);
+while ((row = mysql_fetch_row(result)))
+{
+   unsigned long *lengths;
+   lengths = mysql_fetch_lengths(result);
+   for(i = 0; i &lt; num_fields; i++)
+   {
+       printf(&quot;[%.*s] &quot;, (int) lengths[i], row[i] ? row[i] : &quot;NULL&quot;);
+   }
+   printf(&quot;\n&quot;);
+}
+<a NAME="IDX741"></a> </pre>
+
+<h3><a NAME="mysql_field_count" HREF="manual_toc.html#mysql_field_count">20.4.19<code> 
+mysql_field_count()</code></a></h3>
+
+<p><code>unsigned int mysql_field_count(MYSQL *mysql)</code> </p>
+
+<p>如果你正在使用一個比3.22.24早<strong>MySQL</strong>版本，你應該使用<code>unsigned 
+int mysql_num_fields(MYSQL *mysql)</code>。 </p>
+
+<h4>20.4.19.1 說明</h4>
+
+<p>返回在連接上的最近查詢的列的數量。 </p>
+
+<p>這個函數一般用在<code>mysql_store_result()</code>返回<code>NULL</code>時（這樣你沒有結果設置指針)。在這種情況中，你能調用<code>mysql_field_count()</code>確定<code>mysql_store_result()</code>是否應該產生了一個非空的結果。這允許一個客戶程式執行正確的操作，而不必知道查詢是否是一條<code>SELECT</code>（或類<code>SELECT</code>)語句。下面顯示的例子說明這怎樣可以做到。 
+</p>
+
+<p>見<a HREF="manual_Clients.html#NULL_mysql_store_result">20.4.51 為什麼在<code>mysql_query()</code>返回成功後，<code>mysql_store_result()</code>有時返回<code>NULL?</code></a>。</p>
+
+<h4>20.4.19.2 返回值</h4>
+
+<p>在結果集合中表示字段數量字的一個無符號整數。 </p>
+
+<h4>20.4.19.3 錯誤</h4>
+
+<p>無。 </p>
+
+<h4>20.4.19.4 範例</h4>
+
+<pre>MYSQL_RES *result;
+unsigned int num_fields;
+unsigned int num_rows;
+
+if (mysql_query(&amp;mysql,query_string))
+{
+    // error
+}
+else // query succeeded, process any data returned by it
+{
+    result = mysql_store_result(&amp;mysql);
+    if (result)  // there are rows
+    {
+        num_fields = mysql_num_fields(result);
+        // retrieve rows, then call mysql_free_result(result)
+    }
+    else  // mysql_store_result() returned nothing; should it have?
+    {
+        if(mysql_field_count(&amp;mysql) == 0)
+        {
+            // query does not return data
+            // (it was not a SELECT)
+            num_rows = mysql_affected_rows(&amp;mysql);
+        }
+        else // mysql_store_result() should have returned data
+        {
+            fprintf(stderr, &quot;Error: %s\n&quot;, mysql_error(&amp;mysql));
+        }
+    }
+}
+</pre>
+
+<p>另一個選擇是用<code>mysql_errno(&amp;mysql)</code>代替<code>mysql_field_count(&amp;mysql)</code>調用。在這種情況中，你直接檢查來自<code>mysql_store_result()</code>的一個錯誤而非從<code>mysql_field_count()</code>值來推斷語句是否是一個<code>SELECT</code>。</p>
+
+<p><a NAME="IDX742"></a> </p>
+
+<h3><a NAME="mysql_field_seek" HREF="manual_toc.html#mysql_field_seek">20.4.20<code> 
+mysql_field_seek()</code></a></h3>
+
+<p><code>MYSQL_FIELD_OFFSET mysql_field_seek(MYSQL_RES *result, MYSQL_FIELD_OFFSET offset)</code> 
+</p>
+
+<h4>20.4.20.1 說明</h4>
+
+<p>將字段光標設置到給定的偏移量。下一次調用<code>mysql_fetch_field()</code>將檢索與該偏移量關聯的列的字段定義。 
+</p>
+
+<p>為了定位於行的起始，傳遞一個值為0的<code>offset</code>值。 </p>
+
+<h4>20.4.20.2 返回值</h4>
+
+<p>字段光標的先前的值。 </p>
+
+<h4>20.4.20.3 錯誤</h4>
+
+<p>無。 </p>
+
+<p><a NAME="IDX743"></a> </p>
+
+<h3><a NAME="mysql_field_tell" HREF="manual_toc.html#mysql_field_tell">20.4.21<code>mysql_field_tell()</code></a></h3>
+
+<p><code>MYSQL_FIELD_OFFSET mysql_field_tell(MYSQL_RES *result)</code> </p>
+
+<h4>20.4.21.1 說明</h4>
+
+<p>返回用於最後一個<code>mysql_fetch_field()</code>的字段光標的位置。這個值可用作<code>mysql_field_seek()</code>的一個參數。 
+</p>
+
+<h4>20.4.21.2 返回值</h4>
+
+<p>字段光標的當前偏移量。 </p>
+
+<h4>20.4.21.3 錯誤</h4>
+
+<p>無。 </p>
+
+<p><a NAME="IDX744"></a> </p>
+
+<h3><a NAME="mysql_free_result" HREF="manual_toc.html#mysql_free_result">20.4.22<code> 
+mysql_free_result()</code></a></h3>
+
+<p><code>void mysql_free_result(MYSQL_RES *result)</code> </p>
+
+<h4>20.4.22.1 說明</h4>
+
+<p>釋放由<code>mysql_store_result()</code>、<code>mysql_use_result()</code>、mysql_list_dbs()等為一個結果集合分配的內存。當你用完了一個結果集合時，你必須調用<code>mysql_free_result()</code>來釋放它使用的內存。</p>
+
+<h4>20.4.22.2 返回值</h4>
+
+<p>無。 </p>
+
+<h4>20.4.22.3 錯誤</h4>
+
+<p>無。 </p>
+
+<p><a NAME="IDX745"></a> </p>
+
+<h3><a NAME="mysql_get_client_info" HREF="manual_toc.html#mysql_get_client_info">20.4.23<code> 
+mysql_get_client_info()</code></a></h3>
+
+<p><code>char *mysql_get_client_info(void)</code> </p>
+
+<h4>20.4.23.1 說明</h4>
+
+<p>返回代表客戶庫的版本的字符串。 </p>
+
+<h4>20.4.23.2 返回值</h4>
+
+<p>代表<strong>MySQL</strong>客戶庫版本的一個字符串。</p>
+
+<h4>20.4.23.3 錯誤</h4>
+
+<p>無。 </p>
+
+<p><a NAME="IDX746"></a> </p>
+
+<h3><a NAME="mysql_get_host_info" HREF="manual_toc.html#mysql_get_host_info">20.4.24<code> 
+mysql_get_host_info()</code></a></h3>
+
+<p><code>char *mysql_get_host_info(MYSQL *mysql)</code> </p>
+
+<h4>20.4.24.1 說明</h4>
+
+<p>返回描述正在使用的連接類型的字符串，包括服務其主機名。 </p>
+
+<h4>20.4.24.2 返回值</h4>
+
+<p>表示伺服器主機名者和連接類型的字符串。 </p>
+
+<h4>20.4.24.3 錯誤</h4>
+
+<p>無。</p>
+
+<p>　</p>
+
+<h3><a NAME="mysql_get_proto_info" HREF="manual_toc.html#mysql_get_proto_info">20.4.25<code> 
+mysql_get_proto_info()</code></a></h3>
+
+<p><code>unsigned int mysql_get_proto_info(MYSQL *mysql)</code> </p>
+
+<h4>20.4.25.1 說明</h4>
+
+<p>返回當前連接使用的協議版本。 </p>
+
+<h4>20.4.25.2 返回值</h4>
+
+<p>表示被當前連接使用的協議版本的一個無符號整數。 </p>
+
+<h4>20.4.25.3 錯誤</h4>
+
+<p>無。 </p>
+
+<p><a NAME="IDX748"></a> </p>
+
+<h3><a NAME="mysql_get_server_info" HREF="manual_toc.html#mysql_get_server_info">20.4.26<code> 
+mysql_get_server_info()</code></a></h3>
+
+<p><code>char *mysql_get_server_info(MYSQL *mysql)</code> </p>
+
+<h4>20.4.26.1 說明</h4>
+
+<p>返回表示伺服器版本號的字符串。 </p>
+
+<h4>20.4.26.2 返回值</h4>
+
+<p>表示伺服器版本號的一個字符串。 </p>
+
+<h4>20.4.26.3 錯誤</h4>
+
+<p>無。 </p>
+
+<p><a NAME="IDX749"></a> </p>
+
+<h3><a NAME="mysql_info" HREF="manual_toc.html#mysql_info">20.4.27<code> mysql_info()</code></a></h3>
+
+<p><code>char *mysql_info(MYSQL *mysql)</code> </p>
+
+<h4>20.4.27.1 說明</h4>
+
+<p>檢索一個字符串，它提供有關最近執行的查詢的資訊，但是對下面列出的語句。對其他語句，<code>mysql_info()</code>返回<code>NULL</code>。字符串的格式隨查詢類型而變化，如下所述。數字僅僅是說明性的﹔字符串將包含對查詢適當的值。 
+
+<dl COMPACT="mysql_info">
+  <dt><code>INSERT INTO ... SELECT ...</code> </dt>
+  <dd>字符串格式： <code>Records: 100 Duplicates: 0 Warnings: 0</code> </dd>
+  <dt><code>INSERT INTO ... VALUES (...),(...),(...)...</code> </dt>
+  <dd>字符串格式： <code>Records: 3 Duplicates: 0 Warnings: 0</code> </dd>
+  <dt><code>LOAD DATA INFILE ...</code> </dt>
+  <dd>字符串格式： <code>Records: 1 Deleted: 0 Skipped: 0 Warnings: 0</code> </dd>
+  <dt><code>ALTER TABLE</code> </dt>
+  <dd>字符串繩格式： <code>Records: 3 Duplicates: 0 Warnings: 0</code> </dd>
+  <dt><code>UPDATE</code> </dt>
+  <dd>字符串格式： <code>Rows matched: 40 Changed: 40 Warnings: 0</code> </dd>
+</dl>
+
+<p>注意，只有多個值在語句中指定，<code>mysql_info()</code>對<code>INSERT 
+... VALUES</code>語句才返回非<code>NULL</code>值。 </p>
+
+<h4>20.4.27.2 返回值</h4>
+
+<p>表示最近執行的查詢的附加資訊的一個字符串。如果得不到查詢的任何資訊，<code>NULL。</code></p>
+
+<h4>20.4.27.3 錯誤</h4>
+
+<p>無。 </p>
+
+<p><a NAME="IDX750"></a> </p>
+
+<h3><a NAME="mysql_init" HREF="manual_toc.html#mysql_init">20.4.28<code> mysql_init()</code></a></h3>
+
+<p><code>MYSQL *mysql_init(MYSQL *mysql)</code> </p>
+
+<h4>20.4.28.1 說明</h4>
+
+<p>分配或初始化適合<code>mysql_real_connect()</code>的一個<code>MYSQL</code>對像。如果<code>mysql</code>是一個<code>NULL</code>指針，函數分配、初始化並且返回一個新對像。否則對像被初始化並且返回對像的地址。如果<code>mysql_init()</code>分配一個新對像，它將在調用<code>mysql_close()</code>關閉連接時被釋放。</p>
+
+<h4>20.4.28.2 返回值</h4>
+
+<p>一個被初始化的<code>MYSQL*</code>句柄。如果沒有足夠的內存來分配一個新對像，<code>NULL</code>。</p>
+
+<h4>20.4.28.3 錯誤</h4>
+
+<p>在內存不夠的情況下，返回<code>NULL</code>。</p>
+
+<p><a NAME="IDX751"></a> </p>
+
+<h3><a NAME="mysql_insert_id" HREF="manual_toc.html#mysql_insert_id">20.4.29<code> 
+mysql_insert_id()</code></a></h3>
+
+<p><code>my_ulonglong mysql_insert_id(MYSQL *mysql)</code> </p>
+
+<h4>20.4.29.1 說明</h4>
+
+<p>返回由先前的查詢為一個<code>AUTO_INCREMENT</code>列產生的ID。在你執行一個<code>INSERT</code>查詢向一個包含<code>AUTO_INCREMENT</code>字段的表中插入後，使用這個函數。</p>
+
+<p>注意，如果先前的查詢不產生一個<code>AUTO_INCREMENT</code>值，<code>mysql_insert_id()</code>返回<code>0</code>。如果你需要在以後保存該值，必須在查詢產生了該值後馬上調用<code>mysql_insert_id()</code>。</p>
+
+<p>也要注意，SQL的<code>LAST_INSERT_ID()</code>函數總是包含最近產生的<code>AUTO_INCREMENT</code>值，並且在查詢之間不被重置，因為該函數的值在伺服器端維護。 
+</p>
+
+<h4>20.4.29.2 返回值</h4>
+
+<p>有先前的查詢更新的<code>AUTO_INCREMENT</code>字段的值。如果在連接上沒有先前的詢問或如果查詢沒更新<code>AUTO_INCREMENT</code>值，返回零。</p>
+
+<h4>20.4.29.3 錯誤</h4>
+
+<p>無。 </p>
+
+<p><a NAME="IDX752"></a> </p>
+
+<h3><a NAME="mysql_kill" HREF="manual_toc.html#mysql_kill">20.4.30<code> mysql_kill()</code></a></h3>
+
+<p><code>int mysql_kill(MYSQL *mysql, unsigned long pid)</code> </p>
+
+<h4>20.4.30.1 說明</h4>
+
+<p>要求伺服器殺死由<code>pid</code>指定的執行緒。 </p>
+
+<h4>20.4.30.2 返回值</h4>
+
+<p>成功，零。如果出現一個錯誤，非零。 </p>
+
+<h4>20.4.30.3 錯誤</h4>
+
+<dl COMPACT="mysql_kill">
+  <dt><code>CR_COMMANDS_OUT_OF_SYNC</code> </dt>
+  <dd>命令以一個不正確的次序被執行。 </dd>
+  <dt><code>CR_SERVER_GONE_ERROR</code> </dt>
+  <dd><strong>MySQL</strong>伺服器關閉了。 </dd>
+  <dt><code>CR_SERVER_LOST</code> </dt>
+  <dd>對伺服器的連接在查詢期間失去。 </dd>
+  <dt><code>CR_UNKNOWN_ERROR</code> </dt>
+  <dd>發生一個未知的錯誤。 </dd>
+</dl>
+
+<p>　</p>
+
+<h3><a NAME="mysql_list_dbs" HREF="manual_toc.html#mysql_list_dbs">20.4.31<code> 
+mysql_list_dbs()</code></a></h3>
+
+<p><code>MYSQL_RES *mysql_list_dbs(MYSQL *mysql, const char *wild)</code> </p>
+
+<h4>20.4.31.1 說明</h4>
+
+<p>返回一個結果集合，它用在伺服器上的匹配<code>wild</code>參數指定的簡單正則表達式的資料庫名組成。<code>wild</code>可以包含通配符字符<samp>“%”</samp>或<samp>“_”</samp>，或可以是匹配所有的資料庫的一個<code>NULL</code>指針。調用<code>mysql_list_dbs()</code>類似於執行查詢<code>SHOW 
+databases [LIKE wild]</code>。</p>
+
+<p>你必須用<code>mysql_free_result()</code>釋放結果集合。 </p>
+
+<h4>20.4.31.2 返回值</h4>
+
+<p>成功，一個<code>MYSQL_RES</code>結果集合。如果出現一個錯誤，<code>NULL。</code></p>
+
+<h4>20.4.31.3 錯誤</h4>
+
+<dl COMPACT="mysql_list_dbs">
+  <dt><code>CR_COMMANDS_OUT_OF_SYNC</code> </dt>
+  <dd>命令以一個不正確的次序被執行。 </dd>
+  <dt><code>CR_OUT_OF_MEMORY</code> </dt>
+  <dd>內存溢出。 </dd>
+  <dt><code>CR_SERVER_GONE_ERROR</code> </dt>
+  <dd><strong>MySQL</strong>伺服器關閉了。 </dd>
+  <dt><code>CR_SERVER_LOST</code> </dt>
+  <dd>對伺服器的連接在查詢期間失去。 </dd>
+  <dt><code>CR_UNKNOWN_ERROR</code> </dt>
+  <dd>發生一個未知的錯誤。 </dd>
+</dl>
+
+<p>　</p>
+
+<h3><a NAME="mysql_list_fields" HREF="manual_toc.html#mysql_list_fields">20.4.32<code> 
+mysql_list_fields()</code></a></h3>
+
+<p><code>MYSQL_RES *mysql_list_fields(MYSQL *mysql, const char *table, const char *wild)</code> 
+</p>
+
+<h4>20.4.32.1 說明</h4>
+
+<p>返回一個結果集合，它用在給定表中的匹配<code>wild</code>參數指定的簡單正則表達式的列名組成。<code>wild</code>可以包含通配符字符<samp>“%”</samp>或<samp>“_”</samp>，或可以是匹配所有列的一個<code>NULL</code>指針。調用<code>mysql_list_fields()</code>類似於執行查詢<code>SHOW 
+COLUMNS FROM tbl_name [LIKE wild]</code>。</p>
+
+<p>注意，建議你使用<code>SHOW COLUMNS FROM tbl_name</code>而不是<code>mysql_list_fields()</code>。</p>
+
+<p>你必須用<code>mysql_free_result()</code>釋放結果集合。</p>
+
+<h4>20.4.32.2 返回值</h4>
+
+<p>成功，一個<code>MYSQL_RES</code>的結果集合。如果出線一個錯誤，<code>NULL。</code></p>
+
+<h4>20.4.32.3 錯誤</h4>
+
+<dl COMPACT="mysql_list_fields">
+  <dt><code>CR_COMMANDS_OUT_OF_SYNC</code> </dt>
+  <dd>命令以一個不正確的次序被執行。 </dd>
+  <dt><code>CR_SERVER_GONE_ERROR</code> </dt>
+  <dd><strong>MySQL</strong>服務者關閉了。 </dd>
+  <dt><code>CR_SERVER_LOST</code> </dt>
+  <dd>對伺服器的連接在查詢期間失去。 </dd>
+  <dt><code>CR_UNKNOWN_ERROR</code> </dt>
+  <dd>發生一個未知的錯誤。 </dd>
+</dl>
+
+<p><a NAME="IDX755"></a> </p>
+
+<h3><a NAME="mysql_list_processes" HREF="manual_toc.html#mysql_list_processes">20.4.33<code> 
+mysql_list_processes()</code></a></h3>
+
+<p><code>MYSQL_RES *mysql_list_processes(MYSQL *mysql)</code> </p>
+
+<h4>20.4.33.1 說明</h4>
+
+<p>返回一個描述當前伺服器執行緒的結果集合。這是與<code>mysqladmin 
+processlist</code>或<code>SHOW PROCESSLIST</code>查詢報告的相同資訊。</p>
+
+<p>你必須用<code>mysql_free_result()</code>釋放結果集合。</p>
+
+<h4>20.4.33.2 返回值</h4>
+
+<p>成功，一個<code>MYSQL_RES</code>結果集合。如果發生一個錯誤，<code>NULL。</code></p>
+
+<h4>20.4.33.3 錯誤</h4>
+
+<dl COMPACT="mysql_list_processes">
+  <dt><code>CR_COMMANDS_OUT_OF_SYNC</code> </dt>
+  <dd>命令以一個不正確的次序被執行。 </dd>
+  <dt><code>CR_SERVER_GONE_ERROR</code> </dt>
+  <dd><strong>MySQL</strong>服務者關閉了。 </dd>
+  <dt><code>CR_SERVER_LOST</code> </dt>
+  <dd>對伺服器的連接在查詢期間失去。 </dd>
+  <dt><code>CR_UNKNOWN_ERROR</code> </dt>
+  <dd>發生一個未知的錯誤。 </dd>
+  <dd><a NAME="IDX756"></a> </dd>
+</dl>
+
+<h3><a NAME="mysql_list_tables" HREF="manual_toc.html#mysql_list_tables">20.4.34<code> 
+mysql_list_tables()</code></a></h3>
+
+<p><code>MYSQL_RES *mysql_list_tables(MYSQL *mysql, const char *wild)</code> </p>
+
+<h4>20.4.34.1 說明</h4>
+
+<p>返回一個結果集合，它用在當前資料庫中的匹配<code>wild</code>參數指定的簡單正則表達式的表名組成。<code>wild</code>可以包含通配符字符<samp>“%”</samp>或<samp>“_”</samp>，或可以是匹配所有表的一個<code>NULL</code>指針。調用<code>mysql_list_tables()</code>類似於執行詢問<code>SHOW 
+tables [LIKE wild]</code>。</p>
+
+<p>你必須用<code>mysql_free_result()</code>釋放結果集合。</p>
+
+<h4>20.4.34.2 返回值</h4>
+
+<p>成功，一個<code>MYSQL_RES</code>結果集合。如果出現一個錯誤，<code>NULL。</code></p>
+
+<h4>20.4.34.3 錯誤</h4>
+
+<dl COMPACT="mysql_list_tables">
+  <dt><code>CR_COMMANDS_OUT_OF_SYNC</code> </dt>
+  <dd>命令以一個不正確的次序被執行。 </dd>
+  <dt><code>CR_SERVER_GONE_ERROR</code> </dt>
+  <dd><strong>MySQL</strong>伺服器關閉了。 </dd>
+  <dt><code>CR_SERVER_LOST</code> </dt>
+  <dd>對伺服器的連接在查詢期間失去。 </dd>
+  <dt><code>CR_UNKNOWN_ERROR</code> </dt>
+  <dd>發生一個未知的錯誤。 </dd>
+</dl>
+
+<p><a NAME="IDX757"></a> </p>
+
+<h3><a NAME="mysql_num_fields" HREF="manual_toc.html#mysql_num_fields">20.4.35<code> 
+mysql_num_fields()</code></a></h3>
+
+<p><code>unsigned int mysql_num_fields(MYSQL_RES *result)</code> </p>
+
+<p>或</p>
+
+<p><code>unsigned int mysql_num_fields(MYSQL *mysql)</code> </p>
+
+<p>第二中形式在<strong>MySQL</strong> 3.22.24或更新版本上不能工作。為了傳遞一個<code>MYSQL*</code> 
+參數，你必須使用<code>unsigned int mysql_field_count(MYSQL *mysql)</code>。 </p>
+
+<h4>20.4.35.1 說明</h4>
+
+<p>在結果集合中返回列的數量。 </p>
+
+<p>注意，你也可以通過一個指向一個結果集合或一個連接句柄的指針獲得列的數量。如果<code>mysql_store_result()</code>或<code>mysql_user_result()</code>返回<code>NULL</code>，你將使用連接句柄（而這樣你沒有結果集合指針)。在這種情況下，你可以調用<code>mysql_field_count()</code>確定<code>mysql_store_result()</code>是否應該產生非空的結果。這允許客戶程式采取成正確的行動，不必知道查詢是否是一個<code>SELECT</code>（或<code>類SELECT</code>)語句。下面被顯示出的例子說明這怎麼可以被做。 
+</p>
+
+<p>見<a HREF="manual_Clients.html#NULL_mysql_store_result">20.4.51 為什麼在<code>mysql_query()</code>返回成功後，<code>mysql_store_result()</code>有時返回<code>NULL?</code></a>。 
+</p>
+
+<h4>20.4.35.2 返回值</h4>
+
+<p>表示一個結果集合中字段數量的一個無符號整數。 </p>
+
+<h4>20.4.35.3 錯誤</h4>
+
+<p>無。 </p>
+
+<h4>20.4.35.4 範例</h4>
+
+<pre>MYSQL_RES *result;
+unsigned int num_fields;
+unsigned int num_rows;
+
+if (mysql_query(&amp;mysql,query_string))
+{
+    // error
+}
+else // query succeeded, process any data returned by it
+{
+    result = mysql_store_result(&amp;mysql);
+    if (result)  // there are rows
+    {
+        num_fields = mysql_num_fields(result);
+        // retrieve rows, then call mysql_free_result(result)
+    }
+    else  // mysql_store_result() returned nothing; should it have?
+    {
+        if (mysql_errno(&amp;mysql))
+	{
+           fprintf(stderr, &quot;Error: %s\n&quot;, mysql_error(&amp;mysql));
+	}
+        else if (mysql_field_count(&amp;mysql) == 0)
+        {
+            // query does not return data
+            // (it was not a SELECT)
+            num_rows = mysql_affected_rows(&amp;mysql);
+        }
+    }
+}
+</pre>
+
+<p>另一個選擇(如果你知道你查詢應該返回了一個結果結合)是用<code>mysql_field_count(&amp;mysql)</code> 
+= 0的一個檢查來代替<code>mysql_errno(&amp;mysql)</code>。這只會發生在出錯了的情形。</p>
+
+<p><a NAME="IDX759"></a> </p>
+
+<h3><a NAME="mysql_num_rows" HREF="manual_toc.html#mysql_num_rows">20.4.36<code> 
+mysql_num_rows()</code></a></h3>
+
+<p><code>my_ulonglong mysql_num_rows(MYSQL_RES *result)</code> </p>
+
+<h4>20.4.36.1 說明</h4>
+
+<p>在結果集合中返回行的數量。 </p>
+
+<p><code>mysql_num_rows()</code>的使用取決於你是否使用<code>mysql_store_result()</code>或<code>mysql_use_result()</code>返回一個結果集合。如果你使用<code>mysql_store_result()</code>，<code>mysql_num_rows()</code>可以馬上被調用。如果你使用<code>mysql_use_result()</code>，<code>mysql_num_rows()</code>將不會返回正確的值，直到在結果集合中的所有行均被檢索了。 
+</p>
+
+<h4>20.4.36.2 返回值</h4>
+
+<p>在結果集合中行的數量。 </p>
+
+<h4>20.4.36.3 錯誤</h4>
+
+<p>無。 </p>
+
+<h3><a NAME="mysql_options" HREF="manual_toc.html#mysql_options">20.4.37<code> 
+mysql_options()</code></a></h3>
+
+<p><code>int mysql_options(MYSQL *mysql, enum mysql_option option, const char *arg)</code> 
+</p>
+
+<h4>20.4.37.1 說明</h4>
+
+<p>能用於設置額外連接選項並且影響一個連接的行為。這個函數可以被多次調用來設置多個選項。 
+</p>
+
+<p><code>mysql_options()</code>應該在<code>mysql_init()</code>之後和<code>mysql_connect()</code>或<code>mysql_real_connect()</code>之前調用。</p>
+
+<p><code>option</code>參數是你想要設置的選項﹔<code>arg</code>參數是選項的值。如果選項是一個整數，那麼<code>arg</code>應該指向整數值。</p>
+
+<p>可能的選項值：</p>
+
+<table BORDER="1" WIDTH="706" NOSAVE="#101090">
+  <tr>
+    <td width="205"><strong>選項</strong> </td>
+    <td width="116"><strong>參數類型</strong> </td>
+    <td width="367"><strong>功能</strong> </td>
+  </tr>
+  <tr>
+    <td width="205"><code>MYSQL_OPT_CONNECT_TIMEOUT</code> </td>
+    <td width="116"><code>unsigned int *</code> </td>
+    <td width="367">以秒計的連接超時。 </td>
+  </tr>
+  <tr>
+    <td width="205"><code>MYSQL_OPT_COMPRESS</code> </td>
+    <td width="116">不使用</td>
+    <td width="367">使用壓縮的客戶機/伺服器協議。 </td>
+  </tr>
+  <tr>
+    <td width="205"><code>MYSQL_OPT_NAMED_PIPE</code> </td>
+    <td width="116">不使用</td>
+    <td width="367">使用命名管道連接一個在NT上的<strong>MySQL</strong>伺服器。 
+    </td>
+  </tr>
+  <tr>
+    <td width="205"><code>MYSQL_INIT_COMMAND</code> </td>
+    <td width="116"><code>char *</code> </td>
+    <td width="367">當連接<strong>MySQL</strong>伺服器時執行的命令。當重新連接時，將自動重新執行。 
+    </td>
+  </tr>
+  <tr>
+    <td width="205"><code>MYSQL_READ_DEFAULT_FILE</code> </td>
+    <td width="116"><code>char *</code> </td>
+    <td width="367">從命名的選項文件而不是從<tt>“my.cnf”</tt>讀取選項。</td>
+  </tr>
+  <tr>
+    <td width="205"><code>MYSQL_READ_DEFAULT_GROUP</code> </td>
+    <td width="116"><code>char *</code> </td>
+    <td width="367">從<tt>“my.cnf”</tt>或用<code>MYSQL_READ_DEFAULT_FILE</code>指定的文件中的命名組中讀取選項。</td>
+  </tr>
+</table>
+
+<p>注意，如果你使用<code>MYSQL_READ_DEFAULT_FILE</code>或<code>MYSQL_READ_DEFAULT_GROUP</code>，總是讀取<code>client</code>。</p>
+
+<p>在選項文件中指定的組可能包含下列選項：</p>
+
+<table BORDER="1" WIDTH="100%" NOSAVE="#101090" class="p4">
+  <tr>
+    <td><code>compress</code> </td>
+    <td>使用壓縮的客戶機/伺服器協議。 </td>
+  </tr>
+  <tr>
+    <td><code>database</code> </td>
+    <td>如果在連接命令中沒有指定資料庫，使用這個資料庫。</td>
+  </tr>
+  <tr>
+    <td><code>debug</code> </td>
+    <td>調試選項</td>
+  </tr>
+  <tr>
+    <td><code>host</code> </td>
+    <td>內定主機名</td>
+  </tr>
+  <tr>
+    <td><code>init-command</code> </td>
+    <td>在連接<strong>MySQL</strong>伺服器時，執行的命令。當重新連接時，將自動重新執行。 
+    </td>
+  </tr>
+  <tr>
+    <td><code>password</code> </td>
+    <td>內定密碼</td>
+  </tr>
+  <tr>
+    <td><code>pipe</code> </td>
+    <td>使用命名管道連接一個在NT上的<strong>MySQL</strong>伺服器。 </td>
+  </tr>
+  <tr>
+    <td><code>port</code> </td>
+    <td>內定端口號</td>
+  </tr>
+  <tr>
+    <td><code>return-found-rows</code> </td>
+    <td>告訴<code>mysql_info()</code>返回找到的行，而不是在使用<code>UPDATE</code>時，返回更新的行。 
+    </td>
+  </tr>
+  <tr>
+    <td><code>socket</code> </td>
+    <td>內定套接字號</td>
+  </tr>
+  <tr>
+    <td><code>timeout</code> </td>
+    <td>以秒計的連接超時。 </td>
+  </tr>
+  <tr>
+    <td><code>user</code> </td>
+    <td>內定用戶</td>
+  </tr>
+</table>
+
+<p>對於選項文件的更多資訊，見<a HREF="manual_Installing.html#Option_files">4.15.4 
+選項文件</a>。</p>
+
+<h4>20.4.37.2 返回值</h4>
+
+<p>成功，零。如果你使用了未知的選項，非零。</p>
+
+<h4>20.4.37.3 範例</h4>
+
+<pre>MYSQL mysql;
+
+mysql_init(&amp;mysql);
+mysql_options(&amp;mysql,MYSQL_OPT_COMPRESS,0);
+mysql_options(&amp;mysql,MYSQL_READ_DEFAULT_GROUP,&quot;odbc&quot;);
+if (!mysql_real_connect(&amp;mysql,&quot;host&quot;,&quot;user&quot;,&quot;passwd&quot;,&quot;database&quot;,0,NULL,0))
+{
+    fprintf(stderr, &quot;Failed to connect to database: Error: %s\n&quot;,
+          mysql_error(&amp;mysql));
+}
+</pre>
+
+<p>上例請求客戶使用壓縮的客戶機/伺服器協議並且從<code>my.cnf</code>文件的<code>odbc</code>小節讀取額外的選項。</p>
+
+<p><a NAME="IDX761"></a></p>
+
+<h3><a NAME="mysql_ping" HREF="manual_toc.html#mysql_ping">20.4.38<code> mysql_ping()</code></a></h3>
+
+<p><code>int mysql_ping(MYSQL *mysql)</code> </p>
+
+<h4>20.4.38.1 說明</h4>
+
+<p>檢查到伺服器的連接是否正在工作。如果它關閉了，自動嘗試一個再連接。</p>
+
+<p>這個函數可被已經空閑很長時間的客戶使用，來檢查伺服器是否關閉了連接並且如有必要重新連接。 
+</p>
+
+<h4>20.4.38.2 返回值</h4>
+
+<p>如果伺服器活著，零。如果出現一個錯誤，非零。</p>
+
+<h4>20.4.38.3 錯誤</h4>
+
+<dl COMPACT="mysql_ping">
+  <dt><code>CR_COMMANDS_OUT_OF_SYNC</code> </dt>
+  <dd>命令以一個不適當的次序被執行。 </dd>
+  <dt><code>CR_SERVER_GONE_ERROR</code> </dt>
+  <dd><strong>MySQL</strong>伺服器關閉了。 </dd>
+  <dt><code>CR_UNKNOWN_ERROR</code> </dt>
+  <dd>發生一個未知的錯誤。 </dd>
+</dl>
+
+<p>　</p>
+
+<h3><a NAME="mysql_query" HREF="manual_toc.html#mysql_query">20.4.39<code> mysql_query()</code></a></h3>
+
+<p><code>int mysql_query(MYSQL *mysql, const char *query)</code> </p>
+
+<h4>20.4.39.1 說明</h4>
+
+<p>執行指向空終止的字符串<code>query</code>的SQL查詢，查詢必須由一個單個的SQL語句組成。你不應該在語句後加上一個終止的分號(<samp>“﹔”</samp>)或<code>\g</code>。</p>
+
+<p><code>mysql_query()</code>不能被用於包含二進制數據的查詢﹔相反你應該使用<code>mysql_real_query()</code>。（二進制數據可能包含<samp>“\0”</samp>字符，而<code>mysql_query()</code>將解釋為查詢字符串的結束。）</p>
+
+<h4>20.4.39.2 返回值</h4>
+
+<p>如果查詢成功，零。如果出現一個錯誤，非零。</p>
+
+<h4>20.4.39.3 錯誤</h4>
+
+<dl COMPACT="mysql_query">
+  <dt><code>CR_COMMANDS_OUT_OF_SYNC</code> </dt>
+  <dd>命令以一個不適當的次序被執行。 </dd>
+  <dt><code>CR_SERVER_GONE_ERROR</code> </dt>
+  <dd><strong>MySQL</strong>伺服器關閉了。 </dd>
+  <dt><code>CR_SERVER_LOST</code> </dt>
+  <dd>到伺服器的連接在查詢期間失去。 </dd>
+  <dt><code>CR_UNKNOWN_ERROR</code> </dt>
+  <dd>發生一個未知的錯誤。 </dd>
+</dl>
+
+<p>　</p>
+
+<h3><a NAME="mysql_real_connect" HREF="manual_toc.html#mysql_real_connect">20.4.40<code> 
+mysql_real_connect()</code></a></h3>
+
+<p><code>MYSQL *mysql_real_connect(MYSQL *mysql, const char *host, const char *user, const 
+char *passwd, const char *db, unsigned int port, const char *unix_socket, unsigned int 
+client_flag)</code> </p>
+
+<h4>20.4.40.1 說明</h4>
+
+<p><code>mysql_real_connect()</code>試圖建立到運行<code>host</code>的一個<strong>MySQL</strong>資料庫引擎的一個連接。 
+<code>mysql_real_connect()</code>在你可以執行任何其他API函數之前必須成功地完成，除了<code>mysql_get_client_info()</code>。</p>
+
+<p>參數指定如下： 
+
+<ul>
+  <li>第一個參數應該是一個現存<code>MYSQL</code>結構的地址。在調用<code>mysql_real_connect()</code>之前，你必須調用<code>mysql_init()</code>初始化<code>MYSQL</code>結構。見下面的例子。 
+  </li>
+  <li><code>host</code>值可以是一個主機名或一個IP地址。如果<code>host</code>是<code>NULL</code>或字符串<code>&quot;localhost&quot;</code>，假定是到本地主機的一個連接。如果OS支援套接字(Unix)或命名管道(Win32)，使用他們而不是TCP/IP與伺服器連接。</li>
+  <li><code>user</code>參數包含用戶的<strong>MySQL</strong>登錄ID。如果<code>user</code>是<code>NULL</code>，假定是當前用戶。在Unix下，它是當前登錄名。在Windows 
+    ODBC下，必須明確地指定當前用戶名字。見<a HREF="manual_ODBC.html#ODBC_administrator">16.4 怎樣填寫ODBC管理程式中各種域</a>。 
+  </li>
+  <li><code>passwd</code>參數為<code>user</code>包含密碼。如果<code>passwd</code>是<code>NULL</code>，只有在<code>user</code>表中對於有一個空白密碼字段的用戶的條目將被檢查一個匹配。這允許資料庫主管設置<strong>MySQL</strong>權限，使用戶獲得不同的密碼，取決於他們是否已經指定一個密碼。注意：不要試圖在調用<code>mysql_real_connect()</code>前加密密碼﹔密碼加密自動被客戶API處理。</li>
+  <li><code>db</code>是資料庫名。如果<code>db</code>不是<code>NULL</code>，連接將內定資料庫設置為這個值。</li>
+  <li>如果<code>port</code>不是0，值對於TCP/IP連接將用作端口號。注意<code>host</code>參數決定連接的類型。</li>
+  <li>如果<code>unix_socket</code>不是<code>NULL</code>，字符串指定套接字或應該被使用的命名管道。注意<code>host</code>參數決定連接的類型。</li>
+  <li><code>client_flag</code>值通常是0，但是在很特殊的情況下可以被設置為下列標誌的組合：<table BORDER="1" WIDTH="100%" NOSAVE="#101090" class="p4">
+      <tr>
+        <td><strong>標誌名字</strong> </td>
+        <td><strong>意味著的標誌</strong> </td>
+      </tr>
+      <tr>
+        <td><code>CLIENT_FOUND_ROWS</code> </td>
+        <td>返回找到的(匹配的)行數，不是受到影響的行數。</td>
+      </tr>
+      <tr>
+        <td><code>CLIENT_NO_SCHEMA</code> </td>
+        <td>不允許<code>db_name.tbl_name.col_name</code>語法。這是為了ODBC﹔如果你使用該語法，導致語法分析器產生一個錯誤，它是為在一些ODBC程式捕捉錯誤是有用的。 
+        </td>
+      </tr>
+      <tr>
+        <td><code>CLIENT_COMPRESS</code> </td>
+        <td>使用壓縮協議。</td>
+      </tr>
+      <tr>
+        <td><code>CLIENT_ODBC</code> </td>
+        <td>客戶是一個ODBC客戶。這使<code>mysqld</code>變得對ODBC更友好。 </td>
+      </tr>
+    </table>
+  </li>
+</ul>
+
+<h4>20.4.40.2 返回值</h4>
+
+<p>如果連接成功，一個 <code>MYSQL*</code>連接句柄。如果連接失敗，<code>NULL</code>。對一個成功的連接，返回值與第一個參數值相同，除非你傳遞<code>NULL</code>給該參數。</p>
+
+<h4>20.4.40.3 錯誤</h4>
+
+<dl COMPACT="manual_ODBC.html#ODBC_administrator">
+  <dt><code>CR_CONN_HOST_ERROR</code> </dt>
+  <dd>不能連接<strong>MySQL</strong>伺服器。 </dd>
+  <dt><code>CR_CONNECTION_ERROR</code> </dt>
+  <dd>不能連接本地<strong>MySQL</strong>伺服器。 </dd>
+  <dt><code>CR_IPSOCK_ERROR</code> </dt>
+  <dd>不能創建一個IP套接字。 </dd>
+  <dt><code>CR_OUT_OF_MEMORY</code> </dt>
+  <dd>內存溢出。 </dd>
+  <dt><code>CR_SOCKET_CREATE_ERROR</code> </dt>
+  <dd>不能創建一個Unix套接字。 </dd>
+  <dt><code>CR_UNKNOWN_HOST</code> </dt>
+  <dd>不能找到主機名的IP地址。 </dd>
+  <dt><code>CR_VERSION_ERROR</code> </dt>
+  <dd>由於試圖使用一個不同協議版本的一個客戶庫與一個伺服器連接導致的一個協議失配。如果你使用一個非常老的客戶庫連接一個沒有使用<code>--old-protocol</code>選項啟動的新伺服器，這就能發生。 
+  </dd>
+  <dt><code>CR_NAMEDPIPEOPEN_ERROR;</code> </dt>
+  <dd>不能在 Win32 上創建一個命名管道。 </dd>
+  <dt><code>CR_NAMEDPIPEWAIT_ERROR;</code> </dt>
+  <dd>不能在 Win32 上等待一個命名管道。 </dd>
+  <dt><code>CR_NAMEDPIPESETSTATE_ERROR;</code> </dt>
+  <dd>不能在 Win32 上得到一個管道處理器。</dd>
+</dl>
+
+<h4>20.4.40.4 範例</h4>
+
+<pre>MYSQL mysql;
+
+mysql_init(&amp;mysql);
+if (!mysql_real_connect(&amp;mysql,&quot;host&quot;,&quot;user&quot;,&quot;passwd&quot;,&quot;database&quot;,0,NULL,0))
+{
+    fprintf(stderr, &quot;Failed to connect to database: Error: %s\n&quot;,
+          mysql_error(&amp;mysql));
+}
+</pre>
+
+<h3><a NAME="mysql_real_query" HREF="manual_toc.html#mysql_real_query">20.4.41<code> 
+mysql_real_query()</code></a></h3>
+
+<p><code>int mysql_real_query(MYSQL *mysql, const char *query, unsigned int length)</code> 
+</p>
+
+<h4>20.4.41.1 說明</h4>
+
+<p>執行由<code>query</code>指向的SQL查詢，它應該是一個<code>length</code>個字節的字符串。查詢必須由一個單個的SQL語句組成。你不應該在語句後增加一個終止的分號(<samp>“;”</samp>)或<code>\g</code>。</p>
+
+<p>對於包含二進制數據的查詢，你<em>必須</em>使用<code>mysql_real_query()</code>而不是<code>mysql_query()</code>，因為二進制代碼數據可能包含<samp>“\0”</samp>字符，而且，<code>mysql_real_query()</code>比<code>mysql_query()</code>更快，因為它對查詢字符串調用<code>strlen()</code>。</p>
+
+<h4>20.4.41.2 返回值</h4>
+
+<p>如果查詢成功，零。如果發生一個錯誤，非零。</p>
+
+<h4>20.4.41.3 錯誤</h4>
+
+<dl COMPACT="mysql_real_query">
+  <dt><code>CR_COMMANDS_OUT_OF_SYNC</code> </dt>
+  <dd>命令以一個不適當的次序被執行。 </dd>
+  <dt><code>CR_SERVER_GONE_ERROR</code> </dt>
+  <dd><strong>MySQL</strong>伺服器關閉了。 </dd>
+  <dt><code>CR_SERVER_LOST</code> </dt>
+  <dd>對伺服器的連接在查詢期間失去。 </dd>
+  <dt><code>CR_UNKNOWN_ERROR</code> </dt>
+  <dd>發生一個未知的錯誤。</dd>
+</dl>
+
+<p>　</p>
+
+<h3><a NAME="mysql_reload" HREF="manual_toc.html#mysql_reload">20.4.42<code> 
+mysql_reload()</code></a></h3>
+
+<p><code>int mysql_reload(MYSQL *mysql)</code> </p>
+
+<h4>20.4.42.1 說明</h4>
+
+<p>要求<strong>MySQL</strong>伺服器再次裝載授權表。連接的用戶必須擁有<strong>reload</strong>權限。 
+</p>
+
+<p>不推薦這個函數。最好使用<code>mysql_query()</code>發出一條SQL<code> 
+FLUSH PRIVILEGES</code>語句。</p>
+
+<h4>20.4.42.2 返回值</h4>
+
+<p>成功，零。如果發生一個錯誤，非零。</p>
+
+<h4>20.4.42.3 錯誤</h4>
+
+<dl COMPACT="mysql_reload">
+  <dt>　</dt>
+  <dt><code>CR_COMMANDS_OUT_OF_SYNC</code> </dt>
+  <dd>命令以一個不適當的次序被執行。 </dd>
+  <dt><code>CR_SERVER_GONE_ERROR</code> </dt>
+  <dd><strong>MySQL</strong>伺服器關閉了。 </dd>
+  <dt><code>CR_SERVER_LOST</code> </dt>
+  <dd>對伺服器的連接在查詢期間失去。 </dd>
+  <dt><code>CR_UNKNOWN_ERROR</code> </dt>
+  <dd>發生一個未知的錯誤。</dd>
+</dl>
+
+<p>　</p>
+
+<h3><a NAME="mysql_row_seek" HREF="manual_toc.html#mysql_row_seek">20.4.43<code> 
+mysql_row_seek()</code></a></h3>
+
+<p><code>MYSQL_ROW_OFFSET mysql_row_seek(MYSQL_RES *result, MYSQL_ROW_OFFSET offset)</code> 
+</p>
+
+<h4>20.4.43.1 說明</h4>
+
+<p>設置行光標為在結果集合中的任意行。這要求結果集合結構包含查詢的全部結果，這樣<code>mysql_row_seek()</code>只能與<code>mysql_store_result()</code>一起使用，而不與<code>mysql_use_result()</code>。</p>
+
+<p>偏移量應該是調用<code>mysql_row_tell()</code>或<code>mysql_row_seek()</code>返回的值。這個值不是簡單地一個行號﹔如果你想要在結果集合內用行號來尋找行，使用<code>mysql_data_seek()</code>。</p>
+
+<h4>20.4.43.2 返回值</h4>
+
+<p>行光標先前的值。該值可以被傳遞給隨後的<code>mysql_row_seek()</code>調用。</p>
+
+<h4>20.4.43.3 錯誤</h4>
+
+<p>無。 </p>
+
+<p><a NAME="IDX767"></a></p>
+
+<h3><a NAME="mysql_row_tell" HREF="manual_toc.html#mysql_row_tell">20.4.44<code> 
+mysql_row_tell()</code></a></h3>
+
+<p><code>MYSQL_ROW_OFFSET mysql_row_tell(MYSQL_RES *result)</code> </p>
+
+<h4>20.4.44.1 說明</h4>
+
+<p>返回為了<code>mysql_fetch_row()</code>的行光標的當前位置。這個值可以作為一個參數用於<code>mysql_row_seek()</code>。 
+</p>
+
+<p>你應該僅在<code>mysql_store_result()</code>後使用<code>mysql_row_tell()</code>，而不是在<code>mysql_use_result()</code>後。</p>
+
+<h4>20.4.44.2 返回值</h4>
+
+<p>行光標當前的偏移量。 </p>
+
+<h4>20.4.44.3 錯誤</h4>
+
+<p>無。 </p>
+
+<p>　</p>
+
+<h3><a NAME="mysql_select_db" HREF="manual_toc.html#mysql_select_db">20.4.45<code> 
+mysql_select_db()</code></a></h3>
+
+<p><code>int mysql_select_db(MYSQL *mysql, const char *db)</code> </p>
+
+<h4>20.4.45.1 說明</h4>
+
+<p>使得由<code>db</code>指定的資料庫成為 在由<code>mysql</code>指定的連接上的內定(當前)資料庫。在隨後的查詢中，這個資料庫對於不包括一個顯式的資料庫指定符的表的引用是內定資料庫。</p>
+
+<p>除非連接的用戶能被認証允許使用資料庫，<code>否則mysql_select_db()</code>失敗。 
+</p>
+
+<h4>20.4.45.2 返回值</h4>
+
+<p>成功，零。如果發生一個錯誤，非零。</p>
+
+<h4>20.4.45.3 錯誤</h4>
+
+<dl COMPACT="mysql_select_db">
+  <dt><code>CR_COMMANDS_OUT_OF_SYNC</code> </dt>
+  <dd>命令以一個不適當的次序被執行。 </dd>
+  <dt><code>CR_SERVER_GONE_ERROR</code> </dt>
+  <dd><strong>MySQL</strong>伺服器關閉了。 </dd>
+  <dt><code>CR_SERVER_LOST</code> </dt>
+  <dd>對伺服器的連接在查詢期間失去。 </dd>
+  <dt><code>CR_UNKNOWN_ERROR</code> </dt>
+  <dd>發生一個未知的錯誤。</dd>
+</dl>
+
+<p>　</p>
+
+<h3><a NAME="mysql_shutdown" HREF="manual_toc.html#mysql_shutdown">20.4.46<code> 
+mysql_shutdown()</code></a></h3>
+
+<p><code>int mysql_shutdown(MYSQL *mysql)</code> </p>
+
+<h4>20.4.46.1 說明</h4>
+
+<p>讓資料庫伺服器關閉。連接的用戶必須有<strong>shutdown</strong>權限。 
+</p>
+
+<h4>20.4.46.2 返回值</h4>
+
+<p>成功，零。如果出現一個錯誤，非零</p>
+
+<h4>20.4.46.3 錯誤</h4>
+
+<dl COMPACT="mysql_shutdown">
+  <dt><code>CR_COMMANDS_OUT_OF_SYNC</code> </dt>
+  <dd>命令以一個不適當的次序被執行。 </dd>
+  <dt><code>CR_SERVER_GONE_ERROR</code> </dt>
+  <dd><strong>MySQL</strong>伺服器關閉了。 </dd>
+  <dt><code>CR_SERVER_LOST</code> </dt>
+  <dd>對伺服器的連接在查詢期間失去。 </dd>
+  <dt><code>CR_UNKNOWN_ERROR</code> </dt>
+  <dd>發生一個未知的錯誤。</dd>
+  <dt>　</dt>
+</dl>
+
+<h3><a NAME="mysql_stat" HREF="manual_toc.html#mysql_stat">20.4.47<code> mysql_stat()</code></a></h3>
+
+<p><code>char *mysql_stat(MYSQL *mysql)</code> </p>
+
+<h4>20.4.47.1 說明</h4>
+
+<p>返回包含類似於由<code>mysqladmin status</code>命令提供的資訊的一個字符串。它包括正常運行的秒數和正在運行執行緒、問題、再次裝載和打開的表的數目。 
+</p>
+
+<h4>20.4.47.2 返回值</h4>
+
+<p>描述伺服器狀態的一個字符串。如果出現一個錯誤，<code>NULL。</code></p>
+
+<h4>20.4.47.3 錯誤</h4>
+
+<dl COMPACT="mysql_stat">
+  <dt><code>CR_COMMANDS_OUT_OF_SYNC</code> </dt>
+  <dd>命令以一個不適當的次序被執行。 </dd>
+  <dt><code>CR_SERVER_GONE_ERROR</code> </dt>
+  <dd><strong>MySQL</strong>伺服器關閉了。 </dd>
+  <dt><code>CR_SERVER_LOST</code> </dt>
+  <dd>對伺服器的連接在查詢期間失去。 </dd>
+  <dt><code>CR_UNKNOWN_ERROR</code> </dt>
+  <dd>發生一個未知的錯誤。</dd>
+</dl>
+
+<p><a NAME="IDX771"></a> </p>
+
+<h3><a NAME="mysql_store_result" HREF="manual_toc.html#mysql_store_result">20.4.48<code> 
+mysql_store_result()</code></a></h3>
+
+<p><code>MYSQL_RES *mysql_store_result(MYSQL *mysql)</code> </p>
+
+<h4>20.4.48.1 說明</h4>
+
+<p>對於成功地檢索數據的每個詢問(<code>SELECT</code>、<code>SHOW</code>、<code>DESCRIBE</code>、<code>EXPLAIN</code>)，你必須調用<code>mysql_store_result()</code>或<code>mysql_use_result()</code>。</p>
+
+<p><code>mysql_store_result()</code>讀取一個到客戶的查詢的全部結果，分配一個<code>MYSQL_RES</code>結構，並且把結果放進這個結構中。 
+</p>
+
+<p>如果沒有行返回，返回一個空集合集合。（空結果集合不同於一個<code>NULL</code>返回值。）</p>
+
+<p>一旦你調用了<code>mysql_store_result()</code>，你可以調用<code>mysql_num_rows()</code>找出結果集合中有多少行。</p>
+
+<p>你能調用<code>mysql_fetch_row()</code>從結果集合中取出行，或<code>mysql_row_seek()</code>和<code>mysql_row_tell()</code>結果集合中獲得或設置當前的行位置。 
+</p>
+
+<p>一旦你用完結果集合，你必須調用<code>mysql_free_result()</code>。</p>
+
+<p>見<a HREF="manual_Clients.html#NULL_mysql_store_result">20.4.51 為什麼<code>mysql_query()</code>返回成功後，<code>mysql_store_result()</code>有時返回<code>NULL?</code></a>。</p>
+
+<h4>20.4.48.2 返回值</h4>
+
+<p>一個保存結果的<code>MYSQL_RES</code>結構。如果出現一個錯誤，<code>NULL</code>。</p>
+
+<h4>20.4.48.3 錯誤</h4>
+
+<dl COMPACT="manual_Clients.html#NULL_mysql_store_result">
+  <dt><code>CR_COMMANDS_OUT_OF_SYNC</code> </dt>
+  <dd>命令以一個不適當的次序被執行。 </dd>
+  <dt><code>CR_OUT_OF_MEMORY</code> </dt>
+  <dd>內存溢出。 </dd>
+  <dt><code>CR_SERVER_GONE_ERROR</code> </dt>
+  <dd><strong>MySQL</strong>伺服器關閉了。 </dd>
+  <dt><code>CR_SERVER_LOST</code> </dt>
+  <dd>對伺服器的連接在查詢期間失去。 </dd>
+  <dt><code>CR_UNKNOWN_ERROR</code> </dt>
+  <dd>發生一個未知的錯誤。 </dd>
+</dl>
+
+<p><a NAME="IDX772"></a> </p>
+
+<h3><a NAME="mysql_thread_id" HREF="manual_toc.html#mysql_thread_id">20.4.49<code> 
+mysql_thread_id()</code></a></h3>
+
+<p><code>unsigned long mysql_thread_id(MYSQL *mysql)</code> </p>
+
+<h4>20.4.49.1 說明</h4>
+
+<p>返回當前連接的執行緒ID。這個值可用作<code>mysql_kill()</code>的一個參數以殺死執行緒。</p>
+
+<p>如果失去連接並且你用<code>mysql_ping()</code>重新連接，執行緒ID將改變。這意味著你不應該為以後使用獲得執行緒ID並且儲存它，當你需要它時，你應該獲得它。</p>
+
+<h4>20.4.49.2 返回值</h4>
+
+<p>當前連接的執行緒 ID 。 </p>
+
+<h4>20.4.49.3 錯誤</h4>
+
+<p>無。 </p>
+
+<p><a NAME="IDX773"></a> </p>
+
+<h3><a NAME="mysql_use_result" HREF="manual_toc.html#mysql_use_result">20.4.50<code> 
+mysql_use_result()</code></a></h3>
+
+<p><code>MYSQL_RES *mysql_use_result(MYSQL *mysql)</code> </p>
+
+<h4>20.4.50.1 說明</h4>
+
+<p>對於成功地檢索數據的每個查詢(<code>SELECT</code>、<code>SHOW</code>、<code>DESCRIBE</code>、<code>EXPLAIN</code>)，你必須調用<code>mysql_store_result()</code>或<code>mysql_use_result()</code>。</p>
+
+<p><code>mysql_use_result()</code>初始化一個結果集合的檢索，但不真正將結果集合讀入客戶，就像<code>mysql_store_result()</code>那樣。相反，必須通過調用<code>mysql_fetch_row()</code>單獨檢索出每一行，這直接從伺服器讀出結果而不在一個臨時表或本地緩衝區中儲存它，它比<code>mysql_store_result()</code>更快一點並且使用較少的內存。客戶將只為當前行和一個可能最大<code>max_allowed_packet</code>字節的通信緩衝區分配內存。</p>
+
+<p>在另一方面，如果你在客戶端對每一行正在做很多的處理，或如果輸出被送到屏幕，用戶可以打一個<code>^S</code>（停止滾動)，你不應該使用<code>mysql_use_result()</code>。這將阻塞伺服器並且阻止另外的執行緒從數據被取出的任何表中更新數據。 
+</p>
+
+<p>當使用<code>mysql_use_result()</code>時，你必須執行<code>mysql_fetch_row()</code>直到返回一個<code>NULL</code>值，否則未取出的行將作為下一個查詢的結果集合一部分被返回。如果你忘記做這個，C 
+API將給出錯誤<code>Commands out of sync; You can't run this command now</code>！</p>
+
+<p>你不能在一個從<code>mysql_use_result()</code>返回的結果集合上使用<code>mysql_data_seek()</code>、<code>mysql_row_seek()</code>、<code>mysql_row_tell()</code>、<code>mysql_num_rows()</code>或<code>mysql_affected_rows()</code>，你也不能發出另外的查詢直到<code>mysql_use_result()</code>完成。（然而，在你取出所有的行以後，<code>mysql_num_rows()</code>將精確地返回取出的行數。）</p>
+
+<p>一旦你用完結果集合，你必須調用<code>mysql_free_result()</code>。 </p>
+
+<h4>20.4.50.2 返回值</h4>
+
+<p>一個<code>MYSQL_RES</code>結果結構。 如果發生一個錯誤發生，<code>NULL。</code></p>
+
+<h4>20.4.50.3 錯誤</h4>
+
+<dl COMPACT="mysql_use_result">
+  <dt><code>CR_COMMANDS_OUT_OF_SYNC</code> </dt>
+  <dd>命令以一個不適當的次序被執行。 </dd>
+  <dt><code>CR_OUT_OF_MEMORY</code> </dt>
+  <dd>內存溢出。 </dd>
+  <dt><code>CR_SERVER_GONE_ERROR</code> </dt>
+  <dd><strong>MySQL</strong>伺服器關閉了。 </dd>
+  <dt><code>CR_SERVER_LOST</code> </dt>
+  <dd>對伺服器的連接在查詢期間失去。 </dd>
+  <dt><code>CR_UNKNOWN_ERROR</code> </dt>
+  <dd>發生一個未知的錯誤。 </dd>
+</dl>
+
+<h3><a NAME="NULL_mysql_store_result" HREF="manual_toc.html#NULL_mysql_store_result">20.4.51 
+為什麼在<code>mysql_query()</code>返回成功後，<code>mysql_store_result()</code>有時返回<code>NULL?</code></a></h3>
+
+<p>有可能在一個對<code>mysql_query()</code>成功的調用後，<code>mysql_store_result()</code>返回<code>NULL</code>。當這發生時，它意味著出現了下列條件之一： 
+
+<ul>
+  <li>有一個<code>malloc()</code>失敗(例如，如果結果集合太大)。 </li>
+  <li>數據不能被讀取(發生在連接上的一個錯誤)。 </li>
+  <li>查詢沒有返回數據(例如，它是一個<code>INSERT</code>、<code>UPDATE</code>或<code>DELETE</code>)。 
+  </li>
+</ul>
+
+<p>你總是可以通過調用<code>mysql_field_count()</code>檢查語句是否應該產生非空的結果。如果<code>mysql_field_count()</code>返回零，結果是空的並且最後一個查詢是不回值的一條語句(例如，一條<code>INSERT</code>或<code>DELETE</code>)。如果<code>mysql_field_count()</code>返回非零值，語句應該產生非空的結果。見對<code>mysql_field_count()</code>描述的一個例子。 
+</p>
+
+<p>你可以調用<code>mysql_error()</code>或<code>mysql_errno()</code>測試一個錯誤。</p>
+
+<h3><a NAME="Query_results" HREF="manual_toc.html#Query_results">20.4.52 
+我能從查詢中得到什麼結果？</a></h3>
+
+<p>除了由查詢返回的結果集合外，你也能得到下列資訊： 
+
+<ul>
+  <li>當執行一條<code>INSERT</code>、<code>UPDATE</code>或<code>DELETE</code>時，<code>mysql_affected_rows()</code>返回受到最後一個查詢影響的行數。一個例外是如果使用一條沒有<code>WHERE</code>子句的<code>DELETE</code>，表被截斷，它更快！在這種情況下，<code>mysql_affected_rows()</code>對於影響的記錄數量返回零。</li>
+  <li><code>mysql_num_rows()</code>返回結果集合中的行數。用<code>mysql_store_result()</code>，一旦<code>mysql_store_result()</code>返回，就可以調用<code>mysql_num_rows()</code>。用<code>mysql_use_result()</code>，只有在你已經用<code>mysql_fetch_row()</code>取出了所有行後，才能調用<code>mysql_num_rows()</code>。</li>
+  <li><code>mysql_insert_id()</code>返回由將一行插入一個具有<code>AUTO_INCREMENT</code>索引的表中的最後查詢產生的ID。見<a HREF="manual_Clients.html#mysql_insert_id">20.4.29<code> mysql_insert_id()</code></a>。</li>
+  <li>某些查詢(<code>LOAD DATA INFILE ...</code>、<code>INSERT INTO ... SELECT ...</code>、UPDATE)返回附加的資訊。結果由返<code>mysql_info()</code>返回。對其返回字符串的格式，見<code>mysql_info()</code>的描述。如果沒有附加的資訊，<code>mysql_info()</code>返回一個<code>NULL</code>指針。 
+  </li>
+</ul>
+
+<h3><a NAME="Getting_unique_ID" HREF="manual_toc.html#Getting_unique_ID">20.4.53 
+我怎樣能得到最後插入的行的唯一ID？</a></h3>
+
+<p>如果你往包含一個具有<code>AUTO_INCREMENT</code>屬性的列的一張表中插入一個記錄，你能通過<code>mysql_insert_id()</code>函數獲得最近產生的ID。</p>
+
+<p>你也可以通過在你傳遞給<code>mysql_query()</code>的一個查詢字符串中使用<code>LAST_INSERT_ID()</code>函數檢索出ID。</p>
+
+<p>你可以執行下列代碼檢查是否使用一個<code>AUTO_INCREMENT</code>索引。這也檢查查詢是否是有一個<code>AUTO_INCREMENT</code>索引的一條<code>INSERT：</code></p>
+
+<pre>if (mysql_error(&amp;mysql)[0] == 0 &amp;&amp;
+    mysql_num_fields(result) == 0 &amp;&amp;
+    mysql_insert_id(&amp;mysql) != 0)
+{
+    used_id = mysql_insert_id(&amp;mysql);
+}
+</pre>
+
+<p>最近產生的ID是在一個按連接的基礎上在伺服器上進行維護，它將不被其他客戶改變。如果你更新另外一個有非奇特(non-magic)值(即一個既不是<code>NULL</code>也不是<code>0</code>的值)的<code>AUTO_INCREMENT</code>列，它甚至將不被改變。</p>
+
+<p>如果你想要使用為一張表產生的ID並且把它插入到第2張表，你可以使用像這樣的SQL語句：</p>
+
+<pre>INSERT INTO foo (auto,text)
+    VALUES(NULL,'text');              # generate ID by inserting NULL
+INSERT INTO foo2 (id,text)
+    VALUES(LAST_INSERT_ID(),'text');  # use ID in second table
+</pre>
+
+<h3><a NAME="C_API_linking_problems" HREF="manual_toc.html#C_API_linking_problems">20.4.54 
+鏈接C API的問題</a></h3>
+
+<p>當與C API鏈接時，下列錯誤可能發生一些系統上：</p>
+
+<pre>gcc -g -o client test.o -L/usr/local/lib/mysql -lmysqlclient -lsocket -lnsl
+
+Undefined        first referenced
+ symbol          in file
+floor            /usr/local/lib/mysql/libmysqlclient.a(password.o)
+ld: fatal: Symbol referencing errors. No output written to client
+</pre>
+
+<p>如果它發生在你的系統上，你必須通過在編譯/鏈接命令行的最後增加<code>-lm</code>以包括數學庫。</p>
+
+<h3><a NAME="Thread-safe_clients" HREF="manual_toc.html#Thread-safe_clients">20.4.55 
+怎樣制作一個執行緒安全的客戶</a></h3>
+
+<p>客戶“幾乎”是執行緒安全的。最大的問題是在從套接字讀取的<tt>“net.c”</tt>中的子程式不是中斷安全的(interruot-safe)。這樣做是這樣考慮的，即你可能想有你自己的報警來中斷一個長時間的讀取伺服器。</p>
+
+<p>標準客戶庫沒有用執行緒選項來編譯。</p>
+
+<p>為了獲得一個執行緒安全的客戶，使用<code>-lmysys</code>, <code>-lstring</code>和<code>-ldbug</code>庫和伺服器使用的<code>net_serv.o</code>。</p>
+
+<p>當使用一個執行緒化的客戶時，你可以充分利用在<tt>“thr_alarm.c”</tt>文件中的函數。如果你正在使用來自<code>mysys</code>庫的函數，你唯一必須記住的是首先調用<code>my_init()</code>！</p>
+
+<p>所有函數除了<code>mysql_real_connect()</code>目前是執行緒安全的。下列注意事項描述怎樣編譯一個執行緒安全的客戶庫並且以一種執行緒安全的方式使用它。（下面對<code>mysql_real_connect()</code>的注意事項實際上也適用於<code>mysql_connect()</code>，但是因為<code>mysql_connect()</code>不提倡使用，無論如何你應該使用<code>mysql_real_connect()</code>。）</p>
+
+<p>為了使<code>mysql_real_connect()</code>是執行緒安全的，你必須用這個命令重新編譯客戶庫：</p>
+
+<pre>shell&gt; CPPFLAGS=-DTHREAD_SAFE_CLIENT ./configure ...
+</pre>
+
+<p>當鏈接標準客戶時，你可能得到的某些因為未定義符號的錯誤，因為pthread庫沒有被內定地包括。</p>
+
+<p>最終的<tt>“libmysqlclient.a”</tt>庫現在是執行緒安全的。它的含義是只要2個執行緒不同時查詢<code>mysql_real_connect()</code>返回的同一個連接句柄，客戶代碼是執行緒安全的﹔客戶機/伺服器協議在一個給定的連接上一次只允許一個請求。如果你想在同一個的連接上使用多個執行緒，你必須在<code>mysql_query()</code>和<code>mysql_store_result()</code>調用組合附近有一個mutex鎖定。一旦<code>mysql_store_result()</code>就緒，鎖可以被釋放並且其他執行緒可以查詢同一個連接。（換句話說，不同的執行緒能使用不同被<code>mysql_store_result()</code>創建的<code>MYSQL_RES</code>指針，只要他們使用適當的鎖定協議) 
+如果你用POSIX執行緒編程，你能使用<code>pthread_mutex_lock()</code>和<code>pthread_mutex_unlock()</code>建立並且釋放一個mutex鎖定。</p>
+
+<p>如果你使用<code>mysql_use_result()</code>而不是<code>mysql_store_result()</code>，鎖定將需要包圍<code>mysql_use_result()</code>和<code>mysql_fetch_row()</code>的調用，然而，它確實對不使用<code>mysql_use_result()</code>執行緒客戶是最好的。</p>
+
+<h2><a NAME="Perl" HREF="manual_toc.html#Perl">20.5 MySQL Perl API</a></h2>
+
+<p>本節記載了Perl<code> DBI</code>介面。以前的介面被稱為<code>mysqlperl</code>。因為<code>DBI</code>/<code>DBD</code>現在是推薦的Perl介面，<code>mysqlperl</code>是過時的並且不在這裡記載。</p>
+
+<h3><a NAME="DBI_with_DBD" HREF="manual_toc.html#DBI_with_DBD">20.5.1<code> DBI</code>與<code>DBD::mysql</code></a></h3>
+
+<p><code>DBI</code>是對於很多資料庫的一個通用介面。這意味著你能編寫一個腳本，不用改變就能工作於很多資料庫引擎。你需要為每種資料庫類型定義了的一個資料庫驅動程式(DBD)。對於<strong>MySQL</strong>，該驅動程式稱為<code>DBD::mysql</code>。 
+</p>
+
+<p>有關Perl5 DBI的更多資訊，請訪問<code>DBI</code>網頁並且閱讀文檔： </p>
+
+<pre>
+<a HREF="http://www.symbolstone.org/technology/perl/DBI/index.html">http://www.symbolstone.org/technology/perl/DBI/index.html</a>
+</pre>
+
+<p>關於在Perl5定義的面向對像的編程(OOP)的更多資訊，參見Perl OOP頁： 
+</p>
+
+<pre>
+<a HREF="http://language.perl.com/info/documentation.html">http://language.perl.com/info/documentation.html</a>
+</pre>
+
+<p>對於<strong>MySQL</strong> Perl支援的安裝指令在<a HREF="manual_Installing.html#Perl_support">4.10 Perl安裝說明</a>中給出。</p>
+
+<p><a NAME="IDX774"></a> </p>
+
+<h3><a NAME="Perl_DBI_Class" HREF="manual_toc.html#Perl_DBI_Class">20.5.2 <code>DBI</code>介面</a></h3>
+
+<p><strong>可移植的DBI方法</strong> </p>
+
+<table BORDER="1" WIDTH="100%" NOSAVE="#101090" class="p4">
+  <tr>
+    <td><code>connect</code> </td>
+    <td>建立到一個資料庫伺服器的連接</td>
+  </tr>
+  <tr>
+    <td><code>disconnect</code> </td>
+    <td>斷開資料庫伺服器的連接</td>
+  </tr>
+  <tr>
+    <td><code>prepare</code> </td>
+    <td>準備執行一個SQL語句</td>
+  </tr>
+  <tr>
+    <td><code>execute</code> </td>
+    <td>執行準備好的語句</td>
+  </tr>
+  <tr>
+    <td><code>do</code> </td>
+    <td>準備並執行一個SQL語句</td>
+  </tr>
+  <tr>
+    <td><code>quote</code> </td>
+    <td>加引號於要插入的字符串或<code>BLOB</code>值</td>
+  </tr>
+  <tr>
+    <td><code>fetchrow_array</code> </td>
+    <td>作為一個字段數組取出下一行 </td>
+  </tr>
+  <tr>
+    <td><code>fetchrow_arrayref</code> </td>
+    <td>作為一個字段的引用數組取出下一行</td>
+  </tr>
+  <tr>
+    <td><code>fetchrow_hashref</code> </td>
+    <td>作為一個哈希表的引用取出下一行</td>
+  </tr>
+  <tr>
+    <td><code>fetchall_arrayref</code> </td>
+    <td>作為一個字段數組取出所有數據</td>
+  </tr>
+  <tr>
+    <td><code>finish</code> </td>
+    <td>完成一條語句並且讓系統釋放資源</td>
+  </tr>
+  <tr>
+    <td><code>rows</code> </td>
+    <td>返回受影響的行數</td>
+  </tr>
+  <tr>
+    <td><code>data_sources</code> </td>
+    <td>返回可在localhost上得到的資料庫的數組</td>
+  </tr>
+  <tr>
+    <td><code>ChopBlanks</code> </td>
+    <td>控制<code>fetchrow_*</code>方法是否剝去空格</td>
+  </tr>
+  <tr>
+    <td><code>NUM_OF_PARAMS</code> </td>
+    <td>在準備的語句中的占位（placeholder-參數）的數目</td>
+  </tr>
+  <tr>
+    <td><code>NULLABLE</code> </td>
+    <td>其列可以是<code>NULL</code> </td>
+  </tr>
+  <tr>
+    <td><code>trace</code> </td>
+    <td>執行調試跟蹤</td>
+  </tr>
+</table>
+
+<p><strong>MySQL特定的方法</strong> </p>
+
+<table BORDER="1" WIDTH="100%" NOSAVE="#101090" class="p4">
+  <tr>
+    <td><code>insertid</code> </td>
+    <td>最後一個<code>AUTO_INCREMENT</code>值</td>
+  </tr>
+  <tr>
+    <td><code>is_blob</code> </td>
+    <td>該列是<code>BLOB</code>值</td>
+  </tr>
+  <tr>
+    <td><code>is_key</code> </td>
+    <td>該列是鍵</td>
+  </tr>
+  <tr>
+    <td><code>is_num</code> </td>
+    <td>該列是數字的</td>
+  </tr>
+  <tr>
+    <td><code>is_pri_key</code> </td>
+    <td>該列是主鍵</td>
+  </tr>
+  <tr>
+    <td><code>is_not_null</code> </td>
+    <td>該列不能是<code>NULL</code>，見<code>NULLABLE</code>。 </td>
+  </tr>
+  <tr>
+    <td><code>length</code> </td>
+    <td>最大可能的列大小</td>
+  </tr>
+  <tr>
+    <td><code>max_length</code> </td>
+    <td>結果中實際上存在的最大列大小</td>
+  </tr>
+  <tr>
+    <td><code>NAME</code> </td>
+    <td>列名字</td>
+  </tr>
+  <tr>
+    <td><code>NUM_OF_FIELDS</code> </td>
+    <td>返回的字段數目</td>
+  </tr>
+  <tr>
+    <td><code>table</code> </td>
+    <td>在返回的集合中的表名</td>
+  </tr>
+  <tr>
+    <td><code>type</code> </td>
+    <td>所有的列類型</td>
+  </tr>
+</table>
+
+<p>Perl方法在下一節更詳細地描述。用於方法返回值的變數有這些含義： 
+
+<dl COMPACT="Perl_DBI_Class">
+  <dt><code>$dbh</code> </dt>
+  <dd>資料庫句柄</dd>
+  <dt><code>$sth</code> </dt>
+  <dd>語句句柄</dd>
+  <dt><code>$rc</code> </dt>
+  <dd>返回代碼 (經常是一個狀態）</dd>
+  <dt><code>$rv</code> </dt>
+  <dd>返回值 (經常是一個行數）</dd>
+</dl>
+
+<p><strong>可移植DBI方法</strong> 
+
+<dl COMPACT="Perl_DBI_Class">
+  <dt><code>connect($data_source, $username, $password)</code> </dt>
+  <dd><a NAME="IDX775"></a>使用<code>connect</code>方法使得一個資料庫連接到數據源。<code>$data_source</code>值應該以<code>DBI:driver_name:</code>開始。以<code>DBD::mysql</code>驅動程式使用<code>connect的例子：</code><pre>$dbh = DBI-&gt;connect(&quot;DBI:mysql:$database&quot;, $user, $password);
+$dbh = DBI-&gt;connect(&quot;DBI:mysql:$database:$hostname&quot;,
+                    $user, $password);
+$dbh = DBI-&gt;connect(&quot;DBI:mysql:$database:$hostname:$port&quot;,
+                    $user, $password);
+</pre>
+    <p>如果用戶名或密碼未定義，<code>DBI</code>分別使用<code>DBI_USER</code>和<code>DBI_PASS</code>環境變數的值。如果你不指定主機名，它內定<code>為'localhost'</code>。如果你不指定一個端口號，它內定為<strong>MySQL</strong>的內定端口(3306)。對<code>Msql-Mysql-modules</code>版本1.2009，<code>$data_source</code>值允許某些修飾詞：<dl COMPACT="IDX776">
+      <dt><code>mysql_read_default_file=file_name</code> </dt>
+      <dd>讀取作為一個選項文件<tt>的“filename”</tt>。有關選項文件的資訊，見<a HREF="manual_Installing.html#Option_files">4.15.4 選項文件</a>。</dd>
+      <dt><code>mysql_read_default_group=group_name</code> </dt>
+      <dd>當讀取選項文件時的內定組通常是<code>[client]</code>組。通過指定<code>mysql_read_default_group</code>選項，內定組變成<code>[group_name]</code>組。</dd>
+      <dt><code>mysql_compression=1</code> </dt>
+      <dd>在客戶和伺服器之間使用壓縮通信(<strong>MySQL</strong> 3.22.3或以後)。</dd>
+      <dt><code>mysql_socket=/path/to/socket</code> </dt>
+      <dd>指定用於與伺服器連接的Unix套接字的路徑名(<strong>MySQL</strong> 
+        3.21.15或以後)。</dd>
+    </dl>
+    <p>可以給出多個修飾詞﹔每一個必須前置一個分號。例如，如果你想要避免在一個<code>DBI</code>腳本中硬編碼用戶名和密碼，你可以從用戶的<tt>“~/.my.cnf”</tt>選項文件中取出它們，而不是這樣編寫你的<code>connect</code>調用：</p>
+    <pre>$dbh = DBI-&gt;connect(&quot;DBI:mysql:$database&quot;
+                . &quot;;mysql_read_default_file=$ENV{HOME}/.my.cnf&quot;,
+                $user, $password);
+</pre>
+    <p>這個調用將讀取在選項文件中為<code>[client]</code>組而定義的選項。如果你想做同樣的事情，但是也使用未<code>[perl]</code>組指定的選項，你可以使用：</p>
+    <pre>$dbh = DBI-&gt;connect(&quot;DBI:mysql:$database&quot;
+                . &quot;;mysql_read_default_file=$ENV{HOME}/.my.cnf&quot;
+                . &quot;;mysql_read_default_group=perl&quot;,
+                $user, $password);
+<a NAME="IDX777"></a> <a NAME="IDX778"></a> </pre>
+  </dd>
+  <dt><code>disconnect</code> </dt>
+  <dd><code>disconnect</code>方法從資料庫斷開資料庫句柄。它一般就在你從程式退出之前被調用。範例：<pre>$rc = $dbh-&gt;disconnect;
+<a NAME="IDX779"></a> <a NAME="IDX780"></a> </pre>
+  </dd>
+  <dt><code>prepare($statement)</code> </dt>
+  <dd>準備一條由資料庫引擎執行的SQL語句並且返回語句句柄<code>($sth)</code>，你可以使用它調用<code>execute</code>方法。一般地你借助於<code>prepare</code>和<code>execute</code>來處理<code>SELECT</code>語句(和類<code>SELECT</code>語句，例如<code>SHOW</code>、<code>DESCRIBE</code>和<code>EXPLAIN</code>)。範例：<pre>$sth = $dbh-&gt;prepare($statement)
+    or die &quot;Can't prepare $statement: $dbh-&gt;errstr\n&quot;;
+<a NAME="IDX781"></a> <a NAME="IDX782"></a> </pre>
+  </dd>
+  <dt><code>execute</code> </dt>
+  <dd><code>execute</code>方法執行一個準備好的語句。對非<code>SELECT</code>語句，<code>execute</code>返回受影響的行數。如果沒有行受影響，<code>execute</code>返回<code>&quot;0E0&quot;</code>，Perl將它視作零而不是真。對於<code>SELECT</code>語句，<code>execute</code>只是在資料庫中啟動SQL查詢﹔你需要使用在下面描述的<code>fetch_*</code>方法之一檢索數據。範例：<pre>$rv = $sth-&gt;execute
+          or die &quot;can't execute the query: $sth-&gt;errstr;
+<a NAME="IDX783"></a> <a NAME="IDX784"></a> </pre>
+  </dd>
+  <dt><code>do($statement)</code> </dt>
+  <dd><code>do</code>方法準備並且執行一條SQL語句並且返回受影響的行數。如果沒有行受到影響，<code>do</code>返回<code>&quot;0E0&quot;</code>，Perl將它視為零而不是真。這個方法通常用於事先無法準備好(由於驅動程式的限制)或不需要執行多次(插入、刪除等等)的非<code>SELECT</code>語句。範例：<pre>$rv = $dbh-&gt;do($statement)
+        or die &quot;Can't execute $statement: $dbh- &gt;errstr\n&quot;;
+<a NAME="IDX785"></a> <a NAME="IDX786"></a> <a NAME="IDX787"></a> <a NAME="IDX788"></a> </pre>
+  </dd>
+  <dt><code>quote($string)</code> </dt>
+  <dd><code>quote</code>方法被用來“轉義”包含在<code>string</code>中的任何特殊字符並增加所需的外部的引號。範例：<pre>$sql = $dbh-&gt;quote($string)
+</pre>
+  </dd>
+  <dt><code>fetchrow_array</code> </dt>
+  <dd>這個方法取下一行數據並且作為一個字段值數組返回它。範例：<pre>while(@row = $sth-&gt;fetchrow_array) {
+        print qw($row[0]\t$row[1]\t$row[2]\n);
+}
+</pre>
+  </dd>
+  <dt><code>fetchrow_arrayref</code> </dt>
+  <dd>這個方法取下一行數據並且作為一個對一個字段值數組的引用返回它。範例：<pre>while($row_ref = $sth-&gt;fetchrow_arrayref) {
+        print qw($row_ref-&gt;[0]\t$row_ref-&gt;[1]\t$row_ref-&gt;[2]\n);
+}
+</pre>
+  </dd>
+  <dt><code>fetchrow_hashref</code> </dt>
+  <dd>這個方法取一行數據並且返回包含字段名/值對的一個哈希表的一個引用。這個方法不如使用上述數組引用那樣有效。範例：<pre>while($hash_ref = $sth-&gt;fetchrow_hashref) {
+        print qw($hash_ref-&gt;{firstname}\t$hash_ref-&gt;{lastname}\t\
+                $hash_ref- &gt; title}\n);
+}
+<a NAME="IDX795"></a> <a NAME="IDX796"></a> </pre>
+  </dd>
+  <dt><code>fetchall_arrayref</code> </dt>
+  <dd>這個方法被用來獲得從SQL語句被返回的所有數據(行)。它返回一個數組的引用，該數組包含對每行的數組的引用。你用一個嵌套循環來存取或列印數據。範例：<pre>my $table = $sth-&gt;fetchall_arrayref
+                or die &quot;$sth-&gt;errstr\n&quot;;
+my($i, $j);
+for $i ( 0 .. $#{$table} ) {
+        for $j ( 0 .. $#{$table-&gt;[$i]} ) {
+                print &quot;$table-&gt;[$i][$j]\t&quot;;
+        }
+        print &quot;\n&quot;;
+}
+<a NAME="IDX797"></a> <a NAME="IDX798"></a> </pre>
+  </dd>
+  <dt><code>finish</code> </dt>
+  <dd>便名沒有更多的數據將從這個語句句柄取出。你調用這個方法釋放語句句柄和任何與它相關的系統資源。範例： 
+    <pre>$rc = $sth-&gt;finish;
+</pre>
+  </dd>
+  <dt><code>rows</code> </dt>
+  <dd>返回由最後一條命令改變(更新、刪除等)的行數。這通常用在非<code>SELECT</code>的<code>execute</code>語句之後。範例：<pre>$rv = $sth-&gt;rows; 
+</pre>
+  </dd>
+  <dt><code>NULLABLE</code> </dt>
+  <dd>返回一個對一個布爾值數組的引用﹔對數組的每個成員，一個TRUE值表示該列可以包含<code>NULL</code>值。範例：<pre>$null_possible = $sth-&gt;{NULLABLE};
+</pre>
+  </dd>
+  <dt><code>NUM_OF_FIELDS</code> </dt>
+  <dd>這個屬性表明由一條<code>SELECT</code>或<code>SHOW FIELDS</code>語句返回的字段數目。你可以用它檢查一條語句是否返回了結果：一個零值表明一個像<code>INSERT</code>、<code>DELETE</code>或<code>UPDATE</code>的非<code>SELECT</code>語句。範例：<pre>$nr_of_fields = $sth-&gt;{NUM_OF_FIELDS};
+<a NAME="IDX805"></a> <a NAME="IDX806"></a> </pre>
+  </dd>
+  <dt><code>data_sources($driver_name)</code> </dt>
+  <dd>這個方法返回一個數組，它包含在主機<code>'localhost'</code>上的<strong>MySQL</strong>伺服器可得到的資料庫名。範例：<pre>@dbs = DBI-&gt;data_sources(&quot;mysql&quot;);
+</pre>
+  </dd>
+  <dt><code>ChopBlanks</code> </dt>
+  <dd>這個屬性確定<code>fetchrow_*</code>方法是否將去掉返回值的頭和尾的空白。範例：<pre>$sth-&gt;{'ChopBlanks'} =1;
+<a NAME="IDX809"></a> <a NAME="IDX810"></a> </pre>
+  </dd>
+  <dt><code>trace($trace_level)</code> </dt>
+  <dd>　</dd>
+  <dt><code>trace($trace_level, $trace_filename)</code> </dt>
+  <dd><code>trace</code>方法開啟或關閉跟蹤。當作為一個<code>DBI</code>類方法調用時，它影響對所有句柄的跟蹤。當作為一個資料庫或語句句柄方法調用時，它影響對給定句柄的跟蹤(和句柄的未來子孫)。設置<code>$trace_level</code>為2以提供詳細的蹤跡資訊，設置<code>$trace_level</code>為0以關閉跟蹤。蹤跡輸出內定地輸出到標準錯誤輸出。如果指定<code>$trace_filename</code>，文件以添加模式打開並且<em>所有</em>跟蹤的句柄的手被寫入該文件。範例：<pre>DBI-&gt;trace(2);                # trace everything
+DBI-&gt;trace(2,&quot;/tmp/dbi.out&quot;); # trace everything to /tmp/dbi.out
+$dth-&gt;trace(2);               # trace this database handle
+$sth-&gt;trace(2);               # trace this statement handle
+</pre>
+    <p><a NAME="IDX811"></a><a NAME="IDX812"></a>你也可以通過設置<code>DBI_TRACE</code>環境變數開啟<code>DBI</code>跟蹤。將它設置為等價於調用<code>DBI-&gt;(value)</code>的數字值，將它設置為等價於調用<code>DBI-&gt;(2,value)</code>的路徑名。 
+    </p>
+  </dd>
+</dl>
+
+<p><strong>MySQL特定的方法</strong> </p>
+
+<p>下面顯示的方法是<strong>MySQL</strong>特定的並且不是<code>DBI</code>標準的部分。他們中有幾個現在不建議使用：<code>is_blob</code>、<code>is_key</code>、<code>is_num</code>、<code>is_pri_key</code>、<code>is_not_null</code>、<code>length</code>、max_length和<code>table</code>。這些已有<code>DBI</code>標準的另一種方法存在，他們在下面說明。 
+
+<dl COMPACT="IDX812">
+  <dt><code>insertid</code> </dt>
+  <dd>如果你使用<strong>MySQL</strong>的<code>AUTO_INCREMENT</code>功能，新的自動加1的值將儲存在這裡。範例：<pre>$new_id = $sth-&gt;{insertid};
+</pre>
+    <p>作為另一種選擇，你可以使用<code>$dbh-&gt;{'mysql_insertid'}</code>。<a NAME="IDX816"></a> <a NAME="IDX817"></a> </p>
+  </dd>
+  <dt><code>is_blob</code> </dt>
+  <dd>返回一個對一個布爾值數組的引用﹔對數組的每個單元，一個TRUE值表明相應的列是一個<code>BLOB</code>。範例： 
+    <pre>$keys = $sth-&gt;{is_blob};
+<a NAME="IDX818"></a> <a NAME="IDX819"></a> </pre>
+  </dd>
+  <dt><code>is_key</code> </dt>
+  <dd>返回一個對一個布爾值數組的引用﹔對數組的每個單元，一個TRUE值表明相應的列是鍵。範例：<pre>$keys = $sth-&gt;{is_key};
+</pre>
+  </dd>
+  <dt><code>is_num</code> </dt>
+  <dd>返回一個對一個布爾值數組的引用﹔對數組的每個單元，一個TRUE值表明相應的列包含數字值。範例： 
+    <pre>$keys = $sth-&gt;{is_key};
+<a NAME="IDX822"></a> <a NAME="IDX823"></a> </pre>
+  </dd>
+  <dt><code>is_pri_key</code> </dt>
+  <dd>返回一個對一個布爾值數組的引用﹔對數組的每個單元，一個TRUE值表明相應的列是主鍵。範例：<pre>pri_keys = $sth-&gt;{is_pri_key}; 
+<a NAME="IDX824"></a> <a NAME="IDX825"></a> </pre>
+  </dd>
+  <dt><code>is_not_null</code> </dt>
+  <dd>返回一個對一個布爾值數組的引用﹔對數組的每個單元，一個FALSEE值表明該列可以包含<code>NULL</code>值。範例：<pre>$not_nulls = $sth-&gt;{is_not_null};
+</pre>
+    <p><code>is_not_null</code>不建議使用﹔最好使用<code>NULLABLE</code>屬性(在上面描述了)，因為那是一個 
+    DBI 標準。 <a NAME="IDX826"></a> <a NAME="IDX827"></a> <a NAME="IDX828"></a> <a NAME="IDX829"></a> </p>
+  </dd>
+  <dt><code>length</code> </dt>
+  <dd>　</dd>
+  <dt><code>max_length</code> </dt>
+  <dd>這些方法的每個返回一個對列大小數組的引用。<code>length</code>數組指出每列可以有的最大可能的尺寸 
+    (如在表描述中聲明的)。<code>max_length</code>數組指出在結果表中實際存在的最大尺寸。範例：<pre>$lengths = $sth-&gt;{length};
+$max_lengths = $sth-&gt;{max_length};
+<a NAME="IDX830"></a> <a NAME="IDX831"></a> </pre>
+  </dd>
+  <dt><code>NAME</code> </dt>
+  <dd>返回一個對一個列名數組的引用。範例： <pre>$names = $sth-&gt;{NAME};
+</pre>
+  </dd>
+  <dt><code>table</code> </dt>
+  <dd>返回一個對一個表名數組的引用。範例：<pre>$tables = $sth-&gt;{table};
+</pre>
+  </dd>
+  <dt><code>type</code> </dt>
+  <dd>返回一個對一個列類型數組的引用。範例：<pre>$types = $sth-&gt;{type};
+</pre>
+  </dd>
+</dl>
+
+<h3><a NAME="DBI-info" HREF="manual_toc.html#DBI-info">20.5.3 更多<code>的DBI</code>/<code>DBD</code>資訊</a></h3>
+
+<p>你可以使用<code>perldoc</code>命令得到更多的關於<code>DBI</code>的資訊。</p>
+
+<pre>perldoc DBI
+perldoc DBI::FAQ
+perldoc DBD::mysql
+</pre>
+
+<p>你也可以使用<code>pod2man</code>、pod2html等工具轉換到其他格式。 </p>
+
+<p>而且你當然可以在<code>DBI</code>網頁中找到最新的<code>DBI</code>資訊： 
+</p>
+
+<pre>
+<a HREF="http://www.symbolstone.org/technology/perl/DBI/index.html">http://www.symbolstone.org/technology/perl/DBI/index.html</a>
+</pre>
+
+<h2><a NAME="Eiffel" HREF="manual_toc.html#Eiffel">20.6 MySQL Eiffel包裝</a></h2>
+
+<p><strong>MySQL</strong> <a HREF="http://www.mysql.com/Contrib/">Contrib目錄</a>包含Michael 
+Ravits編寫的一個Eiffel包裝程式。</p>
+
+<p>你也能在這裡找到：http://www.netpedia.net/hosting/newplayer/</p>
+
+<h2><a NAME="Java" HREF="manual_toc.html#Java">20.7 MySQL Java連接(JDBC)</a></h2>
+
+<p>有2個為MySQL支援的JDBC驅動程式(twz和mm驅動程式)。你可以在<a HREF="http://www.mysql.com/Contrib">http://www.mysql.com/Contrib</a>找到這些的一個拷貝。對於文檔，請教任何JDBC文檔和驅動程式本身擁有的針對<strong>MySQL</strong>特定功能的文檔。 
+</p>
+
+<h2><a NAME="PHP" HREF="manual_toc.html#PHP">20.8 MySQL PHP API</a></h2>
+
+<p>PHP是一個伺服器端、HTML嵌入式腳本語言，可以用來創建動態網頁。它包含對存取若干資料庫的支援，包括<strong>MySQL</strong>。PHP可以作為一個單獨的程式運行，或編譯為與Apache伺服器一起使用的一個模組。 
+</p>
+
+<p>分發和文檔可在<a HREF="http://www.php.net/">PHP網站</a>得到。 </p>
+
+<h2><a NAME="Cplusplus" HREF="manual_toc.html#Cplusplus">20.9 MySQL C++ APIs</a></h2>
+
+<p>在<strong>MySQL</strong> <a HREF="http://www.mysql.com/Contrib/">Contrib 目錄</a>刈莃得到兩個API。 
+</p>
+
+<h2><a NAME="Python" HREF="manual_toc.html#Python">20.10 MySQL Python API</a></h2>
+
+<p><strong>MySQL</strong> <a HREF="http://www.mysql.com/Contrib/">Contrib 目錄</a>包含Joseph 
+Skinner編寫的一個Python介面。 </p>
+
+<p>你也可以使用對iODBC的Python介面來存取一個<strong>MySQL</strong>伺服器。<a HREF="http://starship.skyport.net/~lemburg/">mxODBC</a></p>
+
+<h2><a NAME="TCL" HREF="manual_toc.html#TCL">20.11 MySQL TCL API</a></h2>
+
+<p><a HREF="http://www.binevolve.com/~tdarugar/tcl-sql/">TCL at binevolve</a>。<a HREF="http://www.mysql.com/Contrib">Contrib 目錄</a>包含一個基於msqltcl 1.50的一個TCL介面。</p>
+
+<hr>
+
+<p><a HREF="manual_Introduction.html">第一章</a>, <a HREF="manual_Common_problems.html">前一章</a>, 
+<a HREF="manual_Comparisons.html">下一章</a>, <a HREF="manual_Concept_Index.html">最後一章</a>，<a HREF="manual_toc.html">目錄</a>.&nbsp; </p>
+</body>
+</html>

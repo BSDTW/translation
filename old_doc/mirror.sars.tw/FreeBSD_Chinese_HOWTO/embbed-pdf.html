@@ -1,0 +1,133 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>以 gs 觀看不內嵌的 pdf 檔</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.7" />
+<link rel="HOME" title="FreeBSD Chinese HOWTO" href="index.html" />
+<link rel="UP" title="輸出字型" href="fonts.html" />
+<link rel="PREVIOUS" title="moefonts-cid - 由 Adobe 轉譯的 MOE CID Font"
+href="moefonts-cid.html" />
+<link rel="NEXT" title="TrueType - 全真字型概論" href="truetype.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD Chinese HOWTO</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="moefonts-cid.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 6. 輸出字型</td>
+<td width="10%" align="right" valign="bottom"><a href="truetype.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="EMBBED-PDF" name="EMBBED-PDF">6.9. 以 gs 觀看不內嵌的 pdf
+檔</a></h1>
+
+<p>gs/gv 有個 dirty hack，就是看到</p>
+
+<pre class="PROGRAMLISTING">
+name                                 type         emb sub uni object ID
+------------------------------------ ------------ --- --- --- ---------
+國字標準宋體                         CID TrueType no  no  no      22  0
+</pre>
+
+<p>這種類型的不內嵌字，就自己到 <tt
+class="FILENAME">/usr/local/share/ghostscript/7.05/lib/CIDFnmap</tt> 中加上
+alias，以筆者而言會加上文鼎上海宋的 alias：</p>
+
+<pre class="PROGRAMLISTING">
+/國字標準宋體           /ShanHeiSun-Light       ;
+</pre>
+
+<p>李果正 Edward G.J. Lee 也提出比較正式的解法如下：</p>
+
+<p>昨天玩了一下 gs。發現可能不必這麼麻煩，因為 CJK-latex + dvipdfmix 製作出來的不內嵌中文
+PDF 檔，頗合 PDF-spec。雖然，pdffonts 看到的是：</p>
+
+<pre class="PROGRAMLISTING">
+name                                 type         emb sub uni object ID
+------------------------------------ ------------ --- --- --- ---------
+國字標準宋體                         CID TrueType no  no  no      22  0
+</pre>
+
+<p>但其實 PDF 檔裡頭會標記成 Adobe-CNS1，也就是說會去使用 PDF browser Adobe-CNS1
+的預設字型，例如：</p>
+
+<pre class="PROGRAMLISTING">
+34 0 obj
+&lt;&lt;
+/Type/Font
+/Subtype/CIDFontType2
+/BaseFont/#b0#ea#a6r#bc#d0#b7#c7#a7#ba#c5#e9,Italic
+/FontDescriptor 35 0 R
+/CIDSystemInfo&lt;&lt;
+/Registry(Adobe)
+/Ordering(CNS1)
+/Supplement 0
+&gt;&gt;
+&gt;&gt;
+endobj
+</pre>
+
+<p>以此 object 為例。其中 # 是代表 hex notation， 那一堆就是『國字標準宋體』， 後面會有
+/Registry(Adobe) /Ordering(CNS1)，因此，只要 gs 的 CIDFnmap 設成：</p>
+
+<pre class="PROGRAMLISTING">
+/Adobe-CNS1             /ShanHeiSun-Light       ;
+</pre>
+
+<p>就可以了，也就是說，不管 PDF 使用什麼字型，如果找不到此字型， 就會使用預設的
+(Adobe-CNS1)ShanHeiSun-Light。 這樣就不必遇到沒有的字型就得去加入 alias。 而 acroread
+也會去找他的預設字型 MHei-Medium 或 MSung-Light (視 acroread 如何設定，設成 sans
+則取用黑體，設成 serif 則取用宋體)。為防意外，建議以下兩行也加入：</p>
+
+<pre class="PROGRAMLISTING">
+/Adobe-CNS1-Big5        /ShanHeiSun-Light       ;
+/Adobe-CNS1-Unicode     /ShanHeiSun-Light       ;
+</pre>
+
+<p>這樣一來，列印的問題也解決了。pdf2ps(pswrite device) 時 gs 會去取用
+ShanHeiSun-Light。當然，前提是 /usr/share/ghostscript/Resource 要把 ShanHeiSun-Light
+預先設定好。</p>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="moefonts-cid.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="truetype.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">moefonts-cid - 由 Adobe 轉譯的 MOE CID
+Font</td>
+<td width="34%" align="center" valign="top"><a href="fonts.html"
+accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">TrueType - 全真字型概論</td>
+</tr>
+</table>
+</div>
+</body>
+</html>
+

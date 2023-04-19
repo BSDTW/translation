@@ -1,0 +1,415 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>The Boot Manager and Boot Stages</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.79" />
+<link rel="HOME" title="FreeBSD 使用手冊" href="index.html" />
+<link rel="UP" title="FreeBSD 開機流程篇" href="boot.html" />
+<link rel="PREVIOUS" title="Booting 問題" href="boot-introduction.html" />
+<link rel="NEXT" title="Kernel Interaction During Boot" href="boot-kernel.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD 使用手冊</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="boot-introduction.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 12 FreeBSD 開機流程篇</td>
+<td width="10%" align="right" valign="bottom"><a href="boot-kernel.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="BOOT-BLOCKS" name="BOOT-BLOCKS">12.3 The Boot Manager and Boot
+Stages</a></h1>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="BOOT-BOOT0" name="BOOT-BOOT0">12.3.1 The Boot Manager</a></h2>
+
+<p>The code in the MBR or boot manager is sometimes referred to as <span
+class="emphasis"><b class="EMPHASIS">stage zero</b></span> of the boot process. This
+subsection discusses two of the boot managers previously mentioned: <b
+class="APPLICATION">boot0</b> and <b class="APPLICATION">LILO</b>.</p>
+
+<div class="FORMALPARA">
+<p><b>The boot0 Boot Manager:</b> The MBR installed by FreeBSD's installer or <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=boot0cfg&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">boot0cfg</span>(8)</span></a>, by
+default, is based on <tt class="FILENAME">/boot/boot0</tt>. (The <b
+class="APPLICATION">boot0</b> program is very simple, since the program in the <abbr
+class="ABBREV">MBR</abbr> can only be 446 bytes long because of the slice table and
+0x55AA identifier at the end of the MBR.) If you have installed <b
+class="APPLICATION">boot0</b> and multiple operating systems on your hard disks, then you
+will see a display similar to this one at boot time:</p>
+</div>
+
+<div class="EXAMPLE"><a id="BOOT-BOOT0-EXAMPLE" name="BOOT-BOOT0-EXAMPLE"></a>
+<p><b>Example 12-1. <tt class="FILENAME">boot0</tt> Screenshot</b></p>
+
+<pre class="SCREEN">
+F1 DOS
+F2 FreeBSD
+F3 Linux
+F4 ??
+F5 Drive 1
+
+Default: F2
+</pre>
+</div>
+
+<p>Other operating systems, in particular <span class="TRADEMARK">Windows</span>&reg;,
+have been known to overwrite an existing MBR with their own. If this happens to you, or
+you want to replace your existing MBR with the FreeBSD MBR then use the following
+command:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">fdisk -B -b /boot/boot0 <tt
+class="REPLACEABLE"><i>device</i></tt></kbd>
+</pre>
+
+<p>where <tt class="REPLACEABLE"><i>device</i></tt> is the device that you boot from,
+such as <tt class="DEVICENAME">ad0</tt> for the first IDE disk, <tt
+class="DEVICENAME">ad2</tt> for the first IDE disk on a second IDE controller, <tt
+class="DEVICENAME">da0</tt> for the first SCSI disk, and so on. Or, if you want a custom
+configuration of the MBR, use <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=boot0cfg&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">boot0cfg</span>(8)</span></a>.</p>
+
+<div class="FORMALPARA">
+<p><b>The LILO Boot Manager:</b> To install this boot manager so it will also boot
+FreeBSD, first start Linux and add the following to your existing <tt
+class="FILENAME">/etc/lilo.conf</tt> configuration file:</p>
+</div>
+
+<pre class="PROGRAMLISTING">
+other=/dev/hdXY
+table=/dev/hdX
+loader=/boot/chain.b
+label=FreeBSD
+</pre>
+
+<p>In the above, specify FreeBSD's primary partition and drive using Linux specifiers,
+replacing <tt class="REPLACEABLE"><i>X</i></tt> with the Linux drive letter and <tt
+class="REPLACEABLE"><i>Y</i></tt> with the Linux primary partition number. If you are
+using a <acronym class="ACRONYM">SCSI</acronym> drive, you will need to change <tt
+class="REPLACEABLE"><i>/dev/hd</i></tt> to read something similar to <tt
+class="REPLACEABLE"><i>/dev/sd</i></tt>. The <code
+class="OPTION">loader=/boot/chain.b</code> line can be omitted if you have both operating
+systems on the same drive. Now run <tt class="COMMAND">/sbin/lilo&nbsp;-v</tt> to commit
+your new changes to the system; this should be verified by checking its screen
+messages.</p>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="BOOT-BOOT1" name="BOOT-BOOT1">12.3.2 Stage One, <tt
+class="FILENAME">/boot/boot1</tt>, and Stage Two, <tt
+class="FILENAME">/boot/boot2</tt></a></h2>
+
+<p>Conceptually the first and second stages are part of the same program, on the same
+area of the disk. Because of space constraints they have been split into two, but you
+would always install them together. They are copied from the combined file <tt
+class="FILENAME">/boot/boot</tt> by the installer or <b class="APPLICATION">disklabel</b>
+(see below).</p>
+
+<p>They are located outside file systems, in the first track of the boot slice, starting
+with the first sector. This is where <a href="boot-blocks.html#BOOT-BOOT0">boot0</a>, or
+any other boot manager, expects to find a program to run which will continue the boot
+process. The number of sectors used is easily determined from the size of <tt
+class="FILENAME">/boot/boot</tt>.</p>
+
+<p><tt class="FILENAME">boot1</tt> is very simple, since it can only be 512 bytes in
+size, and knows just enough about the FreeBSD <i class="FIRSTTERM">disklabel</i>, which
+stores information about the slice, to find and execute <tt
+class="FILENAME">boot2</tt>.</p>
+
+<p><tt class="FILENAME">boot2</tt> is slightly more sophisticated, and understands the
+FreeBSD file system enough to find files on it, and can provide a simple interface to
+choose the kernel or loader to run.</p>
+
+<p>Since the <a href="boot-blocks.html#BOOT-LOADER">loader</a> is much more
+sophisticated, and provides a nice easy-to-use boot configuration, <tt
+class="FILENAME">boot2</tt> usually runs it, but previously it was tasked to run the
+kernel directly.</p>
+
+<div class="EXAMPLE"><a id="BOOT-BOOT2-EXAMPLE" name="BOOT-BOOT2-EXAMPLE"></a>
+<p><b>Example 12-2. <tt class="FILENAME">boot2</tt> Screenshot</b></p>
+
+<pre class="SCREEN">
+&gt;&gt; FreeBSD/i386 BOOT
+Default: 0:ad(0,a)/kernel
+boot:
+</pre>
+</div>
+
+<p>If you ever need to replace the installed <tt class="FILENAME">boot1</tt> and <tt
+class="FILENAME">boot2</tt> use <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=disklabel&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">disklabel</span>(8)</span></a>:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">disklabel -B <tt
+class="REPLACEABLE"><i>diskslice</i></tt></kbd>
+</pre>
+
+<p>where <tt class="REPLACEABLE"><i>diskslice</i></tt> is the disk and slice you boot
+from, such as <tt class="DEVICENAME">ad0s1</tt> for the first slice on the first IDE
+disk.</p>
+
+<div class="WARNING">
+<blockquote class="WARNING">
+<p><b>Dangerously Dedicated Mode:</b> If you use just the disk name, such as <tt
+class="DEVICENAME">ad0</tt>, in the <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=disklabel&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">disklabel</span>(8)</span></a> command
+you will create a dangerously dedicated disk, without slices. This is almost certainly
+not what you want to do, so make sure you double check the <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=disklabel&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">disklabel</span>(8)</span></a> command
+before you press <b class="KEYCAP">Return</b>.</p>
+</blockquote>
+</div>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="BOOT-LOADER" name="BOOT-LOADER">12.3.3 Stage Three, <tt
+class="FILENAME">/boot/loader</tt></a></h2>
+
+<p>The loader is the final stage of the three-stage bootstrap, and is located on the file
+system, usually as <tt class="FILENAME">/boot/loader</tt>.</p>
+
+<p>The loader is intended as a user-friendly method for configuration, using an
+easy-to-use built-in command set, backed up by a more powerful interpreter, with a more
+complex command set.</p>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="BOOT-LOADER-FLOW" name="BOOT-LOADER-FLOW">12.3.3.1 Loader
+Program Flow</a></h3>
+
+<p>During initialization, the loader will probe for a console and for disks, and figure
+out what disk it is booting from. It will set variables accordingly, and an interpreter
+is started where user commands can be passed from a script or interactively.</p>
+
+<p>The loader will then read <tt class="FILENAME">/boot/loader.rc</tt>, which by default
+reads in <tt class="FILENAME">/boot/defaults/loader.conf</tt> which sets reasonable
+defaults for variables and reads <tt class="FILENAME">/boot/loader.conf</tt> for local
+changes to those variables. <tt class="FILENAME">loader.rc</tt> then acts on these
+variables, loading whichever modules and kernel are selected.</p>
+
+<p>Finally, by default, the loader issues a 10 second wait for key presses, and boots the
+kernel if it is not interrupted. If interrupted, the user is presented with a prompt
+which understands the easy-to-use command set, where the user may adjust variables,
+unload all modules, load modules, and then finally boot or reboot.</p>
+</div>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="BOOT-LOADER-COMMANDS" name="BOOT-LOADER-COMMANDS">12.3.3.2
+Loader Built-In Commands</a></h3>
+
+<p>These are the most commonly used loader commands. For a complete discussion of all
+available commands, please see <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=loader&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">loader</span>(8)</span></a>.</p>
+
+<div class="VARIABLELIST">
+<dl>
+<dt>autoboot <tt class="REPLACEABLE"><i>seconds</i></tt></dt>
+
+<dd>
+<p>Proceeds to boot the kernel if not interrupted within the time span given, in seconds.
+It displays a countdown, and the default time span is 10 seconds.</p>
+</dd>
+
+<dt>boot [<span class="OPTIONAL"><tt class="REPLACEABLE"><i>-options</i></tt></span>]
+[<span class="OPTIONAL"><tt class="REPLACEABLE"><i>kernelname</i></tt></span>]</dt>
+
+<dd>
+<p>Immediately proceeds to boot the kernel, with the given options, if any, and with the
+kernel name given, if it is.</p>
+</dd>
+
+<dt>boot-conf</dt>
+
+<dd>
+<p>Goes through the same automatic configuration of modules based on variables as what
+happens at boot. This only makes sense if you use <tt class="COMMAND">unload</tt> first,
+and change some variables, most commonly <tt class="ENVAR">kernel</tt>.</p>
+</dd>
+
+<dt>help [<span class="OPTIONAL"><tt class="REPLACEABLE"><i>topic</i></tt></span>]</dt>
+
+<dd>
+<p>Shows help messages read from <tt class="FILENAME">/boot/loader.help</tt>. If the
+topic given is <tt class="LITERAL">index</tt>, then the list of available topics is
+given.</p>
+</dd>
+
+<dt>include <tt class="REPLACEABLE"><i>filename</i></tt> ...</dt>
+
+<dd>
+<p>Processes the file with the given filename. The file is read in, and interpreted line
+by line. An error immediately stops the include command.</p>
+</dd>
+
+<dt>load [<span class="OPTIONAL"><code class="OPTION">-t</code> <tt
+class="REPLACEABLE"><i>type</i></tt></span>] <tt
+class="REPLACEABLE"><i>filename</i></tt></dt>
+
+<dd>
+<p>Loads the kernel, kernel module, or file of the type given, with the filename given.
+Any arguments after filename are passed to the file.</p>
+</dd>
+
+<dt>ls [<span class="OPTIONAL"><code class="OPTION">-l</code></span>] [<span
+class="OPTIONAL"><tt class="REPLACEABLE"><i>path</i></tt></span>]</dt>
+
+<dd>
+<p>Displays a listing of files in the given path, or the root directory, if the path is
+not specified. If <code class="OPTION">-l</code> is specified, file sizes will be shown
+too.</p>
+</dd>
+
+<dt>lsdev [<span class="OPTIONAL"><code class="OPTION">-v</code></span>]</dt>
+
+<dd>
+<p>Lists all of the devices from which it may be possible to load modules. If <code
+class="OPTION">-v</code> is specified, more details are printed.</p>
+</dd>
+
+<dt>lsmod [<span class="OPTIONAL"><code class="OPTION">-v</code></span>]</dt>
+
+<dd>
+<p>Displays loaded modules. If <code class="OPTION">-v</code> is specified, more details
+are shown.</p>
+</dd>
+
+<dt>more <tt class="REPLACEABLE"><i>filename</i></tt></dt>
+
+<dd>
+<p>Displays the files specified, with a pause at each <code class="VARNAME">LINES</code>
+displayed.</p>
+</dd>
+
+<dt>reboot</dt>
+
+<dd>
+<p>Immediately reboots the system.</p>
+</dd>
+
+<dt>set <tt class="REPLACEABLE"><i>variable</i></tt>, set <tt
+class="REPLACEABLE"><i>variable</i></tt>=<tt class="REPLACEABLE"><i>value</i></tt></dt>
+
+<dd>
+<p>Sets the loader's environment variables.</p>
+</dd>
+
+<dt>unload</dt>
+
+<dd>
+<p>Removes all loaded modules.</p>
+</dd>
+</dl>
+</div>
+</div>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="BOOT-LOADER-EXAMPLES" name="BOOT-LOADER-EXAMPLES">12.3.3.3
+Loader Examples</a></h3>
+
+<p>Here are some practical examples of loader usage:</p>
+
+<ul>
+<li>
+<p>To simply boot your usual kernel, but in single-user mode:</p>
+
+<pre class="SCREEN">
+<kbd class="USERINPUT">boot -s</kbd>
+</pre>
+</li>
+
+<li>
+<p>To unload your usual kernel and modules, and then load just your old (or another)
+kernel:</p>
+
+<pre class="SCREEN">
+<kbd class="USERINPUT">unload</kbd>
+<kbd class="USERINPUT">load <tt class="REPLACEABLE"><i>kernel.old</i></tt></kbd>
+</pre>
+
+<p>You can use <tt class="FILENAME">kernel.GENERIC</tt> to refer to the generic kernel
+that comes on the install disk, or <tt class="FILENAME">kernel.old</tt> to refer to your
+previously installed kernel (when you have upgraded or configured your own kernel, for
+example).</p>
+
+<div class="NOTE">
+<blockquote class="NOTE">
+<p><b>Note:</b> Use the following to load your usual modules with another kernel:</p>
+
+<pre class="SCREEN">
+<kbd class="USERINPUT">unload</kbd>
+<kbd class="USERINPUT">set kernel="<tt class="REPLACEABLE"><i>kernel.old</i></tt>"</kbd>
+<kbd class="USERINPUT">boot-conf</kbd>
+</pre>
+</blockquote>
+</div>
+</li>
+
+<li>
+<p>To load a kernel configuration script (an automated script which does the things you
+would normally do in the kernel boot-time configurator):</p>
+
+<pre class="SCREEN">
+<kbd class="USERINPUT">load -t userconfig_script <tt
+class="REPLACEABLE"><i>/boot/kernel.conf</i></tt></kbd>
+</pre>
+</li>
+</ul>
+</div>
+</div>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="boot-introduction.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="boot-kernel.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">Booting 問題</td>
+<td width="34%" align="center" valign="top"><a href="boot.html" accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">Kernel Interaction During Boot</td>
+</tr>
+</table>
+</div>
+
+<p align="center"><small>本文及其他文件，可由此下載：<a
+href="ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/">ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/</a>。</small></p>
+
+<p align="center"><small>若有 FreeBSD 方面疑問，請先閱讀 <a
+href="http://www.FreeBSD.org/docs.html">FreeBSD 相關文件</a>，如不能解決的話，再洽詢
+&#60;<a href="mailto:questions@FreeBSD.org">questions@FreeBSD.org</a>&#62;。<br />
+關於本文件的問題，請洽詢 &#60;<a
+href="mailto:doc@FreeBSD.org">doc@FreeBSD.org</a>&#62;。</small></p>
+</body>
+</html>
+

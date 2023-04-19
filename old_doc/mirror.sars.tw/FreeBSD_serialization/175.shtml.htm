@@ -1,0 +1,190 @@
+
+
+<!-- Vignette StoryServer 4 Sat Mar 11 15:43:24 2000 --> 
+<style type=text/css>
+<!--
+p,div {font-size:12pt; line-height:14pt; font-family:宋體;}
+.p1{font-size:12pt;font-family:宋體;}
+.p2{font-size:12pt;font-family:宋體;line-height:14pt;}
+.p3{font-size:14.8px;font-family:宋體;}
+.p4{font-size:14.8px;font-family:宋體;line-height:14pt;}
+.p5{font-size:1pt}
+a:hover{color:red;}
+a.t1:visited{color:red;}
+-->
+</style>
+<title>FreeBSD使用大全</title></head>
+
+<body bgcolor="#FFFFFF" text="#000000" link="#383098" vlink="#336699" alink="#FF0000" topmargin="0">
+<!-- Vignette StoryServer 4 Thu Mar 23 10:01:54 2000 --> <!-- Vignette StoryServer 4 Thu Mar 23 15:34:35 2000 --> 
+
+<!--開始：新聞內容-->
+<TABLE WIDTH=750 BORDER=0 CELLSPACING=0 CELLPADDING=0>
+
+<tr valign=top>
+
+
+
+<TD  valign=top>
+<CENTER><FONT COLOR=#000066 size=5><B>FreeBSD連載(64)：NetBIOS名字解析</B><br></FONT></CENTER>
+
+<HR  ALIGN="center" SIZE=1>
+<CENTER><FONT FACE="Arial" SIZE=2> 2000年1月6日 11:41 </FONT><FONT COLOR="#990000" SIZE=2>王波</FONT></CENTER><p>
+
+<h1 align=center>NetBIOS與SMB/CIFS協議</h1>
+
+<p>　　在個人電腦和局域網發展的早期，為了在個人電腦上實現網路能力，Microsoft和IBM合作開發了一
+套協議NetBIOS，這是一套用於網路通訊的調用接口，開發者IBM認為這套協議將如同它們設計的電腦BIOS一
+樣成為最基本的網路訪問接口，因此使用了NetBIOS這個名字。而Microsoft就使用NetBIOS接口開發
+網路伺服器及相應的客戶軟體。</p>
+
+<p>　　然後IBM在Token Ring和Ethernet上直接實現了NetBIOS驅動，實現了位於NetBIOS
+和物理網路層之間的各種具體接口，這些程序遵循的標準被稱為NetBEUI。NetBEUI直接控制Token 
+Ring和Ethernet驅動程序，因此它只能運行在局域網上。但是NetBIOS本身並沒有對下層使用的協議進行
+限制，因此它除了可以在NetBEUI支持下運行之外，也可以在其他協議支持下運行。其他的網路開發者在另外的一些協
+議的基礎上也實現了NetBIOS接口，例如TCP/IP，IPX以及Decnet等。其中NetBIOS over
+IP由於使用TCP/IP協議，因而在低層與Unix電腦相容，成為Unix和個人電腦系統通信的基礎。</p>
+
+<p>　　Windows系列電腦並不一定使用IP作它的網路傳輸協議，它也能使用IPX或NetBEUI作傳輸協議
+，但是FreeBSD不支持IPX或NetBEUI上的NetBIOS，必須為Windows客戶配置IP協議，才能
+與FreeBSD相互共享資源。</p>
+
+
+<ul><P><LI><h2>NetBIOS名字解析</h2></LI></P></ul>
+
+<p>　　由於NetBIOS事實上是一種與TCP/IP獨立發展的標準，雖然它可以使用TCP/IP作為傳輸協議，但
+是由於概念上的不同，它並沒有利用TCP/IP提供的全部能力，而是使用自己的方式來完成類似的工作。其中最大的區別
+就在於名字解析方式上，NetBIOS具備自己獨立的名字解析概念和能力，因此它使用的名字解析方式就與TCP/IP
+中標準解析方式 ── DNS不同。在必須經過NetBIOS名字解析獲得了一台命名相應的IP地址之後，NetBIOS
+會話就可以建立在普通TCP連接的基礎上了。因此在NetBIOS中，名字解析是NetBIOS會話與普通TCP
+連接最大的不同之處。</p>
+
+<p>　　NetBIOS名字解析與DNS名字解析的最大不同在於NetBIOS是動態的，電腦需要首先注冊自己的名
+字，然後才能解析到該名字。動態解析雖然帶來的很大的方便性，但卻複雜和低效的多，因此只能用於小範圍的局域網上。</p>
+
+<p>　　每個NetBIOS的名字可以多達16個字符，第16個字符用來標識輸入名字時使用的程序類型。當NetBIOS
+的電腦進行通信時，它必須基於NetBIOS名字，而不能基於IP地址。一個NetBIOS服務程序必須首先注
+冊自己的NetBIOS名字，而一個應用程序則需要查詢所需要的NetBIOS名字。例如每台Windows電腦在
+啟動之後初始化網路時就使用所配置的電腦名字來初始化其使用的NetBIOS名字。</p>
+
+<ul><B><P><LI>NetBIOS名字解析方式</LI></P></B></ul>
+
+<P>　　從NetBIOS名字查找相應的節點地址（TCP/IP協議中為IP地址）有幾種不同的查找方式。</P>
+
+<p>　　<LI>本地廣播： 在本地網路上發送廣播，通過廣播某設備的NetBIOS名字，查找其對應的IP地址。廣
+播方式也能用於注冊自己的NetBIOS名字，例如一台電腦可以通過廣播本機的名字，向其他電腦宣告自己使用了這
+個NetBIOS名字。</LI></p>
+
+<p>　　<LI>緩衝： 每個支持NetBIOS的電腦中，維護一個NetBIOS名字和相應IP地址的列表，這些
+對應的名字都有一定的生存期，以便能及時更新。</LI></p>
+
+<p>　　<LI>NetBIOS名字伺服器：使用一個名字伺服器來提供名字與IP之間的解析任務，這個NetBIOS
+名字伺服器被稱為NBNS（NetBIOS Name Server），Miscrosoft實現的NBNS名字服務
+器為WINS（Windows Internet Name Service）。NetBIOS電腦首先要向NBN
+S登記自己的NetBIOS名字，完成名字的注冊過程。</LI></p>
+
+<p>　　<LI>預定義檔案lmhosts：Microsoft Windows能通過查找存放在本地檔案lmhos
+ts中的數據，來識別網路上NetBIOS名字和IP的關系，這個方式不是NetBIOS名字識別的標準，但它是Microsoft
+的實現方式，因此是一種事實標準。</LI></p>
+
+<p>　　<LI>通過DNS和hosts檔案解析：DNS伺服器和本地hosts檔案中存放的數據是用於標準TCP/IP
+協議中名字和IP之間轉換使用的方式，但使用其他方式查找不出對應的節點地址時，Microsft Window
+s中通常也能通過標準的TCP/IP名字解析方式，進行名字和IP的轉換。同樣這也不是NetBIOS的標準，而是Micorsoft
+的擴展。</LI></p>
+
+<p>　　從這五種NetBIOS識別方式，以及其中的不同的名字注冊方式出發，進行不同的組合方式，就構成不同的名字
+識別策略。在NetBIOS標準中，將使用不同名字識別策略的模式稱為不同的NetBIOS節點類型。</p>
+
+<p>　　<B>B-node</B>：通過廣播方式來進行注冊和進行識別NetBIOS名字。對於IP協議上的Net
+BIOS，就需要基於UDP進行廣播，在小網路上這種方式工作得很好，但當網路增大時，就會被使用路由器將大網路分割
+為幾個小網。在一般情況下路由器不轉發廣播數據，廣播包僅發送到本地網路。雖然可以配置路由器進行b-node廣播轉
+發，但是這將使UDP廣播產生大量的無用網路數據，且名字注冊和解析的難度也增加了。因此對於較大的網路，這種方式不
+可取。</p>
+
+<p>　　<B>P-node</B>（peer-to-peer）：對等方式能為識別名字提供非常有效的方法，它使用
+NetBIOS名字伺服器進行名字的注冊登記和名字識別。因此對於每個NetBIOS電腦，必須指定同樣的NBNS
+伺服器的IP地址。這樣在NBNS伺服器停機或更改了設置（如IP地址等情況）的情況下，名字解析不能完成，就不能進
+行NetBIOS通信。當然NetBIOS電腦可以配置為使用多個NBNS伺服器，以便在其中一個出現問題時使用備
+份的伺服器。</p>
+
+<p>　　<B>M-node</B>（Mixed）：為了正確解析NetBIOS名字，最好綜合使用廣播和名字伺服器
+的方式，這樣的名字識別是一個復合的過程。M-node首先通過B-node廣播方式進行名字識別過程，當廣播方式失
+敗之後，再使用P-node方式進行查詢。</p>
+
+<p>　　<B>H-Node</B>（Hybrid）：H-node模式也是一種復合模式，它與M-node不同的地
+方是查找的順序不同。H-node先查找NBNS名字伺服器，然後再使用廣播方式進行查詢。</p>
+
+<p>　　Windows中實際使用的名字識別方式是對標準H-node方式的擴展，Windows系列的電腦將首先
+檢查緩存中的內容，然後再查看WINS伺服器，之後進行廣播，然後將查找lmhosts檔案，以及通過hosts和DNS
+進行查找。實際進行NetBIOS識別是一個複雜的過程，主要就是由於NetBIOS是一個動態的名字解析方式，
+每一台電腦都必須注冊自身。</p>
+
+<ul><B><P><LI>NetBIOS名字識別的過程</LI></P></B></ul>
+
+<p>　　與DNS不同，NetBIOS名字使用動態方式進行管理。DNS數據是靜態的，增加和刪除DNS名字需要管理
+員手工更改配置檔案。但NetBIOS要求電腦在網路上自動注冊其名字，電腦停機之後占用的名字會被釋放，這個過
+程不需要管理員干預。因為它需要額外的網路數據以完成名字登記等過程，使得它不適合象Internet這樣的大型網路
+。NetBIOS名字識別需要三個步驟：</p>
+
+<p>　　名字注冊：在NetBIOS啟動時，電腦向整個網路聲明占用了一個NetBIOS名字，如果已經有其他計算
+機占用了這個名字，這個電腦就會收到錯誤信息。注冊是通過向網路廣播聲明信息或向NetBIOS名字伺服器登記的方
+式來實現的。</p>
+
+<p>　　名字解析：通過廣播或查詢NetBIOS名字伺服器來解析一個NetBIOS名字。此外還可以通過lmhosts
+檔案和DNS輔助解析名字。</p>
+
+<p>　　名字刪除：在系統關機或提供的工作站服務結束時，會刪除其占用的NetBIOS名。</p>
+
+<p>　　通過NetBIOS名字和共享的目錄名，就能夠定位Windows電腦上的資源。Microsoft使用U
+NC的形式來確定一個網路資源的位置，一個UNC以雙反斜線開始，接下來是提供資源電腦的NetBIOS名字，然後
+是該台電腦上提供資源的共享名，接下來就是下面的目錄和檔案名。如：\\ntserver\share\files
+，因此使用一個資源的命令為：</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>C:\&gt; net use f: \\ntserver\share
+C:\&gt; f:
+F:\&gt;</td></pre></tr></table>
+
+<P>　　上面的net use命令將ntserver上的share資源映射為F:碟。</P>
+
+<ul><B><P><LI>名字伺服器的工作原理</LI></P></ul></B>
+
+<p>　　由於b-node廣播會在網路上產生大量的信息流，尤其是在網路是由多個子網構成的時候，而使用路由器本來就
+是要隔離廣播信息，可是為了進行名字解析，就不得不轉發b-node廣播信息包，這就達不到縮減無用網路流量的目的。
+</p>
+<p>　　使用名字伺服器進行解析就能避免這個問題，客戶通過對名字伺服器進行查詢而非廣播，信息流就不必傳播到各個子
+網上，就能減少廣播數據，減輕網路的負擔節省帶寬，並且能有效的提高名字解析的速度及準確性。</p>
+
+<p>　　實際存在的Windows網路甚至很少利用名字伺服器進行名字解析，這就使得這些網路名字解析存在很大問題，
+常常會出現不同電腦的網路鄰居列表不同，根本原因就是廣播方式是沒有保証的，必須轉向名字伺服器方式才能解決名字解
+析問題。</p>
+
+<p>　　普通NetBIOS電腦和NBNS伺服器進行通信有四個不同的通信過程：</p>
+
+<p>　　名字注冊：每台NetBIOS電腦啟動時，都在名字伺服器上注冊。這樣就保持了數據庫的自動更新，並具備動
+態更新的特性。名字伺服器將返回確認信息，以及這個名字的生存期TTL。如果客戶要求的名字已經被占用了，伺服器就查
+詢占用這個名字的客戶是否還在網路上，以判斷這個名字是否可以再次被使用。這種情況主要發生在Windows電腦死
+機後重新登記的過程中，因為此時在電腦死機之前，它在名字伺服器中登記的名字還存在，如果名字伺服器簡單的拒絕提供
+名字，那麼這個電腦就無法再次獲得自己的名字。只有在真正發生衝突的情況下，客戶的名字注冊才會失敗。</p>
+
+<p>　　名字更新：由於每個名字都存在一個生存期TTL，那麼當經歷了這個TTL一半的時間，客戶會向伺服器進行更新
+請求，刷新伺服器上的TTL設置。</p>
+
+<p>　　名字釋放：客戶停機時會與伺服器通信釋放其占用的NetBIOS名字，其名字TTL超時也會使得伺服器釋放這
+個名字。</p>
+
+<p>　　名字識別：客戶可以向NBNS伺服器發送查詢名字的請求，進行名字解析。</p>
+
+<p>　　有些情況下，客戶沒有設置支持名字伺服器，或者使用的客戶軟體還不支持名字伺服器進行解析，可以通過設置一個
+WINS代理，由它來在廣播數據和查詢名字伺服器之間進行轉換，它可以幫助客戶注冊並回應客戶的廣播查詢。</p>
+
+
+<BR>
+
+</TD>
+</TR></TABLE>
+
+
+
+</BODY>
+</HTML>

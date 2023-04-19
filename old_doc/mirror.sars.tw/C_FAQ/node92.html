@@ -1,0 +1,128 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+
+<!--Converted with LaTeX2HTML 2002-2-1 (1.71)
+original version by:  Nikos Drakos, CBLU, University of Leeds
+* revised and updated by:  Marcus Hennecke, Ross Moore, Herb Swan
+* with significant contributions from:
+  Jens Lippmann, Marek Rouchal, Martin Wilck and others -->
+<HTML>
+<HEAD>
+<TITLE>7.17 我怎樣在函數參數傳遞時混用靜態和動態多維數組 ？</TITLE>
+<META NAME="description" CONTENT="7.17 我怎樣在函數參數傳遞時混用靜態和動態多維數組 ？">
+<META NAME="keywords" CONTENT="ccfaq">
+<META NAME="resource-type" CONTENT="document">
+<META NAME="distribution" CONTENT="global">
+
+<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=utf-8">
+<META NAME="Generator" CONTENT="LaTeX2HTML v2002-2-1">
+<META HTTP-EQUIV="Content-Style-Type" CONTENT="text/css">
+
+<LINK REL="STYLESHEET" HREF="ccfaq.css">
+
+<LINK REL="next" HREF="node93.html">
+<LINK REL="previous" HREF="node91.html">
+<LINK REL="up" HREF="node75.html">
+<LINK REL="next" HREF="node93.html">
+</HEAD>
+
+<BODY >
+
+<DIV CLASS="navigation"><table width=100%> <COLGROUP><COL width="25%"><COL width="25%"><col width="25%"><col width="25%"></colgroup><tr><td align=left>
+<A NAME="tex2html1690"
+  HREF="node91.html">
+<IMG WIDTH="62" HEIGHT="25" ALIGN="BOTTOM" BORDER="0" ALT="previous" SRC="prev.png"></A></td><td align=center>
+<A NAME="tex2html1696"
+  HREF="node75.html">
+<IMG WIDTH="61" HEIGHT="25" ALIGN="BOTTOM" BORDER="0" ALT="up" SRC="up.png"></A></td><td align=center>&nbsp;
+<A NAME="tex2html1698"
+  HREF="node1.html">
+<IMG WIDTH="63" HEIGHT="25" ALIGN="BOTTOM" BORDER="0" ALT="contents" SRC="contents.png"></A>&nbsp;</td><td align=right>
+<A NAME="tex2html1700"
+  HREF="node93.html">
+<IMG WIDTH="62" HEIGHT="25" ALIGN="BOTTOM" BORDER="0" ALT="next" SRC="next.png"></A></td></tr></table>
+</DIV>
+<!--End of Navigation Panel-->
+
+<H1><A NAME="SECTION008170000000000000000"></A>
+<A NAME="q:6.20"></A>
+<BR>
+<SPAN CLASS="arabic">7</SPAN>.<SPAN CLASS="arabic">17</SPAN> 我怎樣在函數參數傳遞時混用靜態和動態多維數組 ？
+</H1>
+沒有完美的方法。假設有如下聲明
+<PRE>
+	int array[NROWS][NCOLUMNS];
+	int **array1;		/* 不齊的   */
+	int **array2;		/* 連續的   */
+	int *array3;		 /* "變平的" */
+	int (*array4)[NCOLUMNS];
+</PRE>
+指針的初始值如問題&nbsp;<A HREF="node88.html#q:6.16">6.13</A> 的程序片段, 函數聲明如下
+<PRE>
+    void f1a(int a[][NCOLUMNS], int nrows, int ncolumns);
+    void f1b(int (*a)[NCOLUMNS], int nrows, int ncolumns);
+    void f2(int *aryp, int nrows, int ncolumns);
+    void f3(int **pp, int nrows, int ncolumns);
+</PRE>
+其中&nbsp;f1a()&nbsp;和&nbsp;f1b()&nbsp;接受傳統的二維數組, f2()&nbsp;接受&nbsp;``扁平的"&nbsp;二維數組,
+f3()&nbsp;接受指針的指針模擬的數組&nbsp;(參見問題&nbsp;<A HREF="node90.html#q:6.18">6.15</A> 和&nbsp;<A HREF="node91.html#q:6.19">6.16</A>),
+下面的調用應該可以如願運行:
+<PRE>
+    f1a(array, NROWS, NCOLUMNS);
+    f1b(array, NROWS, NCOLUMNS);
+    f1a(array4, nrows, NCOLUMNS);
+    f1b(array4, nrows, NCOLUMNS);
+    f2(&amp;array[0][0], NROWS, NCOLUMNS);
+    f2(*array, NROWS, NCOLUMNS);
+    f2(*array2, nrows, ncolumns);
+    f2(array3, nrows, ncolumns);
+    f2(*array4, nrows, NCOLUMNS);
+    f3(array1, nrows, ncolumns);
+    f3(array2, nrows, ncolumns);
+</PRE>
+
+<P>
+下面的調用在大多數系統上可能可行, 但是有可疑的類型轉換, 而且只有動態
+&nbsp;ncolumns&nbsp;和靜態&nbsp;NCOLUMNS&nbsp;匹配才行:
+<PRE>
+    f1a((int (*)[NCOLUMNS])(*array2), nrows, ncolumns);
+    f1a((int (*)[NCOLUMNS])(*array2), nrows, ncolumns);
+    f1b((int (*)[NCOLUMNS])array3, nrows, ncolumns);
+    f1b((int (*)[NCOLUMNS])array3, nrows, ncolumns);
+</PRE>
+
+<P>
+同時必須注意向&nbsp;f2()&nbsp;傳遞&nbsp;&amp;array[0][0]&nbsp;(或者等價的&nbsp;*array)&nbsp;並不完全符合標準;
+參見問題&nbsp;<A HREF="node91.html#q:6.19">6.16</A>。
+
+<P>
+如果你能理解為何上述調用可行且必須這樣書寫, 而未列出的組合不行, 那麼你對&nbsp;C&nbsp;
+語言中的數組和指針就有了<SPAN  CLASS="textbf">很</SPAN>好的理解了。
+
+<P>
+為免受這些東西的困惑, 一種使用各種大小的多維數組的辦法是令它們&nbsp;``全部"&nbsp;動態
+分配, 如問題&nbsp;<A HREF="node88.html#q:6.16">6.13</A>&nbsp;所述。如果沒有靜態多維數組&nbsp;---&nbsp;如果所有的數組都
+按問題&nbsp;<A HREF="node88.html#q:6.16">6.13</A>&nbsp;的&nbsp;array1&nbsp;和&nbsp;array2&nbsp;分配&nbsp;---&nbsp;那麼所有的函數都可以寫成
+&nbsp;f3()&nbsp;的形式。
+
+<P>
+
+<DIV CLASS="navigation"><HR> <table width=100%> <COLGROUP><COL width="25%"><COL width="25%"><col width="25%"><col width="25%"></colgroup><tr><td align=left>
+<A NAME="tex2html1690"
+  HREF="node91.html">
+<IMG WIDTH="62" HEIGHT="25" ALIGN="BOTTOM" BORDER="0" ALT="previous" SRC="prev.png"></A></td><td align=center>
+<A NAME="tex2html1696"
+  HREF="node75.html">
+<IMG WIDTH="61" HEIGHT="25" ALIGN="BOTTOM" BORDER="0" ALT="up" SRC="up.png"></A></td><td align=center>&nbsp;
+<A NAME="tex2html1698"
+  HREF="node1.html">
+<IMG WIDTH="63" HEIGHT="25" ALIGN="BOTTOM" BORDER="0" ALT="contents" SRC="contents.png"></A>&nbsp;</td><td align=right>
+<A NAME="tex2html1700"
+  HREF="node93.html">
+<IMG WIDTH="62" HEIGHT="25" ALIGN="BOTTOM" BORDER="0" ALT="next" SRC="next.png"></A></td></tr></table>
+</DIV>
+<!--End of Navigation Panel-->
+<ADDRESS>
+<small>翻譯朱群英、孫雲, LaTeX2HTML 編譯 朱群英 (2005-06-23)</small>
+</ADDRESS>
+</BODY>
+</HTML>

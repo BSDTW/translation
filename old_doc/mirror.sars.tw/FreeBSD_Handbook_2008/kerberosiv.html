@@ -1,0 +1,599 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>KerberosIV</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.79" />
+<link rel="HOME" title="FreeBSD 使用手冊" href="index.html" />
+<link rel="UP" title="系統安全" href="security.html" />
+<link rel="PREVIOUS" title="TCP Wrappers" href="tcpwrappers.html" />
+<link rel="NEXT" title="Kerberos5" href="kerberos5.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD 使用手冊</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="tcpwrappers.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 14 系統安全</td>
+<td width="10%" align="right" valign="bottom"><a href="kerberos5.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="KERBEROSIV" name="KERBEROSIV">14.7 <b
+class="APPLICATION">KerberosIV</b></a></h1>
+
+<i class="AUTHORGROUP"><span class="CONTRIB">Contributed by</span> Mark Murray.</i> <i
+class="AUTHORGROUP"><span class="CONTRIB">Based on a contribution by</span> Mark
+Dapoz.</i> 
+
+<p>Kerberos is a network add-on system/protocol that allows users to authenticate
+themselves through the services of a secure server. Services such as remote login, remote
+copy, secure inter-system file copying and other high-risk tasks are made considerably
+safer and more controllable.</p>
+
+<p>The following instructions can be used as a guide on how to set up Kerberos as
+distributed for FreeBSD. However, you should refer to the relevant manual pages for a
+complete description.</p>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN19092" name="AEN19092">14.7.1 Installing <b
+class="APPLICATION">KerberosIV</b></a></h2>
+
+<p>Kerberos is an optional component of FreeBSD. The easiest way to install this software
+is by selecting the <tt class="LITERAL">krb4</tt> or <tt class="LITERAL">krb5</tt>
+distribution in <b class="APPLICATION">sysinstall</b> during the initial installation of
+FreeBSD. This will install the “eBones” (KerberosIV) or “Heimdal” (Kerberos5)
+implementation of Kerberos. These implementations are included because they are developed
+outside the USA/Canada and were thus available to system owners outside those countries
+during the era of restrictive export controls on cryptographic code from the USA.</p>
+
+<p>Alternatively, the MIT implementation of Kerberos is available from the Ports
+Collection as <a
+href="http://www.FreeBSD.org/cgi/url.cgi?ports/security/krb5/pkg-descr"><tt
+class="FILENAME">security/krb5</tt></a>.</p>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN19108" name="AEN19108">14.7.2 Creating the Initial
+Database</a></h2>
+
+<p>This is done on the Kerberos server only. First make sure that you do not have any old
+Kerberos databases around. You should change to the directory <tt
+class="FILENAME">/etc/kerberosIV</tt> and check that only the following files are
+present:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">cd /etc/kerberosIV</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">ls</kbd>
+README      krb.conf        krb.realms
+</pre>
+
+<p>If any additional files (such as <tt class="FILENAME">principal.*</tt> or <tt
+class="FILENAME">master_key</tt>) exist, then use the <tt
+class="COMMAND">kdb_destroy</tt> command to destroy the old Kerberos database, or if
+Kerberos is not running, simply delete the extra files.</p>
+
+<p>You should now edit the <tt class="FILENAME">krb.conf</tt> and <tt
+class="FILENAME">krb.realms</tt> files to define your Kerberos realm. In this case the
+realm will be <tt class="LITERAL">EXAMPLE.COM</tt> and the server is <tt
+class="HOSTID">grunt.example.com</tt>. We edit or create the <tt
+class="FILENAME">krb.conf</tt> file:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">cat krb.conf</kbd>
+EXAMPLE.COM
+EXAMPLE.COM grunt.example.com admin server
+CS.BERKELEY.EDU okeeffe.berkeley.edu
+ATHENA.MIT.EDU kerberos.mit.edu
+ATHENA.MIT.EDU kerberos-1.mit.edu
+ATHENA.MIT.EDU kerberos-2.mit.edu
+ATHENA.MIT.EDU kerberos-3.mit.edu
+LCS.MIT.EDU kerberos.lcs.mit.edu
+TELECOM.MIT.EDU bitsy.mit.edu
+ARC.NASA.GOV trident.arc.nasa.gov
+</pre>
+
+<p>In this case, the other realms do not need to be there. They are here as an example of
+how a machine may be made aware of multiple realms. You may wish to not include them for
+simplicity.</p>
+
+<p>The first line names the realm in which this system works. The other lines contain
+realm/host entries. The first item on a line is a realm, and the second is a host in that
+realm that is acting as a “key distribution center”. The words <tt
+class="LITERAL">admin server</tt> following a host's name means that host also provides
+an administrative database server. For further explanation of these terms, please consult
+the Kerberos manual pages.</p>
+
+<p>Now we have to add <tt class="HOSTID">grunt.example.com</tt> to the <tt
+class="LITERAL">EXAMPLE.COM</tt> realm and also add an entry to put all hosts in the <tt
+class="HOSTID">.example.com</tt> domain in the <tt class="LITERAL">EXAMPLE.COM</tt>
+realm. The <tt class="FILENAME">krb.realms</tt> file would be updated as follows:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">cat krb.realms</kbd>
+grunt.example.com EXAMPLE.COM
+.example.com EXAMPLE.COM
+.berkeley.edu CS.BERKELEY.EDU
+.MIT.EDU ATHENA.MIT.EDU
+.mit.edu ATHENA.MIT.EDU
+</pre>
+
+<p>Again, the other realms do not need to be there. They are here as an example of how a
+machine may be made aware of multiple realms. You may wish to remove them to simplify
+things.</p>
+
+<p>The first line puts the <span class="emphasis"><b class="EMPHASIS">specific</b></span>
+system into the named realm. The rest of the lines show how to default systems of a
+particular subdomain to a named realm.</p>
+
+<p>Now we are ready to create the database. This only needs to run on the Kerberos server
+(or Key Distribution Center). Issue the <tt class="COMMAND">kdb_init</tt> command to do
+this:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">kdb_init</kbd>
+<samp class="PROMPT">Realm name [default  ATHENA.MIT.EDU ]:</samp> <kbd
+class="USERINPUT">EXAMPLE.COM</kbd>
+You will be prompted for the database Master Password.
+It is important that you NOT FORGET this password.
+        
+<samp class="PROMPT">Enter Kerberos master key:</samp>
+</pre>
+
+<p>Now we have to save the key so that servers on the local machine can pick it up. Use
+the <tt class="COMMAND">kstash</tt> command to do this:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">kstash</kbd>
+          
+<samp class="PROMPT">Enter Kerberos master key:</samp>
+
+Current Kerberos master key version is 1.
+
+Master key entered. BEWARE!
+</pre>
+
+<p>This saves the encrypted master password in <tt
+class="FILENAME">/etc/kerberosIV/master_key</tt>.</p>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN19162" name="AEN19162">14.7.3 Making It All Run</a></h2>
+
+<p>Two principals need to be added to the database for <span class="emphasis"><b
+class="EMPHASIS">each</b></span> system that will be secured with Kerberos. Their names
+are <tt class="LITERAL">kpasswd</tt> and <tt class="LITERAL">rcmd</tt>. These two
+principals are made for each system, with the instance being the name of the individual
+system.</p>
+
+<p>These daemons, <b class="APPLICATION">kpasswd</b> and <b class="APPLICATION">rcmd</b>
+allow other systems to change Kerberos passwords and run commands like <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=rcp&amp;sektion=1"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">rcp</span>(1)</span></a>, <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=rlogin&amp;sektion=1"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">rlogin</span>(1)</span></a> and <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=rsh&amp;sektion=1"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">rsh</span>(1)</span></a>.</p>
+
+<p>Now let us add these entries:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">kdb_edit</kbd>
+Opening database...
+
+<samp class="PROMPT">Enter Kerberos master key:</samp>
+
+Current Kerberos master key version is 1.
+
+Master key entered.  BEWARE!
+Previous or default values are in [brackets] ,
+enter return to leave the same, or new value.
+
+<samp class="PROMPT">Principal name:</samp> <kbd class="USERINPUT">passwd</kbd>
+<samp class="PROMPT">Instance:</samp> <kbd class="USERINPUT">grunt</kbd>
+
+&lt;Not found&gt;, <samp class="PROMPT">Create [y] ?</samp> <kbd
+class="USERINPUT">y</kbd>
+
+Principal: passwd, Instance: grunt, kdc_key_ver: 1
+<samp class="PROMPT">New Password:</samp>                    &lt;---- enter RANDOM here
+Verifying password
+
+<samp class="PROMPT">New Password:</samp> &lt;---- enter RANDOM here
+
+<samp class="PROMPT">Random password [y] ?</samp> <kbd class="USERINPUT">y</kbd>
+
+Principal's new key version = 1
+<samp class="PROMPT">Expiration date (enter yyyy-mm-dd) [ 2000-01-01 ] ?</samp>
+<samp class="PROMPT">Max ticket lifetime (*5 minutes) [ 255 ] ?</samp>
+<samp class="PROMPT">Attributes [ 0 ] ?</samp>
+Edit O.K.
+<samp class="PROMPT">Principal name:</samp> <kbd class="USERINPUT">rcmd</kbd>
+<samp class="PROMPT">Instance:</samp> <kbd class="USERINPUT">grunt</kbd>
+
+&lt;Not found&gt;, <samp class="PROMPT">Create [y] ?</samp>
+
+Principal: rcmd, Instance: grunt, kdc_key_ver: 1
+<samp class="PROMPT">New Password:</samp>       &lt;---- enter RANDOM here
+Verifying password
+
+<samp class="PROMPT">New Password:</samp>           &lt;---- enter RANDOM here
+
+<samp class="PROMPT">Random password [y] ?</samp>
+
+Principal's new key version = 1
+<samp class="PROMPT">Expiration date (enter yyyy-mm-dd) [ 2000-01-01 ] ?</samp>
+<samp class="PROMPT">Max ticket lifetime (*5 minutes) [ 255 ] ?</samp>
+<samp class="PROMPT">Attributes [ 0 ] ?</samp>
+Edit O.K.
+<samp
+class="PROMPT">Principal name:</samp>         &lt;---- null entry here will cause an exit
+</pre>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN19213" name="AEN19213">14.7.4 Creating the Server
+File</a></h2>
+
+<p>We now have to extract all the instances which define the services on each machine.
+For this we use the <tt class="COMMAND">ext_srvtab</tt> command. This will create a file
+which must be copied or moved <span class="emphasis"><b class="EMPHASIS">by secure
+means</b></span> to each Kerberos client's <tt class="FILENAME">/etc/kerberosIV</tt>
+directory. This file must be present on each server and client, and is crucial to the
+operation of Kerberos.</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">ext_srvtab grunt</kbd>
+<samp class="PROMPT">Enter Kerberos master key:</samp>
+        
+Current Kerberos master key version is 1.
+
+Master key entered. BEWARE!
+Generating 'grunt-new-srvtab'....
+</pre>
+
+<p>Now, this command only generates a temporary file which must be renamed to <tt
+class="FILENAME">srvtab</tt> so that all the servers can pick it up. Use the <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=mv&amp;sektion=1"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">mv</span>(1)</span></a> command to move
+it into place on the original system:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">mv grunt-new-srvtab srvtab</kbd>
+</pre>
+
+<p>If the file is for a client system, and the network is not deemed safe, then copy the
+<tt class="FILENAME"><tt class="REPLACEABLE"><i>client</i></tt>-new-srvtab</tt> to
+removable media and transport it by secure physical means. Be sure to rename it to <tt
+class="FILENAME">srvtab</tt> in the client's <tt class="FILENAME">/etc/kerberosIV</tt>
+directory, and make sure it is mode 600:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">mv grumble-new-srvtab srvtab</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">chmod 600 srvtab</kbd>
+</pre>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN19241" name="AEN19241">14.7.5 Populating the
+Database</a></h2>
+
+<p>We now have to add some user entries into the database. First let us create an entry
+for the user <tt class="USERNAME">jane</tt>. Use the <tt class="COMMAND">kdb_edit</tt>
+command to do this:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">kdb_edit</kbd>
+Opening database...
+
+<samp class="PROMPT">Enter Kerberos master key:</samp>
+
+Current Kerberos master key version is 1.
+
+Master key entered.  BEWARE!
+Previous or default values are in [brackets] ,
+enter return to leave the same, or new value.
+
+<samp class="PROMPT">Principal name:</samp> <kbd class="USERINPUT">jane</kbd>
+<samp class="PROMPT">Instance:</samp>
+
+&lt;Not found&gt;, <samp class="PROMPT">Create [y] ?</samp> <kbd
+class="USERINPUT">y</kbd>
+
+Principal: jane, Instance: , kdc_key_ver: 1
+<samp
+class="PROMPT">New Password:</samp>                &lt;---- enter a secure password here
+Verifying password
+
+<samp
+class="PROMPT">New Password:</samp>                &lt;---- re-enter the password here
+Principal's new key version = 1
+<samp class="PROMPT">Expiration date (enter yyyy-mm-dd) [ 2000-01-01 ] ?</samp>
+<samp class="PROMPT">Max ticket lifetime (*5 minutes) [ 255 ] ?</samp>
+<samp class="PROMPT">Attributes [ 0 ] ?</samp>
+Edit O.K.
+<samp
+class="PROMPT">Principal name:</samp>          &lt;---- null entry here will cause an exit
+</pre>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN19261" name="AEN19261">14.7.6 Testing It All Out</a></h2>
+
+<p>First we have to start the Kerberos daemons. Note that if you have correctly edited
+your <tt class="FILENAME">/etc/rc.conf</tt> then this will happen automatically when you
+reboot. This is only necessary on the Kerberos server. Kerberos clients will
+automatically get what they need from the <tt class="FILENAME">/etc/kerberosIV</tt>
+directory.</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">kerberos &amp;</kbd>
+Kerberos server starting
+Sleep forever on error
+Log file is /var/log/kerberos.log
+Current Kerberos master key version is 1.
+
+Master key entered. BEWARE!
+
+Current Kerberos master key version is 1
+Local realm: EXAMPLE.COM
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">kadmind -n &amp;</kbd>
+KADM Server KADM0.0A initializing
+Please do not use 'kill -9' to kill this job, use a
+regular kill instead
+
+Current Kerberos master key version is 1.
+
+Master key entered.  BEWARE!
+</pre>
+
+<p>Now we can try using the <tt class="COMMAND">kinit</tt> command to get a ticket for
+the ID <tt class="USERNAME">jane</tt> that we created above:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">%</samp> <kbd class="USERINPUT">kinit jane</kbd>
+MIT Project Athena (grunt.example.com)
+Kerberos Initialization for "jane"
+<samp class="PROMPT">Password:</samp>
+</pre>
+
+<p>Try listing the tokens using <tt class="COMMAND">klist</tt> to see if we really have
+them:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">%</samp> <kbd class="USERINPUT">klist</kbd>
+Ticket file:    /tmp/tkt245
+Principal:      jane@EXAMPLE.COM
+
+  Issued           Expires          Principal
+Apr 30 11:23:22  Apr 30 19:23:22  krbtgt.EXAMPLE.COM@EXAMPLE.COM
+</pre>
+
+<p>Now try changing the password using <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=passwd&amp;sektion=1"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">passwd</span>(1)</span></a> to check if
+the <b class="APPLICATION">kpasswd</b> daemon can get authorization to the Kerberos
+database:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">%</samp> <kbd class="USERINPUT">passwd</kbd>
+realm EXAMPLE.COM
+<samp class="PROMPT">Old password for jane:</samp>
+<samp class="PROMPT">New Password for jane:</samp>
+Verifying password
+<samp class="PROMPT">New Password for jane:</samp>
+Password changed.
+</pre>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN19294" name="AEN19294">14.7.7 Adding <tt
+class="COMMAND">su</tt> Privileges</a></h2>
+
+<p>Kerberos allows us to give <span class="emphasis"><b class="EMPHASIS">each</b></span>
+user who needs <tt class="USERNAME">root</tt> privileges their own <span
+class="emphasis"><b class="EMPHASIS">separate</b></span> <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=su&amp;sektion=1"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">su</span>(1)</span></a> password. We
+could now add an ID which is authorized to <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=su&amp;sektion=1"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">su</span>(1)</span></a> to <tt
+class="USERNAME">root</tt>. This is controlled by having an instance of <tt
+class="USERNAME">root</tt> associated with a principal. Using <tt
+class="COMMAND">kdb_edit</tt> we can create the entry <tt class="LITERAL">jane.root</tt>
+in the Kerberos database:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">kdb_edit</kbd>
+Opening database...
+
+<samp class="PROMPT">Enter Kerberos master key:</samp>
+
+Current Kerberos master key version is 1.
+
+Master key entered.  BEWARE!
+Previous or default values are in [brackets] ,
+enter return to leave the same, or new value.
+
+<samp class="PROMPT">Principal name:</samp> <kbd class="USERINPUT">jane</kbd>
+<samp class="PROMPT">Instance:</samp> <kbd class="USERINPUT">root</kbd>
+
+&lt;Not found&gt;, Create [y] ? y
+
+Principal: jane, Instance: root, kdc_key_ver: 1
+<samp
+class="PROMPT">New Password:</samp>                    &lt;---- enter a SECURE password here
+Verifying password
+
+<samp class="PROMPT">New Password:</samp>            &lt;---- re-enter the password here
+
+Principal's new key version = 1
+<samp class="PROMPT">Expiration date (enter yyyy-mm-dd) [ 2000-01-01 ] ?</samp>
+<samp class="PROMPT">Max ticket lifetime (*5 minutes) [ 255 ] ?</samp> <kbd
+class="USERINPUT">12</kbd> &lt;--- Keep this short!
+<samp class="PROMPT">Attributes [ 0 ] ?</samp>
+Edit O.K.
+<samp
+class="PROMPT">Principal name:</samp>                &lt;---- null entry here will cause an exit
+</pre>
+
+<p>Now try getting tokens for it to make sure it works:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">kinit jane.root</kbd>
+MIT Project Athena (grunt.example.com)
+Kerberos Initialization for "jane.root"
+<samp class="PROMPT">Password:</samp>
+</pre>
+
+<p>Now we need to add the user to <tt class="USERNAME">root</tt>'s <tt
+class="FILENAME">.klogin</tt> file:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">cat /root/.klogin</kbd>
+jane.root@EXAMPLE.COM
+</pre>
+
+<p>Now try doing the <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=su&amp;sektion=1"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">su</span>(1)</span></a>:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">%</samp> <kbd class="USERINPUT">su</kbd>
+<samp class="PROMPT">Password:</samp>
+</pre>
+
+<p>and take a look at what tokens we have:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">klist</kbd>
+Ticket file:    /tmp/tkt_root_245
+Principal:      jane.root@EXAMPLE.COM
+
+  Issued           Expires          Principal
+May  2 20:43:12  May  3 04:43:12  krbtgt.EXAMPLE.COM@EXAMPLE.COM
+</pre>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN19349" name="AEN19349">14.7.8 Using Other Commands</a></h2>
+
+<p>In an earlier example, we created a principal called <tt class="LITERAL">jane</tt>
+with an instance <tt class="LITERAL">root</tt>. This was based on a user with the same
+name as the principal, and this is a Kerberos default; that a <tt
+class="LITERAL">&lt;principal&gt;.&lt;instance&gt;</tt> of the form <tt
+class="LITERAL">&lt;username&gt;.</tt><tt class="USERNAME">root</tt> will allow that <tt
+class="LITERAL">&lt;username&gt;</tt> to <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=su&amp;sektion=1"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">su</span>(1)</span></a> to <tt
+class="USERNAME">root</tt> if the necessary entries are in the <tt
+class="FILENAME">.klogin</tt> file in <tt class="USERNAME">root</tt>'s home
+directory:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">cat /root/.klogin</kbd>
+jane.root@EXAMPLE.COM
+</pre>
+
+<p>Likewise, if a user has in their own home directory lines of the form:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">%</samp> <kbd class="USERINPUT">cat ~/.klogin</kbd>
+jane@EXAMPLE.COM
+jack@EXAMPLE.COM
+</pre>
+
+<p>This allows anyone in the <tt class="LITERAL">EXAMPLE.COM</tt> realm who has
+authenticated themselves as <tt class="USERNAME">jane</tt> or <tt
+class="USERNAME">jack</tt> (via <tt class="COMMAND">kinit</tt>, see above) to access to
+<tt class="USERNAME">jane</tt>'s account or files on this system (<tt
+class="HOSTID">grunt</tt>) via <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=rlogin&amp;sektion=1"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">rlogin</span>(1)</span></a>, <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=rsh&amp;sektion=1"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">rsh</span>(1)</span></a> or <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=rcp&amp;sektion=1"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">rcp</span>(1)</span></a>.</p>
+
+<p>For example, <tt class="USERNAME">jane</tt> now logs into another system using
+Kerberos:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">%</samp> <kbd class="USERINPUT">kinit</kbd>
+MIT Project Athena (grunt.example.com)
+<samp class="PROMPT">Password:</samp>
+<samp class="PROMPT">%</samp> <kbd class="USERINPUT">rlogin grunt</kbd>
+Last login: Mon May  1 21:14:47 from grumble
+Copyright (c) 1980, 1983, 1986, 1988, 1990, 1991, 1993, 1994
+        The Regents of the University of California.   All rights reserved.
+
+FreeBSD BUILT-19950429 (GR386) #0: Sat Apr 29 17:50:09 SAT 1995
+</pre>
+
+<p>Or <tt class="USERNAME">jack</tt> logs into <tt class="USERNAME">jane</tt>'s account
+on the same machine (<tt class="USERNAME">jane</tt> having set up the <tt
+class="FILENAME">.klogin</tt> file as above, and the person in charge of Kerberos having
+set up principal <span class="emphasis"><b class="EMPHASIS">jack</b></span> with a null
+instance):</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">%</samp> <kbd class="USERINPUT">kinit</kbd>
+<samp class="PROMPT">%</samp> <kbd class="USERINPUT">rlogin grunt -l jane</kbd>
+MIT Project Athena (grunt.example.com)
+<samp class="PROMPT">Password:</samp>
+Last login: Mon May  1 21:16:55 from grumble
+Copyright (c) 1980, 1983, 1986, 1988, 1990, 1991, 1993, 1994
+        The Regents of the University of California.   All rights reserved.
+FreeBSD BUILT-19950429 (GR386) #0: Sat Apr 29 17:50:09 SAT 1995
+</pre>
+</div>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="tcpwrappers.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="kerberos5.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">TCP Wrappers</td>
+<td width="34%" align="center" valign="top"><a href="security.html"
+accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top"><b class="APPLICATION">Kerberos5</b></td>
+</tr>
+</table>
+</div>
+
+<p align="center"><small>本文及其他文件，可由此下載：<a
+href="ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/">ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/</a>。</small></p>
+
+<p align="center"><small>若有 FreeBSD 方面疑問，請先閱讀 <a
+href="http://www.FreeBSD.org/docs.html">FreeBSD 相關文件</a>，如不能解決的話，再洽詢
+&#60;<a href="mailto:questions@FreeBSD.org">questions@FreeBSD.org</a>&#62;。<br />
+關於本文件的問題，請洽詢 &#60;<a
+href="mailto:doc@FreeBSD.org">doc@FreeBSD.org</a>&#62;。</small></p>
+</body>
+</html>
+

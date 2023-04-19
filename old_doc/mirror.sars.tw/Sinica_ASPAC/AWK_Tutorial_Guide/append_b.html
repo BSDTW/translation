@@ -1,0 +1,337 @@
+<title>Appendix B Actions</title>
+<h1>Appendix B Actions</h1>
+<pre><h4>
+Actions 是由下列指令(statement)所組成 :
+
+  expression ( function calls, assignments..)
+  print expression-list
+  printf( format, expression-list)
+  if( expression ) statement [else statement]
+  while( expression ) statement
+  do statement while( expression)
+  for( expression; expression; expression) statement
+  for( variable in array) statement
+  delete
+  break
+  continue
+  next
+  exit [expression]
+  statement 
+
+AWK 中大部分指令與 C 語言中的用法一致, 此處僅介紹較為常用
+或容易混淆之指令的用法.
+<ol>
+<li>流程控制指令
+<ul>
+<li>if 指令</li>
+     語法
+           if (expression) statement1 [else statement2 ]
+       範例 :
+
+  if( $1&gt 25 )
+       print "The 1st field is larger than 25"
+  else print "The 1st field is not larger than 25"
+
+(a)與 C 語言中相同, 若 expression 計算(evaluate)後之值不為 0 
+或空字串, 則執行 statement1; 否則執行 statement2.
+(b)進行邏輯判斷的expression所傳回的值有兩種, 若最後的邏輯值
+為true, 則傳回1, 否則傳回0.
+(c)語法中else statement2 以[ ] 前後括住表示該部分可視需要而
+予加入或省略.
+
+<li>while 指令</li>
+     語法 :
+             while( expression ) statement 
+     範例 :
+
+             while( match(buffer,/[0-9]+\.c/ ) ){
+             print "Find :" substr( buffer,RSTART, RLENGTH)
+             buff = substr( buffer, RSTART + RLENGTH)
+        }
+
+上列範例找出 <i>buffer</i> 中所有能合於(match) /[0-9]+.c/(數字
+之後接上 ``.c''的所有子字串).
+範例中 while 以函數 match( )所傳回的值做為判斷條件. 若buffer
+中還含有合於指定條件的子字串(match成功), 則 match()函數傳回1,
+while 將持續進行其後之statement.
+<li>do-while 指令
+     語法 :
+              do statement while(expression)   
+     範例 :
+
+  do{
+          print "Enter y or n ! "
+          getline data &lt  "-"
+
+     } while( data !~ /^[YyNn]$/)
+
+(a) 上例要求使用者從鍵盤上輸入一個字元, 若該字元不是 
+Y, y, N, 或 n則會不停執行該迴圈, 直到讀取正確字元為止.
+(b)do-while 指令與 while 指令 最大的差異是 : do-while 指令會先執行
+statement而後再判斷是否應繼續執行. 所以, 無論如何其 statement 部分
+至少會執行一次.
+
+*
+<li>for Statement 指令(一) </li>
+     語法 :
+             for(variable in  array ) statement
+     範例 : 執行下列命令
+
+ awk '
+      BEGIN{
+             X[1]= 50; X[2]= 60; X["last"]= 70
+             for( any in X )
+                printf("X[%d] = %d\n", any, X[any] )
+           }'
+
+結果印出 :
+             X[2] = 60
+             X[last] = 70
+             X[1] = 50
+
+(a)這個 for 指令, 專用以搜尋陣中所有的index值, 並逐次使用所指定
+的變數予以紀錄. 以本例而言, 變數 any 將逐次代表 2, 1,及"last".
+(b)以這個 for 指令, 所搜尋出的index之值彼此間並無任何次續關係.
+(c)第7節 Arrays in AWK 中有該指令的使用範例, 及解說.
+
+<li>for Statement 指令(二)</li>
+
+     語法 :
+             for(expression1; expression2; expression3) statement  
+範例 :
+
+    for(ｉ=1; i&lt =10; i++)  sum = sum +  i
+
+ 說明 :
+(a)上列範例用以計算 1 加到 10 的總合.
+(b)expression1  常用於設定該 for 迴圈的起始條件, 如上例中的 i=1<p>
+    expression2 用於設定該迴圈的停止條件, 如上例中的 i&lt= 10<p>
+    expression3 常用於改變 counter 之值, 如上例中的 i++<p>
+ <li>break 指令</li>
+  break 指令用以強迫中斷(跳離) for, while, do-while 等迴圈.
+  範例 :
+while(  getline &lt "datafile" &gt 0 )
+{
+        if( $1 == 0 )      # 所讀取的資料置於 $0 
+             break         # AWK立刻把 $0 上新的欄位資料 
+        else               # 指定給 $1, $2, ...$NF
+        print $2 / $1
+ }
+
+上例中, AWK 不斷地從檔案 {datafile}中讀取資料, 當$1等於0時,
+ 就停止該執行迴圈.
+<li>continue 指令</li> 
+迴圈中的 statement 進行到一半時, 執行 continue 指令來掠過回圈
+中尚未執行的statement.
+     範例 :
+
+       for( index in X_array)
+           {
+             if( index !~ /[0-9]+/ )  continue
+             print "There is a digital index", index
+           }
+<a>上例中若 index 不為數字則執行 continue, 故將掠過(不執行)其後
+的指令.
+<b>需留心 continue 與 break 的差異 : 執行 continue 只是掠過其後
+未執行的statement, 但並未跳離開該迴圈.
+<li>next 指令 
+執行 next 指令時, AWK 將掠過位於該指令(next)之後的所有指令
+(包括其後的所有Pattern { Actions }), 接著讀取下一筆資料列, 
+繼續從第一個 Pattern {Actions}
+執行起.
+     範例 :
+ 
+/^[ \t]*$/  {  print "This is a blank line! Do nothing here !"
+               next
+            }
+ $2 != 0   { print $1, $1/$2 }
+
+上例中, 當 AWK 讀入的資料列為空白行時( match /\^{}[\]*$/ )
+除列印訊息外且執行 next, 故 AWK 將掠過其後的指令, 繼續讀取
+下一筆資料, 從頭(第一個 Pattern \{ Actions \})執行起.
+
+*
+<li>exit 指令</li>
+
+執行 exit 指令時, AWK將立刻跳離(停止執行)該AWK程式.
+</ul>
+<li>AWK 中的 I/O 指令 
+<ul>
+<li>printf 指令</li> 
+該指令與 C 語言中的用法相同, 可藉由該指令控制資料輸出時
+的格式. 
+語法 : 
+         printf("format", item1, item2,.. )
+  範 例 :
+
+      id = "BE-2647";  ave = 89
+     printf("ID# : %s   Ave Score : %d\n", id, ave) 
+ 
+
+(a)結果印出 :
+    ID# :BE-647  Ave Score : 89
+(b)format 部分係由 一般的字串(String Constant) 及 格式控制字元
+(Formatcontrol letter, 其前會加上一個\%字元)所構成. 以上式為例 
+"ID# : " 及 "  Ave Score : " 為一般字串. %s 及 %d 為格式控制字元.
+(c)印出時, 一般字串將被原封不動地印出. 遇到格式控制字元時, 
+則依序把 format後方之 item 轉換成所指定的格式後印出. 
+(d)有關的細節, 讀者可從介紹 C 語言的書籍上得到較完整的介紹.
+(e)print 及 printf 兩個指令, 其後可使用&gt或&lt &gt 將輸出到stdout
+的資料 Redirct到其它檔案, 7.1 Redirect Output to Files 中有完整的
+範例說明.
+<li>print 指令 
+範 例 :
+
+    id = "BE-267";  ave = 89
+    print "ID# :", id, "Ave Score :"ave
+
+(a)結果印出 : 
+    ID# : BE-267  Ave Score :89    
+(b)print 之後可接上字串常數(Constant String)或變數. 它們彼此間
+可用``,'' 隔開. 
+(c)上式中, 字串 "ID# :" 與變數 id 之間使用``,''隔開, 印出時兩者之間
+會以自動 OFS(請參考 D 內建變數 OFS) 隔開. OFS 之值一般內定為
+ "一個空白字元"
+(d)上式中字串 "Ave Score :" 與變數ave之間並未以``,''隔開, AWK
+會將這兩者先當成字串concate在一起(變成``Ave Score :89")後, 
+再予印出
+(e)print 及 printf 兩個指令, 其後可使用&gt 或&gt 將輸出到stdout的
+資料 Redirct到其它檔案, 7.1 Redirect Output to Files 中有完整的
+範例說明.
+<li>getline 指令 
+<center><table border=5>
+<tr><th>語法<th>由何處讀取資料<th>資料讀入後置於 </tr>   
+<tr><th>getline var&gt file<th> 所指定的 file<th>變數 var(var省略時,表示置於$0) 
+<tr><th>| getline var        <th> pipe            <th> 變數 var(var省略時,表示置於$0) 
+<tr><th>getline  var        <th> 見 註一         <th> 變數 var(var省略時,表示置於$0)  
+</table></center>
+註一 : 當 Pattern 為 BEGIN 或 END 時, getline 將由 stdin 讀取資料,
+否則由AWK正處理的資料檔上讀取資料.
+    
+getline 一次讀取一行資料, 
+              若讀取成功則return 1, 
+              若讀取失敗則return -1, 
+              若遇到檔案結束(EOF), 則return 0
+<li> close  指令 
+該指令用以關閉一個開啟的檔案, 或 pipe(見下例) 
+範 例 :
+
+awk '
+BEGIN {  print "ID #   Salary" &gt "data.rpt" }   
+
+      {  print $1 , $2 * $3  | "sort +0n &gt data.rpt" }    
+
+END{  close( "data.rpt" )
+         close( "sort +0n &gt data.rpt" )
+         print " There are", NR, "records processed."
+        } 
+
+說 明 : 
+
+(a)上例中, 一開始執行 print "ID #   Salary" &gt "data.rpt" 指令來
+印出一行抬頭. 它使用 I/O Redirection( &gt )將資料轉輸出到data.rpt,
+故此時檔案 {data.rpt} 是處於 Open 狀態.
+(b)指令 print $1, $2 * $3 不停的將印出的資料送往 pipe(|), AWK
+ 於程式將結束時才會呼叫 shell 使用指令 "sort +0n &gt data.rpt" 
+來處理 pipe 中的資料; 並未立即執行, 這點與 Unix 中pipe的用法
+不盡相同.
+
+(c)最後希望於檔案 {data.rpt}之``末尾''處加上一行 "There are.....".
+ 但此時, Shell尚未執行 "sort +0n &gt data.rpt" 故各資料列排序後
+的 ID 及 Salary 等資料尚未寫入<i>data.rpt</i>. 所以得命令 AWK
+提前先通知 Shell 執行命令 "sort +0n &gt data.rpt" 來處理 pipe
+中的資料. AWK中這個動作稱為 close pipe. 係由執行 close
+( "shell command" )來完成. 需留心 close( )指令中的 shell command 
+需與``|''後方的 shell command 完全相同(一字不差), 較佳的方法是
+先以該字串定義一個簡短的變數, 程式中再以此變數代替該 
+shell command   
+(d)為什麼要執行 close("data.rpt") ?  因為 sort 完後的資料也將寫到
+<i>data.rpt</i>,
+而該檔案正為AWK所開啟使用(write)中, 故AWK程式中應先關閉 
+<i>data.rpt</i>. 以免造成因二個 processes 同時開啟一個檔案進行
+輸出(write)所產生的錯誤. 
+<li>system 指令 </li>  
+該指令用以執行 Shell上 的 command.
+範 例 :
+
+    DataFile = "invent.rpt"
+    system( "rm " DataFile )  
+
+說明 : 
+
+(a)system("字串")指令接受一個字串當成Shell的命令. 上例中, 使用
+一個字串常數"rm " 連接(concate)一個變數 DataFile 形成要求 Shell
+執行的命令.Shell 實際執行的命令為 ``rm invent.rpt''.  
+
+
+*
+<li>``|'' pipe指令
+ ``|'' 配合 AWK 輸出指令, 可把 output 到 stdout 的資料繼續轉送給 
+Shell 上的令一命令%
+當成input的資料.
+  ``|''  配合 AWK getline 指令, 可呼叫 Shell 執行某一命令, 再以 AWK
+的 getline 指令將該命令的所產生的資料讀進 AWK 程式中.
+範 例 :
+
+   { print $1, $2 * $3  | "sort +1n > result" }      
+  
+    "date" |  getline  Date_data
+
+讀者請參考 7.2 Using System Resources 其中有完整的範例說明.        
+</ul>
+<li>AWK 釋放所佔用的記憶體的指令</li> 
+AWK 程式中常使用陣列(Array)來記憶大量資料. delete 指令便是用來
+釋放陣列中的元素所所佔用的記憶空間.
+範 例 :
+
+    for( any in X_arr )  
+             delete X_arr[any]
+
+讀者請留心, delete 指令一次只能釋放陣列中的一個``元素''.
+<li>AWK 中的數學運算元(Arithmetic Operators)</li>
+    +(加), -(減), *(乘), /(除), %(求餘數), ^(指數) 與 C 語言中用法
+相同
+
+<li>AWK 中的 Assignment Operators</li>
+    =, +=, -=, *= , /=, %=, ^= 
+    x += 5 的意思為 x = x + 5, 其餘類推.
+
+<li>AWK 中的 Conditonal  Operator </li>
+語 法 :
+判斷條件 ? value1 : value2
+若 判斷條件 成立(true) 則傳回 value1, 否則傳回 value2.</li> 
+
+<li>AWK 中的邏輯運算元(Logical Operators)</li> 
+ &&( and ), ||or, !(not)
+  Extended Regular Expression 中使用 ``|'' 表示 or 請勿混淆.
+
+<li>AWK 中的關係運算元(Relational Operators)</li>
+&gt, &gt=, &lt, &lt =, ==, !=, ~, !~
+
+<li>AWK 中其它的運算元</li>
+    +(正號), -(負號),  ++(Increment Operator), - -(Decrement Operator) 
+AWK 中各運算元的運算優先順序( Precedence ) </li>
+(按優先高低排列)   
+
+    $       (欄位運算元, 例如 : i=3; $i表示第3欄) 
+    ^       (指數運算) 
+    + ,- ,! (正,負號,及邏輯上的 not) 
+    * ,/ ,% (乘,除,餘數)
+    + ,-    (加,減)  
+    &gt, &gt  =,&lt , &lt =, ==, != (大於,大於等於,...,等關係符號)
+    ~, !~   (match, not match)
+    &&      (邏輯上的 and)
+    ||      (邏輯上的 or )
+    ? :     (Conditional Operator)
+    = , +=, -=,*=, /=, %=, ^= (一些指定Assignment運算元)
+</ol>
+</h4></pre><hr>
+
+
+
+
+
+
+
+
+

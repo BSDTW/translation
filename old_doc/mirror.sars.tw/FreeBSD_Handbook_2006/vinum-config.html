@@ -1,0 +1,150 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>Configuring Vinum</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.79" />
+<link rel="HOME" title="FreeBSD 使用手冊" href="index.html" />
+<link rel="UP" title="The Vinum Volume Manager" href="vinum-vinum.html" />
+<link rel="PREVIOUS" title="Object Naming" href="vinum-object-naming.html" />
+<link rel="NEXT" title="Using Vinum for the Root Filesystem" href="vinum-root.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD 使用手冊</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="vinum-object-naming.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 19 The Vinum Volume Manager</td>
+<td width="10%" align="right" valign="bottom"><a href="vinum-root.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="VINUM-CONFIG" name="VINUM-CONFIG">19.8 Configuring
+Vinum</a></h1>
+
+<p>The <tt class="FILENAME">GENERIC</tt> kernel does not contain Vinum. It is possible to
+build a special kernel which includes Vinum, but this is not recommended. The standard
+way to start Vinum is as a kernel module (<acronym class="ACRONYM">kld</acronym>). You do
+not even need to use <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=kldload&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">kldload</span>(8)</span></a> for Vinum:
+when you start <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=vinum&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">vinum</span>(8)</span></a>, it checks
+whether the module has been loaded, and if it is not, it loads it automatically.</p>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN27281" name="AEN27281">19.8.1 Startup</a></h2>
+
+<p>Vinum stores configuration information on the disk slices in essentially the same form
+as in the configuration files. When reading from the configuration database, Vinum
+recognizes a number of keywords which are not allowed in the configuration files. For
+example, a disk configuration might contain the following text:</p>
+
+<pre class="PROGRAMLISTING">
+volume myvol state up
+volume bigraid state down
+plex name myvol.p0 state up org concat vol myvol
+plex name myvol.p1 state up org concat vol myvol
+plex name myvol.p2 state init org striped 512b vol myvol
+plex name bigraid.p0 state initializing org raid5 512b vol bigraid
+sd name myvol.p0.s0 drive a plex myvol.p0 state up len 1048576b driveoffset 265b plexoffset 0b
+sd name myvol.p0.s1 drive b plex myvol.p0 state up len 1048576b driveoffset 265b plexoffset 1048576b
+sd name myvol.p1.s0 drive c plex myvol.p1 state up len 1048576b driveoffset 265b plexoffset 0b
+sd name myvol.p1.s1 drive d plex myvol.p1 state up len 1048576b driveoffset 265b plexoffset 1048576b
+sd name myvol.p2.s0 drive a plex myvol.p2 state init len 524288b driveoffset 1048841b plexoffset 0b
+sd name myvol.p2.s1 drive b plex myvol.p2 state init len 524288b driveoffset 1048841b plexoffset 524288b
+sd name myvol.p2.s2 drive c plex myvol.p2 state init len 524288b driveoffset 1048841b plexoffset 1048576b
+sd name myvol.p2.s3 drive d plex myvol.p2 state init len 524288b driveoffset 1048841b plexoffset 1572864b
+sd name bigraid.p0.s0 drive a plex bigraid.p0 state initializing len 4194304b driveoff set 1573129b plexoffset 0b
+sd name bigraid.p0.s1 drive b plex bigraid.p0 state initializing len 4194304b driveoff set 1573129b plexoffset 4194304b
+sd name bigraid.p0.s2 drive c plex bigraid.p0 state initializing len 4194304b driveoff set 1573129b plexoffset 8388608b
+sd name bigraid.p0.s3 drive d plex bigraid.p0 state initializing len 4194304b driveoff set 1573129b plexoffset 12582912b
+sd name bigraid.p0.s4 drive e plex bigraid.p0 state initializing len 4194304b driveoff set 1573129b plexoffset 16777216b
+</pre>
+
+<p>The obvious differences here are the presence of explicit location information and
+naming (both of which are also allowed, but discouraged, for use by the user) and the
+information on the states (which are not available to the user). Vinum does not store
+information about drives in the configuration information: it finds the drives by
+scanning the configured disk drives for partitions with a Vinum label. This enables Vinum
+to identify drives correctly even if they have been assigned different <span
+class="TRADEMARK">UNIX</span>&reg; drive IDs.</p>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="VINUM-RC-STARTUP" name="VINUM-RC-STARTUP">19.8.1.1 Automatic
+Startup</a></h3>
+
+<p>In order to start Vinum automatically when you boot the system, ensure that you have
+the following line in your <tt class="FILENAME">/etc/rc.conf</tt>:</p>
+
+<pre class="PROGRAMLISTING">
+start_vinum="YES"      # set to YES to start vinum
+</pre>
+
+<p>If you do not have a file <tt class="FILENAME">/etc/rc.conf</tt>, create one with this
+content. This will cause the system to load the Vinum <acronym
+class="ACRONYM">kld</acronym> at startup, and to start any objects mentioned in the
+configuration. This is done before mounting file systems, so it is possible to
+automatically <a href="http://www.FreeBSD.org/cgi/man.cgi?query=fsck&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">fsck</span>(8)</span></a> and mount file
+systems on Vinum volumes.</p>
+
+<p>When you start Vinum with the <tt class="COMMAND">vinum start</tt> command, Vinum
+reads the configuration database from one of the Vinum drives. Under normal
+circumstances, each drive contains an identical copy of the configuration database, so it
+does not matter which drive is read. After a crash, however, Vinum must determine which
+drive was updated most recently and read the configuration from this drive. It then
+updates the configuration if necessary from progressively older drives.</p>
+</div>
+</div>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="vinum-object-naming.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="vinum-root.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">Object Naming</td>
+<td width="34%" align="center" valign="top"><a href="vinum-vinum.html"
+accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">Using Vinum for the Root Filesystem</td>
+</tr>
+</table>
+</div>
+
+<p align="center"><small>This, and other documents, can be downloaded from <a
+href="ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/">ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/</a>.</small></p>
+
+<p align="center"><small>For questions about FreeBSD, read the <a
+href="http://www.FreeBSD.org/docs.html">documentation</a> before contacting &#60;<a
+href="mailto:questions@FreeBSD.org">questions@FreeBSD.org</a>&#62;.<br />
+For questions about this documentation, e-mail &#60;<a
+href="mailto:doc@FreeBSD.org">doc@FreeBSD.org</a>&#62;.</small></p>
+</body>
+</html>
+

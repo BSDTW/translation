@@ -1,0 +1,204 @@
+
+
+<!-- Vignette StoryServer 4 Sat Mar 11 15:43:24 2000 --> 
+<style type=text/css>
+<!--
+p,div {font-size:12pt; line-height:14pt; font-family:宋體;}
+.p1{font-size:12pt;font-family:宋體;}
+.p2{font-size:12pt;font-family:宋體;line-height:14pt;}
+.p3{font-size:14.8px;font-family:宋體;}
+.p4{font-size:14.8px;font-family:宋體;line-height:14pt;}
+.p5{font-size:1pt}
+a:hover{color:red;}
+a.t1:visited{color:red;}
+-->
+</style>
+<title>FreeBSD使用大全</title></head>
+
+<body bgcolor="#FFFFFF" text="#000000" link="#383098" vlink="#336699" alink="#FF0000" topmargin="0">
+<!-- Vignette StoryServer 4 Thu Mar 23 10:01:54 2000 --> <!-- Vignette StoryServer 4 Thu Mar 23 15:34:35 2000 --> 
+
+<!--開始：新聞內容-->
+<TABLE WIDTH=750 BORDER=0 CELLSPACING=0 CELLPADDING=0>
+
+<tr valign=top>
+
+
+
+<TD  valign=top>
+<CENTER><FONT COLOR=#000066 size=5><B>FreeBSD連載(42)：NFS用戶端</B><br></FONT></CENTER>
+
+<HR  ALIGN="center" SIZE=1>
+<CENTER><FONT FACE="Arial" SIZE=2> 1999年12月14日 14:09 </FONT><FONT COLOR="#990000" SIZE=2>王波</FONT></CENTER><p>
+
+<h1 align=center>網路檔案系統（NFS）</h1>
+
+<P>　　NFS是一種Unix之間通過網路共享檔案的標準方式。使用NFS，就能夠透明的安裝和
+訪問網路上遠程主機上的檔案系統，將其安裝到本機的檔案系統中。</P>
+
+<ul><P><LI><B>NFS用戶端</B></LI></P></ul>
+
+<P>　　安裝NFS伺服器上的檔案系統的方式與安裝本機磁碟檔案系統非常相似，同樣是通過
+mount命令：</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># mount  nfssrv:/exports  /mnt</td></pre></tr></table>
+
+<P>　　這個命令將nfssrv主機上的/exports目錄安裝到本機的/mnt目錄下。可以看到安裝
+NFS與本地磁碟檔案系統的不同在於 ── 檔案系統的描述方法不同。本地磁碟檔案系統使
+用/dev下的設備檔案來描述，而NFS檔案系統使用遠程主機名和主機上的共享目錄名（中間
+使用:分隔）來描述。當然其執行的實質是不同的，事實上mount根據檔案系統的類型，執
+行mount_nfs來真正安裝nfs檔案系統。</P>
+
+<P>　　/mnt應該是本地檔案系統上的一個空目錄，沒有安裝其他檔案系統。如果這個目錄
+非空，那麼使用mount之後，原有的本地檔案系統中的內容將不可被訪問，只能看到新安裝
+上的檔案系統中的內容。</P>
+
+<P>　　由此來看，NFS客戶不需要進行複雜的配置，只需知道NFS伺服器的主機名和共享出
+的目錄名即可。事實上，知道了NFS伺服器的主機名，就可以使用showmount命令，來查看這
+台伺服器共享出的目錄名和訪問限制。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># showmount -e nfssrv</td></pre></tr></table>
+
+<P>　　使用NFS檔案系統只需要核心支持，而不需其他額外設置,但是同時使用nfsiod進程
+能夠提供高效的緩衝機制，從而改善nfs檔案系統的性能，應該可以在裝載NFS檔案系統之前
+執行這個守護進程。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># nfsiod -n 4</td></pre></tr></table>
+
+<P>　　參數-n 4用於限制nfsiod的副本數量，每一個nfsiod用於輔助處理一次I/O操作，因
+此如果通過NFS檔案系統進行頻繁的I/O操作，就要考慮增加nfsiod的副本數量。</P>
+
+<P>　　由於使用nfsiod能夠提升系統性能，對於NFS客戶電腦，就可以在系統啟動時執行
+這個守護進程。這需要在FreeBSD的系統配置檔案rc.conf中設置nfs_client_enable參數的
+值為"YES"，系統啟動時就自動執行nfsiod。</P>
+
+
+<ul><B><P><LI>使用fstab</LI></P></B></ul>
+
+<P>　　對於經常用到的NFS檔案系統，並且提供NFS服務的Unix主機也非常可靠。那麼就可
+以將這些系統加入/etc/fstab檔案中，在系統啟動時自動安裝該NFS檔案系統。由於NFS檔案
+系統不在本地，因此在伺服器不能提供NFS服務時就會造成故障，系統會遇到啟動障礙，而
+不同正常啟動。因此對於一台不穩定的伺服器系統，最好不要使用/etc/fstab來裝載NFS文
+件系統，或者在/etc/fstab的設置參數選項中使用noauto參數，不讓系統自動裝載這個檔案
+系統。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre><font size=2># Device                Mountpoint      FStype  Options         Dump    Pass#
+/dev/wd0s3b             none            swap    sw              0       0
+/dev/wd0s3a             /               ufs     rw              1       1
+/dev/wd0s3f             /usr            ufs     rw              2       2
+/dev/wd0s3e             /var            ufs     rw              2       2
+proc                    /proc           procfs  rw              0       0
+/dev/wcd0c              /cdrom          cd9660  ro,noauto       0       0
+nfssrv:/exports         /nfs            nfs     ro,noauto       0       0</font></td></pre></tr></table>
+
+<P>　　/etc/fstab檔案中的第四列為安裝檔案系統時使用的安裝參數，如果增加了noauto選
+項，這樣系統啟動時並不立即安裝這個檔案系統，而是直到管理員輸入mount命令之後才進行
+安裝。但是此時mount命令的參數就可以比較簡單，對應前面安裝nfssrv的命令，可以簡化為
+mount /nfs，mount會查看fstab檔案尋找匹配的行，以使用正確的參數安裝檔案系統。</P>
+
+<ul><B><P><LI>自動安裝守護進程AMD</LI></P></B></ul>
+
+<P>　　為了更方便的使用NFS，可以使用自動安裝軟體amd（automounter daemon，自動安裝
+守護進程）自動維護檔案系統，這就使在訪問具體目錄時能夠立即安裝該檔案系統，而經過一
+端時間間隔內沒有任何訪問發生，再自動卸載這個檔案系統。</P>
+
+<P>　　amd需要指定一個進行監視的空目錄，所有要安裝的檔案系統與這個目錄下的子目錄
+一一對應﹔它還需要一個維護用的空目錄，用於安裝遠程檔案系統，而監視目錄中的子目錄
+將是正確安裝的檔案系統的符號連接。這些子目錄和符號連接並不需要管理員創建，而是要
+在映射檔案中指明，由amd來創建和維護。當監視子目錄被訪問時，amd守護進程就會安裝相
+應的檔案系統並建立正確的連接，使得目錄和檔案能被正常訪問。</P>
+
+<P>　　通常使用/etc/amd.map用作amd的映射檔案，這個檔案就用於告訴amd子目錄與檔案系
+統的對應關系。下面是一個最簡單的映射檔案amd.map：</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre><font size=2># cat /etc/amd.map
+/defaults       type:=host;fs:=${autodir}/${rhost};rhost:=${key}
+nfssrv	         typs:=nfs;rhost:=nfssrv;rfs:=/exports</font></td></pre></tr></table>
+
+<P>　　第一行使用/defaults定義預設的設置，type參數用於定義維護的檔案系統的類型，
+host類型為通過NFS安裝遠程伺服器中直接在exports檔案中輸出的目錄，fs參數為amd安裝文
+件系統使用的安裝位置，變量autodir為amd維護安裝檔案系統的目錄，而rhost變量為遠程計
+算機的名字，需要進行設置。預設的rhost變量設置為${key}的值，當用戶訪問amd監視目錄的
+子目錄時，key就被設置為這個子目錄的名字。通過這個預設設置，當用戶訪問amd監視目錄的
+任意一個子目錄時，這個子目錄名就被轉換為遠程NFS伺服器的名字，amd就自動將這個伺服器
+共享的目錄安裝到fs定義的安裝位置上。</P>
+
+<P>　　第二行設置一個專有的映射關系，第一列也是amd設置的key值，當訪問對應的子目錄
+時就啟動這個設置，這一個安裝點為nfs類型，nfs類型與host略有不同，host類型只需要rhost
+定義，而查詢伺服器上的共享出的目錄來自動安裝，而nfs類型則要配置者手工指定遠程主機共
+享的目錄，這就需要設置rfs參數。通常在自動維護的電腦數量較少時，使用nfs類型更明確
+，否則可以使用host類型以簡化配置工作。</P>
+
+<P>　　設置好映射檔案之後，就可以運行amd守護進程了。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># amd -a /net -c 1800 /host /etc/amd.map
+# ls /host
+# cd /host/nfssrv
+# ls -l /host
+nfssrv</td></pre></tr></table>
+
+<P>　　上面的amd的命令參數為，第一個-a參數告訴amd將真實的檔案系統安裝到/net這個臨時
+目錄下，在執行amd之前必須建立這個空目錄，這個目錄將被amd作為autodir變量設置映射關系
+﹔-c參數用於指明超時參數，經過這個時間間隔內沒有訪問這個檔案系統上的內容，就卸載已
+安裝的檔案系統，設置為1800秒﹔而/host目錄為amd監視用戶訪問的目錄，訪問這個目錄中的
+子目錄，就會觸發amd守護進程，例如上例中使用cd /host/nfssrv訪問nfssrv子目錄，那麼amd
+就將啟動，將nfssrv設置為key值，因此amd就讀取/defauts設置的預設參數和nfssrv這個key值
+對應的參數，然後執行自動安裝過程。最後一個參數就是指定映射檔案為/etc/amd.map。</P>
+
+<P>　　因此，amd的處理過程可以總結為：用戶首先訪問/host目錄下的子目錄，觸發amd﹔amd
+使用子目錄的名字作為key值，讀取相應映射檔案中的設置，將檔案系統安裝到/net目錄下的相
+應目錄上（fs定義的目錄）﹔最後amd在/host目錄下以key值建立符號連接，指向已經安裝到/net
+目錄下的真實檔案系統，使得用戶訪問子目錄的操作能夠正常完成。</P>
+
+<P>　　amd主要是和NFS結合使用，用於維護多台伺服器的用戶和檔案目錄的一致性，然而amd
+不僅僅能用於維護NFS檔案系統，同樣也可以用於維護其他種類的檔案系統，如CD9660、本地文
+件目錄的連接，以及擴展到運行一個程序等方式自動安裝相應的檔案系統，對於這些非NFS檔案
+系統，就需要使用不同的type參數定義不同的類型。例如可以使用amd將所有用戶的個人目錄維
+護在同一個路徑下，而不是事實上分布在不同目錄和主機上，等等。此時，amd.map應為：</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre><font size=2>/defaults	 opts:=rw,grpid,nosuid,nodev</P>
+<P>wb   host==wb;type:=link;fs:=/home/wb</P>
+<P>cd   opts:=ro;host==wb;type:=cdfs;dev:=/dev/wcd0c</P>
+<P>dos  host==wb;type:=program;mount:="/sbin/mount_msdos mount_msdos /dev/wd0s1 focus/FreeBSD/"</font></td></pre></tr></table>
+
+<P>　　這個映射檔案中的預設設置中首先使用opts設置了幾個安裝選項，用於安裝檔案系統時
+使用。由於這個例子中維護的檔案系統NFS檔案系統，因此沒有使用變量定義相應的參數，而且
+在維護的檔案系統不多的條件下，可以直接定義各個自動安裝所需要的各個參數。</P>
+
+<P>　　第一個設置為是一個link類型，它必須在主機為wb（本地主機的名字，amd將自動設置
+host變量）時才有效。這個類型只是用於建立連接，因此就沒有必要定義rhost和rfs，而通過
+fs定義需要建立連接的目標。因此當訪問/host/wb目錄時，amd就自動建立一個到/home/wb的
+符號連接。</P>
+
+<P>　　第二個設置為cdfs類型，這用於訪問時自動安裝CDROM，它通過dev參數設置安裝使用的
+設備檔案。第三個設置為program類型，當訪問/host/dos目錄時，amd會自動執行後面的mount_msdos
+程序，裝載上dos分區，安裝點被使用變量path傳遞給外部程序的參數。</P>
+
+<P>　　為了在啟動時自動執行amd，需要修改rc.conf中的設置，更改其中的選項amd_enable為”YES”，
+amd的執行參數在amd_flags項中設置，預設為：</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre><font size=2>amd_flags="-a /net -c 1800 -k i386 -d my.domain -l syslog /host /etc/amd.map"</font></td></pre></tr></table>
+
+<P>　　這個參數使用了另一些有用的參數，-k參數用於運行amd的電腦核心體系，-d參數用
+於定義電腦的domain名，修改這個參數可以幫助amd偵測電腦所在的domain名字，因此要修
+改為電腦實際的域名，-l參數定義審計記錄檔案，預設使用syslog。amd的設置相當複雜，這
+裡只是通過一個映射檔案來提供針對一個目錄的自動安裝維護，實際上amd可以同時維護多個目
+錄，這就需要設置一個配置檔案，來定義多個監視目錄。對於一般的目的，使用命令行指定一
+個映射就夠用了。</P>
+<BR>
+
+</TD>
+</TR></TABLE>
+
+
+
+</BODY>
+</HTML>

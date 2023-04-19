@@ -1,0 +1,190 @@
+
+
+<!-- Vignette StoryServer 4 Sat Mar 11 15:43:24 2000 --> 
+<style type=text/css>
+<!--
+p,div {font-size:12pt; line-height:14pt; font-family:宋體;}
+.p1{font-size:12pt;font-family:宋體;}
+.p2{font-size:12pt;font-family:宋體;line-height:14pt;}
+.p3{font-size:14.8px;font-family:宋體;}
+.p4{font-size:14.8px;font-family:宋體;line-height:14pt;}
+.p5{font-size:1pt}
+a:hover{color:red;}
+a.t1:visited{color:red;}
+-->
+</style>
+<title>FreeBSD使用大全</title></head>
+
+<body bgcolor="#FFFFFF" text="#000000" link="#383098" vlink="#336699" alink="#FF0000" topmargin="0">
+<!-- Vignette StoryServer 4 Thu Mar 23 10:01:54 2000 --> <!-- Vignette StoryServer 4 Thu Mar 23 15:34:35 2000 --> 
+
+<!--開始：新聞內容-->
+<TABLE WIDTH=750 BORDER=0 CELLSPACING=0 CELLPADDING=0>
+
+<tr valign=top>
+
+
+
+<TD  valign=top>
+<CENTER><FONT COLOR=#000066 size=5><B>FreeBSD連載(20)：建立檔案系統</B><br></FONT></CENTER>
+
+<HR  ALIGN="center" SIZE=1>
+<CENTER><FONT FACE="Arial" SIZE=2> 1999年11月22日 15:30 </FONT><FONT COLOR="#990000" SIZE=2>王波</FONT></CENTER><p>
+
+<h1 align=center>建立檔案系統</h1>
+
+<p>　　當系統負載逐步增加，僅僅依靠原有檔案系統的空間是不夠的，更有效的方式是增加新的硬碟設備。這首先需要改動
+硬碟及其控制器的硬體設置，以及FreeBSD核心配置，以便硬碟能安裝到電腦上並能被FreeBSD核心正確識別
+。接下來就需要在新硬碟上創建新的檔案系統。</p>
+
+<p>　　在系統安裝過程中，已經接觸了在FreeBSD下管理硬碟和分區的方式，FreeBSD需要兩個步驟才能為文
+件系統分配一個硬碟空間，第一步是為FreeBSD創建一個UFS系統分區，這個分區只由FreeBSD來使用，然後
+在第二步中從這個分區中，為各個檔案系統劃分空間，在FreeBSD下稱為創建檔案系統的DiskLabel標籤。</p>
+
+<p>　　最容易和直觀的創建新檔案系統或交換空間方式是使用安裝程序sysinstall，以便系統啟動能夠自動安裝
+上這個檔案系統。使用Sysinstall來安裝新檔案系統的方式在系統安裝的過程中已經有了詳細描述，以root權
+限執行/stand/sysinstall就能進入Sysinstall，然後選擇Partition進行分區，選擇
+Label創建和維護BSD檔案系統。
+</p>
+
+<ul><h2><P><LI>建立檔案系統的命令行方式</LI></P></h2></ul>
+
+<p>　　除了使用sysinstall之外，還可以使用命令行的方式來完成這些操作。相比較而言，命令行的方式更困難
+，也更容易出錯，因此一般不需要使用這種方式，然而命令行方式能帶來更大的靈活性，在一些系統維護情況下更為有效。</p>
+
+<p>　　命令行方式建立檔案系統需要使用fdisk命令進行硬碟的分區工作，fdisk能查看系統分區表上的分區信息
+，並更改其分區設置﹔然後disklabel命令可以在分區中劃分不同子分區空間並標記各個空間的DiskLabel
+﹔使用newfs建立新檔案系統，或者使用swapon命令增加交換設備。</p>
+
+<p>　　創建新檔案系統，首先要使用交互式的fdisk命令（使用-i參數）對硬碟進行分區，不帶參數的fdisk命
+令僅僅顯示該硬碟的分區設置，而不能更改設置。fdisk均使用它檢測到的硬碟設置作為預設設置，如果不需要改變，就
+可以直接使用這些預設設置回應其詢問。在fdisk中可以修改的數據有硬碟映射數據，以及四個分區的起始位置和類型。</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># fdisk -i wd1
+<br>******* Working on device /dev/rwd1 *******
+<br>parameters extraced from in-core disklabel are:
+<br>cylinders=525 heads=255 sectors/track=63 (16065 blks/cyl)
+<br>　
+<br>parameters to be used for BIOS calculations are:
+<br>cylinders=525 heads=255 sectors/track=63 (16065 blks/cyl)
+<br>　
+<br>Do you want to change our idea of what BIOS thinks ? [n]
+</td></pre></tr></table>
+
+<p>　　fdisk能檢測硬碟的真實映射數據和BIOS的映射數據，由於FreeBSD不使用BIOS存取硬碟數據，
+因此這兩個數據有可能不一致，但這不影響FreeBSD系統對硬碟的訪問。但BIOS的映射數據必須與BIOS中的設
+置一致，否則fdisk使用錯誤數據劃分的分區，系統的引導和其他使用BIOS的操作系統就無法正確識別。當硬碟上沒
+有硬碟分區時，fdisk無法獲得正確的BIOS映射數據（因為FreeBSD不訪問BIOS），此時就需要在詢問是
+否更改BIOS映射方式時回答yes，以進行更改。一般在硬碟上已有分區或不需要兼容的情況下，不需要更改這個設置，
+直接回車選擇no略過這個設置。
+</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>The data for partition 1 is:
+<br>UNUSED&gt;
+<br>Do you want to change it? [n] y
+</td></pre></tr></table>
+
+<p>　　然後，fdisk會針對每個分區詢問是否更改其數據，此時按需要更改分區的設置。由於使用fdisk可以直接
+指定分區的起始和結束，因此具有很大的靈活性，也很容易出現錯誤，如分區的劃分出現重疊。由於多操作系統引導程序
+Boot Manager占用了硬碟主引導區後面的幾個空余扇區，按照DOS/Windows的標準，雖然主引導區僅占用
+了一個扇區，同一柱面中的其他扇區（一般為64或32個）也不能被分配給其他分區，而要保持為空余，這些扇區可以為
+Boot Manager占用。這樣就在fdisk指定分區的起始時，是不能從0開始的，而要從下一個柱面的起始位置開
+始。</p>
+
+<p>　　然後按照要求回答分區的類型，（FreeBSD分區為165，DOS分區為6），分區的開始位置和大小，注意
+單位應該為512字節（扇區大小）。後面的大部分參數可以使用預設值回應詢問，或者設定激活分區。</p>
+
+<p>　　更改分區設置並保存退出fdisk之後，還需要檢查系統中是否具有對應的設備檔案，必須在/dev目錄下擁有
+相應的設備檔案才能訪問物理設備。</p>
+
+<p>　　劃分了UFS基本分區之後，就可以使用disklabel創建檔案系統或交換空間的disklabel了，為
+了方便起見，可以先為這個分區建立空的disklabel，然後再進行修改。
+</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># disklabel -r -w wd1s3 auto
+<br># disklabel -e wd1s3</td></pre></tr></table>
+
+<p>　　在使用-w參數為分區wd1s3生成預設的disklabel時，就必須給定磁碟的類型，通常可以使用auto
+，讓系統自動檢測。除了自動偵測之外，在/etc/disktab檔案中也給出了很多標準磁碟類型數據，這些數據中
+包括包括軟碟在內的各種磁碟類型，對於這個檔案中不存在的新型磁碟，可以根據原有類型進行修改而生成新數據。通常很少
+需要利用這個檔案中提供的磁碟類型數據來生成disklabel，使用auto參數能讓系統自動檢測磁碟的類型。極少
+數情況下，例如在配置偽存儲設備vn的時候，才需要使用具體磁碟類型參數。</p>
+
+<p>　　直接生成的disklabel僅僅包括磁碟的類型信息，以及一個使用c表示整個系統分區的空disklabel
+，而沒有具體檔案系統的disklabel。要真正劃分檔案系統，需要再使用disklabel -e編輯更改disklabel
+配置，例如增加兩個子分區，b和e，就需要為b設置類型swap的disklabel，為e設置類型4.2BSD的disklabel，
+而c使用的unused類型表示這個disklabel不用做檔案系統或交換空間，
+可用於特定目的，如raw方式存取硬碟。</p>
+
+<p>　　注意由於要使用手工計算檔案系統的大小，因此很容易發生重疊等錯誤。各個不同空間的disklabel允許重
+疊，例如預設產生的以c代表的disklabel表示整個FreeBSD系統分區就會與其他disklabel的空間
+重疊。但是具體用做檔案系統或交換空間的部分就不能重疊，否則會導致存取錯誤發生。</p>
+
+<p>　　保存退出後，就可以使用disklabel -r wd1s1來查看新建的代表檔案系統或交換空間的label
+。下面為增加之後的disklabel的最後一部分。
+</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>#     size   offset    fstype   [fsize bsize bps/cpg]
+<br>b:    61440        0    swap                    
+<br>c:   409536        0    unused        0     0       
+<br>e:   348096    61440    4.2BSD        0     0     0
+</td></pre></tr></table>
+
+<P>然後在新建的disklabel為4.2BSD類型的空間上真正建立檔案系統，需要使用newfs命令。</P>
+
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># newfs /dev/rwd1s1e</td></pre></tr></table>
+
+<P>執行fsck檢查剛建立的磁碟分區有無錯誤</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># fsck -y /dev/rwd1s1e</td></pre></tr></table>
+
+<P>然後就可以將這個建立好的檔案系統安裝到系統中了，如果建立的是交換空間，可以使用swapon命令可使
+該交換分區立即生效。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># mount /dev/wd1s1e /mnt
+<br># swapon /dev/wd1s1b</td></pre></tr></table>
+
+<p>　　為了在啟動時自動安裝上這個檔案系統，需要編輯/etc/fstab檔案，將檔案系統和交換設備加入系統，那
+麼下次系統啟動之後，就能使用新的磁碟分區和新的交換設備了。例如新磁碟為wd1，相應FreeBSD的分區為wd1s3e
+（檔案系統）和wd1s3b（交換分區），檔案系統要安裝到系統的/disk2目錄下，則fstab應為：</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># Device      Mountpoint  FStype  Options  Dump    Pass#
+<br>/dev/wd0s3b   none        swap    sw       0       0
+<br>/dev/wd0s3a   /           ufs     rw       1       1
+<br>/dev/wd0s3f   /usr        ufs     rw       2       2
+<br>/dev/wd0s3e   /var        ufs     rw       2       2
+<br>proc          /proc       procfs  rw       0       0
+<br>/dev/wd1s1e   /cdrom      cufs    rw       2       2
+<br>/dev/wd1s1b   none        swap    sw       0       0
+</td></pre></tr></table>
+
+<p>　　然後就可以使用新硬碟來調整空間緊張的磁碟上的檔案和目錄。此時，除了可以使用符號連接這種方式之外，還可以
+直接將該新建的檔案系統安裝到需要的目錄下。這也是推荐的方式，因為符號連接會對檔案操作的性能造成少許影響。
+</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># cd /usr
+<br># mv local local.old
+<br># mkdir local
+<br># mount /dev/wd1s1e /usr/local
+<br># mv /usr/local.old/* /usr/local/
+</td></pre></tr></table>
+
+
+<BR>
+
+</TD>
+</TR></TABLE>
+
+
+</BODY>
+</HTML>

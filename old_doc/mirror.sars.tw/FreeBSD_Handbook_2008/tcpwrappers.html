@@ -1,0 +1,276 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>TCP Wrappers</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.79" />
+<link rel="HOME" title="FreeBSD 使用手冊" href="index.html" />
+<link rel="UP" title="系統安全" href="security.html" />
+<link rel="PREVIOUS" title="One-time Passwords" href="one-time-passwords.html" />
+<link rel="NEXT" title="KerberosIV" href="kerberosiv.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD 使用手冊</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="one-time-passwords.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 14 系統安全</td>
+<td width="10%" align="right" valign="bottom"><a href="kerberosiv.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="TCPWRAPPERS" name="TCPWRAPPERS">14.6 TCP Wrappers</a></h1>
+
+<i class="AUTHORGROUP"><span class="CONTRIB">Written by:</span> Tom Rhodes.</i> 
+
+<p>每個熟 <a href="http://www.FreeBSD.org/cgi/man.cgi?query=inetd&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">inetd</span>(8)</span></a>
+的人幾乎都會聽過 <acronym class="ACRONYM">TCP</acronym> Wrappers
+這個東西，但很少人能完全瞭解它在網路環境上的好用在哪。
+大多數的人都會裝防火牆來保護網路，雖然，防火牆用途非常廣泛，但並非萬能。
+例如：若打算回傳一段文字給連線來源者等之類的。而 <acronym class="ACRONYM">TCP</acronym>
+軟體卻可以做到這點，還有其他更多事情。在以下段落內，我們將繼續介紹 <acronym
+class="ACRONYM">TCP</acronym> Wrappers 提供的功能，以及一些實際運用的例子。</p>
+
+<p><acronym class="ACRONYM">TCP</acronym> Wrappers 可以讓 <tt class="COMMAND">inetd</tt>
+所管理的每個 server daemon ，都會在 <acronym class="ACRONYM">TCP</acronym> Wrappers
+的掌握之下。透過 <acronym class="ACRONYM">TCP</acronym> Wrappers
+這種方式可以支援連線紀錄(logging) 、回傳一段文字給連線來源者、可以讓 daemon
+只接受內部連線等等。 雖然其中部份功能用防火牆也可以做到，但 <acronym
+class="ACRONYM">TCP</acronym> Wrappers
+不只是增加了一層保護，還提供了防火牆所辦不到的事情。</p>
+
+<p>然而， 由 <acronym class="ACRONYM">TCP</acronym> Wrappers 所提供的這些額外安全功能，
+不應該視為優秀防火牆的替代方案。應該結合 <acronym class="ACRONYM">TCP</acronym> Wrappers
+及防火牆、其他加強安全措施來一併運用才對，這樣才可以為系統提供多層安全防護。</p>
+
+<p>由於這些設定是主要針對 <tt class="COMMAND">inetd</tt> 所提供的，所以我們建議您先參閱
+<a href="network-inetd.html">inetd 設定</a> 一節。</p>
+
+<div class="NOTE">
+<blockquote class="NOTE">
+<p><b>Note:</b> 雖然 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=inetd&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">inetd</span>(8)</span></a>
+所啟動的程式並非全部都是真正的 『daemons』，但一般來講，我們都還是會稱呼為『daemons』，
+下面我們仍將使用這字眼來表達。</p>
+</blockquote>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN18979" name="AEN18979">14.6.1 Initial Configuration</a></h2>
+
+<p>若要在 FreeBSD 中使用 <acronym class="ACRONYM">TCP</acronym> Wrappers 的話，只要確定
+<tt class="COMMAND">inetd</tt> 在啟動時，有在 <tt class="FILENAME">/etc/rc.conf</tt> 加上
+<code class="OPTION">-Ww</code> 的參數即可，這個設定在系統預設就有了。 當然還需要適當修改
+<tt class="FILENAME">/etc/hosts.allow</tt> 設定檔，但 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=syslogd&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">syslogd</span>(8)</span></a> 仍會在系統
+log 檔內，紀錄相關資料下來。</p>
+
+<div class="NOTE">
+<blockquote class="NOTE">
+<p><b>Note:</b> FreeBSD 的 <acronym class="ACRONYM">TCP</acronym> Wrappers
+實作方式與其他作業系統上的 <acronym class="ACRONYM">TCP</acronym> Wrappers 不太一樣，目前
+FreeBSD 已經廢棄不用 <tt class="FILENAME">/etc/hosts.deny</tt> ，而一律改用 <tt
+class="FILENAME">/etc/hosts.allow</tt>。</p>
+</blockquote>
+</div>
+
+<p>最簡單的設定方式是，每個對 daemon 的連線都由 <tt
+class="FILENAME">/etc/hosts.allow</tt> 來決定是否允許或拒絕。 The default configuration
+in FreeBSD is to allow a connection to every daemon started with <tt
+class="COMMAND">inetd</tt>. Changing this will be discussed only after the basic
+configuration is covered.</p>
+
+<p>Basic configuration usually takes the form of <tt class="LITERAL">daemon : address :
+action</tt>. Where <tt class="LITERAL">daemon</tt> is the daemon name which <tt
+class="COMMAND">inetd</tt> started. The <tt class="LITERAL">address</tt> can be a valid
+hostname, an <acronym class="ACRONYM">IP</acronym> address or an IPv6 address enclosed in
+brackets ([&nbsp;]). The action field can be either allow or deny to grant or deny access
+appropriately. Keep in mind that configuration works off a first rule match semantic,
+meaning that the configuration file is scanned in ascending order for a matching rule.
+When a match is found the rule is applied and the search process will halt.</p>
+
+<p>Several other options exist but they will be explained in a later section. A simple
+configuration line may easily be constructed from that information alone. For example, to
+allow <acronym class="ACRONYM">POP</acronym>3 connections via the <a
+href="http://www.FreeBSD.org/cgi/url.cgi?ports/mail/qpopper/pkg-descr"><tt
+class="FILENAME">mail/qpopper</tt></a> daemon, the following lines should be appended to
+<tt class="FILENAME">hosts.allow</tt>:</p>
+
+<pre class="PROGRAMLISTING">
+# This line is required for POP3 connections:
+qpopper : ALL : allow
+</pre>
+
+<p>加上上面這行之後，必須重新啟動 <tt class="COMMAND">inetd</tt>。重新啟動的方式可以用 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=kill&amp;sektion=1"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">kill</span>(1)</span></a> 指令，或打『
+<tt class="FILENAME">/etc/rc.d/inetd</tt> <code class="PARAMETER">restart</code> 』
+來完成。</p>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN19017" name="AEN19017">14.6.2 Advanced Configuration</a></h2>
+
+<p><acronym class="ACRONYM">TCP</acronym> Wrappers has advanced options too; they will
+allow for more control over the way connections are handled. In some cases it may be a
+good idea to return a comment to certain hosts or daemon connections. In other cases,
+perhaps a log file should be recorded or an email sent to the administrator. Other
+situations may require the use of a service for local connections only. This is all
+possible through the use of configuration options known as <tt
+class="LITERAL">wildcards</tt>, expansion characters and external command execution. The
+next two sections are written to cover these situations.</p>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="AEN19022" name="AEN19022">14.6.2.1 External Commands</a></h3>
+
+<p>Suppose that a situation occurs where a connection should be denied yet a reason
+should be sent to the individual who attempted to establish that connection. How could it
+be done? That action can be made possible by using the <code class="OPTION">twist</code>
+option. When a connection attempt is made, <code class="OPTION">twist</code> will be
+called to execute a shell command or script. An example already exists in the <tt
+class="FILENAME">hosts.allow</tt> file:</p>
+
+<pre class="PROGRAMLISTING">
+# The rest of the daemons are protected.
+ALL : ALL \
+        : severity auth.info \
+        : twist /bin/echo "You are not welcome to use %d from %h."
+</pre>
+
+<p>This example shows that the message, “You are not allowed to use <tt
+class="LITERAL">daemon</tt> from <tt class="LITERAL">hostname</tt>.” will be returned
+for any daemon not previously configured in the access file. This is extremely useful for
+sending a reply back to the connection initiator right after the established connection
+is dropped. Note that any message returned <span class="emphasis"><b
+class="EMPHASIS">must</b></span> be wrapped in quote <tt class="LITERAL">"</tt>
+characters; there are no exceptions to this rule.</p>
+
+<div class="WARNING">
+<blockquote class="WARNING">
+<p><b>Warning:</b> It may be possible to launch a denial of service attack on the server
+if an attacker, or group of attackers could flood these daemons with connection
+requests.</p>
+</blockquote>
+</div>
+
+<p>Another possibility is to use the <code class="OPTION">spawn</code> option in these
+cases. Like <code class="OPTION">twist</code>, the <code class="OPTION">spawn</code>
+implicitly denies the connection and may be used to run external shell commands or
+scripts. Unlike <code class="OPTION">twist</code>, <code class="OPTION">spawn</code> will
+not send a reply back to the individual who established the connection. For an example,
+consider the following configuration line:</p>
+
+<pre class="PROGRAMLISTING">
+# We do not allow connections from example.com:
+ALL : .example.com \
+    : spawn (/bin/echo %a from %h attempted to access %d &gt;&gt; \
+      /var/log/connections.log) \
+    : deny
+</pre>
+
+<p>This will deny all connection attempts from the <tt class="HOSTID">*.example.com</tt>
+domain; simultaneously logging the hostname, <acronym class="ACRONYM">IP</acronym>
+address and the daemon which they attempted to access in the <tt
+class="FILENAME">/var/log/connections.log</tt> file.</p>
+
+<p>Aside from the already explained substitution characters above, e.g. %a, a few others
+exist. See the <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=hosts_access&amp;sektion=5"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">hosts_access</span>(5)</span></a> manual
+page for the complete list.</p>
+</div>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="AEN19052" name="AEN19052">14.6.2.2 Wildcard Options</a></h3>
+
+<p>Thus far the <tt class="LITERAL">ALL</tt> example has been used continuously
+throughout the examples. Other options exist which could extend the functionality a bit
+further. For instance, <tt class="LITERAL">ALL</tt> may be used to match every instance
+of either a daemon, domain or an <acronym class="ACRONYM">IP</acronym> address. Another
+wildcard available is <tt class="LITERAL">PARANOID</tt> which may be used to match any
+host which provides an <acronym class="ACRONYM">IP</acronym> address that may be forged.
+In other words, <tt class="LITERAL">paranoid</tt> may be used to define an action to be
+taken whenever a connection is made from an <acronym class="ACRONYM">IP</acronym> address
+that differs from its hostname. The following example may shed some more light on this
+discussion:</p>
+
+<pre class="PROGRAMLISTING">
+# Block possibly spoofed requests to sendmail:
+sendmail : PARANOID : deny
+</pre>
+
+<p>In that example all connection requests to <tt class="COMMAND">sendmail</tt> which
+have an <acronym class="ACRONYM">IP</acronym> address that varies from its hostname will
+be denied.</p>
+
+<div class="CAUTION">
+<blockquote class="CAUTION">
+<p><b>Caution:</b> Using the <tt class="LITERAL">PARANOID</tt> may severely cripple
+servers if the client or server has a broken <acronym class="ACRONYM">DNS</acronym>
+setup. Administrator discretion is advised.</p>
+</blockquote>
+</div>
+
+<p>To learn more about wildcards and their associated functionality, see the <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=hosts_access&amp;sektion=5"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">hosts_access</span>(5)</span></a> manual
+page.</p>
+
+<p>Before any of the specific configuration lines above will work, the first
+configuration line should be commented out in <tt class="FILENAME">hosts.allow</tt>. This
+was noted at the beginning of this section.</p>
+</div>
+</div>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="one-time-passwords.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="kerberosiv.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">One-time Passwords</td>
+<td width="34%" align="center" valign="top"><a href="security.html"
+accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top"><b class="APPLICATION">KerberosIV</b></td>
+</tr>
+</table>
+</div>
+
+<p align="center"><small>本文及其他文件，可由此下載：<a
+href="ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/">ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/</a>。</small></p>
+
+<p align="center"><small>若有 FreeBSD 方面疑問，請先閱讀 <a
+href="http://www.FreeBSD.org/docs.html">FreeBSD 相關文件</a>，如不能解決的話，再洽詢
+&#60;<a href="mailto:questions@FreeBSD.org">questions@FreeBSD.org</a>&#62;。<br />
+關於本文件的問題，請洽詢 &#60;<a
+href="mailto:doc@FreeBSD.org">doc@FreeBSD.org</a>&#62;。</small></p>
+</body>
+</html>
+

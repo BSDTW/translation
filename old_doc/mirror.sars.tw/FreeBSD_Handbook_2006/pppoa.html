@@ -1,0 +1,356 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>Using PPP over ATM (PPPoA)</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.79" />
+<link rel="HOME" title="FreeBSD 使用手冊" href="index.html" />
+<link rel="UP" title="PPP and SLIP" href="ppp-and-slip.html" />
+<link rel="PREVIOUS" title="Using PPP over Ethernet (PPPoE)" href="pppoe.html" />
+<link rel="NEXT" title="Using SLIP" href="slip.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD 使用手冊</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="pppoe.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 23 PPP and SLIP</td>
+<td width="10%" align="right" valign="bottom"><a href="slip.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="PPPOA" name="PPPOA">23.6 Using <b class="APPLICATION">PPP</b>
+over ATM (PPPoA)</a></h1>
+
+<p>The following describes how to set up PPP over ATM (PPPoA). PPPoA is a popular choice
+among European DSL providers.</p>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN32249" name="AEN32249">23.6.1 Using PPPoA with the Alcatel
+<span class="TRADEMARK">SpeedTouch</span>&#8482; USB</a></h2>
+
+<p>PPPoA support for this device is supplied as a port in FreeBSD because the firmware is
+distributed under <a href="http://www.speedtouchdsl.com/disclaimer_lx.htm"
+target="_top">Alcatel's license agreement</a> and can not be redistributed freely with
+the base system of FreeBSD.</p>
+
+<p>To install the software, simply use the <a href="ports.html">Ports Collection</a>.
+Install the <a href="http://www.FreeBSD.org/cgi/url.cgi?ports/net/pppoa/pkg-descr"><tt
+class="FILENAME">net/pppoa</tt></a> port and follow the instructions provided with
+it.</p>
+
+<p>Like many USB devices, the Alcatel <span class="TRADEMARK">SpeedTouch</span>&#8482;
+USB needs to download firmware from the host computer to operate properly. It is possible
+to automate this process in FreeBSD so that this transfer takes place whenever the device
+is plugged into a USB port. The following information can be added to the <tt
+class="FILENAME">/etc/usbd.conf</tt> file to enable this automatic firmware transfer.
+This file must be edited as the <tt class="USERNAME">root</tt> user.</p>
+
+<pre class="PROGRAMLISTING">
+device "Alcatel SpeedTouch USB"
+    devname "ugen[0-9]+"
+    vendor 0x06b9
+    product 0x4061
+    attach "/usr/local/sbin/modem_run -f /usr/local/libdata/mgmt.o"
+</pre>
+
+<p>To enable the USB daemon, <b class="APPLICATION">usbd</b>, put the following the line
+into <tt class="FILENAME">/etc/rc.conf</tt>:</p>
+
+<pre class="PROGRAMLISTING">
+usbd_enable="YES"
+</pre>
+
+<p>It is also possible to set up <b class="APPLICATION">ppp</b> to dial up at startup. To
+do this add the following lines to <tt class="FILENAME">/etc/rc.conf</tt>. Again, for
+this procedure you will need to be logged in as the <tt class="USERNAME">root</tt>
+user.</p>
+
+<pre class="PROGRAMLISTING">
+ppp_enable="YES"
+ppp_mode="ddial"
+ppp_profile="adsl"
+</pre>
+
+<p>For this to work correctly you will need to have used the sample <tt
+class="FILENAME">ppp.conf</tt> which is supplied with the <a
+href="http://www.FreeBSD.org/cgi/url.cgi?ports/net/pppoa/pkg-descr"><tt
+class="FILENAME">net/pppoa</tt></a> port.</p>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN32274" name="AEN32274">23.6.2 Using mpd</a></h2>
+
+<p>You can use <b class="APPLICATION">mpd</b> to connect to a variety of services, in
+particular PPTP services. You can find <b class="APPLICATION">mpd</b> in the Ports
+Collection, <a href="http://www.FreeBSD.org/cgi/url.cgi?ports/net/mpd/pkg-descr"><tt
+class="FILENAME">net/mpd</tt></a>. Many ADSL modems require that a PPTP tunnel is created
+between the modem and computer, one such modem is the Alcatel <span
+class="TRADEMARK">SpeedTouch</span> Home.</p>
+
+<p>First you must install the port, and then you can configure <b
+class="APPLICATION">mpd</b> to suit your requirements and provider settings. The port
+places a set of sample configuration files which are well documented in <tt
+class="FILENAME"><tt class="REPLACEABLE"><i>PREFIX</i></tt>/etc/mpd/</tt>. Note here that
+<tt class="REPLACEABLE"><i>PREFIX</i></tt> means the directory into which your ports are
+installed, this defaults to <tt class="FILENAME">/usr/local/</tt>. A complete guide to
+configure <b class="APPLICATION">mpd</b> is available in HTML format once the port has
+been installed. It is placed in <tt class="FILENAME"><tt
+class="REPLACEABLE"><i>PREFIX</i></tt>/share/doc/mpd/</tt>. Here is a sample
+configuration for connecting to an ADSL service with <b class="APPLICATION">mpd</b>. The
+configuration is spread over two files, first the <tt class="FILENAME">mpd.conf</tt>:</p>
+
+<pre class="PROGRAMLISTING">
+default:
+    load adsl
+
+adsl:
+    new -i ng0 adsl adsl
+    set bundle authname <tt class="REPLACEABLE"><i>username</i></tt> <a
+id="CO-MPD-EX-USER" name="CO-MPD-EX-USER"><img src="./imagelib/callouts/1.png" hspace="0"
+vspace="0" border="0" alt="(1)" /></a>
+    set bundle password <tt class="REPLACEABLE"><i>password</i></tt> <a
+id="CO-MPD-EX-PASS" name="CO-MPD-EX-PASS"><img src="./imagelib/callouts/2.png" hspace="0"
+vspace="0" border="0" alt="(2)" /></a>
+    set bundle disable multilink
+    
+    set link no pap acfcomp protocomp
+    set link disable chap
+    set link accept chap
+    set link keep-alive 30 10
+    
+    set ipcp no vjcomp
+    set ipcp ranges 0.0.0.0/0 0.0.0.0/0
+    
+    set iface route default
+    set iface disable on-demand
+    set iface enable proxy-arp
+    set iface idle 0
+
+    open
+</pre>
+
+<div class="CALLOUTLIST">
+<dl compact="COMPACT">
+<dt><a href="pppoa.html#CO-MPD-EX-USER"><img src="./imagelib/callouts/1.png" hspace="0"
+vspace="0" border="0" alt="(1)" /></a></dt>
+
+<dd>The username used to authenticate with your ISP.</dd>
+
+<dt><a href="pppoa.html#CO-MPD-EX-PASS"><img src="./imagelib/callouts/2.png" hspace="0"
+vspace="0" border="0" alt="(2)" /></a></dt>
+
+<dd>The password used to authenticate with your ISP.</dd>
+</dl>
+</div>
+
+<p>The <tt class="FILENAME">mpd.links</tt> file contains information about the link, or
+links, you wish to establish. An example <tt class="FILENAME">mpd.links</tt> to accompany
+the above example is given beneath:</p>
+
+<pre class="PROGRAMLISTING">
+adsl:
+    set link type pptp
+    set pptp mode active
+    set pptp enable originate outcall
+    set pptp self <tt class="REPLACEABLE"><i>10.0.0.1</i></tt> <a id="CO-MPD-EX-SELF"
+name="CO-MPD-EX-SELF"><img src="./imagelib/callouts/1.png" hspace="0" vspace="0"
+border="0" alt="(1)" /></a>
+    set pptp peer <tt class="REPLACEABLE"><i>10.0.0.138</i></tt> <a id="CO-MPD-EX-PEER"
+name="CO-MPD-EX-PEER"><img src="./imagelib/callouts/2.png" hspace="0" vspace="0"
+border="0" alt="(2)" /></a>
+</pre>
+
+<div class="CALLOUTLIST">
+<dl compact="COMPACT">
+<dt><a href="pppoa.html#CO-MPD-EX-SELF"><img src="./imagelib/callouts/1.png" hspace="0"
+vspace="0" border="0" alt="(1)" /></a></dt>
+
+<dd>The IP address of your FreeBSD computer which you will be using <b
+class="APPLICATION">mpd</b> from.</dd>
+
+<dt><a href="pppoa.html#CO-MPD-EX-PEER"><img src="./imagelib/callouts/2.png" hspace="0"
+vspace="0" border="0" alt="(2)" /></a></dt>
+
+<dd>The IP address of your ADSL modem. For the Alcatel <span
+class="TRADEMARK">SpeedTouch</span> Home this address defaults to <tt
+class="HOSTID">10.0.0.138</tt>.</dd>
+</dl>
+</div>
+
+<p>It is possible to initialize the connection easily by issuing the following command as
+<tt class="USERNAME">root</tt>:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">mpd -b <tt
+class="REPLACEABLE"><i>adsl</i></tt></kbd>
+</pre>
+
+<p>You can see the status of the connection with the following command:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">%</samp> <kbd class="USERINPUT">ifconfig <tt
+class="REPLACEABLE"><i>ng0</i></tt></kbd>
+ng0: flags=88d1&lt;UP,POINTOPOINT,RUNNING,NOARP,SIMPLEX,MULTICAST&gt; mtu 1500
+     inet 216.136.204.117 --&#62; 204.152.186.171 netmask 0xffffffff
+</pre>
+
+<p>Using <b class="APPLICATION">mpd</b> is the recommended way to connect to an ADSL
+service with FreeBSD.</p>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN32331" name="AEN32331">23.6.3 Using pptpclient</a></h2>
+
+<p>It is also possible to use FreeBSD to connect to other PPPoA services using <a
+href="http://www.FreeBSD.org/cgi/url.cgi?ports/net/pptpclient/pkg-descr"><tt
+class="FILENAME">net/pptpclient</tt></a>.</p>
+
+<p>To use <a href="http://www.FreeBSD.org/cgi/url.cgi?ports/net/pptpclient/pkg-descr"><tt
+class="FILENAME">net/pptpclient</tt></a> to connect to a DSL service, install the port or
+package and edit your <tt class="FILENAME">/etc/ppp/ppp.conf</tt>. You will need to be
+<tt class="USERNAME">root</tt> to perform both of these operations. An example section of
+<tt class="FILENAME">ppp.conf</tt> is given below. For further information on <tt
+class="FILENAME">ppp.conf</tt> options consult the <b class="APPLICATION">ppp</b> manual
+page, <a href="http://www.FreeBSD.org/cgi/man.cgi?query=ppp&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">ppp</span>(8)</span></a>.</p>
+
+<pre class="PROGRAMLISTING">
+adsl:
+ set log phase chat lcp ipcp ccp tun command
+ set timeout 0
+ enable dns
+ set authname <tt class="REPLACEABLE"><i>username</i></tt> <a id="CO-PPTP-EX-USER"
+name="CO-PPTP-EX-USER"><img src="./imagelib/callouts/1.png" hspace="0" vspace="0"
+border="0" alt="(1)" /></a>
+ set authkey <tt class="REPLACEABLE"><i>password</i></tt> <a id="CO-PPTP-EX-PASS"
+name="CO-PPTP-EX-PASS"><img src="./imagelib/callouts/2.png" hspace="0" vspace="0"
+border="0" alt="(2)" /></a>
+ set ifaddr 0 0
+ add default HISADDR
+</pre>
+
+<div class="CALLOUTLIST">
+<dl compact="COMPACT">
+<dt><a href="pppoa.html#CO-PPTP-EX-USER"><img src="./imagelib/callouts/1.png" hspace="0"
+vspace="0" border="0" alt="(1)" /></a></dt>
+
+<dd>The username of your account with the DSL provider.</dd>
+
+<dt><a href="pppoa.html#CO-PPTP-EX-PASS"><img src="./imagelib/callouts/2.png" hspace="0"
+vspace="0" border="0" alt="(2)" /></a></dt>
+
+<dd>The password for your account.</dd>
+</dl>
+</div>
+
+<div class="WARNING">
+<blockquote class="WARNING">
+<p><b>Warning:</b> Because you must put your account's password in the <tt
+class="FILENAME">ppp.conf</tt> file in plain text form you should make sure than nobody
+can read the contents of this file. The following series of commands will make sure the
+file is only readable by the <tt class="USERNAME">root</tt> account. Refer to the manual
+pages for <a href="http://www.FreeBSD.org/cgi/man.cgi?query=chmod&amp;sektion=1"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">chmod</span>(1)</span></a> and <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=chown&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">chown</span>(8)</span></a> for further
+information.</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">chown root:wheel /etc/ppp/ppp.conf</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">chmod 600 /etc/ppp/ppp.conf</kbd>
+</pre>
+</blockquote>
+</div>
+
+<p>This will open a tunnel for a PPP session to your DSL router. Ethernet DSL modems have
+a preconfigured LAN IP address which you connect to. In the case of the Alcatel <span
+class="TRADEMARK">SpeedTouch</span> Home this address is <tt
+class="HOSTID">10.0.0.138</tt>. Your router documentation should tell you which address
+your device uses. To open the tunnel and start a PPP session execute the following
+command:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">pptp <tt
+class="REPLACEABLE"><i>address</i></tt> <tt class="REPLACEABLE"><i>adsl</i></tt></kbd>
+</pre>
+
+<div class="TIP">
+<blockquote class="TIP">
+<p><b>Tip:</b> You may wish to add an ampersand (“&amp;”) to the end of the previous
+command because <b class="APPLICATION">pptp</b> will not return your prompt to you
+otherwise.</p>
+</blockquote>
+</div>
+
+<p>A <tt class="DEVICENAME">tun</tt> virtual tunnel device will be created for
+interaction between the <b class="APPLICATION">pptp</b> and <b
+class="APPLICATION">ppp</b> processes. Once you have been returned to your prompt, or the
+<b class="APPLICATION">pptp</b> process has confirmed a connection you can examine the
+tunnel like so:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">%</samp> <kbd class="USERINPUT">ifconfig <tt
+class="REPLACEABLE"><i>tun0</i></tt></kbd>
+tun0: flags=8051&lt;UP,POINTOPOINT,RUNNING,MULTICAST&gt; mtu 1500
+        inet 216.136.204.21 --&#62; 204.152.186.171 netmask 0xffffff00 
+        Opened by PID 918
+</pre>
+
+<p>If you are unable to connect, check the configuration of your router, which is usually
+accessible via <b class="APPLICATION">telnet</b> or with a web browser. If you still
+cannot connect you should examine the output of the <tt class="COMMAND">pptp</tt> command
+and the contents of the <b class="APPLICATION">ppp</b> log file, <tt
+class="FILENAME">/var/log/ppp.log</tt> for clues.</p>
+</div>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="pppoe.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="slip.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">Using PPP over Ethernet (PPPoE)</td>
+<td width="34%" align="center" valign="top"><a href="ppp-and-slip.html"
+accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">Using SLIP</td>
+</tr>
+</table>
+</div>
+
+<p align="center"><small>This, and other documents, can be downloaded from <a
+href="ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/">ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/</a>.</small></p>
+
+<p align="center"><small>For questions about FreeBSD, read the <a
+href="http://www.FreeBSD.org/docs.html">documentation</a> before contacting &#60;<a
+href="mailto:questions@FreeBSD.org">questions@FreeBSD.org</a>&#62;.<br />
+For questions about this documentation, e-mail &#60;<a
+href="mailto:doc@FreeBSD.org">doc@FreeBSD.org</a>&#62;.</small></p>
+</body>
+</html>
+

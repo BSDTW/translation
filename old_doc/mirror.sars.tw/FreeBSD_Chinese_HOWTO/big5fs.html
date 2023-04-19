@@ -1,0 +1,185 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>big5fs - Joliet, VFAT 和 NTFS 檔案系統的中文顯示</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.7" />
+<link rel="HOME" title="FreeBSD Chinese HOWTO" href="index.html" />
+<link rel="UP" title="中文的顯示及輸入" href="view.html" />
+<link rel="PREVIOUS" title="在 Bash/Tcsh Shell 底下的中文輸入" href="shell.html" />
+<link rel="NEXT" title="ls - 用 ls 顯示特殊中文檔名和目錄" href="gnuls.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD Chinese HOWTO</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="shell.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 7. 中文的顯示及輸入</td>
+<td width="10%" align="right" valign="bottom"><a href="gnuls.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="BIG5FS" name="BIG5FS">7.23. big5fs - Joliet, VFAT 和 NTFS
+檔案系統的中文顯示</a></h1>
+
+<p>如果您的電腦是 FreeBSD 與 VFAT (Windows95/98) 或是 NTFS (Windows NT/2000) 並存，
+而且又須要存取 DOS 檔案系統或是 NTFS 檔案系統的中文檔名， 或是需要讀取 Joliet (CDROM)
+內的中文， 請依照以下的步驟進行。 由於 cd9660, ntfs 等都是以 16-bit Unicode (UCS-2)
+作為系統編碼， 因此要顯示的時候必須轉為目前的環境編碼(Big5)，
+因此在顯示前必須多一層的轉碼動作才能在 Big5 的環境底下看到中文。</p>
+
+<p>它會安裝三個 kernel 模組， cd9660.ko, msdos.ko(msdosfs.ko) 和 ntfs.ko，
+將可以讓使用者讀取在 Joliet, VFAT 和 NTFS 檔案系統上的 中文檔名。</p>
+
+<p>必須把 kernel 中的 <var class="OPTION">options MSDOSFS</var> 與 <var
+class="OPTION">options CD9660</var> comment 掉，並重新 <tt class="COMMAND">make
+kernel</tt> 後，並且重新開機後，才能安裝 <b class="APPLICATION">big5fs</b>。 因為上面的
+kernel 選項會和這個 port 所安裝的 kernel 模組有衝突， 而 kernel 選項會比 kernel
+模組優先， 也沒辦法關閉這些選項來讓 kernel 使用 kernel 模組， 所以就一定得重編 kernel。
+不然當安裝完後，執行 <tt class="FILENAME">big5fs.sh</tt> 就會出現 <var
+class="OPTION">kldload: can't load cd9660: File exists</var> 或是 <var
+class="OPTION">module_register: module cd9660 already exists! linker_file_sysinit
+"cd9660.ko" failed to register! 17</var>
+之類的錯誤訊息，代表著模組有衝突，可能是已經設定為 kernel 選項， 或是已經用 kldload
+載入了。</p>
+
+<pre class="PROGRAMLISTING">
+--- GENERIC.orig   Fri May 16 17:39:13 2003
++++ GENERIC     Wed May 28 03:37:52 2003
+@@ -38,8 +38,8 @@
+ options    MD_ROOT         #MD is a potential root device
+ options    NFS         #Network Filesystem
+ options    NFS_ROOT        #NFS usable as root device, NFS required
+-options    MSDOSFS         #MSDOS Filesystem
+-options    CD9660          #ISO 9660 Filesystem
++#options   MSDOSFS         #MSDOS Filesystem
++#options   CD9660          #ISO 9660 Filesystem
+ options    CD9660_ROOT     #CD-ROM usable as root, CD9660 required
+ options    PROCFS          #Process filesystem
+ options    COMPAT_43       #Compatible with BSD 4.3 [KEEP THIS!]
+</pre>
+
+<p>在安裝前先檢查 <tt class="FILENAME">/usr/src/sys</tt> 目錄要已有了， 若沒可用 <tt
+class="COMMAND">/stand/sysinstall</tt> 和安裝光碟安裝。 由於 kernel 模組和系統有相依性，
+必須取得您當時安裝時的 kernel 版本才行。</p>
+
+<p>安裝 <a href="http://www.FreeBSD.org/cgi/url.cgi?ports/chinese/big5fs/pkg-descr"><tt
+class="FILENAME">chinese/big5fs</tt></a>。</p>
+
+<p>安裝好後，執行 <tt class="COMMAND">/usr/local/etc/rc.d/big5fs.sh</tt>
+就會載入上述的模組， 好讓 mount 指令能使用這些模組，通常也會在開機時自動執行， 以防 mount
+指令直接讀取了 <tt class="FILENAME">/modules</tt> 底下的 kernel 模組。</p>
+
+<p>如果不確定那些分割區可以 mount，可以用 <tt class="COMMAND">/stand/sysinstall</tt> 的
+Configure -&gt; Label 取得。</p>
+
+<p>以筆者為例，筆者有個 ad0s3 的分割區，所以先 <tt class="COMMAND">mkdir -p
+/mnt/ad0s3</tt>，然後用 <tt class="COMMAND">mount -t msdos /dev/ad0s3 /mnt/ad0s3</tt>
+將該分割區 mount 起來測試看看， 如果確定可以的話，寫入 <tt
+class="FILENAME">/etc/fstab</tt>：</p>
+
+<pre class="PROGRAMLISTING">
+/dev/ad0s3              /mnt/ad0s3      msdos   ro,noauto       0  0
+</pre>
+
+<p>然後加個 <tt class="FILENAME">/usr/local/etc/rc.d/big5mount.sh</tt> ，裡面按照 rc.d
+的規則在 start 的地方執行 <tt class="COMMAND">mount /mnt/ad0s3</tt> 就可以了， 也可以在
+stop 時候加上相對應的指令來 <tt class="COMMAND">umount</tt>。 注意 rc.d 裡的 *.sh
+會依字母順序執行，所以新的 xx.sh 一定要在 <tt class="FILENAME">big5fs.sh</tt> 後面，
+才能確定已經載入 kernel 模組。</p>
+
+<p>本來考慮使用 <b class="APPLICATION">mount_msdos</b> 的方式並修改該 table，不過因為
+table 太小，沒辦法容納如此多的中文字元所以沒辦法實行。</p>
+
+<pre class="PROGRAMLISTING">
+The following example fstab(5) entry enables support for Russian
+filenames in mounted MS-DOS filesystems:
+
+    /dev/ad0s2      /dos/c  msdos   rw,-W=koi2dos,-L=ru_RU.KOI8-R 0 0
+
+See mount_msdos(8) for a detailed description of the -W and -L options.
+</pre>
+
+<p>5-CURRENT 已經有 kiconv，也有熱心的日本人弄了 I18N 修補檔， 就不用裝這個
+port，只要設定好參數就能正常的用中文。 也就是說 mount_cd9660(8), mount_ntfs(8) 等工具支援
+<var class="OPTION">-C</var> 來指定目前的字集，用來轉換 Unicode 檔名， 而
+mount_msdosfs(8) 則要用 <var class="OPTION">-D</var> 來指定 MS-DOS codepage，並用 <var
+class="OPTION">-L</var> 來指定目前的字集。</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">mount_msdosfs -D CP950 -L zh_TW.Big5 /dev/ad0s1 /mnt/disk</kbd>
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">mount_ntfs -C Big5 /dev/ad0s2 /mnt/win</kbd>
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">mount_cd9660 -C Big5 /dev/acd0 /cdrom</kbd>
+</pre>
+
+<pre class="PROGRAMLISTING">
+# /etc/fstab
+/dev/ad0s1  /mnt/disk   msdos   rw,-D=CP950,-L=zh_TW.Big5,noauto    0   0
+/dev/ad0s2  /mnt/win    ntfs    ro,-C=Big5,noauto   0   0
+/dev/acd0   /cdrom      cd9660  ro,-C=GBK,noauto    0   0
+</pre>
+
+<p>在 GNU/Linux 底下也是類似的做法：</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">mount -t vfat -o iocharset=big5,codepage=950 /dev/hdb5 /mnt/disk</kbd>
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">mount -t ntfs -o codepage=950 /dev/hdb6 /mnt/win</kbd>
+</pre>
+
+<p>不過在 zh_TW.UTF-8 的 locale 底下就要改成：</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">mount -t vfat -o iocharset=utf8,codepage=950 /dev/hdb5 /mnt/disk</kbd>
+</pre>
+
+<div class="FIGURE"><a id="AEN2788" name="AEN2788"></a>
+<p><b>Figure 7-11. ntfs snapshot</b></p>
+
+<p><img src="images/ntfs.png" /></p>
+</div>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="shell.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="gnuls.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">在 Bash/Tcsh Shell 底下的中文輸入</td>
+<td width="34%" align="center" valign="top"><a href="view.html" accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">ls - 用 ls 顯示特殊中文檔名和目錄</td>
+</tr>
+</table>
+</div>
+</body>
+</html>
+

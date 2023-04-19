@@ -1,0 +1,94 @@
+
+
+<!-- Vignette StoryServer 4 Sat Mar 11 15:43:24 2000 --> 
+<style type=text/css>
+<!--
+p,div {font-size:12pt; line-height:14pt; font-family:宋體;}
+.p1{font-size:12pt;font-family:宋體;}
+.p2{font-size:12pt;font-family:宋體;line-height:14pt;}
+.p3{font-size:14.8px;font-family:宋體;}
+.p4{font-size:14.8px;font-family:宋體;line-height:14pt;}
+.p5{font-size:1pt}
+a:hover{color:red;}
+a.t1:visited{color:red;}
+-->
+</style>
+<title>FreeBSD使用大全</title></head>
+
+<body bgcolor="#FFFFFF" text="#000000" link="#383098" vlink="#336699" alink="#FF0000" topmargin="0">
+<!-- Vignette StoryServer 4 Thu Mar 23 10:01:54 2000 --> <!-- Vignette StoryServer 4 Thu Mar 23 15:34:35 2000 --> 
+
+<!--開始：新聞內容-->
+<TABLE WIDTH=750 BORDER=0 CELLSPACING=0 CELLPADDING=0>
+
+<tr valign=top>
+
+
+
+<TD  valign=top>
+<CENTER><FONT COLOR=#000066 size=5><B>FreeBSD連載(43)：NFS伺服器</B><br></FONT></CENTER>
+
+<HR  ALIGN="center" SIZE=1>
+<CENTER><FONT FACE="Arial" SIZE=2> 1999年12月15日 18:57 </FONT><FONT COLOR="#990000" SIZE=2>王波</FONT></CENTER><p>
+
+<h1 align=center>NFS伺服器</h1>
+
+<P>　　為了使得其他系統能使用FreeBSD上的硬碟空間，就需要運行NFS服務進程。NFS伺服器
+使用了幾個守護進程用於提供NFS服務。最基本的提供NFS服務的系統至少要運行nfsd和mountd
+守護進程，nfsd用於處理NFS協議，而mountd用於處理客戶的mount請求。此外，由於NFS使用RPC
+遠程調用，因此portmap、rpc_lockd、rpc_statd等RPC守護進程都可以用來幫助提供更高效的
+服務。</P>
+
+<P>　　這些守護進程一般應該在系統啟動時載入，因此需要在rc.conf中更改相關的參數：
+nfs_server_enable, rpc_statd_enable, rpc_lockd.enable和portmap_enable參數將對應相應
+的守護進程。</P>
+
+<P>　　那麼系統重起之後，就有了能共享檔案出去的能力，余下的工作只是用來配置需要共享
+那些目錄，以及進行何種限制以保証安全性，這些設置工作需要更改/etc/exports檔案：</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># cat /etc/exports
+/usr/src/sys -maproot=daemon ns host2
+/usr/ports -ro -network 192.168.1.0 </td></pre></tr></table>
+
+
+<P>　　從這個例子中可以看出exports檔案的格式，首先是定義要共享出去的檔案目錄，必須
+使用絕對路徑，而不能使用是符號連接。後面就是對這個目錄進行訪問限制的參數，用於保証
+安全性。第一行設置中，將/usr/sys/src目錄共享出去，但限制客戶機上的root用戶等價於本
+機上的daemon用戶，以避免客戶機上的root用戶擁有這個伺服器上的root權力，進行非法操作
+，此後的ns和host2參數是主機名，這就限制只有ns和host2才能共享這個/usr/sys/src目錄。
+第二行設置共享了/usr/ports目錄，但限制為只允許讀取，並且也只有192.168.1.0網路上的
+電腦才能訪問這個共享目錄。</P>
+
+<P>　　目錄的訪問限制中具有多種選項，這些選項對於保証NFS的安全性相當重要。</P>
+
+<P>　　-ro---以只讀形式輸出檔案系統，遠程客戶只能讀不能寫這個目錄</P>
+
+<P>　　-maproot---將客戶機上的root用戶映射為伺服器中的某個用戶和族，也可以使用UID
+和GID的形式，如maproot=root，maproot=10，或maproot=10:1。這個設置選項可以用來保護
+伺服器上的檔案系統不被客戶中的使用者非法訪問。</P>
+
+<P>　　-mapall---將客戶上的所有用戶都映射為本機的某個用戶，使用形式與maproot相同
+。它同樣也是用於保護伺服器檔案系統的安全性的。</P>
+
+<P>　　-alldirs---允許安裝該目錄下的所有子目錄。</P>
+<P>　　-network---允許一定網路上的電腦可以裝載這個檔案系統。</P>
+<P>　　-mask---用於修訂 network中的網路號使用的預設掩碼，可定義對網路的一部分開放
+檔案系統。</P>
+
+
+
+<P>　　當更改了exports檔案之後，需要向mountd發送SIGHUP信號，使其重讀exports檔案的
+內容。</P>
+
+
+
+<BR>
+
+</TD>
+</TR></TABLE>
+
+
+
+</BODY>
+</HTML>

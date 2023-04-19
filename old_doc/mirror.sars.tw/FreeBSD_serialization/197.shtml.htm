@@ -1,0 +1,273 @@
+
+
+<!-- Vignette StoryServer 4 Sat Mar 11 15:43:24 2000 --> 
+<style type=text/css>
+<!--
+p,div {font-size:12pt; line-height:14pt; font-family:宋體;}
+.p1{font-size:12pt;font-family:宋體;}
+.p2{font-size:12pt;font-family:宋體;line-height:14pt;}
+.p3{font-size:14.8px;font-family:宋體;}
+.p4{font-size:14.8px;font-family:宋體;line-height:14pt;}
+.p5{font-size:1pt}
+a:hover{color:red;}
+a.t1:visited{color:red;}
+-->
+</style>
+<title>FreeBSD使用大全</title></head>
+
+<body bgcolor="#FFFFFF" text="#000000" link="#383098" vlink="#336699" alink="#FF0000" topmargin="0">
+<!-- Vignette StoryServer 4 Thu Mar 23 10:01:54 2000 --> <!-- Vignette StoryServer 4 Thu Mar 23 15:34:35 2000 --> 
+
+<!--開始：新聞內容-->
+<TABLE WIDTH=750 BORDER=0 CELLSPACING=0 CELLPADDING=0>
+
+<tr valign=top>
+
+
+
+<TD  valign=top>
+<CENTER><FONT COLOR=#000066 size=5><B>FreeBSD連載(79)：設置和使用ipfilter</B><br></FONT></CENTER>
+
+<HR  ALIGN="center" SIZE=1>
+<CENTER><FONT FACE="Arial" SIZE=2> 2000年1月20日 15:30 </FONT><FONT COLOR="#990000" SIZE=2>王波</FONT></CENTER><p>
+
+<h1 align=center>設置和使用ipfilter</h1>
+
+<p>　　雖然ipfw/natd已經是相當強大的網路地址轉換及防火牆系統，然而它還是有一定的缺點存在。其中最重要
+的一個缺點是natd是使用守護進程的方法來進行地址轉換，因為它沒有運行在核心中，而是通過divert socket
+來和核心通信，這種方式雖然比較靈活，但效率顯然要低一些。</p>
+
+<p>　　另外，natd的功能還不能滿足有些要求，natd能做靜態地址轉換和使用一個偽裝地址為多個內部地址服務，
+但其不能從一個給定的地址池中，為內部地址自動分配IP地址。畢竟natd是一個較早的網路地址轉換工具，目前的發展
+已經比較遲緩。但是由於ipfw是FreeBSD系統的一部分，並且過濾和地址轉換是由不同的部分來完成的，結構清晰
+，因此對於大部分情況都很適合，因此一般仍應使用ipfw/natd。</p>
+
+<p>　　如果ipfw/natd不能滿足使用者的需要，能避免ipfw/natd缺點的另一個網路地址轉換和數據包過
+濾的工具是ipfilter。雖然FreeBSD是其支持的主要系統，但它其實是一個支持多平台的獨立軟體，不僅能運
+行在FreeBSD上，也能運行在其他多種Unix系統中。由於它被包括進FreeBSD基本系統中，因此在FreeBSD
+下配置ipfilter同樣也非常輕松。</p>
+
+<p>　　ipfilter的網址為http://cheops.anu.edu.au/~avalon/，
+FreeBSD 3.0之前它不包括在FreeBSD的基本系統中，需要手工設置。</p>
+
+<p>　　由於ipfilter與ipfw同為在核心級對IP數據包進行處理的系統，因此他們相互衝突，不能同時並存在
+一個核心內，否則核心的TCP/IP功能就不能正常執行。為了使用ipfilter，就需要重新定制核心，刪除所有
+IPFIREWALL的設置，而添加IPFILTER的設置。</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>#options&#9;&#9;IPFIREWALL
+#options&#9;&#9;IPDIVERT
+
+options&#9;&#9;IPFILTER
+options&#9;&#9;IPFILTER_LOG</td></pre></tr></table>
+
+<p>　　選項IPFILTER為支持IPFILTER的基本代碼，IPFILTER_LOG為支持IPFILTER的
+統計記錄能力。需要增加這些選項，並注釋IPFIREWALL、IPDIVERT及其相關選項。此後，就可以重新定制
+、安裝新核心。然而在重新啟動之前，還需要在rc.conf中設置firewall_enable的值為NO，當系統
+核心不存在IPFIREALL功能又設置了firewall_enable的時候，啟動檔案就會自動載入支持這個功能
+的可加載模塊ipfw.ko，載入ipfw.ko之後的系統核心就等同於使用IPFIREWALL核心選項的系統，與
+ipfilter發生衝突。然而ipfilter仍然需要設置gateway_enable，以打開系統核心的數據包
+轉發功能。</p>
+
+<p>　　使用新核心啟動系統之後，如果本地電腦的網路功能正常，此時再使用ipfw就會報告錯誤。這就能使用ipfilter
+來設置包過濾和網路地址轉換了。</p>
+
+<ul><h2><P><LI>設置地址轉換</LI></P></h2></ul>
+
+<p>　　為了在ipfilter下設置網路地址轉換，首先要創建一個地址轉換設置檔案，例如/etc/ipflter
+.nat。與ipfw/natd的相似，最基本的用法為使用一個外部地址來轉換所有內部地址，此時必須進行端口轉換，
+因此ipfilter.nat中應該包含的NAT規則為：</p>
+
+<p>　　map fxp1 192.168.3.0/24 -&gt; 202.102.245.60/32 portmap tcp/udp 10000:65000</p>
+
+<p>　　這個設置中，首先使用map關鍵字指明是進行地址轉換的設置，此後的fxp1為連接外部網路的網路界面，在這
+個網路界面上執行數據包的IP地址和端口地址轉換，第三個參數為進行轉換的內部地址的範圍，此後跟隨的一個-&gt;
+符號表示進行地址轉換，第五個參數為要轉換為的外部地址，當指定子網掩碼長度為32時就表示這只是一個主機而非子網范
+圍，後面portmap關鍵字對tcp/udp協議進行端口轉換，其使用的映射端口範圍為在10000到65000之
+間，也可以對tcp或udp協議分別指定轉換端口的範圍。</p>
+
+<p>　　如果使用者擁有的不僅是一個主機，而是一個具備多個合法IP地址的子網，這樣就能設置使用地址池，為內部向外
+連接的電腦動態分配合法的外部IP地址，這樣的設置更為簡單，因為不需要指定portmap進行地址轉換。</p>
+
+<p>　　map fxp1 192.168.3.0/24 -&gt; 202.102.245.0/26</p>
+
+<p>　　顯然內部電腦的數量顯然要多於系統擁有的合法地址的數量，上例中內部地址最多254個，而合法的外部地址僅
+僅有62個，這樣如果向外連接的電腦一多，必然出現地址資源用光的問題。因此動態分配IP一般和端口轉換結合起來，
+以避免出現地址消耗完畢的問題。</p>
+
+<p>　　map規則是用於轉換外出數據包的源地址，使得被轉換後的地址好象是從外部地址中發起的。而另一個規則rdr
+用於轉換數據包中的目的地址，這樣就能使得一個數據包被轉發到某個特定電腦上進行處理，這可用於構建端口映射關系。
+</p>
+<p>　　rdr fxp1 202.102.245.60 port ftp -&gt; 192.168.3.2 port ftp</p>
+
+<p>　　上面的規則將指定ipfilter在fxp1網路界面上將發送給202.102.245.60，端口為ftp
+的數據包，轉換為發送給內部地址192.168.3.2。</p>
+
+<p>　　rdr的另一個重要用途是可以用以構建透明的代理伺服器，普通代理伺服器都需要在客戶機上進行設置，如果不進
+行設置，客戶機將直接訪問Internet上的電腦而不通過代理伺服器，然而防火牆可以將這些應用請求轉發給代理服
+務器，完成代理工作。此時對外界發送請求是在內部網路界面fxp0上發起的，因此也要在這裡進行地址轉換，而使用0.0.0.0/0
+代表對所有目的地址，並且是80端口的瀏覽請求都轉發到127.0.0.1上去，而127.0.0.1
+必須運行代理伺服器軟體，以提供代理服務。</p>
+
+<p>　　rdr fxp0 0.0.0.0/0 port 80 -&gt; 127.0.0.1 port 80</p>
+
+<p>　　雖然不是所有的應用代理服務都能使用透明代理的方法來減輕客戶設置的負擔，但絕大多數代理完全可以使用這種方
+法，使得客戶不需要修改軟體設置，就能利用代理伺服器，而代理伺服器具備大量的緩衝區，能夠節約內部網路的Internet
+訪問流量並加速Internet訪問速度。</p>
+
+<p>　　因此，一個簡單的不支持透明代理伺服器的設置檔案ipnat.conf例子為：</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre><font size=2>map fxp1 192.168.3.0/24 -&gt; 202.102.245.0/26 portmap tcp/udp 10000:65000
+map fxp1 192.168.3.0/24 -&gt; 202.102.245.0/26
+rdr fxp1 202.102.245.60 port ftp -&gt; 192.168.3.2 port ftp</font></td></pre></tr></table>
+
+<P>　　在這樣的設置下，tcp和udp在地址資源消耗完畢之後將進行端口轉換，而其他協議，如icmp，將直
+接進行地址轉換而不必進行端口轉換。此後就可以將這個轉換規則加入系統中，需要執行ipnat命令：</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># ipnat -C
+# ipnat -f /etc/ipnat.conf</td></pre></tr></table>
+
+<P>　　目前使用-C參數用於清除現有的轉換規則，-f用於從配置檔案中讀取轉換規則。設置了轉換規則之
+後，就可以使用-l參數查看目前設置的轉換規則和已經激活的轉換關系。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre><font size=2># ipnat -l
+List of active MAP/Redirect filters:
+map fxp1 192.168.3.0/24  -&gt; 202.102.245.0/26  portmap tcp/udp 10000:65000
+map fxp1 192.168.3.0/24  -&gt; 202.102.245.0/26 
+rdr fxp1 202.102.245.60/32 port 21 -&gt; 192.168.3.2 port 21 tcp
+
+List of active sessions:
+RDR 192.168.3.2     21    &lt;- -&gt; 202.102.245.60  21    [202.102.245.25 35635] 863
+992 0 407
+MAP 192.168.3.2     1024  &lt;- -&gt; 202.102.245.60  10000 [202.102.245.25 9999] 8639
+93 0 1f09</font></td></pre></tr></table>
+
+<ul><h2><P><LI>設置包過濾</LI></P></h2></ul>
+
+<P>　　ipfilter也能很好的完成包過濾任務，它的過濾規則相當複雜。下面為一些簡單的過濾設置例子，一般
+這些過濾規則可以保存在/etc/ipf.conf檔案中。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>block in log quick all with short
+block in log quick all with ipopts</td></pre></tr></table>
+
+<p>　　block參數用於屏蔽符合過濾條件的數據包，in代表數據包的方向，標識從網路上或其他網路界面上發送到某
+個網路界面上的數據包，log用於指出該規則過濾的數據包應被記錄下來，quick指示ipfilter進行快速過濾
+處理，符合這個規則的數據包將立即丟棄，all with short標識不完整的IP數據包，數據包的長度太小就沒
+有包含合法的源地址或目標地址，從而無法被ipfilter識別，all with ipopts標志本身帶有路由數
+據的IP數據包，這些IP數據包由於包含自己的路由信息，因此可能會帶來網路安全問題。</p>
+
+<p>　　這兩句設置用於過濾可能會帶來安全問題的短數據包或具備路由信息的數據包。</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>pass in on fxp0 all
+pass out on fxp0 all
+pass in on lo0 all
+pass out on lo0 all</td></pre></tr></table>
+
+<P>　　pass用於指定數據包可以通過，out與in相反，標識從網路界面向網路上或其他網路界面發送的數據
+包，而on fxp0或on lo0標識進行處理的網路界面。這裡的設置允許內部網路界面、loopback網路界面可以自
+由發送和接收數據包。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>block in log on fxp1 all
+block out log on fxp1 all</td></pre></tr></table>
+
+<P>　　為了安全起見，除了明確指定可以發送和接收的數據包之外，屏蔽其余的外部網路界面進行數據發送和接收。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>block in log quick on fxp1 from 10.0.0.0/8 to any
+block in log quick on fxp1 from 192.168.0.0/16 to any
+block in log quick on fxp1 from 172.16.0.0/12 to any
+block in log quick on fxp1 from 127.0.0.0/8 to any</td></pre></tr></table>
+
+<P>　　上面的設置明確屏蔽具備內部網路地址的數據包被轉發到外部網路去，由於ipfilter中地址轉換和包過
+濾是在同一個系統中完成的，因此不必擔心它們會發生衝突問題。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>pass out log on fxp1 proto icmp all keep state
+pass out log on fxp1 proto tcp/udp from any to any keep state</td></pre></tr></table>
+
+<P>　　proto用於指定不同的協議，通常可以設置為tcp, udp和icmp。這兩行設置允許TCP, UDP, ICMP協議的
+數據包可以向外發送出去，keep state用於標識建立TCP連接之後的數據包，或者ICMP、UDP的回應數據包，以
+允許回應數據包能發送回內部網路。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre><font size=2>pass in quick on fxp1 proto tcp from any to any port = ftp-data keep state
+pass in quick on fxp1 proto tcp from any port = ftp-data to any port &gt; 1023 keep state</font></td></pre></tr></table>
+
+<P>　　ftp中將打開額外的端口以進行數據傳輸，這兩個設置允許對ftp數據端口的數據包能夠進行轉發。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre><font size=2>block return-rst in log on fxp1 proto tcp from any to any flags S/SA
+block return-icmp(net-unr) in log on fxp1 proto udp from any to any</font></td></pre></tr></table>
+
+<P>　　對於其他tcp連接請求，防火牆回應一個RST數據包關閉連接，S/SA標識TCP數據包的標志，S為Syn，
+A為Ack，而S/SA表示對Syn和Ack中的Syn標志進行檢查，這類數據包是用於設定連接的數據包。對UDP請求，
+防火牆回應網路不可達到的ICMP包。</P>
+
+<P>　　上面的例子將屏蔽外部電腦發向網路內部的數據包，但允許內部向外的發起網路訪問。如果要允
+許外部網路對內的訪問，就必須增加其他pass in規則，以使得過濾規則能適應更複雜的情況。為了使上面
+的設置生效，必須將過濾規則加入到核心中去，這需要使用ipf命令。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># ipf -Fa
+# ipf -f  /etc/ipf.conf</td></pre></tr></table>
+
+<P>　　首先使用-Fa標志清除所有的過濾規則，然後將ipf.conf中的設置加入系統中。此後，可以使用ipfstat來
+檢查ipfilter進行過濾的各種統計信息。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre><font size=2># ipfstat
+ input packets:&#9;&#9;blocked 227 passed 116210 nomatch 68219 counted 0
+output packets:&#9;&#9;blocked 0 passed 74586 nomatch 20316 counted 0
+ input packets logged:&#9;blocked 227 passed 24883
+output packets logged:&#9;blocked 0 passed 17153
+ packets logged:&#9;input 0 output 0
+ log failures:&#9;&#9;input 25028 output 17139
+fragment state(in):&#9;kept 0&#9;lost 0
+fragment state(out):&#9;kept 0&#9;lost 0
+packet state(in):&#9;kept 1&#9;lost 0
+packet state(out):&#9;kept 14&#9;lost 8
+ICMP replies:&#9;160&#9;TCP RSTs sent:&#9;9
+Result cache hits(in):&#9;47523&#9;(out):&#9;53694
+IN Pullups succeeded:&#9;0&#9;failed:&#9;0
+OUT Pullups succeeded:&#9;0&#9;failed:&#9;0
+Fastroute successes:&#9;0&#9;failures:&#9;0
+TCP cksum fails(in):&#9;0&#9;(out):&#9;0
+Packet log flags set: (0x10000000)
+&#9;packets passed through filter</font></td></pre></tr></table>
+
+<P>　　雖然在規則中指定了log選項，但是預設時候syslogd並不會記錄ipfilter發送的信息。符合規則的數據記
+錄並沒有真正被發送到系統日誌記錄中，必須使用ipmon打開記錄功能。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre># ipmon -s -n -x</td></pre></tr></table>
+
+<P>　　由於ipmon使用的是syslog的local0通道，預設情況下local0通道並沒有打開，因此只有很少的錯誤信
+息被發送到/var/log/messages檔案中。為了打開local0通道，還需要改動syslogd.conf，增加下面的設置，以
+記錄ipfilter的全部記錄。</P>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>local0.*&#9;&#9;/var/log/ipfilter.log</td></pre></tr></table>
+
+<P>　　為了不讓ipfilter的記錄發送到/var/log/messages等其他日誌檔案中，可以在/var/log/messags設置行
+中添加一個記錄local.none。</P>
+
+<P>　　此後，使用touch創建ipfilter.log檔案，並重新啟動syslogd，就能在/var/log/ipfilter.log中正確記錄
+過濾記錄了。當一切都設置完畢之後，就能將ipf和ipnat這兩個設置命令放入系統啟動檔案rc.local，以便每次系
+統自動啟動都能執行防火牆設置。</P>
+
+
+<BR>
+
+</TD>
+</TR></TABLE>
+
+
+
+</BODY>
+</HTML>

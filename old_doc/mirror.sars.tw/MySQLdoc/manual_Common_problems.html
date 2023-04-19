@@ -1,0 +1,163 @@
+<html>
+
+<head>
+<title>MySQL中文參考手冊- 19 用MySQL解決一些常見問題</title>
+<style type="text/css">
+<!--
+.p14{font-size:14.8px;font-family:宋體;line-height:14pt;}
+.p5{ border: 1px solid rgb(146,201,201) }
+.a:hover{color:red;}
+a.t1:visited{color:red;}
+-->
+</style>
+</head>
+
+<body bgColor="#ffffff" link="#101090" text="#000000" vLink="#7030b0" class="p4">
+
+<h1><img src="Img/mysql-logo.gif" alt="mysql-logo.gif (3082 bytes)" WIDTH="127" HEIGHT="60"><font color="#FF0000">MySQL中文參考手冊</font></h1>
+
+<p>譯者：晏子 <a href="mailto:(clyan@sohu.com">(clyan@sohu.com</a>）<br>
+GB 碼主頁：<a href="http://linuxdb.yeah.net">http://linuxdb.yeah.net</a></p>
+
+<p>Big5 轉碼者：statue <a href="mailto:statue.bbs@bbs.yzu.edu.tw">
+(statue@bbs.yzu.edu.tw</a>） <br>
+詞彙轉換：彭武興 (<a href="mailto:wilson@mailbox.com.tw">wilson@mailbox.com.tw</a>)<br>
+Big5 碼主頁：
+<a href="http://cnpa.yzu.edu.tw/~cfc/docs/mysqldoc_big5/manual_toc.html">
+http://cnpa.yzu.edu.tw/~cfc/docs/mysqldoc_big5/manual_toc.html</a><br>
+Big5 碼分站：
+<a href="http://php.wilson.gs/mysqldoc/big5/manual_toc.html">
+http://php.wilson.gs/mysqldoc/big5/manual_toc.html
+</p>
+
+<hr>
+
+<p><a href="manual_Introduction.html">第一章</a>, <a href="manual_Problems.html">前一章</a>, 
+<a href="manual_Clients.html">下一章</a>, <a href="manual_Concept_Index.html">最後一章</a>，<a href="manual_toc.html">目錄</a>. </p>
+
+<hr>
+
+<h1><a href="manual_toc.html#Common_problems" name="Common_problems">19 用MySQL解決一些常見問題</a></h1>
+
+<p><a name="IDX705"></a> </p>
+
+<h2><a href="manual_toc.html#Replication" name="Replication">19.1 資料庫複製</a></h2>
+
+<p>一方面複製可以用來增加健壯性和速度。對健壯性，你有2個系統，而如果你出了問題，切換到備份即可。額外的速度通過把非更新查詢的一部分送到複製伺服器來達到。當然，這只在非更新查詢為主時有用，但是這正是一般的情形。</p>
+
+<p>一方面複製計劃在不久的未來實現。這將被實現，使得從伺服器將以較低優先級的更新和延遲插入被同步到最新數據(這將給讀者以比寫者更高的優先級)。 
+</p>
+
+<p><strong>MySQL</strong>(至今)沒有資料庫複製，但是有一些如何實現的資訊。</p>
+
+<p>複製一個資料庫最一般的方法是使用更新日誌。見<a href="manual_Server.html#Update_log">9.2 更新日誌</a>。這要求充當一個主資料庫(進行數據改變的)並且另一個或多個充當從資料庫。要更新一個從資料庫，只要運行<code>mysql 
+&lt; update_log</code>。提供對於從資料庫適當的主機、用戶和密碼選項，並且將主資料庫的更新日誌作為輸入。</p>
+
+<p>如果你從未從一張表中刪除任何東西，你可以使用一個<code>TIMESTAMP</code>列找出自上一次複製以來(通過比較作你上次做複製的時間）表中哪個行被插入和被改變，且僅拷貝這些行到鏡像中。</p>
+
+<p>有可能使用更新日誌(對刪除)和時間戳記（在兩端）做成一個雙向更新系統統，但是在這種情況下，當同一數據在兩端被改變時，你必須能處理衝突。你可能想保持舊版本以幫助決定什麼被更新了。</p>
+
+<p>因為在這種情況中複製用SQL語句進行，你不應該在更新資料庫的語句中使用下列函數﹔他們不能返回與原資料庫相同的值： 
+
+<ul>
+  <li><code>DATABASE()</code> </li>
+  <li><code>GET_LOCK()</code>和<code>RELEASE_LOCK()</code> </li>
+  <li><code>RAND()</code> </li>
+  <li><code>USER()</code>, <code>SYSTEM_USER()</code>或<code>SESSION_USER()</code> </li>
+  <li><code>VERSION()</code> </li>
+</ul>
+
+<p>所有的時間函數可安全地使用，比如如果需要，時間戳記被送到鏡像。<code>LAST_INSERT_ID()</code>也可安全地使用。</p>
+
+<p><a name="IDX708"></a></p>
+
+<h2><a href="manual_toc.html#Backup" name="Backup">19.2 資料庫備份</a></h2>
+
+<p>因為<strong>MySQL</strong>表作為文件儲存，做一個備份是容易的。為了得到一個一致的備份，在相關的表上做一個<code>LOCK 
+TABLES</code>。見<a href="manual_Reference.html#LOCK_TABLES">7.24<code> LOCK 
+TABLES/UNLOCK TABLES</code>句法</a>。你只需一個讀鎖定﹔當你在資料庫目錄中做文件的一個拷貝時，這允許其他執行緒繼續查詢該表。如果你想要做一個SQL級的備份，你可以<code>SELECT 
+INTO OUTFILE</code>。</p>
+
+<p>備份一個資料庫的另一個方法是使用<code>mysqldump</code>程式： 
+
+<ol>
+  <li>為你的資料庫做一個完整的備份：<pre>shell&gt; mysqldump --tab=/path/to/some/dir --opt --full
+</pre>
+    <p>你也可以簡單地拷貝所有的表文件(<tt>“*.frm”、“*.MYD”</tt>和<tt>“*.MYI”</tt>文件)，只要伺服器不在更新任何東西。</p>
+  </li>
+  <li><a name="IDX709"></a>停止<code>mysqld</code>如果它正在運行，然後以<code>--log-update</code>選項啟動它。你將得到一個<tt>名為“<kbd>hostname</kbd>.n”</tt>形式的日誌文件， 
+    這裡<code>n</code>是隨著你每次執行<code>mysqladmin refresh</code>或<code>mysqladmin 
+    flush-logs</code>、<code>FLUSH LOGS</code>語句、或重啟伺服器而遞增的一個數字。這些日誌文件向你提供了在你執行<code>mysqldump</code>處後面進行的複製資料庫改變的所需資訊。</li>
+</ol>
+
+<p>如果你必須恢復一些東西，嘗試首先用<code>myisamchk -r</code>恢復你的表。這應該處理所有情況的99.9%。如果<code>myisamchk</code>失敗，嘗試下列程序： 
+
+<ol>
+  <li>恢復原來的<code>mysqldump</code>備份。</li>
+  <li>執行下列命令以再次運行更新日誌中的更改： <pre>shell&gt; ls -1 -t -r hostname.[0-9]* | xargs cat | mysql
+</pre>
+  </li>
+</ol>
+
+<p><code>ls</code>被用來以正確的順序得到所有的日誌文件。 </p>
+
+<p>你也可以與<code>SELECT * INTO OUTFILE 'file_name' FROM tbl_name</code>做有選擇的備份並且用<code>LOAD 
+DATA INFILE 'file_name' REPLACE ...</code>恢復。為了避免重複記錄，在表中你需要一個<code>PRIMARY 
+KEY</code>或<code>UNIQUE</code>鍵。當在唯一鍵值上一個新記錄與一個老記錄重複時，<code>REPLACE</code>關鍵詞使得老記錄用一個新記錄替代。</p>
+
+<p><a name="IDX710"></a></p>
+
+<h2><a href="manual_toc.html#Multiple_servers" name="Multiple_servers">19.3 
+在同一台機器上運行多個MySQL伺服器</a></h2>
+
+<p>有些情況下你可能想要在同一台機器上運行多個伺服器。例如，你可能想要測試一個新的<strong>MySQL</strong>版本而讓你現有生產系統的設置不受到干擾，或你可能是想要為不同的客戶提供獨立的<strong>MySQL</strong>安裝一個網際網路服務供應商。</p>
+
+<p>如果你想要運行多個伺服器，最容易的方法是用不同的TCP/IP端口和套接字文件重新編譯伺服器，因此他們不是偵聽同一個TCP/IP端口或套接字。 
+</p>
+
+<p>假設一個現存伺服器配置為內定端口號和套接字文件，那麼用一個這樣的<code>configure</code>命令行設置新的伺服器：</p>
+
+<pre>shell&gt; ./configure  --with-tcp-port=port_number \
+             --with-unix-socket=file_name \
+             --prefix=/usr/local/mysql-3.22.9
+</pre>
+
+<p>這裡<code>port_number</code>和<code>file_name</code>應該不同於內定端口號和套接字文件路徑名，而且<code>--prefix</code>值應該指定一個不同於現存的<strong>MySQL</strong>安裝所在的安裝目錄。 
+</p>
+
+<p>你可以用這個命令檢查由任何當前執行的<strong>MySQL</strong>所使用的套接字和端口：</p>
+
+<pre>shell&gt; mysqladmin -h hostname --port=port_number variables
+</pre>
+
+<p>如果你有一個<strong>MySQL</strong>伺服器正運行在你使用了的端口上，你將得到<strong>MySQL</strong>的一些最重要的可配置變數的一張表，包括套接字名等。</p>
+
+<p>你也應該編輯你機器的初始化腳本(可能<tt>是“mysql.server”</tt>)來啟動並殺死多個<code>mysqld</code>伺服器。</p>
+
+<p>你不必重新編譯一個新<strong>MySQL</strong>伺服器，只要以一個不同的端口和套接字啟動即可。你可以通過指定在運行時<code>safe_mysqld</code>使用的選項來改變端口和套接字：</p>
+
+<pre>shell&gt; /path/to/safe_mysqld --socket=file_name --port=port_number
+</pre>
+
+<p>如果你在與開啟日誌的另一個伺服器相同的一個資料庫目錄下運行新伺服器，你也應該用<code>safe_mysqld</code>的<code>--log</code>和<code>--log-update</code>選項來指定日誌文件的名字，否則，兩個伺服器可能正在試圖寫入同一個日誌文件。</p>
+
+<p><strong>警告</strong>：通常你決不應該有在同一個資料庫中更新數據的2個伺服器！如果你的OS不支援無故障(fault-free)的系統鎖定，這可能導致令人驚訝的事情發生！</p>
+
+<p>如果你想要為第二個伺服器使用另一個資料庫目錄，你可以使用<code>safe_mysqld</code>的<code>--datadir=path</code>選項。</p>
+
+<p>當你想要連接一個正在運行的使用一個不同於編譯進你的客戶程式中端口的<strong>MySQL</strong>伺服器時，你可以使用下列方法之一： 
+
+<ul>
+  <li>以<code>--host 'hostname' --port=port_numer</code>或<code>[--host localhost] 
+    --socket=file_name</code>啟動客戶。</li>
+  <li>在你的C或Perl程式中，當連接<strong>MySQL</strong>伺服器時，你可以給出端口和套接字參數。</li>
+  <li>在你啟動客戶程式之前，<a name="IDX711"></a><a name="IDX712"></a><a name="IDX713"></a><a name="IDX714"></a>設置<code>MYSQL_UNIX_PORT</code>和<code>MYSQL_TCP_PORT</code>環境變數，指向Unix套接字和TCP/IP的端口。如果你通常使用一個特定的套接字或端口，你應該將設置這些環境變數的命令放進你的<tt>“.login”</tt>文件中。見<a href="manual_Tools.html#Programs">12.1 不同的 MySQL程式概述</a>。</li>
+  <li><a name="IDX715"></a>在你的主目錄<tt>下的“.my.cnf”</tt>文件中指定內定套接字和TCP/IP端口。見<a href="manual_Installing.html#Option_files">4.15.4 選項文件</a>。</li>
+</ul>
+
+<hr>
+
+<p><a href="manual_Introduction.html">第一章</a>, <a href="manual_Problems.html">前一章</a>, 
+<a href="manual_Clients.html">下一章</a>, <a href="manual_Concept_Index.html">最後一章</a>，<a href="manual_toc.html">目錄</a>. </p>
+</body>
+</html>

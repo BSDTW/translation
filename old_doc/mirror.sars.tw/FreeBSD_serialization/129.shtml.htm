@@ -1,0 +1,87 @@
+
+
+<!-- Vignette StoryServer 4 Sat Mar 11 15:43:24 2000 --> 
+<style type=text/css>
+<!--
+p,div {font-size:12pt; line-height:14pt; font-family:宋體;}
+.p1{font-size:12pt;font-family:宋體;}
+.p2{font-size:12pt;font-family:宋體;line-height:14pt;}
+.p3{font-size:14.8px;font-family:宋體;}
+.p4{font-size:14.8px;font-family:宋體;line-height:14pt;}
+.p5{font-size:1pt}
+a:hover{color:red;}
+a.t1:visited{color:red;}
+-->
+</style>
+<title>FreeBSD使用大全</title></head>
+
+<body bgcolor="#FFFFFF" text="#000000" link="#383098" vlink="#336699" alink="#FF0000" topmargin="0">
+<!-- Vignette StoryServer 4 Thu Mar 23 10:01:54 2000 --> <!-- Vignette StoryServer 4 Thu Mar 23 15:34:35 2000 --> 
+
+<!--開始：新聞內容-->
+<TABLE WIDTH=750 BORDER=0 CELLSPACING=0 CELLPADDING=0>
+
+<tr valign=top>
+
+
+
+<TD  valign=top>
+<CENTER><FONT COLOR=#000066 size=5><B>FreeBSD連載(35)：串口和modem</B><br></FONT></CENTER>
+
+<HR  ALIGN="center" SIZE=1>
+<CENTER><FONT FACE="Arial" SIZE=2> 1999年12月7日 11:30 </FONT><FONT COLOR="#990000" SIZE=2>王波</FONT></CENTER><p>
+
+<h1 align=center>撥號網路</h1>
+
+<p>　　局域網上的FreeBSD要和Internet（或其他廣域網）連接，就需要使用廣域網界面。對於一般用戶，
+採用普通電話線進行撥號的方式，是比較常見的做法。這就需要首先使用電腦的串口連接到modem（調制解調器）上，
+再通過modem連接到Internet上。</p>
+
+<ul><P><LI><B>串口和modem</b></LI><p></P></ul>
+
+<p>　　因此如果採用撥號方式連接一台電腦到遠端，則必須配置好電腦的串口和modem。</p>
+
+<p>　　個人電腦一般有兩個串口，在DOS下稱為COM1、COM2，FreeBSD使用Unix的習慣從0開始排
+列數字，相應的串口硬體為sio0、sio1。啟動時系統將自動檢測這些硬體，檢測結果顯示在螢幕上，可以在登錄後使
+用dmesg來查看這些啟動信息，判斷硬體是否真的被檢測到了。如果串口被檢測到，就能使用連接到相應串口上的外置
+modem進行連接。</p>
+
+<p>　　如果使用內置modem卡，卡上將包括一個串口設備，根據這個卡的設置，這個串口設備可以為sio2或sio3
+，因此必須保証核心支持第三、第四個串口設備sio2和sio3。但與DOS不同的是，modem卡使用的IRQ不
+能與已有串口共享硬體資源。由於DOS是單任務操作系統，不可能同時使用兩個串口，共享IRQ是可以的，因此COM1
+與COM3共享IRQ 4，COM2與COM4共享IRQ 3。但是對於多用戶操作系統FreeBSD來講，同時會有
+多個進程訪問設備，每個設備必須單獨占有IRQ，因此必須在核心中將modem卡的IRQ設為另外的空閑值。</p>
+
+<p>　　要更改卡上的跳線或在DOS下運行設置程序更改卡上的設置，以使硬體上設置與核心配置相一致。通常PNP的
+modem卡能正確設置硬體資源，也可以通過UserConfig重新設置。</p>
+
+<p>　　當FreeBSD的核心檢測到串口設備之後，就能夠通過相應的設備檔案來訪問這些串口了。對應第一個串口sio0
+的設備檔案為/dev/ttyd0和/dev/cuaa0，對應第二個串口sio2的設備檔案為/dev/tty
+d1和/dev/cuaa1，依次類推。</p>
+
+<p>　　FreeBSD對一個串口提供了兩個設備檔案，事實上它們對應同樣的硬體，只是屬性略有不同。cuaa0主要
+用來撥出，ttyd0主要用於撥入和直接連接。設置這兩個設備檔案的原因是電腦與modem相互通信的數據有兩類，
+一種為電腦通過串口發送給modem的控制指令，常用的為Hayes的AT指令，這些數據是發送給modem的，而
+另一種數據是電腦通過modem發送到電話網上的傳輸數據，這些數據只需要讓modem進行調制解調即可。而對於應
+用程序來講，要想非常簡單的來區分這兩種數據，就可以使用兩個初始狀態不同的設備檔案。</p>
+
+<p>　　當外部撥入內部時，電話連接已經設置好了，數據傳輸是在電腦與電話網之間，modem只進行調制解調，此時
+就使用ttyd0。而當向外撥號時，modem還沒有建立連接，電腦應該向modem發送指令，控制modem執行
+撥號等操作，此時就使用設備檔案cuaa0。一旦連接建立之後，系統將重置設備檔案的屬性，使得cuaa0同樣也是將
+數據發送向電話網上。</p>
+
+<p>　　因此ttyd0和cuaa0這兩個設備檔案，只是初始狀態不同，而並沒有本質的差別。事實上大多數撥號軟體會
+重置設備檔案的狀態，使用哪個設備都可以正確完成撥號過程。然而習慣的做法仍然是使用cuaa0用於撥出，ttyd0
+作為撥入，這樣能避免某些軟體不能正確重置設備檔案的狀態的問題。
+</p>
+
+
+<BR>
+
+</TD>
+</TR></TABLE>
+
+
+
+
+</BODY></HTML>

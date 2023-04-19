@@ -1,0 +1,143 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>mkisofs - 建立光碟影像檔</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.7" />
+<link rel="HOME" title="FreeBSD Chinese HOWTO" href="index.html" />
+<link rel="UP" title="有用的中文軟體" href="software.html" />
+<link rel="PREVIOUS" title="linux_locale - linux 模擬器所需的中文 locale 資訊 [OBSOLETE]"
+href="linux-locale.html" />
+<link rel="NEXT" title="mule-freewnn" href="mule-freewnn.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD Chinese HOWTO</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="linux-locale.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 17. 有用的中文軟體</td>
+<td width="10%" align="right" valign="bottom"><a href="mule-freewnn.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="MKISOFS" name="MKISOFS">17.13. mkisofs - 建立光碟影像檔</a></h1>
+
+<p>在 FreeBSD 底下燒錄光碟有兩個步驟：</p>
+
+<p>1. 將所需的資料 ( 檔案，音樂或全部 ) 包裝成一些特別格式的檔案。</p>
+
+<p>2. 用 burncd 將這些檔案寫入光碟中。</p>
+
+<p>mkisofs 就是 1. 的工具，也就是建立光碟影像檔。 而在 <a
+href="http://www.FreeBSD.org/cgi/url.cgi?ports/sysutils/cdrtools-cjk/pkg-descr"><tt
+class="FILENAME">sysutils/cdrtools-cjk</tt></a> 可以建立 Chinese Big5 檔名，請使用 -J
+的選項來使用它。</p>
+
+<p>也可以參考這個網頁， <a href="http://www.arekore.org/cdrecord/mkisofs-NLS-CJK.html"
+target="_top">mkisofs-NLS-CJK</a>。</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">mkisofs -a -f -l -r -J -o ~/test.iso ~/test/</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">vnconfig vn0 test.iso</kbd>
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">mount -t cd9660 /dev/vn0 /mnt/iso</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">ls /mnt/iso</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">umount /mnt/iso</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">vnconfig -u vn0</kbd>
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">burncd -e -v -s 6 -f /dev/acd1c data test.iso fixate</kbd>
+</pre>
+
+<p>以上的範例是把 <tt class="FILENAME">~/test/</tt> 目錄下的所有檔案， 建立成一個 <tt
+class="FILENAME">test.iso</tt>，可以先用 <tt class="COMMAND">du -s -h ~/test/</tt>
+檢察是否會超過您的光碟容量， 然後用 <tt class="COMMAND">vnconfig</tt> 來測試，在測試前，
+記得要先安裝 <b class="APPLICATION">big5fs</b>， 並按照 <b class="APPLICATION">big5fs</b>
+的要求做好準備工作， 在搭配可以看到中文的 <tt class="COMMAND">ls</tt>， 這樣子就可以在
+FreeBSD 底下燒錄中文檔案了。</p>
+
+<p>目前 ports 中的 mkisofs 雖然支援 nls，但是只有支援 one byte 的，
+所以並不能作中文的轉換。</p>
+
+<p>作者不採納 multu-byte NLS 的原因如下：</p>
+
+<p>Both solutions requiere the complete set of tables to be compiled into mkisofs. There
+was no concept of reading files instead. I believe that it is better to try to use
+libiconv instead.</p>
+
+<p>以下是筆者的日誌，大部分的人應該都不會感興趣的。</p>
+
+<p>這篇文章是在看完 chinese/mkisofs 的 patch 寫下的日誌， mkisofs 目前是 cdrecord project
+的一部份，cdrecord 目前在 <a
+href="http://www.FreeBSD.org/cgi/url.cgi?ports/sysutils/cdrtools/pkg-descr"><tt
+class="FILENAME">sysutils/cdrtools</tt></a> 底下， 而 mkisofs 則是在 <a
+href="http://www.FreeBSD.org/cgi/url.cgi?ports/sysutils/mkisofs/pkg-descr"><tt
+class="FILENAME">sysutils/mkisofs</tt></a> ，該 port 最主要的部份就是修正 mkisofs 的
+joliet 對中文的支援問題， patch 分成兩個部份，convert_to_unicode 和 joliet_strlenm。</p>
+
+<p>在 convert_to_unicode 部分，他會將所有的字作轉換，轉換成
+2bytes的Unicode編碼，以常見的英文來說：</p>
+
+<pre class="PROGRAMLISTING">
+    ABC -&#62; 0A0B0C
+    3bytes -&#62; 6bytes
+</pre>
+
+<p>而中文的部份：</p>
+
+<pre class="PROGRAMLISTING">
+    0xA4E5(文) -&#62; big5_to_unicode -&#62; 0x6587
+    2bytes                           2bytes
+</pre>
+
+<p>其實可以直接用 iconv 作掉整個轉換的部份。</p>
+
+<p>而 joliet_strlen 的部分， 這邊是指定 joliet 所給予的 buffer size，預設全都是英文，
+所以原本 3bytes 的 ABC 會變成 6bytes 的 0A0B0C， 但是中文的部份要修正成 2bytes
+的中文出來還是 2bytes。</p>
+
+<p>WWW: <a
+href="http://www.fokus.gmd.de/research/cc/glone/employees/joerg.schilling/private/cdrecord.html"
+ target="_top">cdrecord project</a></p>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="linux-locale.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="mule-freewnn.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">linux_locale - linux 模擬器所需的中文 locale
+資訊 [OBSOLETE]</td>
+<td width="34%" align="center" valign="top"><a href="software.html"
+accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">mule-freewnn</td>
+</tr>
+</table>
+</div>
+</body>
+</html>
+

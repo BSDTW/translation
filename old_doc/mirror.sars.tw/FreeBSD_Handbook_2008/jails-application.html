@@ -1,0 +1,553 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>Jail 的應用</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.79" />
+<link rel="HOME" title="FreeBSD 使用手冊" href="index.html" />
+<link rel="UP" title="Jails" href="jails.html" />
+<link rel="PREVIOUS" title="微調與管理" href="jails-tuning.html" />
+<link rel="NEXT" title="Mandatory Access Control" href="mac.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD 使用手冊</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="jails-tuning.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 15 Jails</td>
+<td width="10%" align="right" valign="bottom"><a href="mac.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="JAILS-APPLICATION" name="JAILS-APPLICATION">15.6 Jail
+的應用</a></h1>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="JAILS-SERVICE-JAILS" name="JAILS-SERVICE-JAILS">15.6.1 Service
+Jails</a></h2>
+
+<i class="AUTHORGROUP"><span class="CONTRIB">Contributed by</span> Daniel Gerzo.</i> 
+
+<p>本節主要以 Simon L. Nielsen <code class="EMAIL">&#60;<a
+href="mailto:simon@FreeBSD.org">simon@FreeBSD.org</a>&#62;</code> 寫的 <a
+href="http://simon.nitro.dk/service-jails.html"
+target="_top">http://simon.nitro.dk/service-jails.html</a> 為主，加上 Ken Tom <code
+class="EMAIL">&#60;<a href="mailto:locals@gmail.com">locals@gmail.com</a>&#62;</code>
+所更新的文章。 本節介紹如何設定 FreeBSD 以 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=jail&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">jail</span>(8)</span></a>
+功能來增加額外的安全層面。 這部分假設您系統跑的是 RELENG_6_0 或更新的版本，
+並且對本章先前部分均能理解。</p>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="JAILS-SERVICE-JAILS-DESIGN"
+name="JAILS-SERVICE-JAILS-DESIGN">15.6.1.1 Design</a></h3>
+
+<p>Jail 的主要問題之一在於如何對其進行更新、升級和管理。 由於每個 jail
+都是從頭重新編譯，對於單一 jail 而言，
+升級也許還不是很嚴重的問題，因為更新、升級並不會太麻煩。 但對於一堆 jail
+而言，升級不僅會耗費太多時間，並相當枯燥乏味。</p>
+
+<div class="WARNING">
+<blockquote class="WARNING">
+<p><b>Warning:</b> 這些設定的前提是您對 FreeBSD 使用、功能運用上有相當的經驗，
+若下面的設定對您來說太過複雜，建議您該考慮用較簡易的系統，像是 <a
+href="http://www.FreeBSD.org/cgi/url.cgi?ports/sysutils/ezjail/pkg-descr"><tt
+class="FILENAME">sysutils/ezjail</tt></a>，其提供更簡單的 FreeBSD jail 管理方式。</p>
+</blockquote>
+</div>
+
+<p>基本的想法是在不同的 jail 中儘量以安全的方式來共用資源 —— 採用唯讀的 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=mount_nullfs&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">mount_nullfs</span>(8)</span></a>
+掛載，來讓升級更簡單， 並把各個 service 放到不同的 jail 的作法會更加可行。 此外，
+其也提供對於如何增加、刪除、升級 jail 的簡便方式。</p>
+
+<div class="NOTE">
+<blockquote class="NOTE">
+<p><b>Note:</b> service 常見的例子包括： <acronym class="ACRONYM">HTTP</acronym>
+server、<acronym class="ACRONYM">DNS</acronym> server、<acronym
+class="ACRONYM">SMTP</acronym> server 等等。</p>
+</blockquote>
+</div>
+
+<p>本節介紹的設定目的在於：</p>
+
+<ul>
+<li>
+<p>建立簡易且容易理解的 jail 架構。 也就是說 <span class="emphasis"><b
+class="EMPHASIS">不必</b></span>為每個 jail 都執行完整的 installworld 。</p>
+</li>
+
+<li>
+<p>讓 jail 的新增、移除更簡單。</p>
+</li>
+
+<li>
+<p>讓 jail 的更新、升級更輕鬆。</p>
+</li>
+
+<li>
+<p>可以跑自行打造的 FreeBSD 分支。</p>
+</li>
+
+<li>
+<p>對安全有更偏執狂的追求，儘可能降低被攻陷的可能。</p>
+</li>
+
+<li>
+<p>儘量節省空間與 inode。</p>
+</li>
+</ul>
+
+<p>如同先前所提到的，這設計主要是靠把唯讀的主要模版 (也就是大家所熟知的 <b
+class="APPLICATION">nullfs</b>)掛載到每個 jail，並且讓每個 jail
+有個可讀、寫的設備，這設備可以是獨立實體硬碟、 、分割區、或以 vnode 為後端的 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=md&amp;sektion=4"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">md</span>(4)</span></a> 設備。
+在本例當中， 我們採用可讀寫的 <b class="APPLICATION">nullfs</b> 掛載。</p>
+
+<p>下面的表則介紹檔案系統的配置：</p>
+
+<ul>
+<li>
+<p>每個 jail 都會掛載到 <tt class="FILENAME">/home/j</tt> 底下的其中一個目錄。</p>
+</li>
+
+<li>
+<p><tt class="FILENAME">/home/j/mroot</tt> 則是每個 jail 共用的模版，並對於所有 jail
+而言都是唯讀。</p>
+</li>
+
+<li>
+<p>每個 jail 在 <tt class="FILENAME">/home/j</tt> 底下都有一個相對應的空目錄。</p>
+</li>
+
+<li>
+<p>每個 jail 都會有 <tt class="FILENAME">/s</tt> 目錄，
+該目錄會連到系統的可讀寫部分。</p>
+</li>
+
+<li>
+<p>每個 jail 都會在 <tt class="FILENAME">/home/j/skel</tt> 目錄建立自屬的可讀寫空間
+。</p>
+</li>
+
+<li>
+<p>每個 jailspace (各 jail 可讀寫的部分) 都建在 <tt
+class="FILENAME">/home/js</tt>&#62;。</p>
+
+<p></p>
+</li>
+</ul>
+
+<div class="NOTE">
+<blockquote class="NOTE">
+<p><b>Note:</b> 這邊假設所有 jail 都放在 <tt class="FILENAME">/home</tt> 分割區。 當然，
+也可以依自身需求更改，但接下來的例子中， 也要記得修改相對應的地方。</p>
+</blockquote>
+</div>
+</div>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="JAILS-SERVICE-JAILS-TEMPLATE"
+name="JAILS-SERVICE-JAILS-TEMPLATE">15.6.1.2 建立模版</a></h3>
+
+<p>本節將逐步介紹如何建立 jail 要用的唯讀主模版。</p>
+
+<p>建議先把 FreeBSD 系統升級到最新的 -RELEASE 分支，至於如何做請參閱 Handbook 的 <a
+href="../../../../doc/zh_TW.Big5/books/handbook/makeworld.html"
+target="_top">相關章節</a>。 當更新完成之後，就要進行 buildworld 程序，此外還要裝 <a
+href="http://www.FreeBSD.org/cgi/url.cgi?ports/sysutils/cpdup/pkg-descr"><tt
+class="FILENAME">sysutils/cpdup</tt></a> 套件。 我們將用 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=portsnap&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">portsnap</span>(8)</span></a> 來下載
+FreeBSD Ports Collection， 在 Handbook 中對 <a
+href="../../../../doc/zh_TW.Big5/books/handbook/portsnap.html" target="_top">Portsnap
+章節</a> 中有相關介紹，初學者可以看看。</p>
+
+<div class="PROCEDURE">
+<ol type="1">
+<li class="STEP">
+<p>首先，先建立唯讀的目錄結構給 jail 放 FreeBSD binary， 接著到 FreeBSD source tree
+目錄，並安裝 jail 模版：</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">mkdir -p /home/j/mroot</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">cd /usr/src</kbd>
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">make installworld DESTDIR=/home/j/mroot</kbd>
+</pre>
+</li>
+
+<li class="STEP">
+<p>接著跟 FreeBSD source tree 一樣，也把 FreeBSD Ports Collection 放一份供 jail
+使用，以備 <b class="APPLICATION">mergemaster</b> ：</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">cd /home/j/mroot</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">mkdir usr/ports</kbd>
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">portsnap -p /home/j/mroot/usr/ports fetch extract</kbd>
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">cpdup /usr/src /home/j/mroot/usr/src</kbd>
+</pre>
+</li>
+
+<li class="STEP">
+<p>建立可讀寫部分的骨架：</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">mkdir /home/j/skel /home/j/skel/home /home/j/skel/usr-X11R6 /home/j/skel/distfiles</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">mv etc /home/j/skel</kbd>
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">mv usr/local /home/j/skel/usr-local</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">mv tmp /home/j/skel</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">mv var /home/j/skel</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">mv root /home/j/skel</kbd>
+</pre>
+</li>
+
+<li class="STEP">
+<p>用 <b class="APPLICATION">mergemaster</b> 來裝漏掉的設定檔。 接下來刪除 <b
+class="APPLICATION">mergemaster</b> 所建立的多餘目錄：</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">mergemaster -t /home/j/skel/var/tmp/temproot -D /home/j/skel -i</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">cd /home/j/skel</kbd>
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">rm -R bin boot lib libexec mnt proc rescue sbin sys usr dev</kbd>
+</pre>
+</li>
+
+<li class="STEP">
+<p>現在把可讀寫的檔案系統以 symlink 方式連到唯讀的檔案系統。 請確認 symbolic link
+是否有正確連到 <tt class="FILENAME">s/</tt> 目錄，若目錄建立方式不對，
+或指向位置不對，可能會導致安裝失敗。</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">cd /home/j/mroot</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">mkdir s</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">ln -s s/etc etc</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">ln -s s/home home</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">ln -s s/root root</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">ln -s ../s/usr-local usr/local</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">ln -s ../s/usr-X11R6 usr/X11R6</kbd>
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">ln -s ../../s/distfiles usr/ports/distfiles</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">ln -s s/tmp tmp</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">ln -s s/var var</kbd>
+</pre>
+</li>
+
+<li class="STEP">
+<p>最後則是新增 <tt class="FILENAME">/home/j/skel/etc/make.conf</tt>
+，並填入以下內容：</p>
+
+<pre class="PROGRAMLISTING">
+WRKDIRPREFIX?=  /s/portbuild
+</pre>
+
+<p>要設定 <tt class="LITERAL">WRKDIRPREFIX</tt> 才可以讓各 jail 得以順利編譯 FreeBSD
+ports。請記住 ports 目錄是屬唯讀檔案系統。 而搭配自訂的 <tt
+class="LITERAL">WRKDIRPREFIX</tt> 才可以讓各 jail 在可讀寫空間進行編譯。</p>
+</li>
+</ol>
+</div>
+</div>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="JAILS-SERVICE-JAILS-CREATING"
+name="JAILS-SERVICE-JAILS-CREATING">15.6.1.3 建立 Jail</a></h3>
+
+<p>現在已經有完整的 FreeBSD jail 模版，可以在 <tt class="FILENAME">/etc/rc.conf</tt>
+內做相關設定。 下面這例子則示範如何建立 3 個 jail：“NS”、 “MAIL”、“WWW”。</p>
+
+<p>&#13;</p>
+
+<div class="PROCEDURE">
+<ol type="1">
+<li class="STEP">
+<p>在 <tt class="FILENAME">/etc/fstab</tt> 加上下列設定， 以便讓系統自動掛載各 jail
+所需的唯讀模版與讀寫空間：</p>
+
+<pre class="PROGRAMLISTING">
+/home/j/mroot   /home/j/ns     nullfs  ro  0   0
+/home/j/mroot   /home/j/mail   nullfs  ro  0   0
+/home/j/mroot   /home/j/www    nullfs  ro  0   0
+/home/js/ns     /home/j/ns/s   nullfs  rw  0   0
+/home/js/mail   /home/j/mail/s nullfs  rw  0   0
+/home/js/www    /home/j/www/s  nullfs  rw  0   0
+</pre>
+
+<div class="NOTE">
+<blockquote class="NOTE">
+<p><b>Note:</b> 分割區的 pass number 標示為 0 就不會在開機時做 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=fsck&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">fsck</span>(8)</span></a>
+檢查；而分割區的 dump number 標示為 0 則不會被 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=dump&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">dump</span>(8)</span></a> 所備份。
+我們並不希望 <b class="APPLICATION">fsck</b> 檢查 <b class="APPLICATION">nullfs</b>
+的掛載，或者讓 <b class="APPLICATION">dump</b> 備份 jail 內唯讀的 nullfs 掛載。
+這也就是為何上述 <tt class="FILENAME">fstab</tt> 每行設定後面都有兩欄為
+“0&nbsp;0”。</p>
+</blockquote>
+</div>
+</li>
+
+<li class="STEP">
+<p>在 <tt class="FILENAME">/etc/rc.conf</tt> 內設定 jail：</p>
+
+<pre class="PROGRAMLISTING">
+jail_enable="YES"
+jail_set_hostname_allow="NO"
+jail_list="ns mail www"
+jail_ns_hostname="ns.example.org"
+jail_ns_ip="192.168.3.17"
+jail_ns_rootdir="/usr/home/j/ns"
+jail_ns_devfs_enable="YES"
+jail_mail_hostname="mail.example.org"
+jail_mail_ip="192.168.3.18"
+jail_mail_rootdir="/usr/home/j/mail"
+jail_mail_devfs_enable="YES"
+jail_www_hostname="www.example.org"
+jail_www_ip="62.123.43.14"
+jail_www_rootdir="/usr/home/j/www"
+jail_www_devfs_enable="YES"
+</pre>
+
+<div class="WARNING">
+<blockquote class="WARNING">
+<p><b>Warning:</b> 之所以要把 <code class="VARNAME">jail_<tt
+class="REPLACEABLE"><i>name</i></tt>_rootdir</code> 從 <tt class="FILENAME">/home</tt>
+改為 <tt class="FILENAME">/usr/home</tt> 的原因在於 FreeBSD 預設安裝的 <tt
+class="FILENAME">/home</tt> 目錄其實只是指向 <tt class="FILENAME">/usr/home</tt> 的
+symbolic link。 而 <code class="VARNAME">jail_<tt
+class="REPLACEABLE"><i>name</i></tt>_rootdir</code> 變數須為 <span class="emphasis"><b
+class="EMPHASIS">實體目錄</b></span> 而非 symbolic link， 否則 jail 會拒絕啟動。 可以用
+<a href="http://www.FreeBSD.org/cgi/man.cgi?query=realpath&amp;sektion=1"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">realpath</span>(1)</span></a>
+來決定該變數。 詳情請參閱 FreeBSD-SA-07:01.jail 安全通告。</p>
+</blockquote>
+</div>
+</li>
+
+<li class="STEP">
+<p>替每個 jail 建立必須的唯讀檔案系統掛載點：</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">mkdir /home/j/ns /home/j/mail /home/j/www</kbd>
+</pre>
+</li>
+
+<li class="STEP">
+<p>為每個 jail 安裝可讀寫的模版。 請注意這時要用 <a
+href="http://www.FreeBSD.org/cgi/url.cgi?ports/sysutils/cpdup/pkg-descr"><tt
+class="FILENAME">sysutils/cpdup</tt></a> ，它能確保每個目錄都有正確複製。</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">mkdir /home/js</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">cpdup /home/j/skel /home/js/ns</kbd>
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">cpdup /home/j/skel /home/js/mail</kbd>
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">cpdup /home/j/skel /home/js/www</kbd>
+</pre>
+</li>
+
+<li class="STEP">
+<p>如此一來就已完成 jail 環境建立，可以準備好要用了。 請先為各 jail
+掛載所須的檔案系統，再用 <tt class="FILENAME">/etc/rc.d/jail</tt> script 來啟動：</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">mount -a</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">/etc/rc.d/jail start</kbd>
+</pre>
+</li>
+</ol>
+</div>
+
+<p>現在 jail 應該就會啟動了。 若要檢查是否有正常啟動，可以用 <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=jls&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">jls</span>(8)</span></a>
+指令來看，該指令的執行結果應該類似下面：</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">jls</kbd>
+   JID  IP Address      Hostname                      Path
+     3  192.168.3.17    ns.example.org                /home/j/ns
+     2  192.168.3.18    mail.example.org              /home/j/mail
+     1  62.123.43.14    www.example.org               /home/j/www
+</pre>
+
+<p>此時就可以登入各 jail 並新增帳號與設定相關 service 要用的 daemon 。 上面的 <tt
+class="LITERAL">JID</tt> 欄代表正在運作中的 jail 編號。 可用下列指令以在 <tt
+class="LITERAL">JID</tt> 編號 3 的 jail 執行管理工作：</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">jexec 3 tcsh</kbd>
+</pre>
+</div>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="JAILS-SERVICE-JAILS-UPGRADING"
+name="JAILS-SERVICE-JAILS-UPGRADING">15.6.1.4 升級</a></h3>
+
+<p>有時由於安全問題或者 jail 內要用新功能，而需要把 FreeBSD 系統升級到更新。
+這種安裝設計方式讓既有的 jail 升級變得更加容易。 jail 也可以把 service
+停機時間(downtime)降到最低，因為 jail 只需在最後關鍵才需要重開。
+此外，萬一新版有問題的話， 它也提供輕鬆回溯到舊版的功能。</p>
+
+<div class="PROCEDURE">
+<ol type="1">
+<li class="STEP">
+<p>首先是照一般方式來升級 host system，再新增臨時的唯讀模版 <tt
+class="FILENAME">/home/j/mroot2</tt>：</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">mkdir /home/j/mroot2</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">cd /usr/src</kbd>
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">make installworld DESTDIR=/home/j/mroot2</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">cd /home/j/mroot2</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">cpdup /usr/src usr/src</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">mkdir s</kbd>
+</pre>
+
+<p>同樣地，在執行 <tt class="MAKETARGET">installworld</tt>
+時會建立一些用不著的目錄，請把這些砍掉：</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">chflags -R 0 var</kbd>
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">rm -R etc var root usr/local tmp</kbd>
+</pre>
+</li>
+
+<li class="STEP">
+<p>重新建立到主系統的可讀寫空間 symlink：</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">ln -s s/etc etc</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">ln -s s/root root</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">ln -s s/home home</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">ln -s ../s/usr-local usr/local</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">ln -s ../s/usr-X11R6 usr/X11R6</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">ln -s s/tmp tmp</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">ln -s s/var var</kbd>
+</pre>
+</li>
+
+<li class="STEP">
+<p>現在可以關閉 jail：</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">/etc/rc.d/jail stop</kbd>
+</pre>
+</li>
+
+<li class="STEP">
+<p>卸載原先的檔案系統：</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">umount /home/j/ns/s</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">umount /home/j/ns</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">umount /home/j/mail/s</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">umount /home/j/mail</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">umount /home/j/www/s</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">umount /home/j/www</kbd>
+</pre>
+
+<div class="NOTE">
+<blockquote class="NOTE">
+<p><b>Note:</b> 可讀寫空間(<tt class="FILENAME">/s</tt>
+是掛載在唯讀檔案系統底下，故要先卸載。</p>
+</blockquote>
+</div>
+</li>
+
+<li class="STEP">
+<p>把舊的唯讀系統搬走，換成新的。 如此一來，
+可同時保留先前系統的備份，以備萬一升級後有問題可回復。
+這邊的命名方式採新唯讀檔案系統的建立時間，此外原先 FreeBSD Ports Collection
+直接搬到新的檔案系統，以節省硬碟空間與 inode ：</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">cd /home/j</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">mv mroot mroot.20060601</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">mv mroot2 mroot</kbd>
+<samp class="PROMPT">#</samp> <kbd
+class="USERINPUT">mv mroot.20060601/usr/ports mroot/usr</kbd>
+</pre>
+</li>
+
+<li class="STEP">
+<p>現在新的唯讀模版準備好了，只剩下重新掛載以及啟動 jail：</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">mount -a</kbd>
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">/etc/rc.d/jail start</kbd>
+</pre>
+</li>
+</ol>
+</div>
+
+<p>最後以 <a href="http://www.FreeBSD.org/cgi/man.cgi?query=jls&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">jls</span>(8)</span></a> 來檢查 jail
+是否均正常啟動。 別忘了要在各 jail 內執行 mergemaster，還有相關設定檔以及 rc.d scripts
+均要更新。</p>
+</div>
+</div>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="jails-tuning.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="mac.html" accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">微調與管理</td>
+<td width="34%" align="center" valign="top"><a href="jails.html"
+accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">Mandatory Access Control</td>
+</tr>
+</table>
+</div>
+
+<p align="center"><small>本文及其他文件，可由此下載：<a
+href="ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/">ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/</a>。</small></p>
+
+<p align="center"><small>若有 FreeBSD 方面疑問，請先閱讀 <a
+href="http://www.FreeBSD.org/docs.html">FreeBSD 相關文件</a>，如不能解決的話，再洽詢
+&#60;<a href="mailto:questions@FreeBSD.org">questions@FreeBSD.org</a>&#62;。<br />
+關於本文件的問題，請洽詢 &#60;<a
+href="mailto:doc@FreeBSD.org">doc@FreeBSD.org</a>&#62;。</small></p>
+</body>
+</html>
+

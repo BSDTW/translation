@@ -1,0 +1,836 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>Domain Name System (DNS)</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.79" />
+<link rel="HOME" title="FreeBSD 使用手冊" href="index.html" />
+<link rel="UP" title="Network Servers" href="network-servers.html" />
+<link rel="PREVIOUS" title="Automatic Network Configuration (DHCP)"
+href="network-dhcp.html" />
+<link rel="NEXT" title="Apache HTTP Server" href="network-apache.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD 使用手冊</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="network-dhcp.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 27 Network Servers</td>
+<td width="10%" align="right" valign="bottom"><a href="network-apache.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="NETWORK-DNS" name="NETWORK-DNS">27.6 Domain Name System
+(<acronym class="ACRONYM">DNS</acronym>)</a></h1>
+
+<i class="AUTHORGROUP"><span class="CONTRIB">Contributed by</span> Chern Lee, Tom Rhodes,
+and Daniel Gerzo.</i> 
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN36194" name="AEN36194">27.6.1 Overview</a></h2>
+
+<p>FreeBSD utilizes, by default, a version of BIND (Berkeley Internet Name Domain), which
+is the most common implementation of the <acronym class="ACRONYM">DNS</acronym> protocol.
+<acronym class="ACRONYM">DNS</acronym> is the protocol through which names are mapped to
+<acronym class="ACRONYM">IP</acronym> addresses, and vice versa. For example, a query for
+<tt class="HOSTID">www.FreeBSD.org</tt> will receive a reply with the <acronym
+class="ACRONYM">IP</acronym> address of The FreeBSD Project's web server, whereas, a
+query for <tt class="HOSTID">ftp.FreeBSD.org</tt> will return the <acronym
+class="ACRONYM">IP</acronym> address of the corresponding <acronym
+class="ACRONYM">FTP</acronym> machine. Likewise, the opposite can happen. A query for an
+<acronym class="ACRONYM">IP</acronym> address can resolve its hostname. It is not
+necessary to run a name server to perform <acronym class="ACRONYM">DNS</acronym> lookups
+on a system.</p>
+
+<p>FreeBSD currently comes with <acronym class="ACRONYM">BIND</acronym>9 <acronym
+class="ACRONYM">DNS</acronym> server software by default. Our installation provides
+enhanced security features, a new file system layout and automated <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=chroot&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">chroot</span>(8)</span></a>
+configuration.</p>
+
+<p><acronym class="ACRONYM">DNS</acronym> is coordinated across the Internet through a
+somewhat complex system of authoritative root, Top Level Domain (<acronym
+class="ACRONYM">TLD</acronym>), and other smaller-scale name servers which host and cache
+individual domain information.</p>
+
+<p>Currently, BIND is maintained by the Internet Software Consortium <a
+href="http://www.isc.org/" target="_top">http://www.isc.org/</a>.</p>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN36222" name="AEN36222">27.6.2 Terminology</a></h2>
+
+<p>To understand this document, some terms related to <acronym
+class="ACRONYM">DNS</acronym> must be understood.</p>
+
+<div class="INFORMALTABLE"><a id="AEN36232" name="AEN36232"></a>
+<table border="0" frame="void" width="100%" class="CALSTABLE">
+<col width="25%" />
+<col width="75%" />
+<thead>
+<tr>
+<th>Term</th>
+<th>Definition</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>Forward <acronym class="ACRONYM">DNS</acronym></td>
+<td>Mapping of hostnames to IP addresses.</td>
+</tr>
+
+<tr>
+<td>Origin</td>
+<td>Refers to the domain covered in a particular zone file.</td>
+</tr>
+
+<tr>
+<td><b class="APPLICATION">named</b>, BIND, name server</td>
+<td>Common names for the BIND name server package within FreeBSD.</td>
+</tr>
+
+<tr>
+<td>Resolver</td>
+<td>A system process through which a machine queries a name server for zone
+information.</td>
+</tr>
+
+<tr>
+<td>Reverse <acronym class="ACRONYM">DNS</acronym></td>
+<td>The opposite of forward <acronym class="ACRONYM">DNS</acronym>; mapping of <acronym
+class="ACRONYM">IP</acronym> addresses to hostnames.</td>
+</tr>
+
+<tr>
+<td>Root zone</td>
+<td>The beginning of the Internet zone hierarchy. All zones fall under the root zone,
+similar to how all files in a file system fall under the root directory.</td>
+</tr>
+
+<tr>
+<td>Zone</td>
+<td>An individual domain, subdomain, or portion of the <acronym
+class="ACRONYM">DNS</acronym> administered by the same authority.</td>
+</tr>
+</tbody>
+</table>
+</div>
+
+<p>Examples of zones:</p>
+
+<ul>
+<li>
+<p><tt class="HOSTID">.</tt> is the root zone.</p>
+</li>
+
+<li>
+<p><tt class="HOSTID">org.</tt> is a Top Level Domain (<acronym
+class="ACRONYM">TLD</acronym>) under the root zone.</p>
+</li>
+
+<li>
+<p><tt class="HOSTID">example.org.</tt> is a zone under the <tt class="HOSTID">org.</tt>
+<acronym class="ACRONYM">TLD</acronym>.</p>
+</li>
+
+<li>
+<p><tt class="HOSTID">1.168.192.in-addr.arpa</tt> is a zone referencing all <acronym
+class="ACRONYM">IP</acronym> addresses which fall under the <tt
+class="HOSTID">192.168.1.*</tt> <acronym class="ACRONYM">IP</acronym> space.</p>
+</li>
+</ul>
+
+<p>As one can see, the more specific part of a hostname appears to its left. For example,
+<tt class="HOSTID">example.org.</tt> is more specific than <tt class="HOSTID">org.</tt>,
+as <tt class="HOSTID">org.</tt> is more specific than the root zone. The layout of each
+part of a hostname is much like a file system: the <tt class="FILENAME">/dev</tt>
+directory falls within the root, and so on.</p>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN36296" name="AEN36296">27.6.3 Reasons to Run a Name
+Server</a></h2>
+
+<p>Name servers usually come in two forms: an authoritative name server, and a caching
+name server.</p>
+
+<p>An authoritative name server is needed when:</p>
+
+<ul>
+<li>
+<p>One wants to serve <acronym class="ACRONYM">DNS</acronym> information to the world,
+replying authoritatively to queries.</p>
+</li>
+
+<li>
+<p>A domain, such as <tt class="HOSTID">example.org</tt>, is registered and <acronym
+class="ACRONYM">IP</acronym> addresses need to be assigned to hostnames under it.</p>
+</li>
+
+<li>
+<p>An <acronym class="ACRONYM">IP</acronym> address block requires reverse <acronym
+class="ACRONYM">DNS</acronym> entries (<acronym class="ACRONYM">IP</acronym> to
+hostname).</p>
+</li>
+
+<li>
+<p>A backup or second name server, called a slave, will reply to queries.</p>
+</li>
+</ul>
+
+<p>A caching name server is needed when:</p>
+
+<ul>
+<li>
+<p>A local <acronym class="ACRONYM">DNS</acronym> server may cache and respond more
+quickly than querying an outside name server.</p>
+</li>
+</ul>
+
+<p>When one queries for <tt class="HOSTID">www.FreeBSD.org</tt>, the resolver usually
+queries the uplink <acronym class="ACRONYM">ISP</acronym>'s name server, and retrieves
+the reply. With a local, caching <acronym class="ACRONYM">DNS</acronym> server, the query
+only has to be made once to the outside world by the caching <acronym
+class="ACRONYM">DNS</acronym> server. Every additional query will not have to look to the
+outside of the local network, since the information is cached locally.</p>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN36325" name="AEN36325">27.6.4 How It Works</a></h2>
+
+<p>In FreeBSD, the BIND daemon is called <b class="APPLICATION">named</b> for obvious
+reasons.</p>
+
+<div class="INFORMALTABLE"><a id="AEN36329" name="AEN36329"></a>
+<table border="0" frame="void" width="100%" class="CALSTABLE">
+<col />
+<col />
+<thead>
+<tr>
+<th>File</th>
+<th>Description</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><a href="http://www.FreeBSD.org/cgi/man.cgi?query=named&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">named</span>(8)</span></a></td>
+<td>The BIND daemon.</td>
+</tr>
+
+<tr>
+<td><a href="http://www.FreeBSD.org/cgi/man.cgi?query=rndc&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">rndc</span>(8)</span></a></td>
+<td>Name server control utility.</td>
+</tr>
+
+<tr>
+<td><tt class="FILENAME">/etc/namedb</tt></td>
+<td>Directory where BIND zone information resides.</td>
+</tr>
+
+<tr>
+<td><tt class="FILENAME">/etc/namedb/named.conf</tt></td>
+<td>Configuration file of the daemon.</td>
+</tr>
+</tbody>
+</table>
+</div>
+
+<p>Depending on how a given zone is configured on the server, the files related to that
+zone can be found in the <tt class="FILENAME">master</tt>, <tt
+class="FILENAME">slave</tt>, or <tt class="FILENAME">dynamic</tt> subdirectories of the
+<tt class="FILENAME">/etc/namedb</tt> directory. These files contain the <acronym
+class="ACRONYM">DNS</acronym> information that will be given out by the name server in
+response to queries.</p>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN36362" name="AEN36362">27.6.5 Starting BIND</a></h2>
+
+<p>Since BIND is installed by default, configuring it all is relatively simple.</p>
+
+<p>The default <b class="APPLICATION">named</b> configuration is that of a basic
+resolving name server, ran in a <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=chroot&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">chroot</span>(8)</span></a> environment.
+To start the server one time with this configuration, use the following command:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">/etc/rc.d/named forcestart</kbd>
+</pre>
+
+<p>To ensure the <b class="APPLICATION">named</b> daemon is started at boot each time,
+put the following line into the <tt class="FILENAME">/etc/rc.conf</tt>:</p>
+
+<pre class="PROGRAMLISTING">
+named_enable="YES"
+</pre>
+
+<p>There are obviously many configuration options for <tt
+class="FILENAME">/etc/namedb/named.conf</tt> that are beyond the scope of this document.
+However, if you are interested in the startup options for <b
+class="APPLICATION">named</b> on FreeBSD, take a look at the <tt
+class="LITERAL">named_<tt class="REPLACEABLE"><i>*</i></tt></tt> flags in <tt
+class="FILENAME">/etc/defaults/rc.conf</tt> and consult the <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=rc.conf&amp;sektion=5"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">rc.conf</span>(5)</span></a> manual
+page. The <a href="configtuning-rcd.html">Section 11.7</a> section is also a good
+read.</p>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN36390" name="AEN36390">27.6.6 Configuration Files</a></h2>
+
+<p>Configuration files for <b class="APPLICATION">named</b> currently reside in <tt
+class="FILENAME">/etc/namedb</tt> directory and will need modification before use, unless
+all that is needed is a simple resolver. This is where most of the configuration will be
+performed.</p>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="AEN36398" name="AEN36398">27.6.6.1 Using <tt
+class="COMMAND">make-localhost</tt></a></h3>
+
+<p>To configure a master zone for the localhost visit the <tt
+class="FILENAME">/etc/namedb</tt> directory and run the following command:</p>
+
+<pre class="SCREEN">
+<samp class="PROMPT">#</samp> <kbd class="USERINPUT">sh make-localhost</kbd>
+</pre>
+
+<p>If all went well, a new file should exist in the <tt class="FILENAME">master</tt>
+subdirectory. The filenames should be <tt class="FILENAME">localhost.rev</tt> for the
+local domain name and <tt class="FILENAME">localhost-v6.rev</tt> for <acronym
+class="ACRONYM">IPv6</acronym> configurations. As the default configuration file,
+required information will be present in the <tt class="FILENAME">named.conf</tt>
+file.</p>
+</div>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="AEN36412" name="AEN36412">27.6.6.2 <tt
+class="FILENAME">/etc/namedb/named.conf</tt></a></h3>
+
+<pre class="PROGRAMLISTING">
+// $FreeBSD$
+//
+// Refer to the named.conf(5) and named(8) man pages, and the documentation
+// in /usr/share/doc/bind9 for more details.
+//
+// If you are going to set up an authoritative server, make sure you
+// understand the hairy details of how DNS works.  Even with
+// simple mistakes, you can break connectivity for affected parties,
+// or cause huge amounts of useless Internet traffic.
+
+options {
+    directory   "/etc/namedb";
+    pid-file    "/var/run/named/pid";
+    dump-file   "/var/dump/named_dump.db";
+    statistics-file "/var/stats/named.stats";
+
+// If named is being used only as a local resolver, this is a safe default.
+// For named to be accessible to the network, comment this option, specify
+// the proper IP address, or delete this option.
+    listen-on   { 127.0.0.1; };
+
+// If you have IPv6 enabled on this system, uncomment this option for
+// use as a local resolver.  To give access to the network, specify
+// an IPv6 address, or the keyword "any".
+//  listen-on-v6    { ::1; };
+
+// In addition to the "forwarders" clause, you can force your name
+// server to never initiate queries of its own, but always ask its
+// forwarders only, by enabling the following line:
+//
+//  forward only;
+
+// If you've got a DNS server around at your upstream provider, enter
+// its IP address here, and enable the line below.  This will make you
+// benefit from its cache, thus reduce overall DNS traffic in the Internet.
+/*
+    forwarders {
+        127.0.0.1;
+    };
+*/
+</pre>
+
+<p>Just as the comment says, to benefit from an uplink's cache, <tt
+class="LITERAL">forwarders</tt> can be enabled here. Under normal circumstances, a name
+server will recursively query the Internet looking at certain name servers until it finds
+the answer it is looking for. Having this enabled will have it query the uplink's name
+server (or name server provided) first, taking advantage of its cache. If the uplink name
+server in question is a heavily trafficked, fast name server, enabling this may be
+worthwhile.</p>
+
+<div class="WARNING">
+<blockquote class="WARNING">
+<p><b>Warning:</b> <tt class="HOSTID">127.0.0.1</tt> will <span class="emphasis"><b
+class="EMPHASIS">not</b></span> work here. Change this <acronym
+class="ACRONYM">IP</acronym> address to a name server at your uplink.</p>
+</blockquote>
+</div>
+
+<pre class="PROGRAMLISTING">
+   /*
+     * If there is a firewall between you and nameservers you want
+     * to talk to, you might need to uncomment the query-source
+     * directive below.  Previous versions of BIND always asked
+     * questions using port 53, but BIND versions 8 and later
+     * use a pseudo-random unprivileged UDP port by default.
+     */
+     // query-source address * port 53;
+};
+
+// If you enable a local name server, don't forget to enter 127.0.0.1
+// first in your /etc/resolv.conf so this server will be queried.
+// Also, make sure to enable it in /etc/rc.conf.
+
+zone "." {
+    type hint;
+    file "named.root";
+};
+
+zone "0.0.127.IN-ADDR.ARPA" {
+    type master;
+    file "master/localhost.rev";
+};
+
+// RFC 3152
+zone "1.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.IP6.ARPA" {
+    type master;
+    file "master/localhost-v6.rev";
+};
+
+// NB: Do not use the IP addresses below, they are faked, and only
+// serve demonstration/documentation purposes!
+//
+// Example slave zone config entries.  It can be convenient to become
+// a slave at least for the zone your own domain is in.  Ask
+// your network administrator for the IP address of the responsible
+// primary.
+//
+// Never forget to include the reverse lookup (IN-ADDR.ARPA) zone!
+// (This is named after the first bytes of the IP address, in reverse
+// order, with ".IN-ADDR.ARPA" appended.)
+//
+// Before starting to set up a primary zone, make sure you fully
+// understand how DNS and BIND works.  There are sometimes
+// non-obvious pitfalls.  Setting up a slave zone is simpler.
+//
+// NB: Don't blindly enable the examples below. :-)  Use actual names
+// and addresses instead.
+
+/* An example master zone
+zone "example.net" {
+    type master;
+    file "master/example.net";
+};
+*/
+
+/* An example dynamic zone
+key "exampleorgkey" {
+    algorithm hmac-md5;
+    secret "sf87HJqjkqh8ac87a02lla==";
+};
+zone "example.org" {
+    type master;
+    allow-update {
+        key "exampleorgkey";
+    };
+    file "dynamic/example.org";
+};
+*/
+
+/* Examples of forward and reverse slave zones
+zone "example.com" {
+    type slave;
+    file "slave/example.com";
+    masters {
+        192.168.1.1;
+    };
+};
+zone "1.168.192.in-addr.arpa" {
+    type slave;
+    file "slave/1.168.192.in-addr.arpa";
+    masters {
+        192.168.1.1;
+    };
+};
+*/
+</pre>
+
+<p>In <tt class="FILENAME">named.conf</tt>, these are examples of slave entries for a
+forward and reverse zone.</p>
+
+<p>For each new zone served, a new zone entry must be added to <tt
+class="FILENAME">named.conf</tt>.</p>
+
+<p>For example, the simplest zone entry for <tt class="HOSTID">example.org</tt> can look
+like:</p>
+
+<pre class="PROGRAMLISTING">
+zone "example.org" {
+    type master;
+    file "master/example.org";
+};
+</pre>
+
+<p>The zone is a master, as indicated by the <code class="OPTION">type</code> statement,
+holding its zone information in <tt class="FILENAME">/etc/namedb/master/example.org</tt>
+indicated by the <code class="OPTION">file</code> statement.</p>
+
+<pre class="PROGRAMLISTING">
+zone "example.org" {
+    type slave;
+    file "slave/example.org";
+};
+</pre>
+
+<p>In the slave case, the zone information is transferred from the master name server for
+the particular zone, and saved in the file specified. If and when the master server dies
+or is unreachable, the slave name server will have the transferred zone information and
+will be able to serve it.</p>
+</div>
+
+<div class="SECT3">
+<h3 class="SECT3"><a id="AEN36437" name="AEN36437">27.6.6.3 Zone Files</a></h3>
+
+<p>An example master zone file for <tt class="HOSTID">example.org</tt> (existing within
+<tt class="FILENAME">/etc/namedb/master/example.org</tt>) is as follows:</p>
+
+<pre class="PROGRAMLISTING">
+$TTL 3600        ; 1 hour
+example.org.    IN      SOA      ns1.example.org. admin.example.org. (
+                                2006051501      ; Serial
+                                10800           ; Refresh
+                                3600            ; Retry
+                                604800          ; Expire
+                                86400           ; Minimum TTL
+                        )
+
+; DNS Servers
+                IN      NS      ns1.example.org.
+                IN      NS      ns2.example.org.
+
+; MX Records
+                IN      MX 10   mx.example.org.
+                IN      MX 20   mail.example.org.
+
+                IN      A       192.168.1.1
+
+; Machine Names
+localhost       IN      A       127.0.0.1
+ns1             IN      A       192.168.1.2
+ns2             IN      A       192.168.1.3
+mx              IN      A       192.168.1.4
+mail            IN      A       192.168.1.5
+
+; Aliases
+www             IN      CNAME   @
+</pre>
+
+<p>Note that every hostname ending in a “.” is an exact hostname, whereas everything
+without a trailing “.” is referenced to the origin. For example, <tt
+class="LITERAL">www</tt> is translated into <tt class="LITERAL">www.<tt
+class="REPLACEABLE"><i>origin</i></tt></tt>. In our fictitious zone file, our origin is
+<tt class="HOSTID">example.org.</tt>, so <tt class="LITERAL">www</tt> would translate to
+<tt class="HOSTID">www.example.org.</tt></p>
+
+<p>The format of a zone file follows:</p>
+
+<pre class="PROGRAMLISTING">
+recordname      IN recordtype   value
+</pre>
+
+<p>The most commonly used DNS records:</p>
+
+<div class="VARIABLELIST">
+<dl>
+<dt>SOA</dt>
+
+<dd>
+<p>start of zone authority</p>
+</dd>
+
+<dt>NS</dt>
+
+<dd>
+<p>an authoritative name server</p>
+</dd>
+
+<dt>A</dt>
+
+<dd>
+<p>a host address</p>
+</dd>
+
+<dt>CNAME</dt>
+
+<dd>
+<p>the canonical name for an alias</p>
+</dd>
+
+<dt>MX</dt>
+
+<dd>
+<p>mail exchanger</p>
+</dd>
+
+<dt>PTR</dt>
+
+<dd>
+<p>a domain name pointer (used in reverse DNS)</p>
+</dd>
+</dl>
+</div>
+
+<pre class="PROGRAMLISTING">
+example.org. IN SOA ns1.example.org. admin.example.org. (
+                        2006051501      ; Serial
+                        10800           ; Refresh after 3 hours
+                        3600            ; Retry after 1 hour
+                        604800          ; Expire after 1 week
+                        86400 )         ; Minimum TTL of 1 day
+</pre>
+
+<div class="VARIABLELIST">
+<dl>
+<dt><tt class="HOSTID">example.org.</tt></dt>
+
+<dd>
+<p>the domain name, also the origin for this zone file.</p>
+</dd>
+
+<dt><tt class="HOSTID">ns1.example.org.</tt></dt>
+
+<dd>
+<p>the primary/authoritative name server for this zone.</p>
+</dd>
+
+<dt><tt class="LITERAL">admin.example.org.</tt></dt>
+
+<dd>
+<p>the responsible person for this zone, email address with “@” replaced. (<code
+class="EMAIL">&#60;admin@example.org&#62;</code> becomes <tt
+class="LITERAL">admin.example.org</tt>)</p>
+</dd>
+
+<dt><tt class="LITERAL">2006051501</tt></dt>
+
+<dd>
+<p>the serial number of the file. This must be incremented each time the zone file is
+modified. Nowadays, many admins prefer a <tt class="LITERAL">yyyymmddrr</tt> format for
+the serial number. <tt class="LITERAL">2006051501</tt> would mean last modified
+05/15/2006, the latter <tt class="LITERAL">01</tt> being the first time the zone file has
+been modified this day. The serial number is important as it alerts slave name servers
+for a zone when it is updated.</p>
+</dd>
+</dl>
+</div>
+
+<pre class="PROGRAMLISTING">
+       IN NS           ns1.example.org.
+</pre>
+
+<p>This is an NS entry. Every name server that is going to reply authoritatively for the
+zone must have one of these entries.</p>
+
+<pre class="PROGRAMLISTING">
+localhost       IN      A       127.0.0.1
+ns1             IN      A       192.168.1.2
+ns2             IN      A       192.168.1.3
+mx              IN      A       192.168.1.4
+mail            IN      A       192.168.1.5
+</pre>
+
+<p>The A record indicates machine names. As seen above, <tt
+class="HOSTID">ns1.example.org</tt> would resolve to <tt
+class="HOSTID">192.168.1.2</tt>.</p>
+
+<pre class="PROGRAMLISTING">
+                IN      A       192.168.1.1
+</pre>
+
+<p>This line assigns IP address <tt class="HOSTID">192.168.1.1</tt> to the current
+origin, in this case <tt class="HOSTID">example.org</tt>.</p>
+
+<pre class="PROGRAMLISTING">
+www             IN CNAME        @
+</pre>
+
+<p>The canonical name record is usually used for giving aliases to a machine. In the
+example, <tt class="HOSTID">www</tt> is aliased to the “master” machine which name
+equals to domain name <tt class="HOSTID">example.org</tt> (<tt
+class="HOSTID">192.168.1.1</tt>). CNAMEs can be used to provide alias hostnames, or round
+robin one hostname among multiple machines.</p>
+
+<pre class="PROGRAMLISTING">
+               IN MX   10      mail.example.org.
+</pre>
+
+<p>The MX record indicates which mail servers are responsible for handling incoming mail
+for the zone. <tt class="HOSTID">mail.example.org</tt> is the hostname of the mail
+server, and 10 being the priority of that mail server.</p>
+
+<p>One can have several mail servers, with priorities of 10, 20 and so on. A mail server
+attempting to deliver to <tt class="HOSTID">example.org</tt> would first try the highest
+priority MX (the record with the lowest priority number), then the second highest, etc,
+until the mail can be properly delivered.</p>
+
+<p>For in-addr.arpa zone files (reverse DNS), the same format is used, except with PTR
+entries instead of A or CNAME.</p>
+
+<pre class="PROGRAMLISTING">
+$TTL 3600
+
+1.168.192.in-addr.arpa. IN SOA ns1.example.org. admin.example.org. (
+                        2006051501      ; Serial
+                        10800           ; Refresh
+                        3600            ; Retry
+                        604800          ; Expire
+                        3600 )          ; Minimum
+
+        IN      NS      ns1.example.org.
+        IN      NS      ns2.example.org.
+
+1       IN      PTR     example.org.
+2       IN      PTR     ns1.example.org.
+3       IN      PTR     ns2.example.org.
+4       IN      PTR     mx.example.org.
+5       IN      PTR     mail.example.org.
+</pre>
+
+<p>This file gives the proper IP address to hostname mappings of our above fictitious
+domain.</p>
+</div>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN36540" name="AEN36540">27.6.7 Caching Name Server</a></h2>
+
+<p>A caching name server is a name server that is not authoritative for any zones. It
+simply asks queries of its own, and remembers them for later use. To set one up, just
+configure the name server as usual, omitting any inclusions of zones.</p>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN36546" name="AEN36546">27.6.8 Security</a></h2>
+
+<p>Although BIND is the most common implementation of DNS, there is always the issue of
+security. Possible and exploitable security holes are sometimes found.</p>
+
+<p>While FreeBSD automatically drops <b class="APPLICATION">named</b> into a <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=chroot&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">chroot</span>(8)</span></a> environment;
+there are several other security mechanisms in place which could help to lure off
+possible <acronym class="ACRONYM">DNS</acronym> service attacks.</p>
+
+<p>It is always good idea to read <a href="http://www.cert.org/" target="_top">CERT</a>'s
+security advisories and to subscribe to the <a
+href="http://lists.FreeBSD.org/mailman/listinfo/freebsd-security-notifications"
+target="_top">FreeBSD security notifications 郵遞論壇</a> to stay up to date with the
+current Internet and FreeBSD security issues.</p>
+
+<div class="TIP">
+<blockquote class="TIP">
+<p><b>Tip:</b> If a problem arises, keeping sources up to date and having a fresh build
+of <b class="APPLICATION">named</b> would not hurt.</p>
+</blockquote>
+</div>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN36561" name="AEN36561">27.6.9 Further Reading</a></h2>
+
+<p>BIND/<b class="APPLICATION">named</b> manual pages: <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=rndc&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">rndc</span>(8)</span></a> <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=named&amp;sektion=8"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">named</span>(8)</span></a> <a
+href="http://www.FreeBSD.org/cgi/man.cgi?query=named.conf&amp;sektion=5"><span
+class="CITEREFENTRY"><span class="REFENTRYTITLE">named.conf</span>(5)</span></a></p>
+
+<ul>
+<li>
+<p><a href="http://www.isc.org/products/BIND/" target="_top">Official ISC BIND
+Page</a></p>
+</li>
+
+<li>
+<p><a href="http://www.isc.org/sw/guild/bf/" target="_top">Official ISC BIND
+Forum</a></p>
+</li>
+
+<li>
+<p><a href="http://www.nominum.com/getOpenSourceResource.php?id=6" target="_top">BIND
+FAQ</a></p>
+</li>
+
+<li>
+<p><a href="http://www.oreilly.com/catalog/dns5/" target="_top">O'Reilly DNS and BIND 5th
+Edition</a></p>
+</li>
+
+<li>
+<p><a href="ftp://ftp.isi.edu/in-notes/rfc1034.txt" target="_top">RFC1034 - Domain Names
+- Concepts and Facilities</a></p>
+</li>
+
+<li>
+<p><a href="ftp://ftp.isi.edu/in-notes/rfc1035.txt" target="_top">RFC1035 - Domain Names
+- Implementation and Specification</a></p>
+</li>
+</ul>
+</div>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="network-dhcp.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="network-apache.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">Automatic Network Configuration (DHCP)</td>
+<td width="34%" align="center" valign="top"><a href="network-servers.html"
+accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">Apache HTTP Server</td>
+</tr>
+</table>
+</div>
+
+<p align="center"><small>本文及其他文件，可由此下載：<a
+href="ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/">ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/</a>。</small></p>
+
+<p align="center"><small>若有 FreeBSD 方面疑問，請先閱讀 <a
+href="http://www.FreeBSD.org/docs.html">FreeBSD 相關文件</a>，如不能解決的話，再洽詢
+&#60;<a href="mailto:questions@FreeBSD.org">questions@FreeBSD.org</a>&#62;。<br />
+關於本文件的問題，請洽詢 &#60;<a
+href="mailto:doc@FreeBSD.org">doc@FreeBSD.org</a>&#62;。</small></p>
+</body>
+</html>
+

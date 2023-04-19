@@ -1,0 +1,158 @@
+
+
+<!-- Vignette StoryServer 4 Sat Mar 11 15:43:24 2000 --> 
+<style type=text/css>
+<!--
+p,div {font-size:12pt; line-height:14pt; font-family:宋體;}
+.p1{font-size:12pt;font-family:宋體;}
+.p2{font-size:12pt;font-family:宋體;line-height:14pt;}
+.p3{font-size:14.8px;font-family:宋體;}
+.p4{font-size:14.8px;font-family:宋體;line-height:14pt;}
+.p5{font-size:1pt}
+a:hover{color:red;}
+a.t1:visited{color:red;}
+-->
+</style>
+<title>FreeBSD使用大全</title></head>
+
+<body bgcolor="#FFFFFF" text="#000000" link="#383098" vlink="#336699" alink="#FF0000" topmargin="0">
+<!-- Vignette StoryServer 4 Thu Mar 23 10:01:54 2000 --> <!-- Vignette StoryServer 4 Thu Mar 23 15:34:35 2000 --> 
+
+<!--開始：新聞內容-->
+<TABLE WIDTH=750 BORDER=0 CELLSPACING=0 CELLPADDING=0>
+
+<tr valign=top>
+
+
+
+<TD  valign=top>
+<CENTER><FONT COLOR=#000066 size=5><B>FreeBSD連載(38)：配置緩衝或轉發方式的named</B><br></FONT></CENTER>
+
+<HR  ALIGN="center" SIZE=1>
+<CENTER><FONT FACE="Arial" SIZE=2> 1999年12月10日 11:40 </FONT><FONT COLOR="#990000" SIZE=2>王波</FONT></CENTER><p>
+
+<h1 align=center>配置緩衝或轉發方式的named</h1>
+
+<p>　　在Internet中主要使用名字進行連接，因此網路中的DNS查詢會十分頻繁。很多情況下，會有大量且重復
+的DNS查詢。尤其在使用撥號連接的條件下，由於名字伺服器位於ISP端，即使是曾經查詢過的名字，其信息仍然保存在
+線路的另一端的名字伺服器的緩衝區內，重復的DNS查詢將占據寶貴的線路帶寬。並且DNS查詢還往往使得網路連接軟體
+不能正確獲得超時信息，不能適時斷開連接以節省電話連接時間。</p>
+
+<p>　　因此，最好的辦法是將查詢結果保存在本地電腦上，以避免重復查詢造成的無謂的網路流量。雖然很多TCP/IP
+客戶機能夠在本機內保存一個名字解析緩衝區，但這個緩衝區相對來講太小了，起不到很有效的作用，然而如果要將這個緩
+沖區設置的較大，又不能及時刷新名字解析數據。要想很好的緩衝DNS數據，最好的緩衝區還是DNS伺服器本身，因為DNS
+的實現方式就是一種經常刷新的緩衝方式，並且named可以根據不同zone的不同設置，來實現數據刷新。</p>
+
+<p>　　因此，最簡單的辦法就是設置一個具備緩衝能力的名字伺服器，它將能夠用做名字解析的緩衝，這就要需要設置名字
+伺服器的過程。
+</p>
+
+<ul>
+<P><LI>在/etc/resolv.conf中，將127.0.0.1作為第一個可選伺服器，其他DNS伺服器作為備份，使得名字查詢通過本地的名字伺服器進行，以利用它的緩衝機制﹔</LI></P>
+<P><LI>在/etc/rc.conf中，將named_enable設置為”YES”，允許啟動named，rc.conf中有關named的其他選項不需改變﹔</LI></P>
+<P><LI>改變到/etc/namedb目錄下，運行make-localhost程序，這將產生針對本電腦的解析數據localhost.rev檔案﹔</LI></P>
+<P><LI>修改/etc/namedb/named.conf檔案，使其符合一個轉發系統的要求。</LI></P>
+<P><LI>啟動名字伺服器，可以使用root身份直接執行named守護進程，並在rc.conf中更改named_enable的設置值。</LI></P>
+</ul>
+
+<ul><h2><P><LI>設置named.conf</LI></P></h2></ul>
+
+<p>　　要成功配置named，最重要的一步就是改變配置檔案named.conf，一個用於轉發的設置檔案應為：</p>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre>options {
+        directory "/var/namedb";
+        datasize 20M; 
+        forward only;
+        forwarders {
+            202.102.224.68
+        };
+};
+zone "." {
+        type hint;
+        file "named.root";
+};
+zone "0.0.127.in-addr.arpa" {
+        type master;
+        file "localhost.rev";
+};</td></pre></tr></table>
+
+<p>　　這個設置檔案中去除了任何注釋項，named中使用與C++相同的注釋方式，即用兩個斜線來表示一行注釋，而
+設置語句也類似C的語法。</p>
+
+<p>　　第一個語句options用於設置named的參數，directory指明named的工作目錄為/etc
+/namedb，datasize用於設置緩衝區的大小，forward only和forwarders用於指明這
+個伺服器只是一個轉發伺服器，並設置轉發的名字伺服器的地址。這兩個轉發選項不是必須設置的，不進行設置時named
+就能很好的適應解析和緩衝任務。這樣名字伺服器初始時就從根名字伺服器中獲得信息，這些信息將保存在named的緩衝
+區內，此後就可以查詢緩衝區內的相關伺服器來獲得進一步的名字解析。</p>
+
+<p>　　第二個語句用於設置根zone，這用於設置Internet上的根名字伺服器，一切本地無法解析的數據將發送
+給那些根名字伺服器進行解析，設置了工作目錄下的named.root檔案中記錄了這些根名字伺服器的地址，記錄根名
+字伺服器的檔案名字也可能為root.hints。第三句定義了對127.0.0.0的反向查詢的數據，0.0.12
+7.in-addr.arpa為一個反向解析zone，其IP地址也是反序排列的，並且使用in-addr.arpa
+後綴，而對應的反向解析數據在localhost.rev檔案中定義。</p>
+
+<p>　　BIND的目前版本為8，之前的版本為4.9.x，它們使用named.boot作為named的配置檔案。
+大多數Unix版本，包括大多數商業Unix在內，還沒有更新他們的名字伺服器到目前的BIND 8，仍然運行老版本
+的named。但必須注意named.boot檔案的格式與named.conf不同，不能混用。BIND 8提供了
+很多優秀的特性，因此最好立即升級到新版本。</p>
+
+<p>　　named.root檔案給出了Internet上的多個根名字伺服器，用於初始化named的緩衝區。借助
+這些名字伺服器的幫助，一台名字伺服器能對整個Internet進行查詢。一般不需要改變這些檔案的內容，但是如果要
+建設一個內部網，不與Internet連接，就不需要named.root中的這些根名字伺服器的地址，而要更改為自
+己網路內的根名字伺服器的地址。事實上，沒有任何內部網路能和Internet相比擬，需要使用多台根名字伺服器來維
+護其域名解析系統，直接設置一台或幾台名字伺服器，並指定客戶電腦使用這些名字伺服器就滿足要求了。
+</p>
+
+<ul><h2><P><LI>zone數據檔案的格式</LI></P></h2></ul>
+
+<table bgcolor=cccccc width=100%><tr><td>
+<pre><font size=2>@&#9;IN&#9;SOA&#9;freebsd.example.org.cn. root.freebsd.example.org.cn.  (
+&#9;&#9;&#9;&#9;1998012314&#9;; Serial
+&#9;&#9;&#9;&#9;3600&#9;; Refresh
+&#9;&#9;&#9;&#9;900&#9;; Retry
+&#9;&#9;&#9;&#9;3600000&#9;; Expire
+&#9;&#9;&#9;&#9;3600 )&#9;; Minimum
+&#9;IN&#9;NS&#9;freebsd.example.org.cn.
+1&#9;IN&#9;PTR&#9;localhost.</font></td></pre></tr></table>
+
+
+<p>　　這是根據電腦的名字和域名產生的localhost.rev檔案，這個檔案定義了對127.0.0.0這個
+反向zone的反向名字解析數據，可以用於從IP地址查詢主機的名字。</p>
+
+<p>　　第一個設置定義了一個SOA記錄，這個類型的記錄定義了包含一個zone的開始，並用於設置zone中數據刷
+新時間等參數。在這個記錄中，@代表一個zone，由於這個設置檔案中沒有設置它的值，那麼它就是named.con
+f中的定義語句中zone的值，這裡就為0.0.127.in-addr.arpa。空白字符分隔之後為IN，這是用
+於表示定義的關鍵字，SOA表示這一行的類型為SOA記錄，接下來的freebsd.example.org.cn.
+為這台主機的全名，注意，這裡以 ”.” 結尾，如果在名字解析配置檔案中不以點結尾，named將自動附加上目前
+zone的值﹔此後給出了一個聯繫用的email地址，這裡為root@freebsd.expampleorg.or
+g.cn，但是由於@在設置檔案中有特殊含義，因此使用點代替﹔</p>
+
+<p>　　再後面就是SOA記錄的參數，這些參數使用了括號，並分在幾行分別設置，這主要是為了使得設置更為清楚，將它
+們放在同一行內也可以。SOA記錄的參數有序列號，用於標識SOA記錄數據 ── 其他名字伺服器使用這個數據與自己
+緩衝區內的數據對比，來判斷這個zone的數據是否更新，否則就沒有必要傳輸全部zone的數據。因此可以使用日期來
+表示不同的序列號，以使得更改過SOA記錄之後，其他名字伺服器能即使刷新數據﹔刷新時間 ── 用於告訴其他名字服
+務器何時來檢查zone中的數據是否更新，這裡配置為1小時（3600秒），這個時間間隔對於不經常改變的伺服器來講
+太小了，應該配置為一天或更大﹔第三個參數為連接的嘗試次數﹔然後是過期時間，表示一旦某個zone的正式名字伺服器
+不能提供其服務，其他名字伺服器在其緩衝區中保存多久該zone的緩衝數據﹔最後一個參數指出其他名字伺服器緩衝這個
+檔案內容的最小時間間隔，在這個間隔內不應該刷新該zone的名字解析數據。</p>
+
+<p>　　當括號結束之後，這個SOA設置項就結束了。而第二項設置定義了一個名字伺服器記錄，這個設置直接用空格和IN
+開頭，表示這一項仍然使用上一項中的設置，這裡就是@。NS代表這一項定義是名字伺服器類型，最後給出了名字伺服器
+的名字freebsd.example.org.cn.，表示這個zone的名字解析數據位於這個名字伺服器中。</p>
+
+<p>　　第三項定義了一個反向查詢指針記錄PTR，第一列為1，由於沒有使用點結尾，因此其全形式應為127.0.0.1
+，第三列PTR表示這個記錄為PTR記錄，是給定IP地址返回名字的查詢形式，最後一列即是127.0.0.1的
+名字localhost。</p>
+
+
+
+<BR>
+
+</TD>
+</TR></TABLE>
+
+
+
+</BODY>
+</HTML>

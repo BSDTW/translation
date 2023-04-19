@@ -1,0 +1,226 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org" />
+<title>Vinum Objects</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.79" />
+<link rel="HOME" title="FreeBSD 使用手冊" href="index.html" />
+<link rel="UP" title="The Vinum Volume Manager" href="vinum-vinum.html" />
+<link rel="PREVIOUS" title="Data Integrity" href="vinum-data-integrity.html" />
+<link rel="NEXT" title="Some Examples" href="vinum-examples.html" />
+<link rel="STYLESHEET" type="text/css" href="docbook.css" />
+<meta http-equiv="Content-Type" content="text/html; charset=Big5" />
+</head>
+<body class="SECT1" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084"
+alink="#0000FF">
+<div class="NAVHEADER">
+<table summary="Header navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<th colspan="3" align="center">FreeBSD 使用手冊</th>
+</tr>
+
+<tr>
+<td width="10%" align="left" valign="bottom"><a href="vinum-data-integrity.html"
+accesskey="P">Prev</a></td>
+<td width="80%" align="center" valign="bottom">Chapter 19 The Vinum Volume Manager</td>
+<td width="10%" align="right" valign="bottom"><a href="vinum-examples.html"
+accesskey="N">Next</a></td>
+</tr>
+</table>
+
+<hr align="LEFT" width="100%" />
+</div>
+
+<div class="SECT1">
+<h1 class="SECT1"><a id="VINUM-OBJECTS" name="VINUM-OBJECTS">19.5 Vinum Objects</a></h1>
+
+<p>In order to address these problems, Vinum implements a four-level hierarchy of
+objects:</p>
+
+<ul>
+<li>
+<p>The most visible object is the virtual disk, called a <span class="emphasis"><i
+class="EMPHASIS">volume</i></span>. Volumes have essentially the same properties as a
+<span class="TRADEMARK">UNIX</span>&reg; disk drive, though there are some minor
+differences. They have no size limitations.</p>
+</li>
+
+<li>
+<p>Volumes are composed of <span class="emphasis"><i class="EMPHASIS">plexes</i></span>,
+each of which represent the total address space of a volume. This level in the hierarchy
+thus provides redundancy. Think of plexes as individual disks in a mirrored array, each
+containing the same data.</p>
+</li>
+
+<li>
+<p>Since Vinum exists within the <span class="TRADEMARK">UNIX</span> disk storage
+framework, it would be possible to use <span class="TRADEMARK">UNIX</span> partitions as
+the building block for multi-disk plexes, but in fact this turns out to be too
+inflexible: <span class="TRADEMARK">UNIX</span> disks can have only a limited number of
+partitions. Instead, Vinum subdivides a single <span class="TRADEMARK">UNIX</span>
+partition (the <span class="emphasis"><i class="EMPHASIS">drive</i></span>) into
+contiguous areas called <span class="emphasis"><i class="EMPHASIS">subdisks</i></span>,
+which it uses as building blocks for plexes.</p>
+</li>
+
+<li>
+<p>Subdisks reside on Vinum <span class="emphasis"><i class="EMPHASIS">drives</i></span>,
+currently <span class="TRADEMARK">UNIX</span> partitions. Vinum drives can contain any
+number of subdisks. With the exception of a small area at the beginning of the drive,
+which is used for storing configuration and state information, the entire drive is
+available for data storage.</p>
+</li>
+</ul>
+
+<p>The following sections describe the way these objects provide the functionality
+required of Vinum.</p>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN27039" name="AEN27039">19.5.1 Volume Size
+Considerations</a></h2>
+
+<p>Plexes can include multiple subdisks spread over all drives in the Vinum
+configuration. As a result, the size of an individual drive does not limit the size of a
+plex, and thus of a volume.</p>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN27042" name="AEN27042">19.5.2 Redundant Data Storage</a></h2>
+
+<p>Vinum implements mirroring by attaching multiple plexes to a volume. Each plex is a
+representation of the data in a volume. A volume may contain between one and eight
+plexes.</p>
+
+<p>Although a plex represents the complete data of a volume, it is possible for parts of
+the representation to be physically missing, either by design (by not defining a subdisk
+for parts of the plex) or by accident (as a result of the failure of a drive). As long as
+at least one plex can provide the data for the complete address range of the volume, the
+volume is fully functional.</p>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN27046" name="AEN27046">19.5.3 Performance Issues</a></h2>
+
+<p>Vinum implements both concatenation and striping at the plex level:</p>
+
+<ul>
+<li>
+<p>A <span class="emphasis"><i class="EMPHASIS">concatenated plex</i></span> uses the
+address space of each subdisk in turn.</p>
+</li>
+
+<li>
+<p>A <span class="emphasis"><i class="EMPHASIS">striped plex</i></span> stripes the data
+across each subdisk. The subdisks must all have the same size, and there must be at least
+two subdisks in order to distinguish it from a concatenated plex.</p>
+</li>
+</ul>
+</div>
+
+<div class="SECT2">
+<h2 class="SECT2"><a id="AEN27056" name="AEN27056">19.5.4 Which Plex
+Organization?</a></h2>
+
+<p>The version of Vinum supplied with FreeBSD 6.0 implements two kinds of plex:</p>
+
+<ul>
+<li>
+<p>Concatenated plexes are the most flexible: they can contain any number of subdisks,
+and the subdisks may be of different length. The plex may be extended by adding
+additional subdisks. They require less <acronym class="ACRONYM">CPU</acronym> time than
+striped plexes, though the difference in <acronym class="ACRONYM">CPU</acronym> overhead
+is not measurable. On the other hand, they are most susceptible to hot spots, where one
+disk is very active and others are idle.</p>
+</li>
+
+<li>
+<p>The greatest advantage of striped (<acronym class="ACRONYM">RAID-0</acronym>) plexes
+is that they reduce hot spots: by choosing an optimum sized stripe (about 256&nbsp;kB),
+you can even out the load on the component drives. The disadvantages of this approach are
+(fractionally) more complex code and restrictions on subdisks: they must be all the same
+size, and extending a plex by adding new subdisks is so complicated that Vinum currently
+does not implement it. Vinum imposes an additional, trivial restriction: a striped plex
+must have at least two subdisks, since otherwise it is indistinguishable from a
+concatenated plex.</p>
+</li>
+</ul>
+
+<p><a href="vinum-objects.html#VINUM-COMPARISON">Table 19-1</a> summarizes the advantages
+and disadvantages of each plex organization.</p>
+
+<div class="TABLE"><a id="VINUM-COMPARISON" name="VINUM-COMPARISON"></a>
+<p><b>Table 19-1. Vinum Plex Organizations</b></p>
+
+<table border="0" frame="void" class="CALSTABLE">
+<col />
+<col />
+<col />
+<col />
+<col />
+<thead>
+<tr>
+<th>Plex type</th>
+<th>Minimum subdisks</th>
+<th>Can add subdisks</th>
+<th>Must be equal size</th>
+<th>Application</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>concatenated</td>
+<td>1</td>
+<td>yes</td>
+<td>no</td>
+<td>Large data storage with maximum placement flexibility and moderate performance</td>
+</tr>
+
+<tr>
+<td>striped</td>
+<td>2</td>
+<td>no</td>
+<td>yes</td>
+<td>High performance in combination with highly concurrent access</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+
+<div class="NAVFOOTER">
+<hr align="LEFT" width="100%" />
+<table summary="Footer navigation table" width="100%" border="0" cellpadding="0"
+cellspacing="0">
+<tr>
+<td width="33%" align="left" valign="top"><a href="vinum-data-integrity.html"
+accesskey="P">Prev</a></td>
+<td width="34%" align="center" valign="top"><a href="index.html"
+accesskey="H">Home</a></td>
+<td width="33%" align="right" valign="top"><a href="vinum-examples.html"
+accesskey="N">Next</a></td>
+</tr>
+
+<tr>
+<td width="33%" align="left" valign="top">Data Integrity</td>
+<td width="34%" align="center" valign="top"><a href="vinum-vinum.html"
+accesskey="U">Up</a></td>
+<td width="33%" align="right" valign="top">Some Examples</td>
+</tr>
+</table>
+</div>
+
+<p align="center"><small>This, and other documents, can be downloaded from <a
+href="ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/">ftp://ftp.FreeBSD.org/pub/FreeBSD/doc/</a>.</small></p>
+
+<p align="center"><small>For questions about FreeBSD, read the <a
+href="http://www.FreeBSD.org/docs.html">documentation</a> before contacting &#60;<a
+href="mailto:questions@FreeBSD.org">questions@FreeBSD.org</a>&#62;.<br />
+For questions about this documentation, e-mail &#60;<a
+href="mailto:doc@FreeBSD.org">doc@FreeBSD.org</a>&#62;.</small></p>
+</body>
+</html>
+

@@ -1,0 +1,374 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<HTML
+><HEAD
+><TITLE
+>16. 掃瞄</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="網路管理語言 Perl 入門與實作"
+HREF="book1.html"><LINK
+REL="PREVIOUS"
+TITLE="15. 過濾求職信病毒"
+HREF="c1185.html"><LINK
+REL="NEXT"
+TITLE="17. 網域名稱系統"
+HREF="c1199.html"></HEAD
+><BODY
+CLASS="CHAPTER"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>網路管理語言 Perl 入門與實作: </TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="c1185.html"
+ACCESSKEY="P"
+>&#60;&#60;&#60; Previous</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="c1199.html"
+ACCESSKEY="N"
+>Next &#62;&#62;&#62;</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="CHAPTER"
+><H1
+><A
+NAME="CHG"
+></A
+>16. 掃瞄</H1
+><P
+>子網域掃瞄</P
+><P
+>Webscan.pm</P
+><P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+>package S3::Webscan;
+
+# $Id: chapG.sgml,v 1.1.1.1 2003/08/14 00:26:12 ols3 Exp $
+
+use 5.006;
+use strict;
+use warnings;
+use Carp qw(croak);
+require Exporter;
+
+our @ISA = qw(Exporter);
+
+use Socket;
+use Net::Ping;
+
+# Items to export into callers namespace by default. Note: do not export
+# names by default without a very good reason. Use EXPORT_OK instead.
+# Do not simply export all your public functions/methods/constants.
+
+# This allows declaration	use S3::Webscan ':all';
+# If you do not need this, moving things directly into @EXPORT or @EXPORT_OK
+# will save memory.
+our %EXPORT_TAGS = ( 'all' =&#62; [ qw(
+	
+) ] );
+
+our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } );
+
+our @EXPORT = qw(
+	
+);
+
+our $VERSION = '0.02';
+
+
+# Preloaded methods go here.
+
+
+sub new {
+	my $pkg = shift;
+	my $self = { p =&#62;  Net::Ping-&#62;new('icmp') };
+	bless($self, $pkg);
+	return $self;
+}
+
+
+sub pingit {
+	my ($self, $host, $second)=@_;
+	return $self-&#62;{p}-&#62;ping($host, $second);
+}
+
+
+sub printWebServer {
+
+	my ($selft, $host)=@_;
+
+	socket(FH, PF_INET, SOCK_STREAM, getprotobyname('tcp')) || croak("Socket failed: $!");
+	my $sin=sockaddr_in(80, inet_aton($host));
+	if (!connect(FH, $sin)) {
+		print "Unable to connect to $host.\n";
+		close(FH); return;
+	}
+
+	my $old_fh=select(FH);
+	$|=1;
+	select($old_fh);
+
+	print FH "GET / HTTP/1.0\n\n";
+
+	while (&#60;FH&#62;) {
+		if (/^Server: (.+)/) {
+			print "$host -\&#62; $1\n"; close(FH); return;
+		}
+	}
+	print "$host -&#62; unknow web server type!\n";
+}
+
+sub closeping {
+	my $self=shift;
+	$self-&#62;{p}-&#62;close();
+
+}
+
+sub usage {
+
+	print &#60;&#60;HERE;
+Usage: 
+-----------------------------------------------------------------
+chmod +x ols3webscan.pl 
+
+then
+
+./ols3webscan.pl IP
+
+OR
+
+./ols3webscan.pl net/mask
+-----------------------------------------------------------------
+ex1:
+./ols3webscan.pl 10.0.0.1
+
+ex2:
+./ols3webscan.pl 10.0.0.0/24    for 1C subnetwork
+./ols3webscan.pl 10.0.0.0/25    for 1/2C subnetwork
+./ols3webscan.pl 10.0.0.0/26    for 1/4C subnetwork
+
+note:
+./ols3webscan.pl 10.0.0.1/32 is same as ./ols3webscan.pl 10.0.0.1
+-----------------------------------------------------------------
+HERE
+
+	exit;
+}
+
+sub getnodes {
+	my ($self, $j)=@_;
+	if (!$j) { return 1; }
+	$j == 24 &#38;&#38; do { return 253; };
+	$j == 25 &#38;&#38; do { return 126; };
+	$j == 26 &#38;&#38; do { return 61;  };
+	$j == 27 &#38;&#38; do { return 29;  };
+	$j == 28 &#38;&#38; do { return 13;  };
+	$j == 29 &#38;&#38; do { return 5;   };
+	$j == 30 &#38;&#38; do { return 1;   };
+	$j == 32 &#38;&#38; do { return 1;   };
+	return 1;
+}
+
+
+1;
+__END__
+#
+
+=head1 NAME
+
+S3::Webscan - Perl extension for scaning web server in your network.
+
+=head1 SYNOPSIS
+
+  use S3::Webscan;
+  
+
+=head1 ABSTRACT
+
+  S3::Webscan.
+
+=head1 DESCRIPTION
+
+Perl extension for scaning web server in your network.
+
+=head2 EXPORT
+
+None by default.
+
+
+=head1 SEE ALSO
+
+http://teacher.mdjh.tnc.edu.tw/~ols3/
+
+=head1 AUTHOR
+
+OLS3 &#60;lt&#62;ols3@www.tnc.edu.tw&#60;gt&#62;
+
+=head1 COPYRIGHT AND LICENSE
+
+Copyright 2003 by OLS3
+
+This library is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself. 
+
+=cut&#13;</PRE
+></TD
+></TR
+></TABLE
+></P
+><P
+>ols3webscan.pl</P
+><P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+>#! /usr/bin/perl
+# $Id: chapG.sgml,v 1.1.1.1 2003/08/14 00:26:12 ols3 Exp $
+#
+# 目前只提供 scan C class，若要 scan B class，請自行修改。
+
+use S3::Webscan;
+use strict;
+
+my $ping_time_out=1;
+my $nethost=$ARGV[0];
+my $n = S3::Webscan-&#62;new();
+
+unless ($nethost) { $n-&#62;usage(); }
+
+my ($net, $mask)=split(/\//, $nethost);
+
+if ($net !~ /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/) { $n-&#62;usage(); }
+
+my $nodes=$n-&#62;getnodes($mask);
+
+my ($n1,$n2,$n3,$n4)=split(/\./, $net);
+
+for (my $i&#60;=0; $i&#60;$nodes; $i++) {
+	if ($n4 &#60; 1) { $n4=1; }
+	if ($n4 &#62; 253) { $n4=253; }
+	my $host="$n1.$n2.$n3.$n4";
+	unless ($n-&#62;pingit($host, $ping_time_out)) {
+		print "$host is not alive!\n";
+	} else {
+		$n-&#62;printWebServer($host);
+	}
+	if ($n4++==253) { last; }
+} 
+
+$n-&#62;closeping();</PRE
+></TD
+></TR
+></TABLE
+></P
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="c1185.html"
+ACCESSKEY="P"
+>&#60;&#60;&#60; Previous</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="book1.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="c1199.html"
+ACCESSKEY="N"
+>Next &#62;&#62;&#62;</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>15. 過濾求職信病毒</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>17. 網域名稱系統</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>
