@@ -2,7 +2,7 @@
 翻譯 FreeBSD 文件成繁體中文 (zh-TW) 相關資源。
 
 ## 翻譯規定
-1. 標點符號使用全形，空格使用半形。
+1. 標點符號使用全形，空格使用半形，除了原文、指令、程式碼等英文的文字維持原樣 (半形標點符號)。
 2. 英文單字兩邊需要空格，除非英文單字有跟標點符號相鄰，則靠近標點符號的那一邊無須空格，就像下面例句的句尾處。
 
     例句: 最新的 13-STABLE 和 13.1-RELEASE 正式發行版本在 the appropriate architecture and installation mode for 13.1-RELEASE。
@@ -24,3 +24,7 @@
 
 ## 貢獻
 如果您想為項目做出貢獻並使其變得更好，我們非常歡迎您的幫助。
+
+## 其他資源
+
+1. FreeBSD 使用手冊 (繁體中文) [Github](https://github.com/cwlin0416/freebsd-handbook)
